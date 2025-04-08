@@ -1,0 +1,3 @@
+﻿<Project>
+  <Import Project="../build/Cloud9.2.props" />
+</Project>

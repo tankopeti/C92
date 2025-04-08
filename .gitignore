@@ -1,0 +1,14 @@
+# .NET build outputs
+bin/
+obj/
+
+# Docker-specific
+*.log
+
+# Sensitive files
+cert.pfx
+appsettings.json  # If it contains secrets
+secrets.json
+
+# VS Code
+.vscode/

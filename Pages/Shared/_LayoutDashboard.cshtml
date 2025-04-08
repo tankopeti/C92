@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - Cloud9._2</title>
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/Cloud9._2.styles.css" asp-append-version="true" />
+</head>
+<body>
+    <header>
+        <nav class="navbar navbar-expand-lg navbar-dark fixed-top shadow-sm custom-navbar">
+            <div class="container-fluid">
+                <div class="d-flex w-100">
+                    <div class="navbar-brand padding-top-8">Cloud9.2</div>
+                    <div class="p-2 d-flex center-links">
+                        <a href="#" class="nav-link">CRM</a>
+                        <div class="dropdown">
+                            <button class="btn btn-secondary dropdown-toggle custom-btn" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                Logisztika
+                            </button>
+                            <ul class="dropdown-menu">
+                                <li><button class="dropdown-item" type="button">Action</button></li>
+                                <li><button class="dropdown-item" type="button">Another action</button></li>
+                                <li><button class="dropdown-item" type="button">Something else here</button></li>
+                            </ul>
+                        </div>
+                        <a href="#" class="nav-link">Iratkezelés</a>
+                    </div>
+                    <div class="p-2 ms-auto d-flex">
+                        <form asp-area="Identity" asp-page="/Account/Logout" asp-route-returnUrl="@Url.Page("/", new { area = "" })" method="post">
+                            <button type="submit" class="nav-link btn btn-link">Logout</button>
+                        </form>
+                        <a href="#" class="nav-link">Settings</a>
+                    </div>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <div class="left-sidebar">
+        <h3>Example Reports</h3>
+        <ul id="reportList">
+            <li><a href="#" data-report="SalesReport">Sales Report</a></li>
+            <li><a href="#" data-report="InventoryReport">Inventory Report</a></li>
+            <li><a href="#" data-report="CustomerReport">Customer Report</a></li>
+        </ul>
+    </div>
+
+    <div class="right-content">
+        <div class="main-content">
+            <h2 id="reportTitle">Select a Report</h2>
+            <div id="reportContent"></div>
+        </div>
+        <main role="main" class="pb-3">
+            @RenderBody()
+        </main>
+        <footer class="border-top footer text-muted">
+            <div class="container">
+                © 2025 - Cloud9._2 - <a asp-area="" asp-page="/Privacy">Privacy</a>
+            </div>
+        </footer>
+    </div>
+
+    <script src="~/lib/jquery/dist/jquery.min.js"></script>
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="~/js/site.js" asp-append-version="true"></script>
+    <script src="~/js/packery.pkgd.min.js"></script>
+    <script src="~/js/draggabilly.pkgd.min.js"></script>
+    <script src="~/js/imagesloaded.pkgd.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            var grid = document.querySelector('.grid');
+            var pckry = new Packery(grid, {
+                itemSelector: '.grid-item',
+                gutter: 10,
+                columnWidth: 200,
+                percentPosition: true,
+            });
+
+            imagesLoaded(grid, function () {
+                pckry.layout();
+            });
+
+            pckry.getItemElements().forEach(function (itemElem) {
+                var draggie = new Draggabilly(itemElem);
+                pckry.bindDraggabillyEvents(draggie);
+            });
+        });
+    </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/7.0.5/signalr.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const connection = new signalR.HubConnectionBuilder()
+                .withUrl("/reportHub")
+                .build();
+
+            connection.start().then(function () {
+                console.log("SignalR connected.");
+            }).catch(function (err) {
+                console.error("SignalR connection error: ", err);
+            });
+
+            document.querySelectorAll('#reportList a').forEach(function (link) {
+                link.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    const reportName = this.getAttribute('data-report');
+                    connection.invoke("SwitchReport", reportName);
+                });
+            });
+
+            connection.on("ReceiveReport", function (reportName) {
+                document.getElementById('reportTitle').textContent = reportName;
+                document.getElementById('reportContent').innerHTML = `<p>Loading ${reportName}...</p>`;
+                setTimeout(function () {
+                    document.getElementById('reportContent').innerHTML = `<p>This is the content of the ${reportName}.</p>`;
+                }, 1000);
+            });
+        });
+    </script>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

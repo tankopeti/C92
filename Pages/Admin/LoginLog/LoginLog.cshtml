@@ -1,0 +1,208 @@
+@page
+@model Cloud9_2.Pages.Admin.LoginLogModel
+@{
+    Layout = "/Pages/Admin/_Layout.cshtml";
+}
+
+<div class="container-fluid vh-100 d-flex flex-nowrap p-0">
+    <!-- Fixed Sidebar -->
+    <div class="d-flex flex-column flex-shrink-0 bg-light border-end" style="width: 200px;">
+        <div class="pt-3">
+            @if (User.IsInRole("SuperAdmin") || User.IsInRole("Admin"))
+            {
+                <ul class="nav flex-column">
+                    <li class="nav-item">
+                        <a class="nav-link px-3 py-2" asp-area="" asp-page="/Admin/Users/Index">
+                            <i class="bi bi-people-fill me-2"></i>Felhasználók
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link px-3 py-2" asp-area="" asp-page="/Admin/Roles/Index">
+                            <i class="bi bi-shield-lock me-2"></i>Role-ok
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link px-3 py-2" asp-area="" asp-page="/Admin/ActiveUsers/ActiveUsers">
+                            <i class="bi bi-shield-lock me-2"></i>Aktív Felhasználók
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link px-3 py-2" asp-area="" asp-page="/Admin/ManageRoles/ManageRoles">
+                            <i class="bi bi-shield-lock me-2"></i>User - Role
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link active px-3 py-2" asp-area="" asp-page="/Admin/LoginLog">
+                            <i class="bi bi-clock-history me-2"></i>Login-Out Log
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link px-3 py-2" asp-area="" asp-page="/Admin/ColumnVisibilitySettings/ColumnVisibilitySettings">
+                            <i class="bi bi-clock-history me-2"></i>Oszlopok - Role-ok
+                        </a>
+                    </li>
+                </ul>
+            }
+        </div>
+    </div>
+
+    <!-- Main Content -->
+  <!-- Simplified Main Content -->
+    <div class="d-flex flex-column flex-grow-1 overflow-auto p-3" style="height: 100vh;">
+        <h2>Login Log Debug</h2>
+        <p>Records Count: @Model.UserActivities.Count</p>
+        <div class="table-responsive border rounded">
+            <table class="table table-sm table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        @if (Model.ColumnVisibility["UserId"])
+                        {
+                            <th>User ID</th>
+                        }
+                        @if (Model.ColumnVisibility["UserName"])
+                        {
+                            <th>Username</th>
+                        }
+                        @if (Model.ColumnVisibility["LoginTime"])
+                        {
+                            <th>Login Time</th>
+                        }
+                        @if (Model.ColumnVisibility["LogoutTime"])
+                        {
+                            <th>Logout Time</th>
+                        }
+                        @if (Model.ColumnVisibility["IsActive"])
+                        {
+                            <th>Active</th>
+                        }
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var activity in Model.UserActivities)
+                    {
+                        <tr>
+                            @if (Model.ColumnVisibility["UserId"])
+                            {
+                                <td>@activity.UserId</td>
+                            }
+                            @if (Model.ColumnVisibility["UserName"])
+                            {
+                                <td>@activity.UserName</td>
+                            }
+                            @if (Model.ColumnVisibility["LoginTime"])
+                            {
+                                <td>@activity.LoginTime.ToString("yyyy.MM.dd HH:mm:ss")</td>
+                            }
+                            @if (Model.ColumnVisibility["LogoutTime"])
+                            {
+                                <td>@(activity.LogoutTime.HasValue ? activity.LogoutTime.Value.ToString("yyyy.MM.dd HH:mm:ss") : "N/A")</td>
+                            }
+                            @if (Model.ColumnVisibility["IsActive"])
+                            {
+                                <td>@(activity.IsActive ? "Yes" : "No")</td>
+                            }
+                        </tr>
+                    }
+                    @if (!Model.UserActivities.Any())
+                    {
+                        <tr>
+                            <td colspan="@Model.ColumnVisibility.Count(kv => kv.Value)">No records found.</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+        <script>
+            // Function to parse date in YYYY.MM.DD format
+            function parseDate(dateStr) {
+                if (!dateStr) return null;
+                const parts = dateStr.split('.');
+                if (parts.length !== 3) return null;
+                const [year, month, day] = parts.map(Number);
+                return new Date(year, month - 1, day);
+            }
+
+            // Function to apply filters
+            function applyFilters() {
+                const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+                const dateFromStr = document.getElementById('dateFrom').value;
+                const dateToStr = document.getElementById('dateTo').value;
+                const dateFrom = parseDate(dateFromStr);
+                const dateTo = parseDate(dateToStr);
+
+                const rows = document.querySelectorAll('#loginLogTable tbody tr');
+                rows.forEach(row => {
+                    // Use optional chaining to handle hidden columns
+                    const username = row.querySelector('td:nth-child(2)')?.textContent.toLowerCase() || '';
+                    const loginTimeStr = row.querySelector('td:nth-child(3)')?.textContent.split(' ')[0] || '';
+                    const loginTime = parseDate(loginTimeStr);
+
+                    // Username filter
+                    const matchesUsername = username.includes(searchTerm);
+
+                    // Date filter
+                    let matchesDate = true;
+                    if (dateFrom && loginTime < dateFrom) matchesDate = false;
+                    if (dateTo) {
+                        const dateToEndOfDay = new Date(dateTo);
+                        dateToEndOfDay.setHours(23, 59, 59, 999);
+                        if (loginTime > dateToEndOfDay) matchesDate = false;
+                    }
+
+                    row.style.display = (matchesUsername && matchesDate) ? '' : 'none';
+                });
+            }
+
+            // Event listeners
+            document.getElementById('searchInput').addEventListener('input', applyFilters);
+            document.getElementById('dateFrom').addEventListener('input', applyFilters);
+            document.getElementById('dateTo').addEventListener('input', applyFilters);
+
+            // Set default dates (last 7 days)
+            document.addEventListener('DOMContentLoaded', function () {
+                const today = new Date();
+                const lastWeek = new Date();
+                lastWeek.setDate(today.getDate() - 7);
+
+                document.getElementById('dateFrom').value =
+                    `${lastWeek.getFullYear()}.${(lastWeek.getMonth() + 1).toString().padStart(2, '0')}.${lastWeek.getDate().toString().padStart(2, '0')}`;
+                document.getElementById('dateTo').value =
+                    `${today.getFullYear()}.${(today.getMonth() + 1).toString().padStart(2, '0')}.${today.getDate().toString().padStart(2, '0')}`;
+
+                applyFilters();
+            });
+        </script>
+}
+
+    <style>
+        body {
+            overflow: hidden;
+        }
+
+        .nav-link {
+            border-radius: 0.25rem;
+            margin: 0.1rem 0;
+        }
+
+        .nav-link.active {
+            background-color: rgba(13, 110, 253, 0.1);
+        }
+
+        .table th,
+        .table td {
+            padding: 0.5rem 0.75rem;
+        }
+
+        .gap-2 {
+            gap: 0.5rem;
+        }
+
+        .online-user {
+            color: green;
+            font-weight: bold;
+        }
+    </style>

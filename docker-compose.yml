@@ -1,0 +1,31 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    volumes:
+      - .:/src
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=https://+:8080
+      - ASPNETCORE_Kestrel__Certificates__Default__Path=/https/cert.pfx
+      - ASPNETCORE_Kestrel__Certificates__Default__Password=HUmmer512!!!
+      - ConnectionStrings__DefaultConnection=Server=sqlserver-express;Database=Cloud9.2;User Id=sa;Password=HUmmer512!!!;TrustServerCertificate=True;
+      - Email__Smtp__Host=smtp.gmail.com
+      - Email__Smtp__Port=587
+      - Email__Smtp__Username=tankopeti@gmail.com
+      - Email__Smtp__Password=HUmmer513
+      - EmailSender__SmtpServer=mail.maxer.hu
+      - EmailSender__SmtpPort=587
+      - EmailSender__SenderName=Cloud9.2
+      - EmailSender__SenderEmail=peter.tanko@Cloud9.hu
+      - EmailSender__SmtpUser=peter.tanko@Cloud9.hu
+      - EmailSender__SmtpPass=HUmmer512!!!
+      - EmailSender__UseSsl=false
+    networks:
+      - app-network
+networks:
+  app-network:
+    external: true

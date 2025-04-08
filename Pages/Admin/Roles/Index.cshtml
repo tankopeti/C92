@@ -1,0 +1,188 @@
+@page
+@model Cloud9_2.Pages.Admin.Roles.IndexModel
+@{
+    Layout = "/Pages/Admin/_Layout.cshtml";
+}
+
+<div class="container-fluid vh-100 d-flex flex-nowrap p-0">
+    <!-- Fixed Sidebar -->
+    <div class="d-flex flex-column flex-shrink-0 bg-light border-end" style="width: 200px;">
+        <div class="pt-3">
+            @if (User.IsInRole("SuperAdmin") || User.IsInRole("Admin"))
+            {
+                <ul class="nav flex-column">
+                    <li class="nav-item">
+                        <a class="nav-link px-3 py-2" asp-area="" asp-page="/Admin/Users/Index">
+                            <i class="bi bi-people-fill me-2"></i>Felhasználók
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link active px-3 py-2" asp-area="" asp-page="/Admin/Roles/Index">
+                            <i class="bi bi-shield-lock me-2"></i>Role-ok
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link px-3 py-2" asp-area="" asp-page="/Admin/ActiveUsers/ActiveUsers">
+                            <i class="bi bi-shield-lock me-2"></i>Aktív Felhasználók
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link px-3 py-2" asp-area="" asp-page="/Admin/ManageRoles/ManageRoles">
+                            <i class="bi bi-shield-lock me-2"></i>User - Role
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link px-3 py-2" asp-area="" asp-page="/Admin/LoginLog/LoginLog">
+                            <i class="bi bi-shield-lock me-2"></i>Login-Out Log
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link px-3 py-2" asp-area="" asp-page="/Admin/ColumnVisibilitySettings/ColumnVisibilitySettings">
+                            <i class="bi bi-clock-history me-2"></i>Oszlopok - Role-ok
+                        </a>
+                    </li>
+                </ul>
+            }
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="d-flex flex-column flex-grow-1 overflow-auto p-3" style="height: 100vh;">
+        <!-- Header Section -->
+        <div class="mb-3">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <nav aria-label="breadcrumb">
+                    <ol class="breadcrumb bg-body-tertiary rounded-3">
+                        <li class="breadcrumb-item"><a href="../../">Főoldal</a></li>
+                        <li class="breadcrumb-item"><a href="../">Admin dashboard</a></li>
+                        <li class="breadcrumb-item active" aria-current="page">Jogosultság típusok</li>
+                    </ol>
+                </nav>
+            </div>
+            <div class="d-flex justify-content-between align-items-center">
+                <div class="d-flex align-items-center gap-2">
+                    <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addRoleModal">
+                        <i class="bi bi-plus-circle me-1"></i>Add New Role
+                    </button>
+                </div>
+
+                <div class="d-flex align-items-center gap-2">
+                    <div class="input-group input-group-sm" style="width: 250px;">
+                        <input type="text" class="form-control" placeholder="Search roles..." id="searchInput">
+                        <button class="btn btn-outline-secondary" type="button">
+                            <i class="bi bi-search"></i>
+                        </button>
+                    </div>
+                    @* <div class="dropdown">
+                        <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                            <i class="bi bi-funnel me-1"></i>Filter
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><a class="dropdown-item" href="#">All Roles</a></li>
+                            <li><a class="dropdown-item" href="#">System Roles</a></li>
+                            <li><a class="dropdown-item" href="#">Custom Roles</a></li>
+                        </ul>
+                    </div> *@
+                </div>
+            </div>
+        </div>
+
+        <!-- Roles Table -->
+        <div class="table-responsive border rounded">
+            <table class="table table-sm table-hover align-middle mb-0" id="rolesTable">
+                <thead class="table-light">
+                    <tr>
+                        <th class="ps-3">Role ID</th>
+                        <th>Role Name</th>
+                        <th>Normalized Name</th>
+                        <th class="pe-3 text-end">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var role in Model.Roles)
+                    {
+                        <tr data-role-id="@role.Id">
+                            <td class="ps-3 text-truncate" style="max-width: 200px;">@role.Id</td>
+                            <td>@role.Name</td>
+                            <td>@role.NormalizedName</td>
+                            <td class="pe-3 text-end">
+                                <div class="btn-group btn-group-sm" role="group" aria-label="Role actions">
+                                    <button type="button" class="btn btn-outline-primary edit-role" data-bs-toggle="modal"
+                                        data-bs-target="#roleModal" data-role-id="@role.Id" data-role-name="@role.Name"
+                                        title="Edit role">
+                                        <i class="bi bi-pencil-square"></i>
+                                    </button>
+                                    <button type="button" class="btn btn-outline-danger delete-role" data-bs-toggle="modal"
+                                        data-bs-target="#roleModal" data-role-id="@role.Id" title="Delete role">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Footer -->
+        <div class="mt-3">
+            <a asp-page="/Admin/Users" class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-arrow-left me-1"></i>Back to Users
+            </a>
+        </div>
+    </div>
+
+    <!-- Modals -->
+    <partial name="_AddRoleModal" />
+    <partial name="_RoleModal" />
+
+    <!-- Add the JavaScript file -->
+    <script src="~/js/admin/roles/rolesManagement.js" asp-append-version="true"></script>
+
+    <!-- Search Functionality -->
+@section Scripts {
+        <script>
+            // Search by role name
+            const searchInput = document.getElementById('searchInput');
+            if (searchInput) {
+                searchInput.addEventListener('input', function (e) {
+                    const searchTerm = e.target.value.toLowerCase();
+                    const rows = document.querySelectorAll('#rolesTable tbody tr');
+
+                    rows.forEach(row => {
+                        const roleName = row.querySelector('td:nth-child(2)').textContent.toLowerCase(); // Role Name column
+                        row.style.display = roleName.includes(searchTerm) ? '' : 'none';
+                    });
+                });
+            } else {
+                console.error('Search input element not found');
+            }
+        </script>
+}
+
+    <!-- Anti-forgery token for AJAX requests -->
+@Html.AntiForgeryToken()
+
+    <style>
+        body {
+            overflow: hidden;
+        }
+
+        .nav-link {
+            border-radius: 0.25rem;
+            margin: 0.1rem 0;
+        }
+
+        .nav-link.active {
+            background-color: rgba(13, 110, 253, 0.1);
+        }
+
+        .table th,
+        .table td {
+            padding: 0.5rem 0.75rem;
+        }
+
+        .gap-2 {
+            gap: 0.5rem;
+        }
+    </style>

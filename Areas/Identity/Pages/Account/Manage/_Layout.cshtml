@@ -1,0 +1,58 @@
+﻿@{
+    if (ViewData.TryGetValue("ParentLayout", out var parentLayout) && parentLayout !=  null)
+    {
+        Layout = parentLayout.ToString();
+    }
+    else
+    {
+        Layout = "/Areas/Identity/Pages/_Layout.cshtml";
+    }
+}
+
+
+<header>
+    <nav class="navbar navbar-expand-lg navbar-dark fixed-top shadow-sm custom-navbar">
+        <div class="container-fluid">
+            <div class="d-flex w-100">
+                <div class="navbar-brand padding-top-8">Cloud9.2</div>
+                <div class="p-2 d-flex center-links">
+                    <a href="#" class="nav-link">CRM</a>
+                    <div class="dropdown">
+                        <button class="btn btn-secondary dropdown-toggle custom-btn" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            Logisztika
+                        </button>
+                        <ul class="dropdown-menu">
+                            <li><button class="dropdown-item" type="button">Action</button></li>
+                            <li><button class="dropdown-item" type="button">Another action</button></li>
+                            <li><button class="dropdown-item" type="button">Something else here</button></li>
+                        </ul>
+                    </div>
+                    <a href="#" class="nav-link">Iratkezelés</a>
+                </div>
+                <div class="p-2 ms-auto d-flex">
+                    <!-- Replace the logout form with a modal trigger -->
+                    <button class="nav-link btn btn-link" data-bs-toggle="modal" data-bs-target="#authModal">Logout</button>
+<a asp-area="Identity" asp-page="/Account/Manage/Index" class="nav-link">
+    <img src="/Images/person-fill-gear.svg" alt="User settings" style="width: 24px; height: 24px; filter: brightness(0) invert(1);">
+</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+</header>
+<div>
+    <h2>Beállítások</h2>
+    <hr />
+    <div class="row">
+        <div class="col-md-3">
+            <partial name="_ManageNav" />
+        </div>
+        <div class="col-md-9">
+            @RenderBody()
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @RenderSection("Scripts", required: false)
+}

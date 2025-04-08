@@ -1,0 +1,96 @@
+@* _UserSettingsModal.cshtml *@
+<div class="modal fade" id="userSettingsModal" tabindex="-1" aria-labelledby="userSettingsLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content shadow-lg border-0 rounded-3">
+            <div class="modal-header bg-light">
+                <h5 class="modal-title fw-bold" id="userSettingsLabel">Felhasználói Beállítások</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <!-- Bootstrap Tabs -->
+                <ul class="nav nav-tabs mb-3" id="settingsTabs" role="tablist">
+                    <li class="nav-item">
+                        <a class="nav-link active" id="profile-tab" data-bs-toggle="tab" href="#profile" role="tab" data-url="/Identity/Account/Manage/Index">Profil</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" id="email-tab" data-bs-toggle="tab" href="#email" role="tab" data-url="/Identity/Account/Manage/Email">Email</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" id="password-tab" data-bs-toggle="tab" href="#password" role="tab" data-url="/Identity/Account/Manage/ChangePassword">Jelszó</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" id="two-factor-tab" data-bs-toggle="tab" href="#two-factor" role="tab" data-url="/Identity/Account/Manage/TwoFactorAuthentication">2FA</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" id="personal-data-tab" data-bs-toggle="tab" href="#personal-data" role="tab" data-url="/Identity/Account/Manage/PersonalData">Személyes Adatok</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" id="two-factor-setup-tab" data-bs-toggle="tab" href="#two-factor-setup" role="tab" data-url="/Identity/Account/Manage/EnableAuthenticator">2FA beállítás</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" id="ResetAuth-tab" data-bs-toggle="tab" href="#ResetAuth" role="tab" data-url="/Identity/Account/Manage/ResetAuthenticator">2FA törlése</a>
+                    </li>
+                </ul>
+
+                <!-- Tab Content (Dynamic AJAX Load) -->
+                <div class="tab-content">
+                    <div class="tab-pane fade show active" id="profile" role="tabpanel"></div>
+                    <div class="tab-pane fade" id="email" role="tabpanel"></div>
+                    <div class="tab-pane fade" id="password" role="tabpanel"></div>
+                    <div class="tab-pane fade" id="two-factor" role="tabpanel"></div>
+                    <div class="tab-pane fade" id="personal-data" role="tabpanel"></div>
+                    <div class="tab-pane fade" id="two-factor-setup" role="tabpanel"></div>
+                    <div class="tab-pane fade" id="ResetAuth" role="tabpanel"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const tabs = document.querySelectorAll("#settingsTabs .nav-link");
+
+    tabs.forEach(tab => {
+        tab.addEventListener("click", function (e) {
+            e.preventDefault();
+            let targetId = this.getAttribute("href"); // Get tab target ID
+            let targetContent = document.querySelector(targetId); // Get tab content div
+            let url = this.getAttribute("data-url"); // Get page URL
+
+            if (targetContent.innerHTML.trim() === "") { // Load only if empty
+                fetch(url)
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error("Failed to load content");
+                        }
+                        return response.text();
+                    })
+                    .then(html => {
+                        targetContent.innerHTML = html; // Inject content
+                        executeScripts(targetContent); // Execute inline scripts
+                    })
+                    .catch(error => console.error("Error loading content:", error));
+            }
+        });
+    });
+
+    // Auto-load first tab
+    document.getElementById("profile-tab").click();
+});
+
+// Function to execute scripts in dynamically loaded content
+function executeScripts(container) {
+    const scripts = container.getElementsByTagName("script");
+    for (let script of scripts) {
+        const newScript = document.createElement("script");
+        if (script.src) {
+            newScript.src = script.src;
+        } else {
+            newScript.textContent = script.textContent;
+        }
+        document.body.appendChild(newScript);
+        document.body.removeChild(newScript);
+    }
+}
+</script>

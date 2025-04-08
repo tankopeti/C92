@@ -1,0 +1,79 @@
+﻿@page
+@model LoginWith2faModel
+
+@{
+    ViewData["Title"] = "2 faktoros autentikáció";
+}
+
+<style>
+    /* Görgetés tiltása és teljes képernyős középre igazítás */
+    html, body {
+        height: 100%;
+        margin: 0;
+        padding: 0;
+        overflow: hidden; /* Görgetés tiltása */
+    }
+
+    .login-section {
+        height: 100vh; /* Teljes képernyő magasság */
+        background-color: #eff0f4;
+        display: flex; /* Flexbox a középre igazításhoz */
+        justify-content: center; /* Vízszintes középre */
+        align-items: center; /* Függőleges középre */
+    }
+
+    .card {
+        border-radius: 1rem;
+        max-height: 90vh; /* Maximum magasság, hogy ne lógjon ki */
+        overflow-y: auto; /* Ha a tartalom túl nagy, csak a kártya legyen görgethető */
+    }
+</style>
+
+<section class="login-section">
+    <div class="container">
+        <div class="row d-flex justify-content-center align-items-center">
+            <div class="col col-xl-6"> <!-- Szélesség csökkentése, mert nincs kép -->
+                <div class="card">
+                    <div class="card-body p-4 p-lg-5 text-black">
+                        <form method="post" asp-route-returnUrl="@Model.ReturnUrl">
+                            <div class="d-flex align-items-center mb-3 pb-1">
+                                <i class="fas fa-cubes fa-2x me-3" style="color: #ff6219;"></i>
+                                <span class="h1 fw-bold mb-0">@ViewData["Title"]</span>
+                            </div>
+
+                            <h5 class="fw-normal mb-3 pb-3" style="letter-spacing: 1px;">Írja be a hitelesítési kódot.</h5>
+
+                            <input asp-for="RememberMe" type="hidden" />
+                            <div asp-validation-summary="ModelOnly" class="text-danger" role="alert"></div>
+
+                            <div data-mdb-input-init class="form-outline mb-4">
+                                <input asp-for="Input.TwoFactorCode" class="form-control form-control-lg" autocomplete="off" />
+                                <label asp-for="Input.TwoFactorCode" class="form-label">Hitelesítő kód</label>
+                                <span asp-validation-for="Input.TwoFactorCode" class="text-danger"></span>
+                            </div>
+
+                            @* <div class="checkbox mb-4">
+                                <label asp-for="Input.RememberMachine" class="form-label">
+                                    <input class="form-check-input" asp-for="Input.RememberMachine" />
+                                    @Html.DisplayNameFor(m => m.Input.RememberMachine)
+                                </label>
+                            </div> *@
+
+                            <div class="pt-1 mb-4">
+                                <button type="submit" data-mdb-button-init data-mdb-ripple-init class="btn btn-dark btn-lg btn-block">Log in</button>
+                            </div>
+
+                            <p class="small text-muted">
+                                Ha nem elérhető az autentikációs eszköz, akkor használja a visszaállítási kódot. (a regisztrációkor kapott kód)
+                            </p>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

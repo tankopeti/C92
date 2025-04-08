@@ -1,0 +1,43 @@
+﻿<Properties StartupConfiguration="{C670DAA4-5DDC-C81C-209B-814727BD4548}|https">
+  <MonoDevelop.Ide.Workbench ActiveDocument="Program.cs">
+    <Files>
+      <File FileName="Pages/Admin/Users/_AddUserModal.cshtml" />
+      <File FileName="Pages/Admin/Users/Index.cshtml.cs" />
+      <File FileName="Pages/Admin/Roles/Index.cshtml" />
+      <File FileName="Pages/Admin/Roles/Index.cshtml.cs" />
+      <File FileName="wwwroot/js/admin/users/usersManagement.js" />
+      <File FileName="Pages/Admin/Users/Index.cshtml" Line="85" Column="47" />
+      <File FileName="Program.cs" Line="51" Column="37" />
+    </Files>
+    <Pads>
+      <Pad Id="ProjectPad">
+        <State name="__root__">
+          <Node name="Cloud9.2">
+            <Node name="Cloud9.2">
+              <Node name="Pages" expanded="True">
+                <Node name="Admin" expanded="True">
+                  <Node name="Users" expanded="True" />
+                </Node>
+              </Node>
+              <Node name="wwwroot" expanded="True">
+                <Node name="js" expanded="True">
+                  <Node name="admin" expanded="True">
+                    <Node name="users" expanded="True" />
+                  </Node>
+                </Node>
+              </Node>
+              <Node name="Program.cs" selected="True" />
+            </Node>
+          </Node>
+        </State>
+      </Pad>
+    </Pads>
+  </MonoDevelop.Ide.Workbench>
+  <MonoDevelop.Ide.DebuggingService.PinnedWatches />
+  <MonoDevelop.Ide.ItemProperties.Cloud9.2 PreferredExecutionTarget="/Applications/Google Chrome.app" />
+  <MultiItemStartupConfigurations />
+  <MonoDevelop.Ide.Workspace ActiveConfiguration="Debug" />
+  <MonoDevelop.Ide.DebuggingService.Breakpoints>
+    <BreakpointStore />
+  </MonoDevelop.Ide.DebuggingService.Breakpoints>
+</Properties>

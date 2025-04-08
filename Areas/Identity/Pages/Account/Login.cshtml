@@ -1,0 +1,188 @@
+﻿@page
+@model LoginModel
+
+@{
+    ViewData["Title"] = "Cloud9";
+}
+
+<style>
+    html, body {
+        height: 100%;
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+    }
+
+    .login-section {
+        height: 100vh;
+        background-color: #eff0f4;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
+
+    .card {
+        border-radius: 1rem;
+        max-height: 90vh;
+        overflow-y: auto;
+    }
+</style>
+
+<section class="login-section">
+    <div class="container">
+        <div class="row d-flex justify-content-center align-items-center">
+            <div class="col col-xl-10">
+                <div class="card">
+                    <div class="row g-0">
+                        <div class="col-md-6 col-lg-5 d-none d-md-block">
+                            <img src="/Images/pexels-asadphoto-3250614.jpg" alt="login form" class="img-fluid" style="border-radius: 1rem 0 0 1rem;" />
+                        </div>
+                        <div class="col-md-6 col-lg-7 d-flex align-items-center">
+                            <div class="card-body p-4 p-lg-5 text-black">
+                                <form id="account" method="post">
+                                    <div class="d-flex align-items-center mb-3 pb-1">
+                                        <i class="fas fa-cubes fa-2x me-3" style="color: #ff6219;"></i>
+                                        <span class="h1 fw-bold mb-0">@ViewData["Title"]</span>
+                                    </div>
+
+                                    <h5 class="fw-normal mb-3 pb-3" style="letter-spacing: 1px;">Használja a rendszerhez kapott felhasználónevet.</h5>
+
+                                    <div asp-validation-summary="ModelOnly" class="text-danger" role="alert"></div>
+
+                                    <div data-mdb-input-init class="form-outline mb-4">
+                                        <input asp-for="Input.Username" class="form-control form-control-lg" autocomplete="username" aria-required="true" placeholder="felhasználónév" />
+                                        <label asp-for="Input.Username" class="form-label">Felhasználónév</label>
+                                        <span asp-validation-for="Input.Username" class="text-danger"></span>
+                                    </div>
+
+                                    <div data-mdb-input-init class="form-outline mb-4">
+                                        <input asp-for="Input.Password" class="form-control form-control-lg" autocomplete="current-password" aria-required="true" placeholder="jelszó" />
+                                        <label asp-for="Input.Password" class="form-label">Jelszó</label>
+                                        <span asp-validation-for="Input.Password" class="text-danger"></span>
+                                    </div>
+
+                                    <div class="checkbox mb-4">
+                                        <label asp-for="Input.RememberMe" class="form-label">
+                                            <input class="form-check-input" asp-for="Input.RememberMe" />
+                                            @Html.DisplayNameFor(m => m.Input.RememberMe)
+                                        </label>
+                                    </div>
+
+                                    <div class="pt-1 mb-4">
+                                        <button id="login-submit" type="submit" data-mdb-button-init data-mdb-ripple-init class="btn btn-dark btn-lg btn-block">Belépés</button>
+                                    </div>
+
+                                    <a class="small text-muted" id="forgot-password" asp-page="./ForgotPassword">Elfelejtette a jelszavát?</a>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<div class="modal fade" id="confirmationModal" tabindex="-1" aria-labelledby="confirmationModalTitle" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="confirmationModalTitle">Request Sent</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body" id="confirmationModalBody">
+        </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+@section Scripts {
+    @inject Microsoft.AspNetCore.Antiforgery.IAntiforgery Xsrf
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        // Function to show the modal (assuming you have Bootstrap included)
+        function showConfirmationModal(message, isSuccess) {
+            const modalElement = document.getElementById('confirmationModal'); // Needs modal HTML (see Step 3)
+            const modalBody = document.getElementById('confirmationModalBody'); // Needs modal body element
+            const modalTitle = document.getElementById('confirmationModalTitle'); // Optional: Needs modal title element
+
+            if (modalElement && modalBody) {
+                 modalBody.textContent = message; // Set the message text
+
+                 // Optional: Change title based on success/error
+                 if (modalTitle) {
+                    modalTitle.textContent = isSuccess ? 'Request Sent' : 'Error';
+                 }
+
+                // Use Bootstrap's Modal component
+                const modal = bootstrap.Modal.getOrCreateInstance(modalElement);
+                modal.show();
+            } else {
+                // Fallback if modal elements aren't found
+                alert(message);
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', function () {
+            const forgotPasswordLink = document.getElementById('forgot-password');
+            const usernameInput = document.getElementById('Input_Username'); // <<< CHECK THIS ID AGAIN
+            // Get Anti-Forgery Token
+            const antiforgeryToken = '@Xsrf.GetAndStoreTokens(HttpContext).RequestToken';
+
+            if (forgotPasswordLink && usernameInput) {
+                forgotPasswordLink.addEventListener('click', function (event) {
+                    event.preventDefault(); // ALWAYS prevent default navigation now
+                    const username = usernameInput.value;
+
+                    if (username && username.trim() !== '') {
+                         // Show some loading indicator maybe? (optional)
+
+                        // Prepare data to send
+                        const payload = { Username: username };
+
+                        // Make the AJAX call using fetch
+                        fetch(forgotPasswordLink.getAttribute('href') + '?handler=InitiateResetFromLogin', { // Specify handler
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                // Include Anti-Forgery Token in the header
+                                'RequestVerificationToken': antiforgeryToken
+                            },
+                            body: JSON.stringify(payload) // Send username as JSON
+                        })
+                        .then(response => {
+                            if (!response.ok) {
+                                // Handle HTTP errors (e.g., 404, 500)
+                                console.error('HTTP error:', response.status, response.statusText);
+                                throw new Error(`HTTP error! Status: ${response.status}`);
+                            }
+                            return response.json(); // Parse the JSON response from the server
+                        })
+                        .then(data => {
+                            // Hide loading indicator (optional)
+                            // Show modal with the message from the server
+                            showConfirmationModal(data.message, data.success);
+                        })
+                        .catch(error => {
+                            // Hide loading indicator (optional)
+                            console.error('Fetch error:', error);
+                            // Show a generic error modal
+                            showConfirmationModal('An unexpected error occurred. Please check your connection and try again.', false);
+                        });
+
+                    } else {
+                        // If no username is entered, tell the user
+                        showConfirmationModal('Please enter your username first.', false);
+                        // Or just do nothing / focus the input: usernameInput.focus();
+                    }
+                });
+            } else {
+                 if (!forgotPasswordLink) console.error("Forgot password link not found.");
+                 if (!usernameInput) console.error("Username input field not found. Check ID 'Input_Username'.");
+            }
+        });
+    </script>
+}

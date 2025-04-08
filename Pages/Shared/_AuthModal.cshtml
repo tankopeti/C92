@@ -1,0 +1,40 @@
+@* _AuthModal.cshtml *@
+<div class="modal fade" id="authModal" tabindex="-1" aria-labelledby="authModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content shadow-lg border-0 rounded-3">
+            <div class="modal-header bg-light border-0">
+                <h5 class="modal-title fw-bold" id="authModalLabel">Kilépés</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body text-center">
+                @if (User.Identity.IsAuthenticated)
+                {
+                    <p class="fs-5">Biztos benne, hogy ki akar lépni?</p>
+                    <form asp-area="Identity" asp-page="/Account/Logout" asp-route-returnUrl="@Url.Page("/Account/Login", new { area = "Identity" })" method="post" id="logoutForm">
+                        <div class="d-flex justify-content-center gap-3">
+                            <button type="submit" class="btn btn-danger px-4">Kilépés</button>
+                            <button type="button" class="btn btn-secondary px-4" data-bs-dismiss="modal">Mégsem</button>
+                        </div>
+                    </form>
+                }
+                else
+                {
+                    <form asp-area="Identity" asp-page="/Account/Login" method="post" id="loginForm">
+                        <div class="mb-3 text-start">
+                            <label for="username" class="form-label">Felhasználónév</label>
+                            <input type="text" class="form-control" id="username" name="Input.Username" required>
+                        </div>
+                        <div class="mb-3 text-start">
+                            <label for="password" class="form-label">Jelszó</label>
+                            <input type="password" class="form-control" id="password" name="Input.Password" required>
+                        </div>
+                        <div class="d-flex justify-content-center gap-3">
+                            <button type="submit" class="btn btn-primary px-4">Bejelentkezés</button>
+                            <button type="button" class="btn btn-secondary px-4" data-bs-dismiss="modal">Mégsem</button>
+                        </div>
+                    </form>
+                }
+            </div>
+        </div>
+    </div>
+</div>

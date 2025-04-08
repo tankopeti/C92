@@ -1,0 +1,32 @@
+@page "{id?}"
+@model Cloud9_2.Pages.Admin.Users.EditUserModel
+@{
+    Layout = null; // No layout, just modal content
+}
+
+<form id="editUserForm" class="needs-validation" novalidate>
+    <input type="hidden" asp-for="Input.Id" />
+    <div class="mb-3">
+        <label asp-for="Input.UserName" class="form-label"></label>
+        <input asp-for="Input.UserName" class="form-control" required />
+        <span asp-validation-for="Input.UserName" class="text-danger"></span>
+    </div>
+    <div class="mb-3">
+        <label asp-for="Input.Email" class="form-label"></label>
+        <input asp-for="Input.Email" class="form-control" required type="email" />
+        <span asp-validation-for="Input.Email" class="text-danger"></span>
+    </div>
+    <div class="mb-3">
+        <label asp-for="Input.PhoneNumber" class="form-label"></label>
+        <input asp-for="Input.PhoneNumber" class="form-control" />
+    </div>
+    <div class="mb-3">
+        <label asp-for="Input.AccessFailedCount" class="form-label"></label>
+        <input asp-for="Input.AccessFailedCount" class="form-control" type="number" min="0" />
+        <span asp-validation-for="Input.AccessFailedCount" class="text-danger"></span>
+    </div>
+    <div class="mb-3 form-check">
+        <input asp-for="Input.Disabled" class="form-check-input" />
+        <label asp-for="Input.Disabled" class="form-check-label"></label>
+    </div>
+</form>

@@ -1,0 +1,242 @@
+@page
+@model Cloud9_2.Pages.Admin.ActiveUsersModel
+@{
+    Layout = "/Pages/Admin/_Layout.cshtml";
+}
+
+<div class="container-fluid vh-100 d-flex flex-nowrap p-0">
+    <!-- Fixed Sidebar -->
+    <div class="d-flex flex-column flex-shrink-0 bg-light border-end" style="width: 200px;">
+        <div class="pt-3">
+            @if (User.IsInRole("SuperAdmin") || User.IsInRole("Admin"))
+            {
+                <ul class="nav flex-column">
+                    <li class="nav-item">
+                        <a class="nav-link px-3 py-2" asp-area="" asp-page="/Admin/Users/Index">
+                            <i class="bi bi-people-fill me-2"></i>Felhasználók
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link px-3 py-2" asp-area="" asp-page="/Admin/Roles/Index">
+                            <i class="bi bi-shield-lock me-2"></i>Role-ok
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link active px-3 py-2" asp-area="" asp-page="/Admin/ActiveUsers/ActiveUsers">
+                            <i class="bi bi-shield-lock me-2"></i>Aktív Felhasználók
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link px-3 py-2" asp-area="" asp-page="/Admin/ManageRoles/ManageRoles">
+                            <i class="bi bi-shield-lock me-2"></i>User - Role
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link px-3 py-2" asp-area="" asp-page="/Admin/LoginLog/LoginLog">
+                            <i class="bi bi-shield-lock me-2"></i>Login-Out Log
+                        </a>
+                    </li>
+                </ul>
+            }
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="d-flex flex-column flex-grow-1 overflow-auto p-3" style="height: 100vh;">
+        <div class="mb-3">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <nav aria-label="breadcrumb">
+                    <ol class="breadcrumb bg-body-tertiary rounded-3">
+                        <li class="breadcrumb-item"><a href="../../">Főoldal</a></li>
+                        <li class="breadcrumb-item"><a href="../">Admin dashboard</a></li>
+                        <li class="breadcrumb-item active" aria-current="page">Aktív felhasználók</li>
+                    </ol>
+                </nav>
+            </div>
+            <div class="d-flex justify-content-between align-items-center">
+                <div class="d-flex align-items-center gap-2">
+                    <!-- Optional: Add buttons if needed -->
+                </div>
+                <div class="d-flex align-items-center gap-2">
+                    <div class="input-group input-group-sm" style="width: 250px;">
+                        <input type="text" class="form-control" placeholder="Search users..." id="searchInput">
+                        <button class="btn btn-outline-secondary" type="button">
+                            <i class="bi bi-search"></i>
+                        </button>
+                    </div>
+                    @* <div class="dropdown">
+                        <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button"
+                                data-bs-toggle="dropdown">
+                            <i class="bi bi-funnel me-1"></i>Filter
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><a class="dropdown-item" href="#" data-filter="all">All Users</a></li>
+                            <li><a class="dropdown-item" href="#" data-filter="recent">Recent Logins</a></li>
+                        </ul>
+                    </div> *@
+                </div>
+            </div>
+        </div>
+
+        <div class="table-responsive border rounded">
+            <table class="table table-sm table-hover align-middle mb-0" id="activeUsersTable">
+                <thead class="table-light">
+                    <tr>
+                        <th class="ps-3">Username</th>
+                        <th>Login Time</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var user in Model.ActiveUsers)
+                    {
+                        <tr data-username="@user.UserName">
+                            <td class="ps-3 online-user">@user.UserName</td>
+                            <td>@user.LoginTime.ToString("yyyy-MM-dd HH:mm:ss")</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="~/js/signalr.min.js"></script>
+    <script>
+        // SignalR connection setup (unchanged)
+        const connection = new signalR.HubConnectionBuilder()
+            .withUrl("/userActivityHub")
+            .withAutomaticReconnect()
+            .build();
+
+        connection.on("ReceiveActiveUsers", function (users) {
+            const tbody = document.querySelector('#activeUsersTable tbody');
+            tbody.innerHTML = ''; // Clear current table
+            users.forEach(user => {
+                const tr = document.createElement('tr');
+                tr.setAttribute('data-username', user.userName);
+                tr.innerHTML = `
+                        <td class="ps-3 online-user">${user.userName}</td>
+                        <td>${user.loginTime}</td>
+                    `;
+                tbody.appendChild(tr);
+            });
+            console.log("Active users updated:", users);
+
+            // Re-apply any active filters after update
+            applyUsernameFilter();
+        });
+
+        connection.start()
+            .then(() => {
+                console.log("SignalR connected for ActiveUsers page");
+                connection.invoke("GetActiveUsers");
+            })
+            .catch(err => console.error("SignalR connection failed:", err));
+
+        // Enhanced search functionality
+        let searchTimeout;
+        const searchInput = document.getElementById('searchInput');
+        const searchButton = searchInput.nextElementSibling;
+
+        function applyUsernameFilter() {
+            const searchTerm = searchInput.value.trim().toLowerCase();
+            const rows = document.querySelectorAll('#activeUsersTable tbody tr');
+
+            if (searchTerm === '') {
+                rows.forEach(row => row.style.display = '');
+                return;
+            }
+
+            rows.forEach(row => {
+                const username = row.getAttribute('data-username').toLowerCase();
+                const displayName = row.querySelector('td:first-child').textContent.toLowerCase();
+
+                // Show row if either username or display name matches
+                const matches = username.includes(searchTerm) || displayName.includes(searchTerm);
+                row.style.display = matches ? '' : 'none';
+            });
+        }
+
+        // Search on input with debounce
+        searchInput.addEventListener('input', function () {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(applyUsernameFilter, 300);
+        });
+
+        // Also search on button click
+        searchButton.addEventListener('click', applyUsernameFilter);
+
+        // Search on Enter key
+        searchInput.addEventListener('keypress', function (e) {
+            if (e.key === 'Enter') {
+                applyUsernameFilter();
+            }
+        });
+
+        // Enhanced filter dropdown functionality
+        document.querySelectorAll('.dropdown-menu a[data-filter]').forEach(filterLink => {
+            filterLink.addEventListener('click', function (e) {
+                e.preventDefault();
+                const filter = this.getAttribute('data-filter');
+                const rows = Array.from(document.querySelectorAll('#activeUsersTable tbody tr'));
+
+                // Clear any active search
+                searchInput.value = '';
+
+                if (filter === 'all') {
+                    rows.forEach(row => row.style.display = '');
+                } else if (filter === 'recent') {
+                    // Sort by login time (most recent first)
+                    rows.sort((a, b) => {
+                        const timeA = new Date(a.querySelector('td:nth-child(2)').textContent);
+                        const timeB = new Date(b.querySelector('td:nth-child(2)').textContent);
+                        return timeB - timeA;
+                    });
+
+                    const tbody = document.querySelector('#activeUsersTable tbody');
+                    tbody.innerHTML = '';
+                    rows.forEach(row => tbody.appendChild(row));
+                }
+
+                // Update dropdown button text
+                const dropdownButton = document.querySelector('.dropdown-toggle');
+                dropdownButton.innerHTML = `<i class="bi bi-funnel me-1"></i>${this.textContent}`;
+            });
+        });
+
+        // Clean up on page unload
+        window.addEventListener('beforeunload', () => {
+            connection.stop();
+        });
+    </script>
+}
+
+<style>
+    body {
+        overflow: hidden;
+    }
+
+    .nav-link {
+        border-radius: 0.25rem;
+        margin: 0.1rem 0;
+    }
+
+    .nav-link.active {
+        background-color: rgba(13, 110, 253, 0.1);
+    }
+
+    .table th,
+    .table td {
+        padding: 0.5rem 0.75rem;
+    }
+
+    .gap-2 {
+        gap: 0.5rem;
+    }
+
+    .online-user {
+        color: green;
+        font-weight: bold;
+    }
+</style>

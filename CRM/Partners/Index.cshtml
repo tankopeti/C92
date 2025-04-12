@@ -1,0 +1,817 @@
+@page
+@using System.Security.Claims
+@using Microsoft.AspNetCore.Identity
+@model Cloud9_2.Pages.CRM.Partners.IndexModel
+@{
+    Layout = "/Pages/CRM/_Layout.cshtml";
+    ViewData["Title"] = "Partnerek";
+}
+
+<div class="container-fluid vh-100 d-flex flex-nowrap p-0">
+    <div class="d-flex flex-column flex-shrink-0 border-end" style="width: 200px;">
+        <div class="pt-3">
+            @if (User.IsInRole("SuperAdmin") || User.IsInRole("Admin") || User.IsInRole("CRMUser"))
+            {
+                <ul class="nav flex-column">
+                    <li class="nav-item">
+                        <a class="nav-link active px-3 py-2" asp-area="" asp-page="/CRM/Partners/Index">
+                            <i class="bi bi-people-fill me-2"></i>Partners
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link px-3 py-2" asp-area="" asp-page="/CRM/Contacts/Index">
+                            <i class="bi bi-person-lines-fill me-2"></i>Contacts
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link px-3 py-2" asp-area="" asp-page="/CRM/Sites/Index">
+                            <i class="bi bi-person-lines-fill me-2"></i>Telephelyek
+                        </a>
+                    </li>
+                </ul>
+            }
+        </div>
+    </div>
+
+    <div class="d-flex flex-column flex-grow-1 overflow-auto p-3" style="height: 100vh;">
+        <div class="mb-3">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <nav aria-label="breadcrumb">
+                    <ol class="breadcrumb bg-body-tertiary rounded-3">
+                        <li class="breadcrumb-item"><a href="../../">Főoldal</a></li>
+                        <li class="breadcrumb-item"><a href="../">CRM Dashboard</a></li>
+                        <li class="breadcrumb-item active" aria-current="page">Partners</li>
+                        <li class="breadcrumb-item active" aria-current="page">@Model.Partners.Count of @Model.TotalRecords partner@(Model.TotalRecords != 1 ? "s" : "") (Page @Model.CurrentPage of @Model.TotalPages)</li>
+                    </ol>
+                </nav>
+            </div>
+            <div class="d-flex justify-content-between align-items-center">
+                <div class="d-flex align-items-center gap-2">
+                    <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#newPartnerModal">
+                        <i class="bi bi-plus-circle me-1"></i>New Partner
+                    </button>
+                </div>
+                <div class="d-flex align-items-center gap-2">
+                    <form method="get" asp-page="./Index" class="input-group input-group-sm" style="width: 250px;">
+                        <input type="text" class="form-control" placeholder="Search partners..." id="searchInput" name="SearchTerm" value="@Model.SearchTerm">
+                        <input type="hidden" name="pageSize" value="@Model.PageSize" />
+                        <button class="btn btn-outline-secondary" type="submit">
+                            <i class="bi bi-search"></i>
+                        </button>
+                    </form>
+                    <div class="dropdown">
+                        <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                            <i class="bi bi-funnel me-1"></i>Filter
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><a class="dropdown-item" href="#" data-filter="all">All Partners</a></li>
+                            <li><a class="dropdown-item" href="#" data-filter="active">Active Partners</a></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="table-responsive border rounded">
+            @if (Model.Partners.Any())
+            {
+                <table class="table table-striped table-hover">
+                <thead>
+                    <tr>
+                        @if (Model.VisibleColumns.Contains("Name")) { <th>Name</th> }
+                        @if (Model.VisibleColumns.Contains("Email")) { <th>Email</th> }
+                        <th class="text-end">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in Model.Partners)
+                    {
+                        <tr data-partner-id="@item.PartnerId">
+                            @if (Model.VisibleColumns.Contains("Name")) { <td class="ps-3">@Html.DisplayFor(modelItem => item.Name)</td> }
+                            @if (Model.VisibleColumns.Contains("Email")) { <td>@Html.DisplayFor(modelItem => item.Email)</td> }
+                            <td class="pe-3 text-end">
+                                <div class="btn-group btn-group-sm" role="group">
+                                    <button type="button" class="btn btn-outline-info view-partner-btn" 
+                                            data-bs-toggle="modal" 
+                                            data-bs-target="#viewPartnerModal_@item.PartnerId" 
+                                            data-bs-toggle="tooltip" 
+                                            data-bs-placement="top" 
+                                            data-bs-title="View Connections">
+                                        <i class="bi bi-eye"></i>
+                                    </button>
+                                    <div class="dropdown">
+                                    <button class="btn btn-outline-secondary dropdown-toggle" type="button" 
+                                            data-bs-toggle="dropdown" 
+                                            aria-expanded="false" 
+                                            data-bs-toggle="tooltip" 
+                                            data-bs-placement="top" 
+                                            data-bs-title="More Actions">
+                                        Menü
+                                    </button>
+                                    <ul class="dropdown-menu dropdown-menu-end">
+                                            <li>
+                                                <a class="dropdown-item" href="#" 
+                                                data-bs-toggle="modal" 
+                                                data-bs-target="#editPartnerModal_@item.PartnerId">
+                                                    <i class="bi bi-pencil-square me-2"></i>Szerkesztés
+                                                </a>
+                                            </li>
+                                            <li>
+                                                <a class="dropdown-item" href="#" 
+                                                data-bs-toggle="modal" 
+                                                data-bs-target="#newSiteModal_@item.PartnerId">
+                                                    <i class="bi bi-geo-alt me-2"></i>Új telephely
+                                                </a>
+                                            </li>
+                                            <li>
+                                                <a class="dropdown-item" href="#" 
+                                                data-bs-toggle="modal" 
+                                                data-bs-target="#newContactModal_@item.PartnerId">
+                                                    <i class="bi bi-person-plus me-2"></i>Új kontakt
+                                                </a>
+                                            </li>
+                                            <li>
+                                                <a class="dropdown-item" href="#" 
+                                                data-bs-toggle="modal" 
+                                                data-bs-target="#newDocumentModal_@item.PartnerId">
+                                                    <i class="bi bi-file-earmark-plus me-2"></i>Új Dokumentum
+                                                </a>
+                                            </li>
+                                            <li>
+                                                <a class="dropdown-item text-danger" href="#" 
+                                                data-bs-toggle="modal" 
+                                                data-bs-target="#deletePartnerModal" 
+                                                data-partner-id="@item.PartnerId" 
+                                                data-partner-name="@item.Name">
+                                                    <i class="bi bi-trash me-2"></i>Törlés
+                                                </a>
+                                            </li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+
+                <nav aria-label="Partners pagination">
+                    <ul class="pagination justify-content-center mt-3">
+                        <li class="page-item @(Model.CurrentPage == 1 ? "disabled" : "")">
+                            <a class="page-link" asp-page="./Index" asp-route-pageNumber="@(Model.CurrentPage - 1)" asp-route-pageSize="@Model.PageSize" asp-route-searchTerm="@Model.SearchTerm">Previous</a>
+                        </li>
+                        @{
+                            int startPage = Math.Max(1, Model.CurrentPage - 2);
+                            int endPage = Math.Min(Model.TotalPages, startPage + 5);
+                            if (endPage - startPage + 1 < 6 && startPage > 1) { startPage = Math.Max(1, endPage - 5); }
+                            if (endPage < Model.TotalPages && startPage + 5 > Model.TotalPages) { endPage = Model.TotalPages; startPage = Math.Max(1, endPage - 5); }
+                        }
+                        @for (int i = startPage; i <= endPage; i++)
+                        {
+                            <li class="page-item @(i == Model.CurrentPage ? "active" : "")" aria-current="@(i == Model.CurrentPage ? "page" : null)">
+                                <a class="page-link" asp-page="./Index" asp-route-pageNumber="@i" asp-route-pageSize="@Model.PageSize" asp-route-searchTerm="@Model.SearchTerm">@i</a>
+                            </li>
+                        }
+                        <li class="page-item @(Model.CurrentPage == Model.TotalPages ? "disabled" : "")">
+                            <a class="page-link" asp-page="./Index" asp-route-pageNumber="@(Model.CurrentPage + 1)" asp-route-pageSize="@Model.PageSize" asp-route-searchTerm="@Model.SearchTerm">Next</a>
+                        </li>
+                    </ul>
+                </nav>
+                <div class="text-center mt-3">
+                    <form method="get" asp-page="./Index">
+                        <label for="pageSize">Records per page:</label>
+                        <select id="pageSize" name="pageSize" onchange="this.form.submit()" class="form-select form-select-sm d-inline-block w-auto">
+                            <option value="10" selected="@(Model.PageSize == 10)">10</option>
+                            <option value="25" selected="@(Model.PageSize == 25)">25</option>
+                            <option value="50" selected="@(Model.PageSize == 50)">50</option>
+                        </select>
+                        <input type="hidden" name="pageNumber" value="1" />
+                        <input type="hidden" name="SearchTerm" value="@Model.SearchTerm" />
+                    </form>
+                </div>
+            }
+            else
+            {
+                <div class="alert alert-warning text-center" role="alert">
+                    @if (!string.IsNullOrEmpty(Model.SearchTerm))
+                    {
+                        @:No partners found matching "@Model.SearchTerm".
+                    }
+                    else
+                    {
+                        @:No partners found. <button type="button" class="btn btn-link alert-link p-0 align-baseline" data-bs-toggle="modal" data-bs-target="#newPartnerModal">Create the first one?</button>
+                    }
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+<!-- New Partner Modal with Fixed Width and Height -->
+@await Html.PartialAsync("_NewPartnerModal")
+
+
+<!-- New Site Modals for Each Partner -->
+@foreach (var item in Model.Partners)
+{
+    <div class="modal fade" id="newSiteModal_@item.PartnerId" tabindex="-1" aria-labelledby="newSiteModalLabel_@item.PartnerId" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <form method="post" asp-page-handler="AddSite">
+                    <input type="hidden" name="PartnerId" value="@item.PartnerId" />
+                    <input type="hidden" name="CreatedById" value="@User.FindFirstValue(ClaimTypes.NameIdentifier)" />
+                    <input type="hidden" name="CreatedDate" value="@DateTime.UtcNow.ToString("o")" />
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="newSiteModalLabel_@item.PartnerId">Add New Site for @item.Name</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label class="form-label">Site Name *</label>
+                            <input type="text" class="form-control" name="SiteName" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Address Line 1</label>
+                            <input type="text" class="form-control" name="AddressLine1">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Address Line 2</label>
+                            <input type="text" class="form-control" name="AddressLine2">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">City</label>
+                            <input type="text" class="form-control" name="City">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Postal Code</label>
+                            <input type="text" class="form-control" name="PostalCode">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Country</label>
+                            <input type="text" class="form-control" name="Country">
+                        </div>
+                        <div class="mb-3 form-check">
+                            <input type="checkbox" class="form-check-input" name="IsPrimary">
+                            <label class="form-check-label">Primary Site</label>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Save Site</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- New Contact Modals for Each Partner -->
+@foreach (var item in Model.Partners)
+{
+    <div class="modal fade" id="newContactModal_@item.PartnerId" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <form method="post" asp-page-handler="AddContact">
+                    <input type="hidden" name="partnerId" value="@item.PartnerId" />
+                    <input type="hidden" asp-for="CurrentPage" />
+                    <input type="hidden" asp-for="PageSize" />
+                    <input type="hidden" asp-for="SearchTerm" />
+                    
+                    <div class="modal-header">
+                        <h5 class="modal-title">Add Contact</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label class="form-label">First Name *</label>
+                            <input type="text" class="form-control" asp-for="NewContact.FirstName" required>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Last Name *</label>
+                            <input type="text" class="form-control" asp-for="NewContact.LastName" required>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Email</label>
+                            <input type="email" class="form-control" asp-for="NewContact.Email">
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Phone</label>
+                            <input type="tel" class="form-control" asp-for="NewContact.PhoneNumber">
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Job Title</label>
+                            <input type="text" class="form-control" asp-for="NewContact.JobTitle">
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Comment</label>
+                            <textarea class="form-control" asp-for="NewContact.Comment"></textarea>
+                        </div>
+                        
+                        <div class="mb-3 form-check">
+                            <input type="checkbox" class="form-check-input" asp-for="NewContact.IsPrimary">
+                            <label class="form-check-label">Primary Contact</label>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Save Contact</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- New Document Modal for Each Partner -->
+@foreach (var item in Model.Partners)
+{
+    <div class="modal fade" id="newDocumentModal_@item.PartnerId" tabindex="-1" aria-labelledby="newDocumentModalLabel_@item.PartnerId" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="newDocumentModalLabel_@item.PartnerId">Upload Document for @item.Name</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <form method="post" asp-page-handler="AddDocument" enctype="multipart/form-data">
+                    <div class="modal-body">
+                        <input type="hidden" name="PartnerId" value="@item.PartnerId" />
+                        
+                        <div class="mb-3">
+                            <label for="documentFile_@item.PartnerId" class="form-label">File <span class="text-danger">*</span></label>
+                            <input type="file" class="form-control" id="documentFile_@item.PartnerId" name="File" required>
+                            <div class="invalid-feedback">Please select a file.</div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Document Type</label>
+                            <select class="form-select" name="DocumentTypeId">
+                                <option value="">-- Select Document Type --</option>
+                                @foreach (var type in Model.DocumentTypes)
+                                {
+                                    <option value="@type.DocumentTypeId">@type.TypeName</option>
+                                }
+                            </select>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="documentSite_@item.PartnerId" class="form-label">Related Site (Optional)</label>
+                            <select class="form-select" id="documentSite_@item.PartnerId" name="SiteId">
+                                <option value="">-- Select Site --</option>
+                                @foreach (var site in item.Sites)
+                                {
+                                    <option value="@site.SiteId">@site.SiteName</option>
+                                }
+                            </select>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Upload Document</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- Render Edit Modals for Each Partner -->
+@foreach (var item in Model.Partners)
+{
+    <div class="modal fade" id="editPartnerModal_@item.PartnerId" tabindex="-1" aria-labelledby="editPartnerModalLabel_@item.PartnerId" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="editPartnerModalLabel_@item.PartnerId">Edit Partner: @item.Name</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form method="post" asp-page-handler="EditPartner" class="needs-validation" novalidate>
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="partnerId" value="@item.PartnerId" />
+                        <ul class="nav nav-tabs" id="partnerTabs_@item.PartnerId" role="tablist">
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link active" id="basic-tab_@item.PartnerId" data-bs-toggle="tab" data-bs-target="#basic_@item.PartnerId" type="button" role="tab" aria-controls="basic_@item.PartnerId" aria-selected="true">Basic Info</button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="address-tab_@item.PartnerId" data-bs-toggle="tab" data-bs-target="#address_@item.PartnerId" type="button" role="tab" aria-controls="address_@item.PartnerId" aria-selected="false">Address</button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="crm-tab_@item.PartnerId" data-bs-toggle="tab" data-bs-target="#crm_@item.PartnerId" type="button" role="tab" aria-controls="crm_@item.PartnerId" aria-selected="false">CRM</button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="invoicing-tab_@item.PartnerId" data-bs-toggle="tab" data-bs-target="#invoicing_@item.PartnerId" type="button" role="tab" aria-controls="invoicing_@item.PartnerId" aria-selected="false">Invoicing</button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="audit-tab_@item.PartnerId" data-bs-toggle="tab" data-bs-target="#audit_@item.PartnerId" type="button" role="tab" aria-controls="audit_@item.PartnerId" aria-selected="false">Audit</button>
+                            </li>
+                        </ul>
+                        <div class="tab-content mt-3" id="partnerTabContent_@item.PartnerId">
+                            <!-- Basic Info Tab -->
+                            <div class="tab-pane fade show active" id="basic_@item.PartnerId" role="tabpanel" aria-labelledby="basic-tab_@item.PartnerId">
+                                <div class="row g-3">
+                                    <div class="col-md-6">
+                                        <label for="editPartnerName_@item.PartnerId" class="form-label">Name <span class="text-danger">*</span></label>
+                                        <input type="text" class="form-control" id="editPartnerName_@item.PartnerId" name="Name" value="@item.Name" required />
+                                        <div class="invalid-feedback">Name is required.</div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label for="editPartnerEmail_@item.PartnerId" class="form-label">Email</label>
+                                        <input type="email" class="form-control" id="editPartnerEmail_@item.PartnerId" name="Email" value="@item.Email" />
+                                        <div class="invalid-feedback">Please enter a valid email.</div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label for="editPartnerPhoneNumber_@item.PartnerId" class="form-label">Phone Number</label>
+                                        <input type="text" class="form-control" id="editPartnerPhoneNumber_@item.PartnerId" name="PhoneNumber" value="@item.PhoneNumber" />
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label for="editPartnerAlternatePhone_@item.PartnerId" class="form-label">Alternate Phone</label>
+                                        <input type="text" class="form-control" id="editPartnerAlternatePhone_@item.PartnerId" name="AlternatePhone" value="@item.AlternatePhone" />
+                                    </div>
+                                </div>
+                            </div>
+                            <!-- Address Tab -->
+                            <div class="tab-pane fade" id="address_@item.PartnerId" role="tabpanel" aria-labelledby="address-tab_@item.PartnerId">
+                                <div class="row g-3">
+                                    <div class="col-md-6">
+                                        <label for="editPartnerAddressLine1_@item.PartnerId" class="form-label">Address Line 1</label>
+                                        <input type="text" class="form-control" id="editPartnerAddressLine1_@item.PartnerId" name="AddressLine1" value="@item.AddressLine1" />
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label for="editPartnerAddressLine2_@item.PartnerId" class="form-label">Address Line 2</label>
+                                        <input type="text" class="form-control" id="editPartnerAddressLine2_@item.PartnerId" name="AddressLine2" value="@item.AddressLine2" />
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label for="editPartnerCity_@item.PartnerId" class="form-label">City</label>
+                                        <input type="text" class="form-control" id="editPartnerCity_@item.PartnerId" name="City" value="@item.City" />
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label for="editPartnerState_@item.PartnerId" class="form-label">State</label>
+                                        <input type="text" class="form-control" id="editPartnerState_@item.PartnerId" name="State" value="@item.State" />
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label for="editPartnerPostalCode_@item.PartnerId" class="form-label">Postal Code</label>
+                                        <input type="text" class="form-control" id="editPartnerPostalCode_@item.PartnerId" name="PostalCode" value="@item.PostalCode" />
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label for="editPartnerCountry_@item.PartnerId" class="form-label">Country</label>
+                                        <input type="text" class="form-control" id="editPartnerCountry_@item.PartnerId" name="Country" value="@item.Country" />
+                                    </div>
+                                </div>
+                            </div>
+                            <!-- CRM Tab -->
+                            <div class="tab-pane fade" id="crm_@item.PartnerId" role="tabpanel" aria-labelledby="crm-tab_@item.PartnerId">
+                                <div class="row g-3">
+                                    <div class="col-md-6">
+                                        <label for="editPartnerStatus_@item.PartnerId" class="form-label">Status</label>
+                                        <input type="text" class="form-control" id="editPartnerStatus_@item.PartnerId" name="Status" value="@item.Status" />
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label for="editPartnerLastContacted_@item.PartnerId" class="form-label">Last Contacted</label>
+                                        <input type="date" class="form-control" id="editPartnerLastContacted_@item.PartnerId" name="LastContacted" value="@(item.LastContacted.HasValue ? item.LastContacted.Value.ToString("yyyy-MM-dd") : "")" />
+                                    </div>
+                                    <div class="col-12">
+                                        <label for="editPartnerNotes_@item.PartnerId" class="form-label">Notes</label>
+                                        <textarea class="form-control" id="editPartnerNotes_@item.PartnerId" name="Notes">@item.Notes</textarea>
+                                    </div>
+                                </div>
+                            </div>
+                            <!-- Invoicing Tab -->
+                            <div class="tab-pane fade" id="invoicing_@item.PartnerId" role="tabpanel" aria-labelledby="invoicing-tab_@item.PartnerId">
+                                <div class="row g-3">
+                                    <div class="col-md-6">
+                                        <label for="editPartnerBillingContactName_@item.PartnerId" class="form-label">Billing Contact Name</label>
+                                        <input type="text" class="form-control" id="editPartnerBillingContactName_@item.PartnerId" name="BillingContactName" value="@item.BillingContactName" />
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label for="editPartnerBillingEmail_@item.PartnerId" class="form-label">Billing Email</label>
+                                        <input type="email" class="form-control" id="editPartnerBillingEmail_@item.PartnerId" name="BillingEmail" value="@item.BillingEmail" />
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label for="editPartnerPaymentTerms_@item.PartnerId" class="form-label">Payment Terms</label>
+                                        <input type="text" class="form-control" id="editPartnerPaymentTerms_@item.PartnerId" name="PaymentTerms" value="@item.PaymentTerms" />
+                                    </div>
+                                </div>
+                            </div>
+                            <!-- Audit Tab -->
+                            <div class="tab-pane fade" id="audit_@item.PartnerId" role="tabpanel" aria-labelledby="audit-tab_@item.PartnerId">
+                                <div class="row g-3">
+                                    <div class="col-md-6">
+                                        <label for="editPartnerCreatedDate_@item.PartnerId" class="form-label">Created Date</label>
+                                        <input type="datetime-local" class="form-control" id="editPartnerCreatedDate_@item.PartnerId" name="CreatedDate" value="@(item.CreatedDate.HasValue ? item.CreatedDate.Value.ToString("yyyy-MM-ddTHH:mm") : "")" readonly />
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label for="editPartnerCreatedBy_@item.PartnerId" class="form-label">Created By</label>
+                                        <input type="text" class="form-control" id="editPartnerCreatedBy_@item.PartnerId" name="CreatedBy" value="@item.CreatedBy" readonly />
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label for="editPartnerUpdatedDate_@item.PartnerId" class="form-label">Updated Date</label>
+                                        <input type="datetime-local" class="form-control" id="editPartnerUpdatedDate_@item.PartnerId" name="UpdatedDate" value="@(item.UpdatedDate.HasValue ? item.UpdatedDate.Value.ToString("yyyy-MM-ddTHH:mm") : "")" readonly />
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label for="editPartnerUpdatedBy_@item.PartnerId" class="form-label">Updated By</label>
+                                        <input type="text" class="form-control" id="editPartnerUpdatedBy_@item.PartnerId" name="UpdatedBy" value="@item.UpdatedBy" readonly />
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mt-3">
+                            <button type="submit" class="btn btn-primary">Save</button>
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- Render View Modals for Each Partner -->
+@foreach (var item in Model.Partners)
+{
+    <div class="modal fade" id="viewPartnerModal_@item.PartnerId" tabindex="-1" aria-labelledby="viewPartnerModalLabel_@item.PartnerId" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="viewPartnerModalLabel_@item.PartnerId">Connections for @item.Name</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <ul class="nav nav-tabs" id="viewTabs_@item.PartnerId" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="sites-tab_@item.PartnerId" data-bs-toggle="tab" data-bs-target="#sites_@item.PartnerId" type="button" role="tab" aria-controls="sites_@item.PartnerId" aria-selected="true">Sites</button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="contacts-tab_@item.PartnerId" data-bs-toggle="tab" data-bs-target="#contacts_@item.PartnerId" type="button" role="tab" aria-controls="contacts_@item.PartnerId" aria-selected="false">Contacts</button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="documents-tab_@item.PartnerId" data-bs-toggle="tab" data-bs-target="#documents_@item.PartnerId" type="button" role="tab" aria-controls="documents_@item.PartnerId" aria-selected="false">Documents</button>
+                        </li>
+                    </ul>
+                    <div class="tab-content mt-3" id="viewTabContent_@item.PartnerId">
+                        <!-- Sites Tab -->
+                        <div class="tab-pane fade show active" id="sites_@item.PartnerId" role="tabpanel" aria-labelledby="sites-tab_@item.PartnerId">
+                            @if (item.Sites != null && item.Sites.Any())
+                            {
+                                <table class="table table-sm">
+                                    <thead>
+                                        <tr>
+                                            <th>Site Name</th>
+                                            <th>Address Line 1</th>
+                                            <th>City</th>
+                                            <th>Country</th>
+                                            <th>Primary</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach (var site in item.Sites)
+                                        {
+                                            <tr>
+                                                <td>@site.SiteName</td>
+                                                <td>@site.AddressLine1</td>
+                                                <td>@site.City</td>
+                                                <td>@site.Country</td>
+                                                <td>@(site.IsPrimary ? "Yes" : "No")</td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            }
+                            else
+                            {
+                                <p>No sites associated with this partner.</p>
+                            }
+                        </div>
+                        <!-- Contacts Tab -->
+                        <div class="tab-pane fade" id="contacts_@item.PartnerId" role="tabpanel" aria-labelledby="contacts-tab_@item.PartnerId">
+                            @if (item.Contacts != null && item.Contacts.Any())
+                            {
+                                <table class="table table-sm">
+                                    <thead>
+                                        <tr>
+                                            <th>First Name</th>
+                                            <th>Last Name</th>
+                                            <th>Email</th>
+                                            <th>Phone Number</th>
+                                            <th>Job Title</th>
+                                            <th>Primary</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach (var contact in item.Contacts)
+                                        {
+                                            <tr>
+                                                <td>@contact.FirstName</td>
+                                                <td>@contact.LastName</td>
+                                                <td>@contact.Email</td>
+                                                <td>@contact.PhoneNumber</td>
+                                                <td>@contact.JobTitle</td>
+                                                <td>@(contact.IsPrimary ? "Yes" : "No")</td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            }
+                            else
+                            {
+                                <p>No contacts associated with this partner.</p>
+                            }
+                        </div>
+                        <!-- Documents Tab -->
+                        <div class="tab-pane fade" id="documents_@item.PartnerId" role="tabpanel" aria-labelledby="documents-tab_@item.PartnerId">
+                            @if (item.Documents != null && item.Documents.Any())
+                            {
+                                <table class="table table-sm">
+                                    <thead>
+                                        <tr>
+                                            <th>File Name</th>
+                                            <th>Type</th>
+                                            <th>Upload Date</th>
+                                            <th>Uploaded By</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach (var document in item.Documents)
+                                        {
+                                            <tr>
+                                                <td>@document.FileName</td>
+                                                <td>@document.DocumentType</td>
+                                                <td>@(document.UploadDate.HasValue ? document.UploadDate.Value.ToString("yyyy-MM-dd") : "N/A")</td>
+                                                <td>@document.UploadedBy</td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            }
+                            else
+                            {
+                                <p>No documents associated with this partner.</p>
+                            }
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- Delete Partner Confirmation Modal -->
+@await Html.PartialAsync("_DeletePartnerModal")
+
+@section Scripts {
+    <script>
+// Client-side validation for partner form
+document.querySelector('#newPartnerModal form').addEventListener('submit', function(e) {
+    const form = e.target;
+    const nameInput = form.querySelector('[name="Name"]');
+    
+    if (!nameInput.value.trim()) {
+        e.preventDefault();
+        nameInput.focus();
+        
+        // Bootstrap validation
+        nameInput.classList.add('is-invalid');
+        const feedback = nameInput.nextElementSibling;
+        if (feedback && feedback.classList.contains('invalid-feedback')) {
+            feedback.textContent = 'Name is required';
+        }
+        
+        return false;
+    }
+    
+    return true;
+});
+
+// Reset validation when modal is shown
+$('#newPartnerModal').on('show.bs.modal', function() {
+    $(this).find('.is-invalid').removeClass('is-invalid');
+});
+
+        document.addEventListener('DOMContentLoaded', function () {
+            // Tooltip initialization
+            var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+            tooltipTriggerList.forEach(function (tooltipTriggerEl) {
+                new bootstrap.Tooltip(tooltipTriggerEl);
+            });
+
+            // Form validation
+            var forms = document.querySelectorAll('.needs-validation');
+            Array.prototype.slice.call(forms).forEach(function (form) {
+                form.addEventListener('submit', function (event) {
+                    if (!form.checkValidity()) {
+                        event.preventDefault();
+                        event.stopPropagation();
+                    }
+                    form.classList.add('was-validated');
+                }, false);
+            });
+
+            // Reset contact forms when modal is shown
+            document.querySelectorAll('[data-bs-target^="#newContactModal_"]').forEach(button => {
+                button.addEventListener('click', function() {
+                    const modalId = this.getAttribute('data-bs-target');
+                    const modal = document.querySelector(modalId);
+                    if (modal) {
+                        const form = modal.querySelector('form');
+                        if (form) {
+                            form.classList.remove('was-validated');
+                            form.reset();
+                        }
+                    }
+                });
+            });
+
+            // Delete Modal Logic
+            document.querySelectorAll('[data-bs-target="#deletePartnerModal"]').forEach(button => {
+                button.addEventListener('click', function () {
+                    const partnerId = this.getAttribute('data-partner-id');
+                    const partnerName = this.getAttribute('data-partner-name');
+
+                    console.log(`Clicked - ID: ${partnerId}, Name: ${partnerName}`);
+
+                    if (!partnerId) {
+                        console.error('Partner ID is missing');
+                        return;
+                    }
+
+                    document.getElementById('deletePartnerId').value = partnerId;
+                    document.getElementById('deletePartnerName').textContent = partnerName || 'Unknown Partner';
+
+                    const deleteBtn = document.getElementById('confirmDeleteBtn');
+                    const warning = document.getElementById('deleteWarning');
+                    deleteBtn.disabled = false; // Reset to enabled
+                    warning.style.display = 'none'; // Reset to hidden
+                    warning.textContent = 'This partner cannot be deleted because it is referenced in other records (Sites, Contacts, or Documents).';
+
+                    fetch(`/CRM/Partners/Index?handler=CheckRelatedRecords&id=${partnerId}`, {
+                        method: 'GET',
+                        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                    })
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error(`HTTP error: ${response.status}`);
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        console.log(`Parsed data for ID ${partnerId}:`, data);
+                        if (data.hasRelatedRecords) {
+                            deleteBtn.disabled = true;
+                            warning.style.display = 'block';
+                            console.log(`Partner ${partnerId} has related records - delete disabled`);
+                        } else {
+                            deleteBtn.disabled = false;
+                            warning.style.display = 'none';
+                            console.log(`Partner ${partnerId} has no related records - delete enabled`);
+                        }
+                    })
+                    .catch(error => {
+                        console.error(`Fetch error for ID ${partnerId}:`, error);
+                        deleteBtn.disabled = true;
+                        warning.textContent = 'Error checking related records';
+                        warning.style.display = 'block';
+                    });
+                });
+            });
+
+            // Confirm Delete Action (optional, if button isn't a direct submit)
+            document.getElementById('confirmDeleteBtn').addEventListener('click', function (e) {
+                if (!this.disabled) {
+                    document.getElementById('deletePartnerForm').submit();
+                }
+            });
+        });
+    </script>
+    <style>
+    .modal-lg { max-width: 1000px; }
+    #newPartnerModal .tab-content { 
+        min-width: 0; /* Let it fit the modal naturally */
+        width: 100%; /* Fill available space */
+        min-height: 450px; /* Matches tallest tab */
+        overflow-y: auto; /* Vertical scroll if needed */
+        overflow-x: hidden; /* Prevent horizontal scroll */
+    }
+    #newPartnerModal .tab-pane { 
+        width: 100%; 
+        height: 100%; /* Fills the fixed height */
+    }
+    .modal-dialog {
+        max-width: 75%;
+    }
+    .tab-content {
+        min-height: 450px;
+        overflow-y: auto;
+        overflow-x: hidden;
+    }
+    .table tbody tr td {
+        vertical-align: middle;
+    }
+</style>
+}

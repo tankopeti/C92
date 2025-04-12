@@ -1,0 +1,277 @@
+@page
+@model Cloud9_2.Pages.Admin.ManageRolesModel
+@{
+    Layout = "/Pages/Admin/_Layout.cshtml";
+}
+
+<div class="container-fluid vh-100 d-flex flex-nowrap p-0">
+    <!-- Fixed Sidebar -->
+    <div class="d-flex flex-column flex-shrink-0 bg-light border-end" style="width: 200px;">
+        <div class="pt-3">
+            @if (User.IsInRole("SuperAdmin") || User.IsInRole("Admin"))
+            {
+                    <ul class="nav flex-column">
+                        <li class="nav-item">
+                            <a class="nav-link px-3 py-2" asp-area="" asp-page="/Admin/Users/Index">
+                                <i class="bi bi-people-fill me-2"></i>Felhasználók
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link px-3 py-2" asp-area="" asp-page="/Admin/Roles/Index">
+                                <i class="bi bi-shield-lock me-2"></i>Role-ok
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link px-3 py-2" asp-area="" asp-page="/Admin/ActiveUsers/ActiveUsers">
+                                <i class="bi bi-shield-lock me-2"></i>Aktív Felhasználók
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link px-3 py-2" asp-area="" asp-page="/Admin/ManageRoles/ManageRoles">
+                                <i class="bi bi-shield-lock me-2"></i>User - Role
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link px-3 py-2" asp-area="" asp-page="/Admin/LoginLog/LoginLog">
+                                <i class="bi bi-shield-lock me-2"></i>Login-Out Log
+                            </a>
+                        </li>
+                    <li class="nav-item">
+                        <a class="nav-link px-3 py-2" asp-area="" asp-page="/Admin/ColumnVisibilitySettings/ColumnVisibilitySettings">
+                            <i class="bi bi-clock-history me-2"></i>Oszlopok - Role-ok
+                        </a>
+                    </li>
+                    </ul>
+            }
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="d-flex flex-column flex-grow-1 overflow-auto p-3" style="height: 100vh;">
+        <!-- Header Section -->
+        <div class="mb-3">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <nav aria-label="breadcrumb">
+                    <ol class="breadcrumb bg-body-tertiary rounded-3">
+                        <li class="breadcrumb-item"><a href="../../">Főoldal</a></li>
+                        <li class="breadcrumb-item"><a href="../">Admin dashboard</a></li>
+                        <li class="breadcrumb-item active" aria-current="page">Jogosultságok kiosztása</li>
+                    </ol>
+                </nav>
+            </div>
+            <div class="d-flex justify-content-between align-items-center">
+                <div class="d-flex align-items-center gap-2">
+                    <!-- Optional: Add buttons if needed -->
+                </div>
+                <div class="d-flex align-items-center gap-2">
+                    <div class="input-group input-group-sm" style="width: 250px;">
+                        <input type="text" class="form-control" placeholder="Search users..." id="searchInput">
+                        <button class="btn btn-outline-secondary" type="button">
+                            <i class="bi bi-search"></i>
+                        </button>
+                    </div>
+                    <div class="dropdown">
+                        <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                            <i class="bi bi-funnel me-1"></i>Filter
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><a class="dropdown-item" href="#" data-filter="all">All Users</a></li>
+                            <li><a class="dropdown-item" href="#" data-filter="admins">Admins Only</a></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Role Assignment Form -->
+        <div class="mb-4">
+            <form method="post" class="d-flex align-items-end gap-3">
+                <div class="flex-grow-1">
+                    <label for="email" class="form-label">User Email:</label>
+                    <input type="email" class="form-control" id="email" name="Email" required />
+                </div>
+                <div class="flex-grow-1">
+                    <label for="role" class="form-label">Select Role:</label>
+                    <select class="form-select" id="role" name="Role">
+                        @foreach (var role in Model.Roles)
+                        {
+                                <option value="@role">@role</option>
+                        }
+                    </select>
+                </div>
+                <div>
+                    <button type="submit" class="btn btn-primary">Assign Role</button>
+                </div>
+            </form>
+            @if (!string.IsNullOrEmpty(Model.Message))
+            {
+                    <p class="mt-2 text-success">@Model.Message</p>
+            }
+        </div>
+
+        <!-- Users and Roles Table -->
+        <div class="table-responsive border rounded">
+            <table class="table table-sm table-hover align-middle mb-0" id="usersTable">
+                <thead class="table-light">
+                    <tr>
+                        <th class="ps-3">User ID</th>
+                        <th>Username</th>
+                        <th>Email</th>
+                        <th>Role</th>
+                        <th class="pe-3 text-end">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var user in Model.UsersWithRoles)
+                    {
+                            if (user.Roles != null && user.Roles.Any())
+                            {
+                                    foreach (var role in user.Roles)
+                                    {
+                                            <tr data-user-id="@user.Id" data-role="@role">
+                                                <td class="ps-3 text-truncate" style="max-width: 200px;">@user.Id</td>
+                                                <td>@user.UserName</td>
+                                                <td>@user.Email</td>
+                                                <td>@role</td>
+                                                <td class="pe-3 text-end">
+                                                    <div class="btn-group btn-group-sm" role="group">
+                                                        <button type="button" class="btn btn-outline-danger remove-role" 
+                                                                data-user-id="@user.Id" 
+                                                                data-role="@role" 
+                                                                title="Remove Role">
+                                                            <i class="bi bi-trash"></i>
+                                                        </button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                    }
+                            }
+                            else
+                            {
+                                    <tr data-user-id="@user.Id" data-role="">
+                                        <td class="ps-3 text-truncate" style="max-width: 200px;">@user.Id</td>
+                                        <td>@user.UserName</td>
+                                        <td>@user.Email</td>
+                                        <td>No Roles</td>
+                                        <td class="pe-3 text-end">
+                                            <div class="btn-group btn-group-sm" role="group">
+                                                <!-- No remove button if no roles -->
+                                            </div>
+                                        </td>
+                                    </tr>
+                            }
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Footer -->
+        <div class="mt-3">
+            <a asp-page="/Admin/Users" class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-arrow-left me-1"></i>Back to Users
+            </a>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+        <script>
+            // Combined search and filter functionality
+            function applyFilters() {
+                const searchTerm = document.getElementById('searchInput')?.value.toLowerCase() || '';
+                const filter = document.querySelector('.dropdown-item.active')?.getAttribute('data-filter') || 'all';
+                const rows = document.querySelectorAll('#usersTable tbody tr');
+
+                rows.forEach(row => {
+                    const username = row.querySelector('td:nth-child(2)').textContent.toLowerCase();
+                    const email = row.querySelector('td:nth-child(3)').textContent.toLowerCase();
+                    const role = row.querySelector('td:nth-child(4)').textContent.toLowerCase();
+
+                    const matchesSearch = username.includes(searchTerm) || email.includes(searchTerm);
+                    const matchesFilter = filter === 'all' || (filter === 'admins' && role.includes('admin'));
+
+                    row.style.display = matchesSearch && matchesFilter ? '' : 'none';
+                });
+            }
+
+            // Search by username or email
+            const searchInput = document.getElementById('searchInput');
+            if (searchInput) {
+                searchInput.addEventListener('input', applyFilters);
+            } else {
+                console.error('Search input element not found');
+            }
+
+            // Filter by role
+            document.querySelectorAll('.dropdown-menu a[data-filter]').forEach(filterLink => {
+                filterLink.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    document.querySelectorAll('.dropdown-menu a[data-filter]').forEach(link => link.classList.remove('active'));
+                    this.classList.add('active');
+                    applyFilters();
+                });
+            });
+
+            // Set initial filter to 'all' on page load
+            document.addEventListener('DOMContentLoaded', () => {
+                const allFilter = document.querySelector('.dropdown-menu a[data-filter="all"]');
+                if (allFilter) {
+                    allFilter.classList.add('active');
+                    applyFilters();
+                }
+            });
+
+            // Remove role functionality
+            document.querySelectorAll('.remove-role').forEach(button => {
+                button.addEventListener('click', async function () {
+                    const userId = this.getAttribute('data-user-id');
+                    const role = this.getAttribute('data-role');
+
+                    console.log('Remove Role clicked - UserId:', userId, 'Role:', role);
+
+                    if (confirm(`Are you sure you want to remove the role "${role}" from user ID ${userId}?`)) {
+                        try {
+                            const response = await fetch('/Admin/ManageRoles/ManageRoles?handler=RemoveRole', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]').value
+                                },
+                                body: JSON.stringify({ userId, role })
+                            });
+
+                            if (!response.ok) {
+                                const text = await response.text();
+                                console.error('Remove role failed:', response.status, text);
+                                throw new Error(`HTTP error! Status: ${response.status}`);
+                            }
+
+                            const result = await response.json();
+                            if (result.success) {
+                                alert(`Role "${role}" removed successfully.`);
+                                this.closest('tr').remove(); // Remove the row without reloading
+                            } else {
+                                alert(`Error: ${result.message}`);
+                            }
+                        } catch (error) {
+                            console.error('Fetch error:', error);
+                            alert(`Remove role failed: ${error.message}`);
+                        }
+                    }
+                });
+            });
+        </script>
+}
+
+@Html.AntiForgeryToken()
+
+<style>
+    body { overflow: hidden; }
+    .nav-link { border-radius: 0.25rem; margin: 0.1rem 0; }
+    .nav-link.active { background-color: rgba(13, 110, 253, 0.1); }
+    .table th, .table td { padding: 0.5rem 0.75rem; }
+    .gap-2 { gap: 0.5rem; }
+    .form-label { font-weight: 500; }
+    .form-control, .form-select { max-width: 300px; }
+    .dropdown-item.active { background-color: rgba(13, 110, 253, 0.1); }
+</style>

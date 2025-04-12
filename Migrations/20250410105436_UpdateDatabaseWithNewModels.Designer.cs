@@ -4,6 +4,7 @@ using Cloud9_2.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Cloud9._2.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250410105436_UpdateDatabaseWithNewModels")]
+    partial class UpdateDatabaseWithNewModels
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -437,20 +440,8 @@ namespace Cloud9._2.Migrations
                     b.Property<string>("Country")
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<string>("CreatedById")
-                        .HasColumnType("nvarchar(450)");
-
-                    b.Property<DateTime?>("CreatedDate")
-                        .HasColumnType("datetime2");
-
                     b.Property<bool>("IsPrimary")
                         .HasColumnType("bit");
-
-                    b.Property<string>("LastModifiedById")
-                        .HasColumnType("nvarchar(450)");
-
-                    b.Property<DateTime?>("LastModifiedDate")
-                        .HasColumnType("datetime2");
 
                     b.Property<int?>("PartnerId")
                         .HasColumnType("int");
@@ -466,10 +457,6 @@ namespace Cloud9._2.Migrations
                         .HasColumnType("nvarchar(max)");
 
                     b.HasKey("SiteId");
-
-                    b.HasIndex("CreatedById");
-
-                    b.HasIndex("LastModifiedById");
 
                     b.HasIndex("PartnerId");
 
@@ -695,21 +682,9 @@ namespace Cloud9._2.Migrations
 
             modelBuilder.Entity("Cloud9_2.Models.Site", b =>
                 {
-                    b.HasOne("Cloud9_2.Models.ApplicationUser", "CreatedBy")
-                        .WithMany()
-                        .HasForeignKey("CreatedById");
-
-                    b.HasOne("Cloud9_2.Models.ApplicationUser", "LastModifiedBy")
-                        .WithMany()
-                        .HasForeignKey("LastModifiedById");
-
                     b.HasOne("Cloud9_2.Models.Partner", "Partner")
                         .WithMany("Sites")
                         .HasForeignKey("PartnerId");
-
-                    b.Navigation("CreatedBy");
-
-                    b.Navigation("LastModifiedBy");
 
                     b.Navigation("Partner");
                 });

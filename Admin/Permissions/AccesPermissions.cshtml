@@ -1,0 +1,83 @@
+@page
+@model Cloud9_2.Pages.Admin.AccesPermissions.IndexModel
+@{
+    ViewData["Title"] = "Manage Access Permissions";
+}
+
+<div class="container-fluid py-4">
+    <h1>Manage Access Permissions</h1>
+
+    <!-- Add New Permission -->
+    <div class="card mb-4">
+        <div class="card-header">Add Permission</div>
+        <div class="card-body">
+            <form method="post">
+                <div class="form-group">
+                    <label asp-for="NewPermission.RoleId">Role</label>
+                    <select asp-for="NewPermission.RoleId" class="form-control" asp-items="@(new SelectList(Model.Roles, "Id", "Name"))">
+                        <option value="">Select a role</option>
+                    </select>
+                    <span asp-validation-for="NewPermission.RoleId" class="text-danger"></span>
+                </div>
+                <div class="form-group">
+                    <label asp-for="NewPermission.PagePath">Page Path</label>
+                    <input asp-for="NewPermission.PagePath" class="form-control" />
+                    <span asp-validation-for="NewPermission.PagePath" class="text-danger"></span>
+                </div>
+                <div class="form-check">
+                    <input asp-for="NewPermission.CanViewPage" class="form-check-input" />
+                    <label asp-for="NewPermission.CanViewPage" class="form-check-label">Can View Page</label>
+                </div>
+                <div class="form-group">
+                    <label asp-for="NewPermission.ColumnName">Column Name (optional)</label>
+                    <input asp-for="NewPermission.ColumnName" class="form-control" placeholder="e.g., Name, Email" />
+                </div>
+                <div class="form-check">
+                    <input asp-for="NewPermission.CanViewColumn" class="form-check-input" />
+                    <label asp-for="NewPermission.CanViewColumn" class="form-check-label">Can View Column</label>
+                </div>
+                <button type="submit" class="btn btn-primary mt-2">Add</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Permissions List -->
+    <div class="card">
+        <div class="card-header">Current Permissions</div>
+        <div class="card-body">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Role</th>
+                        <th>Page Path</th>
+                        <th>Can View Page</th>
+                        <th>Column Name</th>
+                        <th>Can View Column</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var perm in Model.Permissions)
+                    {
+                        <tr>
+                            <td>@(Model.Roles.FirstOrDefault(r => r.Id == perm.RoleId)?.Name ?? "Unknown")</td>
+                            <td>@perm.PagePath</td>
+                            <td>@perm.CanViewPage</td>
+                            <td>@(perm.ColumnName ?? "N/A")</td>
+                            <td>@perm.CanViewColumn</td>
+                            <td>
+                                <form method="post" asp-page-handler="Delete" asp-route-id="@perm.AccessPermissionId">
+                                    <button type="submit" class="btn btn-danger btn-sm">Delete</button>
+                                </form>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

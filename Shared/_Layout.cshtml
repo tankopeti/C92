@@ -1,0 +1,77 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - Cloud9._2</title>
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/Cloud9._2.styles.css" asp-append-version="true" />
+</head>
+<body>
+
+        <main role="main" class="pb-3"> 
+            @RenderBody()
+         </main>
+
+
+    <script src="~/lib/jquery/dist/jquery.min.js"></script>
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="~/js/site.js" asp-append-version="true"></script>
+    <script src="~/js/packery.pkgd.min.js"></script>
+    <script src="~/js/draggabilly.pkgd.min.js"></script>
+    <script src="~/js/imagesloaded.pkgd.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            var grid = document.querySelector('.grid');
+            var pckry = new Packery(grid, {
+                itemSelector: '.grid-item',
+                gutter: 10,
+                columnWidth: 200,
+                percentPosition: true,
+            });
+
+            imagesLoaded(grid, function () {
+                pckry.layout();
+            });
+
+            pckry.getItemElements().forEach(function (itemElem) {
+                var draggie = new Draggabilly(itemElem);
+                pckry.bindDraggabillyEvents(draggie);
+            });
+        });
+    </script>
+
+    <script src="~/js/signalr.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const connection = new signalR.HubConnectionBuilder()
+                .withUrl("/reportHub")
+                .build();
+
+            connection.start().then(function () {
+                console.log("SignalR connected.");
+            }).catch(function (err) {
+                console.error("SignalR connection error: ", err);
+            });
+
+            document.querySelectorAll('#reportList a').forEach(function (link) {
+                link.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    const reportName = this.getAttribute('data-report');
+                    connection.invoke("SwitchReport", reportName);
+                });
+            });
+
+            connection.on("ReceiveReport", function (reportName) {
+                document.getElementById('reportTitle').textContent = reportName;
+                document.getElementById('reportContent').innerHTML = `<p>Loading ${reportName}...</p>`;
+                setTimeout(function () {
+                    document.getElementById('reportContent').innerHTML = `<p>This is the content of the ${reportName}.</p>`;
+                }, 1000);
+            });
+        });
+    </script>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

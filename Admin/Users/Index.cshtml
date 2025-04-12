@@ -1,0 +1,368 @@
+﻿@page
+@model Cloud9_2.Pages.Admin.Users.IndexModel
+@{
+    Layout = "/Pages/Admin/_Layout.cshtml";
+}
+
+<div class="container-fluid vh-100 d-flex flex-nowrap p-0">
+    <!-- Fixed Sidebar -->
+    <div class="d-flex flex-column flex-shrink-0 bg-light border-end" style="width: 200px;">
+        <div class="pt-3">
+            @if (User.IsInRole("SuperAdmin") || User.IsInRole("Admin"))
+            {
+                <ul class="nav flex-column">
+                    <li class="nav-item">
+                        <a class="nav-link active px-3 py-2" asp-area="" asp-page="/Admin/Users/Index">
+                            <i class="bi bi-people-fill me-2"></i>Felhasználók
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link px-3 py-2" asp-area="" asp-page="/Admin/Roles/Index">
+                            <i class="bi bi-shield-lock me-2"></i>Role-ok
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link px-3 py-2" asp-area="" asp-page="/Admin/ActiveUsers/ActiveUsers">
+                            <i class="bi bi-shield-lock me-2"></i>Aktív Felhasználók
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link px-3 py-2" asp-area="" asp-page="/Admin/ManageRoles/ManageRoles">
+                            <i class="bi bi-shield-lock me-2"></i>User - Role
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link px-3 py-2" asp-area="" asp-page="/Admin/LoginLog/LoginLog">
+                            <i class="bi bi-clock-history me-2"></i>Login-Out Log
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link px-3 py-2" asp-area=""
+                            asp-page="/Admin/ColumnVisibilitySettings/ColumnVisibilitySettings">
+                            <i class="bi bi-clock-history me-2"></i>Oszlopok - Role-ok
+                        </a>
+                    </li>
+                </ul>
+            }
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="d-flex flex-column flex-grow-1 overflow-auto p-3" style="height: 100vh;">
+        <div class="mb-3">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <nav aria-label="breadcrumb">
+                    <ol class="breadcrumb bg-body-tertiary rounded-3">
+                        <li class="breadcrumb-item"><a href="../../">Főoldal</a></li>
+                        <li class="breadcrumb-item"><a href="../">Admin dashboard</a></li>
+                        <li class="breadcrumb-item active" aria-current="page">Felhasználók</li>
+                    </ol>
+                </nav>
+            </div>
+            <div class="d-flex justify-content-between align-items-center">
+                <div class="d-flex align-items-center gap-2">
+                    <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addUserModal">
+                        <i class="bi bi-plus-circle me-1"></i>Új Felhasználó
+                    </button>
+                </div>
+                <div class="d-flex align-items-center gap-2">
+                    <div class="input-group input-group-sm" style="width: 250px;">
+                        <input type="text" class="form-control" placeholder="Search usernames..." id="searchInput">
+                        <button class="btn btn-outline-secondary" type="button">
+                            <i class="bi bi-search"></i>
+                        </button>
+                    </div>
+                    <div class="dropdown">
+                        <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button"
+                            data-bs-toggle="dropdown">
+                            <i class="bi bi-funnel me-1"></i>Filter
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><a class="dropdown-item" href="#" data-filter="all">All Users</a></li>
+                            <li><a class="dropdown-item" href="#" data-filter="disabled">Disabled Users</a></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="table-responsive border rounded">
+            <table class="table table-sm table-hover align-middle mb-0" id="usersTable">
+                <thead class="table-light">
+                    <tr>
+                        <th class="ps-3">User ID</th>
+                        <th>Username</th>
+                        <th>Email</th>
+                        <th>Phone</th>
+                        <th>Access Failed</th>
+                        <th>Disabled</th>
+                        <th class="pe-3 text-end">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var user in Model.Users)
+                    {
+                        <tr data-user-id="@user.Id">
+                            <td class="ps-3">@user.Id</td>
+                            <td>@user.UserName</td>
+                            <td>@user.Email</td>
+                            <td>@user.PhoneNumber</td>
+                            <td>@user.AccessFailedCount</td>
+                            <td>@(user.Disabled ? "Yes" : "No")</td>
+                            <td class="pe-3 text-end">
+                                <div class="btn-group btn-group-sm" role="group">
+                                    <button type="button" class="btn btn-outline-primary edit-user" data-user-id="@user.Id"
+                                        data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="Edit User">
+                                        <i class="bi bi-pencil-square"></i>
+                                    </button>
+                                    <button type="button" class="btn btn-outline-danger delete-user" data-user-id="@user.Id"
+                                        data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="Delete User">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                    <button type="button" class="btn btn-outline-warning change-password"
+                                        data-user-id="@user.Id" data-bs-toggle="tooltip" data-bs-placement="top"
+                                        data-bs-custom-class="custom-tooltip" data-bs-title="Force Password Change">
+                                        <i class="bi bi-key"></i>
+                                    </button>
+                                    <button type="button" class="btn btn-outline-info reset-password"
+                                        data-user-id="@user.Id" data-username="@user.UserName" data-bs-toggle="tooltip"
+                                        data-bs-placement="top" data-bs-title="Reset Password">
+                                        <i class="bi bi-arrow-counterclockwise"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Edit User Modal -->
+<div class="modal fade" id="editUserModal" tabindex="-1" aria-labelledby="editUserModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="editUserModalLabel">Edit User</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="editUserForm" class="needs-validation" novalidate>
+                    <input type="hidden" id="editUserId" name="Id" />
+                    <div class="mb-3">
+                        <label for="editUserName" class="form-label">Username</label>
+                        <input type="text" class="form-control" id="editUserName" name="UserName" required />
+                        <div class="invalid-feedback">Username is required.</div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="editEmail" class="form-label">Email</label>
+                        <input type="email" class="form-control" id="editEmail" name="Email" required />
+                        <div class="invalid-feedback">A valid email is required.</div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="editPhoneNumber" class="form-label">Phone Number</label>
+                        <input type="tel" class="form-control" id="editPhoneNumber" name="PhoneNumber" />
+                    </div>
+                    <div class="mb-3">
+                        <label for="editAccessFailedCount" class="form-label">Access Failed Count</label>
+                        <input type="number" class="form-control" id="editAccessFailedCount" name="AccessFailedCount"
+                            min="0" />
+                        <div class="invalid-feedback">Must be a non-negative number.</div>
+                    </div>
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" class="form-check-input" id="editDisabled" name="Disabled" />
+                        <label class="form-check-label" for="editDisabled">Disabled</label>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary" id="saveEditUserBtn">Save changes</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<partial name="_AddUserModal" />
+
+<script src="~/js/admin/users/usersManagement.js" asp-append-version="true"></script>
+@section Scripts {
+
+    <script>
+        // Initialize Bootstrap tooltips
+        document.addEventListener('DOMContentLoaded', function () {
+            var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+            tooltipTriggerList.forEach(function (tooltipTriggerEl) {
+                new bootstrap.Tooltip(tooltipTriggerEl);
+            });
+        });
+    </script>
+
+    <script>
+        // Delete user functionality
+        document.querySelectorAll('.delete-user').forEach(button => {
+            button.addEventListener('click', async function () {
+                const userId = this.getAttribute('data-user-id');
+                const username = this.closest('tr').querySelector('td:nth-child(2)').textContent;
+
+                if (confirm(`Are you sure you want to delete user "${username}"? This action cannot be undone.`)) {
+                    try {
+                        const response = await fetch('/Admin/Users/Index?handler=DeleteUser', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]').value
+                            },
+                            body: JSON.stringify({ userId })
+                        });
+
+                        if (!response.ok) {
+                            const text = await response.text();
+                            console.error('Delete failed:', response.status, text);
+                            throw new Error(`HTTP error! Status: ${response.status}`);
+                        }
+
+                        const result = await response.json();
+                        if (result.success) {
+                            alert(result.message);
+                            this.closest('tr').remove();
+                        } else {
+                            alert(`Error: ${result.message}`);
+                        }
+                    } catch (error) {
+                        console.error('Fetch error:', error);
+                        alert(`Delete failed: ${error.message}`);
+                    }
+                }
+            });
+        });
+
+        // Reset password functionality
+        document.querySelectorAll('.reset-password').forEach(button => {
+            button.addEventListener('click', async function () {
+                const userId = this.getAttribute('data-user-id');
+                const username = this.getAttribute('data-username');
+                const today = new Date().toISOString().slice(0, 10).replace(/-/g, ''); // e.g., "20250403"
+                const newPassword = `${username}${today}C92`;
+
+                if (confirm(`Reset password for "${username}" to "${newPassword}"? User will be required to change it on next login.`)) {
+                    try {
+                        const response = await fetch('/Admin/Users/Index?handler=ResetPassword', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]').value
+                            },
+                            body: JSON.stringify({ userId })
+                        });
+
+                        if (!response.ok) {
+                            const text = await response.text();
+                            console.error('Reset password failed:', response.status, text);
+                            throw new Error(`HTTP error! Status: ${response.status}`);
+                        }
+
+                        const result = await response.json();
+                        if (result.success) {
+                            alert(`Password reset successfully to "${newPassword}". User must change it on next login.`);
+                        } else {
+                            alert(`Error: ${result.message}`);
+                        }
+                    } catch (error) {
+                        console.error('Fetch error:', error);
+                        alert(`Reset password failed: ${error.message}`);
+                    }
+                }
+            });
+        });
+
+        // Search by username
+        const searchInput = document.getElementById('searchInput');
+        if (searchInput) {
+            searchInput.addEventListener('input', applyFilters);
+        } else {
+            console.error('Search input element not found');
+        }
+
+        // Filter by disabled users
+        document.querySelectorAll('.dropdown-menu a[data-filter]').forEach(filterLink => {
+            filterLink.addEventListener('click', function (e) {
+                e.preventDefault();
+                document.querySelectorAll('.dropdown-menu a[data-filter]').forEach(link => link.classList.remove('active'));
+                this.classList.add('active');
+                applyFilters();
+            });
+        });
+
+        // Combined filter function
+        function applyFilters() {
+            const searchTerm = searchInput ? searchInput.value.toLowerCase() : '';
+            const filter = document.querySelector('.dropdown-item.active')?.getAttribute('data-filter') || 'all';
+            const rows = document.querySelectorAll('#usersTable tbody tr');
+
+            rows.forEach(row => {
+                const username = row.querySelector('td:nth-child(2)').textContent.toLowerCase();
+                const isDisabled = row.querySelector('td:nth-child(6)').textContent.toLowerCase() === 'yes';
+
+                const matchesSearch = username.includes(searchTerm);
+                const matchesFilter = filter === 'all' || (filter === 'disabled' && isDisabled);
+
+                row.style.display = matchesSearch && matchesFilter ? '' : 'none';
+            });
+        }
+
+        // Set initial filter to 'all' on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            const allFilter = document.querySelector('.dropdown-menu a[data-filter="all"]');
+            if (allFilter) {
+                allFilter.classList.add('active');
+                applyFilters();
+            }
+        });
+    </script>
+}
+@Html.AntiForgeryToken()
+
+<style>
+    body {
+        overflow: hidden;
+    }
+
+    .nav-link {
+        border-radius: 0.25rem;
+        margin: 0.1rem 0;
+    }
+
+    .nav-link.active {
+        background-color: rgba(13, 110, 253, 0.1);
+    }
+
+    .table th,
+    .table td {
+        padding: 0.5rem 0.75rem;
+    }
+
+    .gap-2 {
+        gap: 0.5rem;
+    }
+
+    .dropdown-item.active {
+        background-color: rgba(13, 110, 253, 0.1);
+    }
+
+    /* Custom tooltip styling */
+    .custom-tooltip .tooltip-inner {
+        background-color: var(--bs-warning);
+        /* Matches btn-outline-warning */
+        color: var(--bs-black);
+        font-size: 0.875rem;
+        padding: 0.5rem 0.75rem;
+        border-radius: 0.25rem;
+    }
+
+    .custom-tooltip .tooltip-arrow::before {
+        border-top-color: var(--bs-warning);
+        /* Arrow matches tooltip background */
+    }
+</style>

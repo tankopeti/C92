@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - Cloud9._2</title>
+    @* <link rel="stylesheet" href="~/Cloud9._2.styles.css" asp-append-version="true" /> *@
+    <script src="~/lib/jquery/dist/jquery.min.js"></script>
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="~/js/site.js" asp-append-version="true"></script>
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    <script src="~/js/signalr.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.0/font/bootstrap-icons.css">
+
+</head>
+<header>
+    <nav class="navbar navbar-expand-lg navbar-dark fixed-top shadow-sm custom-navbar">
+        <div class="container-fluid">
+            <div class="d-flex w-100">
+                <div class="navbar-brand padding-top-8">Cloud9.2</div>
+                <div class="p-2 d-flex center-links">
+                    <div class="dropdown">
+                        <button class="btn btn-secondary dropdown-toggle custom-btn" type="button"
+                            data-bs-toggle="dropdown" aria-expanded="false">
+                            Users
+                        </button>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="/Admin/Users/">Userek</a></li>
+                            <li><a class="dropdown-item" href="/Admin/LoginLog/LoginLog">Loginok</a></li>
+                            <li><a class="dropdown-item" href="/Admin/ActiveUsers/ActiveUsers">Aktív Userek</a></li>
+                            <li><a class="dropdown-item" href="/Admin/Roles/">Role-ok</a></li>
+                            <li><a class="dropdown-item" href="/Admin/ManageRoles/ManageRoles">User-Role</a></li>
+                        </ul>
+                    </div>
+                    <div class="dropdown">
+                        <button class="btn btn-secondary dropdown-toggle custom-btn" type="button"
+                            data-bs-toggle="dropdown" aria-expanded="false">
+                            Program beállítások
+                        </button>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="/Admin/Settings/Sql/SQLsettings">Sql beállítások</a></li>
+                            <li><button class="dropdown-item" type="button">Another action</button></li>
+                            <li><button class="dropdown-item" type="button">Something else here</button></li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="p-2 ms-auto d-flex">
+                    <div class="dropdown">
+                        <a class="nav-link dropdown-toggle d-flex align-items-center" href="#" role="button"
+                            id="userDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                            <img src="/Images/person-fill-gear.svg" alt="User settings"
+                                style="width: 24px; height: 24px; filter: brightness(0) invert(1);">
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
+                            <li>
+                                @if (User.IsInRole("SuperAdmin"))
+                                {
+                                    <button class="nav-link btn btn-link"
+                                        onclick="location.href='@Url.Page("/Admin/Index")'">
+                                        Admin
+                                    </button>
+                                }
+                            </li>
+                            <li>
+                                <!-- User Settings Button (Opens Settings Modal) -->
+                                <button class="nav-link btn btn-link" data-bs-toggle="modal"
+                                    data-bs-target="#userSettingsModal">
+                                    Beállítások
+                                </button>
+                            </li>
+                            <li>
+                                <hr class="dropdown-divider">
+                            </li>
+                            <li>
+                                <button class="dropdown-item d-flex align-items-center" data-bs-toggle="modal"
+                                    data-bs-target="#authModal">
+                                    Kilépés
+                                </button>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </nav>
+</header>
+
+<!-- Include the modal partial view -->
+@await Html.PartialAsync("_AuthModal")
+@await Html.PartialAsync("_UserSettingsModal")
+
+<body>
+    <main role="main" class="pb-3">
+        @RenderBody()
+    </main>
+</body>
+
+
+@await RenderSectionAsync("Scripts", required: false)
+
+</html>

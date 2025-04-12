@@ -21,5 +21,21 @@ namespace Cloud9_2.Data
         public DbSet<AccessPermission> AccessPermissions { get; set; }
         public DbSet<UserActivity> UserActivities { get; set; }
         public DbSet<ColumnVisibility> ColumnVisibilities { get; set; } //oszlopok láthatósága usercsoportonként
+        public DbSet<DocumentType> DocumentTypes { get; set; }
+
+
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
+            {
+                base.OnModelCreating(modelBuilder);
+
+                // Define the relationship between Contact and Partner
+                modelBuilder.Entity<Contact>(entity =>
+                {
+                    entity.HasOne(c => c.Partner)          // Contact has one Partner
+                        .WithMany(p => p.Contacts)      // Partner has many Contacts (if Partner has List<Contact>)
+                        .HasForeignKey(c => c.PartnerId) // FK is PartnerId
+                        .OnDelete(DeleteBehavior.Cascade); // Or other delete behavior
+                });
+            }
     }
 }

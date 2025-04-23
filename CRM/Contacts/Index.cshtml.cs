@@ -22,8 +22,9 @@ namespace Cloud9_2.Pages.CRM.Contacts
         public int CurrentPage { get; set; } = 1;
         public int TotalRecords { get; set; }
         public int TotalPages { get; set; }
+        [BindProperty(SupportsGet = true)]
         public string SearchTerm { get; set; }
-        public List<Partner> PartnerList { get; set; } // For dropdown
+        public List<Partner> PartnerList { get; set; }
 
         public IndexModel(ApplicationDbContext context, ILogger<IndexModel> logger)
         {
@@ -41,11 +42,13 @@ namespace Cloud9_2.Pages.CRM.Contacts
             public string Email { get; set; }
             public string PhoneNumber { get; set; }
             public string PartnerName { get; set; }
-            public int PartnerId { get; set; }
+            public int PartnerId { get; set; } // Remains int
         }
 
         public async Task OnGetAsync()
         {
+            CurrentPage = PageNumber;
+
             var query = _context.Contacts
                 .Include(c => c.Partner)
                 .AsQueryable();
@@ -57,10 +60,12 @@ namespace Cloud9_2.Pages.CRM.Contacts
                     c.LastName.Contains(SearchTerm) ||
                     c.Email.Contains(SearchTerm) ||
                     c.PhoneNumber.Contains(SearchTerm) ||
-                    c.Partner.Name.Contains(SearchTerm));
+                    (c.Partner != null && c.Partner.Name.Contains(SearchTerm)));
             }
 
-            // Add pagination
+            TotalRecords = await query.CountAsync();
+            TotalPages = (int)Math.Ceiling(TotalRecords / (double)PageSize);
+
             Contacts = await query
                 .Select(c => new ContactViewModel
                 {
@@ -69,20 +74,49 @@ namespace Cloud9_2.Pages.CRM.Contacts
                     LastName = c.LastName,
                     Email = c.Email,
                     PhoneNumber = c.PhoneNumber,
-                    PartnerName = c.Partner.Name,
-                    PartnerId = c.PartnerId
+                    PartnerName = c.Partner != null ? c.Partner.Name : null,
+                    PartnerId = c.PartnerId // No change needed
                 })
                 .OrderBy(c => c.LastName)
                 .ThenBy(c => c.FirstName)
                 .Skip((PageNumber - 1) * PageSize)
                 .Take(PageSize)
                 .ToListAsync();
+
+            PartnerList = await _context.Partners
+                .OrderBy(p => p.Name)
+                .Take(10)
+                .ToListAsync();
         }
 
+        public async Task<IActionResult> OnPostCreateContactAsync(string firstName, string lastName, string email, string phoneNumber, int? partnerId)
+        {
+            var contact = new Contact
+            {
+                FirstName = firstName,
+                LastName = lastName,
+                Email = email,
+                PhoneNumber = phoneNumber,
+                PartnerId = partnerId ?? 0 // Default to 0 if no partner selected
+            };
 
+            try
+            {
+                _context.Contacts.Add(contact);
+                await _context.SaveChangesAsync();
+                TempData["SuccessMessage"] = "Contact created successfully";
+            }
+            catch (DbUpdateException ex)
+            {
+                _logger.LogError(ex, "Error creating contact");
+                TempData["ErrorMessage"] = "Error creating contact";
+                return Page();
+            }
 
-        public async Task<IActionResult> OnPostEditContactAsync(int contactId, string firstName,
-            string lastName, string email, string phoneNumber)
+            return RedirectToPage();
+        }
+
+        public async Task<IActionResult> OnPostEditContactAsync(int contactId, string firstName, string lastName, string email, string phoneNumber)
         {
             var contact = await _context.Contacts.FindAsync(contactId);
             if (contact == null)
@@ -130,6 +164,34 @@ namespace Cloud9_2.Pages.CRM.Contacts
             }
 
             return RedirectToPage();
+        }
+
+        public async Task<IActionResult> OnGetPartners(string term, int page = 1)
+        {
+            _logger.LogInformation("OnGetPartners called with term: {Term}, page: {Page}", term, page);
+            const int pageSize = 10;
+            var query = _context.Partners.AsQueryable();
+
+            if (!string.IsNullOrEmpty(term))
+            {
+                query = query.Where(p => p.Name.Contains(term, StringComparison.OrdinalIgnoreCase));
+            }
+
+            var partners = await query
+                .OrderBy(p => p.Name)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .Select(p => new { id = p.PartnerId, text = p.Name })
+                .ToListAsync();
+
+            var total = await query.CountAsync();
+            _logger.LogInformation("Found {Count} partners, returning {PageSize} for page {Page}", total, partners.Count, page);
+
+            return new JsonResult(new
+            {
+                results = partners,
+                pagination = new { more = (page * pageSize) < total }
+            });
         }
     }
 }

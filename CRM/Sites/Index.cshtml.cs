@@ -32,7 +32,7 @@ namespace Cloud9_2.Pages.CRM.Sites
         public int TotalRecords { get; set; }
         public int TotalPages { get; set; }
 
-                public async Task OnGetAsync()
+        public async Task OnGetAsync()
         {
             var query = _context.Sites
                 .Include(s => s.Partner)

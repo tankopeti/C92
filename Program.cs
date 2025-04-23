@@ -11,6 +11,14 @@ var builder = WebApplication.CreateBuilder(args);
 // Add services to the container.
 builder.Services.AddRazorPages();
 builder.Services.AddControllersWithViews(); // Often added alongside Razor Pages if using both
+builder.Services.AddControllers();
+
+
+builder.Services.AddMemoryCache(); // Faster page load
+
+builder.Services.AddScoped<QuoteService>();
+
+builder.Services.AddResponseCaching();
 
 // --- Database Context ---
 // Register ApplicationDbContext (Only need one call)
@@ -62,6 +70,7 @@ builder.Services.ConfigureApplicationCookie(options =>
 // --- Other Services ---
 builder.Services.AddSignalR();
 builder.Services.AddAuthorization(); // Ensure authorization services are registered
+builder.Services.AddScoped<LeadService>();
 
 // --- Clean up Redundant Calls ---
 // REMOVED: builder.Services.AddDbContext<ApplicationDbContext>(...); // Already added above

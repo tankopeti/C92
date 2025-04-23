@@ -86,7 +86,7 @@ namespace Cloud9_2.Models
         public string? PaymentTerms { get; set; }        // e.g., "Net 30", "Due on Receipt"
 
         [Display(Name = "Kredit limit")]
-        public int? CreditLimit { get; set; }        // Maximum credit allowed
+        public decimal? CreditLimit { get; set; }        // Maximum credit allowed
 
         [Display(Name = "Alap Valuta")]
         public string? PreferredCurrency { get; set; }   // e.g., "USD", "EUR"
@@ -107,6 +107,7 @@ namespace Cloud9_2.Models
 
         [Display(Name = "Módosította")]
         public string? UpdatedBy { get; set; }           // User who last updated (optional)
+        public List<Lead>? Leads { get; set; } // Collection for one-to-many
 
         // Navigation properties for one-to-many relationships
         public List<Site>? Sites { get; set; }         // Multiple sites per partner
@@ -114,6 +115,7 @@ namespace Cloud9_2.Models
         public List<Document>? Documents { get; set; } // Multiple documents per partner
         public List<PartnerType>? PartnerTypes { get; set; } // Multiple Types per partner e.g., "Client", "Vendor", "Both"
         public List<LeadSource>? LeadSources { get; set; } // Multiple Lead sources e.g., "Website", "Referral"
+        public List<Quote>? Quotes { get; set; } 
  
         // Constructor to initialize collections
         public Partner()
@@ -124,6 +126,8 @@ namespace Cloud9_2.Models
             Sites = new List<Site>();
             Contacts = new List<Contact>();
             Documents = new List<Document>();
+            Leads = new List<Lead>();
+            Quotes = new List<Quote>();
         }
 
     }

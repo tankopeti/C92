@@ -10,5 +10,5 @@ namespace Cloud9_2.Models
         // Foreign key to Partner
         public int PartnerId { get; set; }
         public Partner Partner { get; set; }
-    }
+        }
 }

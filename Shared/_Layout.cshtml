@@ -1,77 +1,407 @@
 ﻿<!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>@ViewData["Title"] - Cloud9._2</title>
+    <title>@ViewData["Title"] - Cloud9.2</title>
+    <!-- Bootstrap CSS -->
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" />
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&display=swap" rel="stylesheet">
+    <!-- Select2 CSS -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/css/select2.min.css" rel="stylesheet" />
+    <!-- Select2 Bootstrap 5 Theme -->
+    <link href="https://cdn.jsdelivr.net/npm/@@ttskch/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" rel="stylesheet" />
+    <!-- Custom CSS -->
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
-    <link rel="stylesheet" href="~/Cloud9._2.styles.css" asp-append-version="true" />
 </head>
 <body>
+    <header>
+        <nav class="navbar navbar-expand-lg navbar-dark fixed-top shadow-sm">
+            <div class="container-fluid navbar-container">
+                <div class="navbar-left">
+                    <a class="navbar-brand" href="/">Cloud9.2</a>
+                </div>
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarContent" aria-controls="navbarContent" aria-expanded="false" aria-label="Toggle navigation">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+                <div class="navbar-center">
+                    <div class="collapse navbar-collapse" id="navbarContent">
+                        <ul class="navbar-nav">
+                            @if (User.IsInRole("SuperAdmin") || User.IsInRole("Admin") || User.IsInRole("CRMUser"))
+                            {
+                                <li class="nav-item dropdown">
+                                    <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown" aria-expanded="false">CRM</a>
+                                    <ul class="dropdown-menu">
+                                        <li><a class="dropdown-item" asp-area="" asp-page="/CRM/Partners/Index">Partnerek</a></li>
+                                        <li><a class="dropdown-item" asp-area="" asp-page="/CRM/Contacts/Index">Kontaktok</a></li>
+                                        <li><a class="dropdown-item" asp-area="" asp-page="/CRM/Sites/Index">Telephelyek</a></li>
+                                        <li><a class="dropdown-item" asp-area="" asp-page="/CRM/Leads/Index">Lead-ek</a></li>
+                                        <li><a class="dropdown-item" asp-area="" asp-page="/CRM/Quotes/Index">Árajánlatok</a></li>
+                                        <li><a class="dropdown-item" href="/CRM">Megrendelések</a></li>
+                                        <li><a class="dropdown-item" href="/CRM">Ügyfélkapcsolat</a></li>
+                                    </ul>
+                                </li>
+                            }
+                            <li class="nav-item dropdown">
+                                <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown" aria-expanded="false">Logisztika</a>
+                                <ul class="dropdown-menu">
+                                    <li><a class="dropdown-item" asp-area="" asp-page="/Logistics/Products/Index">Termékek</a></li>
+                                </ul>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="navbar-user">
+                    <ul class="navbar-nav">
+                        <li class="nav-item">
+                            <div class="form-check form-switch ms-3">
+                                <input class="form-check-input" type="checkbox" id="themeToggle" onchange="toggleTheme()">
+                                <label class="form-check-label" for="themeToggle">
+                                    <i class="bi bi-moon-stars-fill"></i>
+                                </label>
+                            </div>
+                        </li>
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle d-flex align-items-center" href="#" data-bs-toggle="dropdown" aria-expanded="false">
+                                <img src="/Images/person-fill-gear.svg" alt="User settings" style="width: 24px; height: 24px;">
+                            </a>
+                            <ul class="dropdown-menu dropdown-menu-end">
+                                @if (User.IsInRole("SuperAdmin") || User.IsInRole("Admin"))
+                                {
+                                    <li><a class="dropdown-item" asp-page="/Admin/Index">Admin</a></li>
+                                }
+                                <li><a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#userSettingsModal">Beállítások</a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#authModal">Kilépés</a></li>
+                            </ul>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </nav>
+    </header>
 
-        <main role="main" class="pb-3"> 
+    <!-- Modals -->
+    @await Html.PartialAsync("_AuthModal")
+    @await Html.PartialAsync("_UserSettingsModal")
+
+    <main role="main" class="pb-3">
+        <div class="container-fluid p-0">
             @RenderBody()
-         </main>
+        </div>
+    </main>
 
+    <footer class="border-top footer text-muted">
+        <div class="container">
+            © 2025 - Cloud9.2 - <a asp-area="" asp-page="/Privacy">Privacy</a>
+        </div>
+    </footer>
 
+    <!-- jQuery -->
     <script src="~/lib/jquery/dist/jquery.min.js"></script>
+    <!-- Bootstrap JS -->
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Select2 JS -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/js/select2.min.js"></script>
+    <!-- Custom JS -->
     <script src="~/js/site.js" asp-append-version="true"></script>
-    <script src="~/js/packery.pkgd.min.js"></script>
-    <script src="~/js/draggabilly.pkgd.min.js"></script>
-    <script src="~/js/imagesloaded.pkgd.min.js"></script>
-    <script>
-        document.addEventListener('DOMContentLoaded', function () {
-            var grid = document.querySelector('.grid');
-            var pckry = new Packery(grid, {
-                itemSelector: '.grid-item',
-                gutter: 10,
-                columnWidth: 200,
-                percentPosition: true,
-            });
-
-            imagesLoaded(grid, function () {
-                pckry.layout();
-            });
-
-            pckry.getItemElements().forEach(function (itemElem) {
-                var draggie = new Draggabilly(itemElem);
-                pckry.bindDraggabillyEvents(draggie);
-            });
-        });
-    </script>
-
     <script src="~/js/signalr.min.js"></script>
     <script>
-        document.addEventListener('DOMContentLoaded', function () {
-            const connection = new signalR.HubConnectionBuilder()
-                .withUrl("/reportHub")
-                .build();
+        // Theme toggle functionality
+        function toggleTheme() {
+            const html = document.documentElement;
+            const theme = html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+            html.setAttribute('data-theme', theme);
+            localStorage.setItem('theme', theme);
+            document.getElementById('themeToggle').checked = theme === 'dark';
+        }
 
-            connection.start().then(function () {
-                console.log("SignalR connected.");
-            }).catch(function (err) {
-                console.error("SignalR connection error: ", err);
-            });
-
-            document.querySelectorAll('#reportList a').forEach(function (link) {
-                link.addEventListener('click', function (e) {
-                    e.preventDefault();
-                    const reportName = this.getAttribute('data-report');
-                    connection.invoke("SwitchReport", reportName);
-                });
-            });
-
-            connection.on("ReceiveReport", function (reportName) {
-                document.getElementById('reportTitle').textContent = reportName;
-                document.getElementById('reportContent').innerHTML = `<p>Loading ${reportName}...</p>`;
-                setTimeout(function () {
-                    document.getElementById('reportContent').innerHTML = `<p>This is the content of the ${reportName}.</p>`;
-                }, 1000);
-            });
+        // Load saved theme on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            const savedTheme = localStorage.getItem('theme') || 'light';
+            document.documentElement.setAttribute('data-theme', savedTheme);
+            document.getElementById('themeToggle').checked = savedTheme === 'dark';
         });
     </script>
     @await RenderSectionAsync("Scripts", required: false)
+
+    <style>
+        /* Base styles from original layout */
+        body {
+            padding-top: 40px;
+        }
+        .table th, .table td {
+            padding: 0.5rem 0.75rem;
+            vertical-align: middle;
+        }
+        .modal-lg {
+            max-width: 1000px;
+        }
+
+        /* Night mode styles */
+        [data-theme="dark"] {
+            /* Body and main content */
+            background-color: #1a1a1a;
+            color: #e0e0e0;
+        }
+
+        [data-theme="dark"] body {
+            background-color: #1a1a1a;
+        }
+
+        [data-theme="dark"] .right-content {
+            background-color: #1a1a1a;
+        }
+
+        [data-theme="dark"] .page-header-fixed-top {
+            background-color: #2a2a2a;
+            border-bottom: 1px solid #444;
+        }
+
+        [data-theme="dark"] .scrollable-card-container {
+            background-color: #1a1a1a;
+        }
+
+        [data-theme="dark"] .card-grid-header {
+            background-color: #2a2a2a;
+            border-bottom: 1px solid #444;
+        }
+
+        [data-theme="dark"] .card-grid-column {
+            color: #b0b0b0;
+        }
+
+        [data-theme="dark"] .partner-card {
+            background-color: #2a2a2a;
+            border: 1px solid #444;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+        }
+
+        [data-theme="dark"] .partner-card:hover {
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.5);
+        }
+
+        [data-theme="dark"] .fw-bold {
+            color: #e0e0e0;
+        }
+
+        [data-theme="dark"] .text-muted {
+            color: #888 !important;
+        }
+
+        [data-theme="dark"] .fixed-footer {
+            background-color: #2a2a2a;
+            border-top: 1px solid #444;
+        }
+
+        [data-theme="dark"] .navbar {
+            background: linear-gradient(to right, #1c2526, #2a4d69);
+        }
+
+        [data-theme="dark"] .navbar-brand,
+        [data-theme="dark"] .nav-link {
+            color: #d0d0d0 !important;
+        }
+
+        [data-theme="dark"] .nav-link:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+            color: #ffffff !important;
+        }
+
+        [data-theme="dark"] .dropdown-menu {
+            background-color: #2a2a2a;
+            border: 1px solid #444;
+        }
+
+        [data-theme="dark"] .dropdown-item {
+            color: #e0e0e0;
+        }
+
+        [data-theme="dark"] .dropdown-item:hover {
+            background-color: #3a3a3a;
+            color: #ffffff;
+        }
+
+        [data-theme="dark"] .left-sidebar {
+            background-color: #2a2a2a;
+            border-right: 1px solid #444;
+        }
+
+        [data-theme="dark"] .nav.flex-column .nav-link {
+            color: #d0d0d0;
+        }
+
+        [data-theme="dark"] .nav.flex-column .nav-link:hover {
+            background-color: #3a3a3a;
+        }
+
+        [data-theme="dark"] .btn-new {
+            background-color: #2a4d69 !important;
+            border-color: #2a4d69 !important;
+            color: #e0e0e0 !important;
+        }
+
+        [data-theme="dark"] .btn-new:hover {
+            background-color: #1c2526 !important;
+            border-color: #1c2526 !important;
+        }
+
+        [data-theme="dark"] .btn-outline-secondary {
+            border-color: #666;
+            color: #e0e0e0;
+        }
+
+        [data-theme="dark"] .btn-outline-secondary:hover {
+            background-color: #3a3a3a;
+            border-color: #888;
+        }
+
+        [data-theme="dark"] .btn-outline-info {
+            border-color: #4a90e2;
+            color: #4a90e2;
+        }
+
+        [data-theme="dark"] .btn-outline-info:hover {
+            background-color: #4a90e2;
+            color: #ffffff;
+        }
+
+        [data-theme="dark"] .btn-outline-primary {
+            border-color: #357abd;
+            color: #357abd;
+        }
+
+        [data-theme="dark"] .btn-outline-primary:hover {
+            background-color: #357abd;
+            color: #ffffff;
+        }
+
+        [data-theme="dark"] .btn-outline-danger {
+            border-color: #d9534f;
+            color: #d9534f;
+        }
+
+        [data-theme="dark"] .btn-outline-danger:hover {
+            background-color: #d9534f;
+            color: #ffffff;
+        }
+
+        [data-theme="dark"] .form-control {
+            background-color: #3a3a3a;
+            border-color: #666;
+            color: #e0e0e0;
+        }
+
+        [data-theme="dark"] .form-control:focus {
+            background-color: #3a3a3a;
+            border-color: #888;
+            color: #e0e0e0;
+            box-shadow: 0 0 0 0.2rem rgba(100, 100, 100, 0.25);
+        }
+
+        [data-theme="dark"] .modal-content {
+            background-color: #2a2a2a;
+            border: 1px solid #444;
+            color: #e0e0e0;
+        }
+
+        [data-theme="dark"] .modal-header {
+            border-bottom: 1px solid #444;
+        }
+
+        [data-theme="dark"] .modal-footer {
+            border-top: 1px solid #444;
+        }
+
+        [data-theme="dark"] .btn-secondary {
+            background-color: #666;
+            border-color: #666;
+            color: #e0e0e0;
+        }
+
+        [data-theme="dark"] .btn-secondary:hover {
+            background-color: #777;
+            border-color: #777;
+        }
+
+        [data-theme="dark"] .btn-primary {
+            background-color: #357abd !important;
+            border-color: #357abd !important;
+        }
+
+        [data-theme="dark"] .btn-primary:hover {
+            background-color: #2a6099 !important;
+            border-color: #2a6099 !important;
+        }
+
+        [data-theme="dark"] .alert-success {
+            background-color: #2e7d32;
+            border-color: #1b5e20;
+            color: #e0e0e0;
+        }
+
+        [data-theme="dark"] .alert-danger {
+            background-color: #d32f2f;
+            border-color: #b71c1c;
+            color: #e0e0e0;
+        }
+
+        [data-theme="dark"] .alert-warning {
+            background-color: #ff8f00;
+            border-color: #e65100;
+            color: #1a1a1a;
+        }
+
+        [data-theme="dark"] .pagination .page-link {
+            background-color: #2a2a2a;
+            border-color: #444;
+            color: #e0e0e0;
+        }
+
+        [data-theme="dark"] .pagination .page-item.active .page-link {
+            background-color: #357abd;
+            border-color: #357abd;
+            color: #ffffff;
+        }
+
+        [data-theme="dark"] .pagination .page-link:hover {
+            background-color: #3a3a3a;
+            color: #ffffff;
+        }
+
+        [data-theme="dark"] .form-select {
+            background-color: #3a3a3a;
+            border-color: #666;
+            color: #e0e0e0;
+        }
+
+        [data-theme="dark"] .footer {
+            background-color: #2a2a2a;
+            border-top: 1px solid #444;
+            color: #888;
+        }
+
+        [data-theme="dark"] .footer a {
+            color: #4a90e2;
+        }
+
+        [data-theme="dark"] .breadcrumb-item a {
+            color: #4a90e2;
+        }
+
+        [data-theme="dark"] .breadcrumb-item.active {
+            color: #e0e0e0;
+        }
+
+        /* Theme toggle icon */
+        [data-theme="dark"] .form-check-label .bi-moon-stars-fill {
+            color: #e0e0e0;
+        }
+    </style>
 </body>
 </html>

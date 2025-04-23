@@ -1,198 +1,112 @@
 @page
 @using System.Security.Claims
 @using Microsoft.AspNetCore.Identity
+@using Cloud9_2.Models
 @model Cloud9_2.Pages.CRM.Partners.IndexModel
 @{
-    Layout = "/Pages/CRM/_Layout.cshtml";
+    Layout = "_Layout";
     ViewData["Title"] = "Partnerek";
 }
 
-<div class="container-fluid vh-100 d-flex flex-nowrap p-0">
-    <div class="d-flex flex-column flex-shrink-0 border-end" style="width: 200px;">
-        <div class="pt-3">
-            @if (User.IsInRole("SuperAdmin") || User.IsInRole("Admin") || User.IsInRole("CRMUser"))
-            {
-                <ul class="nav flex-column">
-                    <li class="nav-item">
-                        <a class="nav-link active px-3 py-2" asp-area="" asp-page="/CRM/Partners/Index">
-                            <i class="bi bi-people-fill me-2"></i>Partners
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link px-3 py-2" asp-area="" asp-page="/CRM/Contacts/Index">
-                            <i class="bi bi-person-lines-fill me-2"></i>Contacts
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link px-3 py-2" asp-area="" asp-page="/CRM/Sites/Index">
-                            <i class="bi bi-person-lines-fill me-2"></i>Telephelyek
-                        </a>
-                    </li>
-                </ul>
-            }
+@await Html.PartialAsync("_CRMSidebar")
+
+<div class="right-content"> <div class="page-header-fixed-top"> <div class="d-flex justify-content-between align-items-center mb-2">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb bg-body-tertiary rounded-3 p-2 mb-0"> <li class="breadcrumb-item"><a href="../../">Főoldal</a></li>
+                    <li class="breadcrumb-item"><a href="../">CRM Dashboard</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">Partners</li>
+                    <li class="breadcrumb-item active" aria-current="page">@Model.Partners.Count of @Model.TotalRecords partner@(Model.TotalRecords != 1 ? "s" : "") (Page @Model.CurrentPage of @Model.TotalPages)</li>
+                </ol>
+            </nav>
+        </div>
+        <div class="d-flex justify-content-between align-items-center mb-3"> <div class="d-flex align-items-center gap-2">
+                <button type="button" class="btn-new" data-bs-toggle="modal" data-bs-target="#newPartnerModal">
+                    <i class="bi bi-plus-circle me-1"></i>New Partner
+                </button>
+            </div>
+            <div class="d-flex align-items-center gap-2">
+                <form method="get" asp-page="./Index" class="input-group input-group-sm" style="width: 250px;">
+                    <input type="text" class="form-control" placeholder="Search partners..." id="searchInput" name="SearchTerm" value="@Model.SearchTerm">
+                    <input type="hidden" name="pageSize" value="@Model.PageSize" />
+                    <button class="btn btn-outline-secondary" type="submit">
+                        <i class="bi bi-search"></i>
+                    </button>
+                </form>
+                <div class="dropdown">
+                    <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                        <i class="bi bi-funnel me-1"></i>Filter
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                        <li><a class="dropdown-item" href="#" data-filter="all">All Partners</a></li>
+                        <li><a class="dropdown-item" href="#" data-filter="active">Active Partners</a></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="card-grid-header">
+            <div class="card-grid-row">
+                @if (Model.VisibleColumns.Contains("Name")) { <div class="card-grid-column partner-name-col">Name</div> }
+                @if (Model.VisibleColumns.Contains("Email")) { <div class="card-grid-column partner-email-col">Email</div> }
+                <div class="card-grid-column actions-column">Actions</div>
+            </div>
         </div>
     </div>
 
-    <div class="d-flex flex-column flex-grow-1 overflow-auto p-3" style="height: 100vh;">
-        <div class="mb-3">
-            <div class="d-flex justify-content-between align-items-center mb-2">
-                <nav aria-label="breadcrumb">
-                    <ol class="breadcrumb bg-body-tertiary rounded-3">
-                        <li class="breadcrumb-item"><a href="../../">Főoldal</a></li>
-                        <li class="breadcrumb-item"><a href="../">CRM Dashboard</a></li>
-                        <li class="breadcrumb-item active" aria-current="page">Partners</li>
-                        <li class="breadcrumb-item active" aria-current="page">@Model.Partners.Count of @Model.TotalRecords partner@(Model.TotalRecords != 1 ? "s" : "") (Page @Model.CurrentPage of @Model.TotalPages)</li>
-                    </ol>
-                </nav>
-            </div>
-            <div class="d-flex justify-content-between align-items-center">
-                <div class="d-flex align-items-center gap-2">
-                    <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#newPartnerModal">
-                        <i class="bi bi-plus-circle me-1"></i>New Partner
-                    </button>
-                </div>
-                <div class="d-flex align-items-center gap-2">
-                    <form method="get" asp-page="./Index" class="input-group input-group-sm" style="width: 250px;">
-                        <input type="text" class="form-control" placeholder="Search partners..." id="searchInput" name="SearchTerm" value="@Model.SearchTerm">
-                        <input type="hidden" name="pageSize" value="@Model.PageSize" />
-                        <button class="btn btn-outline-secondary" type="submit">
-                            <i class="bi bi-search"></i>
-                        </button>
-                    </form>
-                    <div class="dropdown">
-                        <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown">
-                            <i class="bi bi-funnel me-1"></i>Filter
-                        </button>
-                        <ul class="dropdown-menu dropdown-menu-end">
-                            <li><a class="dropdown-item" href="#" data-filter="all">All Partners</a></li>
-                            <li><a class="dropdown-item" href="#" data-filter="active">Active Partners</a></li>
-                        </ul>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="table-responsive border rounded">
-            @if (Model.Partners.Any())
+    <div class="scrollable-card-container">
+        <div class="card-grid-body"> @if (Model.Partners.Any())
             {
-                <table class="table table-striped table-hover">
-                <thead>
-                    <tr>
-                        @if (Model.VisibleColumns.Contains("Name")) { <th>Name</th> }
-                        @if (Model.VisibleColumns.Contains("Email")) { <th>Email</th> }
-                        <th class="text-end">Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach (var item in Model.Partners)
-                    {
-                        <tr data-partner-id="@item.PartnerId">
-                            @if (Model.VisibleColumns.Contains("Name")) { <td class="ps-3">@Html.DisplayFor(modelItem => item.Name)</td> }
-                            @if (Model.VisibleColumns.Contains("Email")) { <td>@Html.DisplayFor(modelItem => item.Email)</td> }
-                            <td class="pe-3 text-end">
-                                <div class="btn-group btn-group-sm" role="group">
-                                    <button type="button" class="btn btn-outline-info view-partner-btn" 
-                                            data-bs-toggle="modal" 
-                                            data-bs-target="#viewPartnerModal_@item.PartnerId" 
-                                            data-bs-toggle="tooltip" 
-                                            data-bs-placement="top" 
-                                            data-bs-title="View Connections">
-                                        <i class="bi bi-eye"></i>
-                                    </button>
-                                    <div class="dropdown">
-                                    <button class="btn btn-outline-secondary dropdown-toggle" type="button" 
-                                            data-bs-toggle="dropdown" 
-                                            aria-expanded="false" 
-                                            data-bs-toggle="tooltip" 
-                                            data-bs-placement="top" 
-                                            data-bs-title="More Actions">
-                                        Menü
-                                    </button>
-                                    <ul class="dropdown-menu dropdown-menu-end">
-                                            <li>
-                                                <a class="dropdown-item" href="#" 
-                                                data-bs-toggle="modal" 
-                                                data-bs-target="#editPartnerModal_@item.PartnerId">
-                                                    <i class="bi bi-pencil-square me-2"></i>Szerkesztés
-                                                </a>
-                                            </li>
-                                            <li>
-                                                <a class="dropdown-item" href="#" 
-                                                data-bs-toggle="modal" 
-                                                data-bs-target="#newSiteModal_@item.PartnerId">
-                                                    <i class="bi bi-geo-alt me-2"></i>Új telephely
-                                                </a>
-                                            </li>
-                                            <li>
-                                                <a class="dropdown-item" href="#" 
-                                                data-bs-toggle="modal" 
-                                                data-bs-target="#newContactModal_@item.PartnerId">
-                                                    <i class="bi bi-person-plus me-2"></i>Új kontakt
-                                                </a>
-                                            </li>
-                                            <li>
-                                                <a class="dropdown-item" href="#" 
-                                                data-bs-toggle="modal" 
-                                                data-bs-target="#newDocumentModal_@item.PartnerId">
-                                                    <i class="bi bi-file-earmark-plus me-2"></i>Új Dokumentum
-                                                </a>
-                                            </li>
-                                            <li>
-                                                <a class="dropdown-item text-danger" href="#" 
-                                                data-bs-toggle="modal" 
-                                                data-bs-target="#deletePartnerModal" 
-                                                data-partner-id="@item.PartnerId" 
-                                                data-partner-name="@item.Name">
-                                                    <i class="bi bi-trash me-2"></i>Törlés
-                                                </a>
-                                            </li>
-                                        </ul>
+                @foreach (var item in Model.Partners)
+                {
+                    <div class="card partner-card mb-3" data-partner-id="@item.PartnerId">
+                        <div class="card-body p-2"> <div class="card-grid-row align-items-center"> @if (Model.VisibleColumns.Contains("Name"))
+                                {
+                                    <div class="card-grid-cell partner-name-col">
+                                        <div class="partner-info">
+                                            <div class="fw-bold">@Html.DisplayFor(modelItem => item.Name)</div>
+                                        </div>
+                                    </div>
+                                }
+                                @if (Model.VisibleColumns.Contains("Email"))
+                                {
+                                    <div class="card-grid-cell partner-email-col">
+                                        <div class="partner-email text-muted small">
+                                            <i class="bi bi-envelope me-1"></i>@Html.DisplayFor(modelItem => item.Email)
+                                        </div>
+                                    </div>
+                                }
+                                <div class="card-grid-cell actions-cell">
+                                    <div class="btn-group btn-group-sm" role="group">
+                                        <button type="button" class="btn btn-outline-info view-partner-btn"
+                                                data-bs-toggle="modal"
+                                                data-bs-target="#viewPartnerModal_@item.PartnerId"
+                                                data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="View Connections">
+                                            <i class="bi bi-eye"></i>
+                                        </button>
+                                        <div class="dropdown">
+                                            <button class="btn btn-outline-secondary dropdown-toggle btn-sm" type="button"
+                                                    data-bs-toggle="dropdown" aria-expanded="false"
+                                                    data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="More Actions">
+                                                <i class="bi bi-three-dots-vertical"></i> </button>
+                                            <ul class="dropdown-menu dropdown-menu-end">
+                                                <li><a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#editPartnerModal_@item.PartnerId"><i class="bi bi-pencil-square me-2"></i>Szerkesztés</a></li>
+                                                <li><a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#newSiteModal_@item.PartnerId"><i class="bi bi-geo-alt me-2"></i>Új telephely</a></li>
+                                                <li><a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#newContactModal_@item.PartnerId"><i class="bi bi-person-plus me-2"></i>Új kontakt</a></li>
+                                                <li><a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#newDocumentModal_@item.PartnerId"><i class="bi bi-file-earmark-plus me-2"></i>Új Dokumentum</a></li>
+                                                <li><hr class="dropdown-divider"></li>
+                                                <li><a class="dropdown-item text-danger" href="#" data-bs-toggle="modal" data-bs-target="#deletePartnerModal" data-partner-id="@item.PartnerId" data-partner-name="@item.Name"><i class="bi bi-trash me-2"></i>Törlés</a></li>
+                                            </ul>
+                                        </div>
                                     </div>
                                 </div>
-                            </td>
-                        </tr>
-                    }
-                </tbody>
-            </table>
-
-                <nav aria-label="Partners pagination">
-                    <ul class="pagination justify-content-center mt-3">
-                        <li class="page-item @(Model.CurrentPage == 1 ? "disabled" : "")">
-                            <a class="page-link" asp-page="./Index" asp-route-pageNumber="@(Model.CurrentPage - 1)" asp-route-pageSize="@Model.PageSize" asp-route-searchTerm="@Model.SearchTerm">Previous</a>
-                        </li>
-                        @{
-                            int startPage = Math.Max(1, Model.CurrentPage - 2);
-                            int endPage = Math.Min(Model.TotalPages, startPage + 5);
-                            if (endPage - startPage + 1 < 6 && startPage > 1) { startPage = Math.Max(1, endPage - 5); }
-                            if (endPage < Model.TotalPages && startPage + 5 > Model.TotalPages) { endPage = Model.TotalPages; startPage = Math.Max(1, endPage - 5); }
-                        }
-                        @for (int i = startPage; i <= endPage; i++)
-                        {
-                            <li class="page-item @(i == Model.CurrentPage ? "active" : "")" aria-current="@(i == Model.CurrentPage ? "page" : null)">
-                                <a class="page-link" asp-page="./Index" asp-route-pageNumber="@i" asp-route-pageSize="@Model.PageSize" asp-route-searchTerm="@Model.SearchTerm">@i</a>
-                            </li>
-                        }
-                        <li class="page-item @(Model.CurrentPage == Model.TotalPages ? "disabled" : "")">
-                            <a class="page-link" asp-page="./Index" asp-route-pageNumber="@(Model.CurrentPage + 1)" asp-route-pageSize="@Model.PageSize" asp-route-searchTerm="@Model.SearchTerm">Next</a>
-                        </li>
-                    </ul>
-                </nav>
-                <div class="text-center mt-3">
-                    <form method="get" asp-page="./Index">
-                        <label for="pageSize">Records per page:</label>
-                        <select id="pageSize" name="pageSize" onchange="this.form.submit()" class="form-select form-select-sm d-inline-block w-auto">
-                            <option value="10" selected="@(Model.PageSize == 10)">10</option>
-                            <option value="25" selected="@(Model.PageSize == 25)">25</option>
-                            <option value="50" selected="@(Model.PageSize == 50)">50</option>
-                        </select>
-                        <input type="hidden" name="pageNumber" value="1" />
-                        <input type="hidden" name="SearchTerm" value="@Model.SearchTerm" />
-                    </form>
-                </div>
+                            </div>
+                        </div>
+                    </div>
+                }
             }
             else
             {
-                <div class="alert alert-warning text-center" role="alert">
+                <div class="alert alert-warning text-center mt-3" role="alert">
                     @if (!string.IsNullOrEmpty(Model.SearchTerm))
                     {
                         @:No partners found matching "@Model.SearchTerm".
@@ -205,6 +119,19 @@
             }
         </div>
     </div>
+
+        <!-- Pagination Footer -->
+        @await Html.PartialAsync("_PaginationFooter", new PaginationViewModel
+        {
+            CurrentPage = Model.CurrentPage,
+            TotalPages = Model.TotalPages,
+            PageSize = Model.PageSize,
+            SearchTerm = Model.SearchTerm,
+            PageRoute = "./Index",
+            EntityName = "Partners"
+        })
+        </div>
+
 </div>
 
 <!-- New Partner Modal with Fixed Width and Height -->
@@ -789,29 +716,224 @@ $('#newPartnerModal').on('show.bs.modal', function() {
             });
         });
     </script>
-    <style>
-    .modal-lg { max-width: 1000px; }
-    #newPartnerModal .tab-content { 
-        min-width: 0; /* Let it fit the modal naturally */
-        width: 100%; /* Fill available space */
-        min-height: 450px; /* Matches tallest tab */
-        overflow-y: auto; /* Vertical scroll if needed */
-        overflow-x: hidden; /* Prevent horizontal scroll */
+<style>
+    /* Page-specific styles to match card-based layout */
+    .card-grid-header {
+        padding: 0 15px 2px 15px;
+        margin-top: 0px;
+        background-color: #F1EFEC;
+        border-bottom: 1px solid #dee2e6;
     }
-    #newPartnerModal .tab-pane { 
-        width: 100%; 
-        height: 100%; /* Fills the fixed height */
+
+    .card-grid-column {
+        font-weight: 600;
+        color: #495057;
+        font-size: 0.9rem;
+        text-transform: uppercase;
     }
-    .modal-dialog {
-        max-width: 75%;
+
+    /* Column widths */
+    .partner-name-col { flex: 1 1 40%; min-width: 150px; }
+    .partner-email-col { flex: 1 1 40%; min-width: 150px; }
+    .actions-column, .actions-cell { flex: 0 0 auto; width: auto; text-align: right; padding-right: 10px; }
+
+    /* Button group styling */
+    .btn-group-sm .btn {
+        padding: 0.2rem 0.5rem;
+        font-size: 0.875rem;
     }
-    .tab-content {
+
+    /* Ensure pagination is centered */
+    .fixed-footer .pagination {
+        display: flex;
+        justify-content: center;
+        width: 100%;
+        margin-bottom: 0;
+    }
+
+    .fixed-footer nav {
+        flex-grow: 1;
+        text-align: center;
+    }
+
+    /* Modal Sizing */
+    .modal-lg {
+        max-width: 1000px !important;
+    }
+
+    /* Consistent Tab Content Styling for New, View, and Edit modals */
+    #newPartnerModal .tab-content,
+    [id^="viewPartnerModal_"] .tab-content,
+    [id^="editPartnerModal_"] .tab-content {
+        min-width: 0;
+        width: 100%;
         min-height: 450px;
+        max-height: 65vh;
         overflow-y: auto;
         overflow-x: hidden;
+        padding: 1rem;
+        background-color: #fff; /* Light mode background */
     }
+
+    /* Consistent Tab Pane Styling */
+    #newPartnerModal .tab-pane,
+    [id^="viewPartnerModal_"] .tab-pane,
+    [id^="editPartnerModal_"] .tab-pane {
+        width: 100%;
+    }
+
+    /* Adjust Modal Body Padding */
+    #newPartnerModal .modal-body,
+    [id^="viewPartnerModal_"] .modal-body,
+    [id^="editPartnerModal_"] .modal-body {
+        padding: 1rem 1rem 0 1rem;
+    }
+
+    /* Remove margin below tabs */
+    #newPartnerModal .nav-tabs,
+    [id^="viewPartnerModal_"] .nav-tabs,
+    [id^="editPartnerModal_"] .nav-tabs {
+        margin-bottom: 3 !important;
+    }
+
+    /* General Table Cell Styling */
     .table tbody tr td {
         vertical-align: middle;
+    }
+
+    /* View Modal Specific Content Styling */
+    [id^="viewPartnerModal_"] .table {
+        margin-bottom: 0;
+    }
+    [id^="viewPartnerModal_"] .tab-pane > p {
+        padding: 1.5rem;
+        text-align: center;
+        color: #6c757d;
+    }
+
+    /* Dark mode overrides for page-specific elements */
+    [data-theme="dark"] .card-grid-header {
+        background-color: #2a2a2a;
+        border-bottom: 1px solid #444;
+    }
+
+    [data-theme="dark"] .card-grid-column {
+        color: #b0b0b0;
+    }
+
+    [data-theme="dark"] .partner-card {
+        background-color: #2a2a2a;
+        border: 1px solid #444;
+    }
+
+    [data-theme="dark"] .fixed-footer {
+        background-color: #2a2a2a;
+        border-top: 1px solid #444;
+    }
+
+    [data-theme="dark"] .alert-success {
+        background-color: #2e7d32;
+        border-color: #1b5e20;
+        color: #e0e0e0;
+    }
+
+    [data-theme="dark"] .alert-danger {
+        background-color: #d32f2f;
+        border-color: #b71c1c;
+        color: #e0e0e0;
+    }
+
+    /* Dark mode modal overrides */
+    [data-theme="dark"] #newPartnerModal .tab-content,
+    [data-theme="dark"] [id^="viewPartnerModal_"] .tab-content,
+    [data-theme="dark"] [id^="editPartnerModal_"] .tab-content,
+    [data-theme="dark"] [id^="deletePartnerModal_"] .tab-content {
+        background-color: #2a2a2a !important;
+        color: #e0e0e0 !important;
+    }
+
+    [data-theme="dark"] #newPartnerModal .tab-pane,
+    [data-theme="dark"] [id^="viewPartnerModal_"] .tab-pane,
+    [data-theme="dark"] [id^="editPartnerModal_"] .tab-pane,
+    [data-theme="dark"] [id^="deletePartnerModal_"] .tab-pane {
+        color: #e0e0e0 !important;
+    }
+
+    [data-theme="dark"] #newPartnerModal .modal-body,
+    [data-theme="dark"] [id^="viewPartnerModal_"] .modal-body,
+    [data-theme="dark"] [id^="editPartnerModal_"] .modal-body,
+    [data-theme="dark"] [id^="deletePartnerModal_"] .modal-body {
+        background-color: #2a2a2a !important;
+        color: #e0e0e0 !important;
+    }
+
+    [data-theme="dark"] .form-control {
+        background-color: #333333 !important;
+        border-color: #666 !important;
+        color: #e0e0e0 !important;
+    }
+
+    [data-theme="dark"] .form-control:focus {
+        background-color: #333333 !important;
+        border-color: #888 !important;
+        color: #e0e0e0 !important;
+        box-shadow: 0 0 0 0.2rem rgba(100, 100, 100, 0.25) !important;
+    }
+
+    [data-theme="dark"] .form-control::placeholder {
+        color: #aaaaaa !important;
+    }
+
+    [data-theme="dark"] .form-label {
+        color: #e0e0e0 !important;
+    }
+
+    [data-theme="dark"] .modal-title {
+        color: #e0e0e0 !important;
+    }
+
+    /* Dark mode tab header overrides */
+    [data-theme="dark"] #newPartnerModal .nav-tabs,
+    [data-theme="dark"] [id^="viewPartnerModal_"] .nav-tabs,
+    [data-theme="dark"] [id^="editPartnerModal_"] .nav-tabs {
+        background-color: #2a2a2a !important;
+        border-bottom: 1px solid #444 !important;
+    }
+
+    [data-theme="dark"] #newPartnerModal .nav-tabs .nav-link,
+    [data-theme="dark"] [id^="viewPartnerModal_"] .nav-tabs .nav-link,
+    [data-theme="dark"] [id^="editPartnerModal_"] .nav-tabs .nav-link {
+        color: #b0b0b0 !important;
+    }
+
+    [data-theme="dark"] #newPartnerModal .nav-tabs .nav-link:hover,
+    [data-theme="dark"] [id^="viewPartnerModal_"] .nav-tabs .nav-link:hover,
+    [data-theme="dark"] [id^="editPartnerModal_"] .nav-tabs .nav-link:hover {
+        color: #e0e0e0 !important;
+        background-color: #3a3a3a !important;
+    }
+
+    [data-theme="dark"] #newPartnerModal .nav-tabs .nav-link.active,
+    [data-theme="dark"] [id^="viewPartnerModal_"] .nav-tabs .nav-link.active,
+    [data-theme="dark"] [id^="editPartnerModal_"] .nav-tabs .nav-link.active {
+        color: #e0e0e0 !important;
+        background-color: #3a3a3a !important;
+        border-color: #444 #444 #2a2a2a !important;
+    }
+
+    /* Dark mode view modal text overrides */
+    [data-theme="dark"] [id^="viewPartnerModal_"] .tab-pane > p {
+        color: #e0e0e0 !important;
+    }
+
+    [data-theme="dark"] [id^="viewPartnerModal_"] .table {
+        color: #e0e0e0 !important;
+    }
+
+    [data-theme="dark"] [id^="viewPartnerModal_"] .table th,
+    [data-theme="dark"] [id^="viewPartnerModal_"] .table td {
+        border-color: #444 !important;
+        color: #e0e0e0 !important;
     }
 </style>
 }

@@ -4,6 +4,7 @@ using Cloud9_2.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Cloud9._2.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250423064401_UpdateQuote")]
+    partial class UpdateQuote
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -667,9 +670,6 @@ namespace Cloud9._2.Migrations
                         .IsRequired()
                         .HasColumnType("int");
 
-                    b.Property<decimal>("UnitPrice")
-                        .HasColumnType("decimal(18,2)");
-
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("datetime2");
 
@@ -898,9 +898,6 @@ namespace Cloud9._2.Migrations
                     b.Property<DateTime?>("CreatedDate")
                         .HasColumnType("datetime2");
 
-                    b.Property<int>("CurrencyId")
-                        .HasColumnType("int");
-
                     b.Property<string>("Description")
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");
@@ -950,8 +947,6 @@ namespace Cloud9._2.Migrations
                         .HasColumnType("datetime2");
 
                     b.HasKey("QuoteId");
-
-                    b.HasIndex("CurrencyId");
 
                     b.HasIndex("PartnerId");
 
@@ -1007,12 +1002,6 @@ namespace Cloud9._2.Migrations
                         .HasColumnType("int");
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("QuoteItemId"));
-
-                    b.Property<decimal?>("DiscountAmount")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<decimal?>("DiscountPercentage")
-                        .HasColumnType("decimal(18,2)");
 
                     b.Property<string>("ItemDescription")
                         .HasMaxLength(200)
@@ -1682,19 +1671,11 @@ namespace Cloud9._2.Migrations
 
             modelBuilder.Entity("Cloud9_2.Models.Quote", b =>
                 {
-                    b.HasOne("Cloud9_2.Models.Currency", "Currency")
-                        .WithMany()
-                        .HasForeignKey("CurrencyId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
                     b.HasOne("Cloud9_2.Models.Partner", "Partner")
-                        .WithMany("Quotes")
+                        .WithMany()
                         .HasForeignKey("PartnerId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
-
-                    b.Navigation("Currency");
 
                     b.Navigation("Partner");
                 });
@@ -1905,8 +1886,6 @@ namespace Cloud9._2.Migrations
                     b.Navigation("Leads");
 
                     b.Navigation("PartnerTypes");
-
-                    b.Navigation("Quotes");
 
                     b.Navigation("Sites");
                 });

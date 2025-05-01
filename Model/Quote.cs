@@ -54,7 +54,6 @@ namespace Cloud9_2.Models
         [DataType(DataType.MultilineText)]
         public string? DetailedDescription { get; set; }
 
-        // Audit fields
         [StringLength(100)]
         [Display(Name = "Létrehozta")]
         public string? CreatedBy { get; set; } = "System";
@@ -82,9 +81,14 @@ namespace Cloud9_2.Models
         [ForeignKey("PartnerId")]
         public Partner? Partner { get; set; }
 
+        [Required]
+        [Display(Name = "Pénznem")]
+        public int CurrencyId { get; set; } // Changed to int
+
+        [ForeignKey("CurrencyId")]
+        public Currency? Currency { get; set; }
 
         [Display(Name = "Tételek")]
         public List<QuoteItem>? QuoteItems { get; set; } = new List<QuoteItem>();
-
     }
 }

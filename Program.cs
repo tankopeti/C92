@@ -5,6 +5,8 @@ using Cloud9_2.Data;
 using Cloud9_2.Hubs;
 using Cloud9_2.Models;
 using Cloud9_2.Services; // <-- Assuming EmailSenderOptions and SmtpEmailSender are here
+using Microsoft.AspNetCore.Localization;
+using System.Globalization;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -19,6 +21,15 @@ builder.Services.AddMemoryCache(); // Faster page load
 builder.Services.AddScoped<QuoteService>();
 
 builder.Services.AddResponseCaching();
+
+// Configure Hungarian localization
+builder.Services.Configure<RequestLocalizationOptions>(options =>
+{
+    var supportedCultures = new[] { new CultureInfo("hu-HU") };
+    options.DefaultRequestCulture = new RequestCulture("hu-HU");
+    options.SupportedCultures = supportedCultures;
+    options.SupportedUICultures = supportedCultures;
+});
 
 // --- Database Context ---
 // Register ApplicationDbContext (Only need one call)
@@ -72,6 +83,12 @@ builder.Services.AddSignalR();
 builder.Services.AddAuthorization(); // Ensure authorization services are registered
 builder.Services.AddScoped<LeadService>();
 
+builder.Services.AddLogging(logging =>
+{
+    logging.AddConsole();
+    logging.AddDebug();
+});
+
 // --- Clean up Redundant Calls ---
 // REMOVED: builder.Services.AddDbContext<ApplicationDbContext>(...); // Already added above
 // REMOVED: builder.Services.AddIdentityCore<ApplicationUser>(...); // AddIdentity<TUser, TRole> is more complete and already called
@@ -95,6 +112,9 @@ else
 
 app.UseHttpsRedirection();
 app.UseStaticFiles();
+
+// Use localization
+app.UseRequestLocalization();
 
 app.UseRouting();
 

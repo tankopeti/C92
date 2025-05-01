@@ -23,54 +23,19 @@ namespace Cloud9_2.Controllers
         }
 
         [HttpGet]
-        public async Task<IActionResult> GetProducts([FromQuery] string search)
+        public async Task<IActionResult> OnGetProductsAsync([FromQuery] string? search = "")
         {
-            _logger.LogInformation($"GetProducts called with search term: {search}");
-            try
-            {
-                if (_context.Products == null)
-                {
-                    _logger.LogError("Products DbSet is null");
-                    return StatusCode(500, "Products DbSet is not configured in ApplicationDbContext");
-                }
+            var products = await _context.Products
+                .Where(p => string.IsNullOrEmpty(search) ||
+                            p.Name.Contains(search) ||
+                            (p.Name != null && p.Name.Contains(search)))
+                .Select(p => new { id = p.ProductId, name = p.Name })
+                .ToListAsync();
+            return Ok(products);
 
-                var query = _context.Products
-                    .Where(p => p.IsActive)
-                    .AsQueryable();
 
-                _logger.LogInformation("Building product query");
-
-                if (!string.IsNullOrEmpty(search))
-                {
-                    query = query.Where(p => p.Name.Contains(search) || (p.SKU != null && p.SKU.Contains(search)));
-                }
-
-                var products = await query
-                    .OrderBy(p => p.Name)
-                    .Take(10)
-                    .Select(p => new
-                    {
-                        id = p.ProductId,
-                        text = p.Name,
-                        sku = p.SKU
-                    })
-                    .ToListAsync();
-
-                _logger.LogInformation($"Found {products.Count} products");
-                return Ok(products);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error executing GetProducts");
-                return StatusCode(500, $"Internal server error: {ex.Message}");
-            }
         }
 
-        [HttpGet("test")]
-        public IActionResult Test()
-        {
-            _logger.LogInformation("ProductController test endpoint called");
-            return Ok("ProductController is reachable");
-        }
+
     }
 }

@@ -1,0 +1,39 @@
+@model Tuple<int?, List<dynamic>>
+@{
+    var quoteId = Model.Item1 ?? 0;
+    var products = Model.Item2;
+    var modalId = quoteId == 0 ? "newItemModal" : $"newItemModal_{quoteId}";
+    var formId = quoteId == 0 ? "newQuoteItemForm_new" : $"newQuoteItemForm_{quoteId}";
+}
+
+<div class="modal fade" id="@modalId" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Új tétel hozzáadása</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="@formId" method="post">
+                    <input type="hidden" name="QuoteId" value="@quoteId">
+                    @Html.AntiForgeryToken()
+                    <div class="mb-3">
+                        <label for="newProductId_@quoteId" class="form-label">Termék</label>
+                        <select id="newProductId_@quoteId" name="ProductId" class="form-control select2-product" required>
+                            <option value="">Válasszon terméket</option>
+                            @foreach (var product in products)
+                            {
+                                <option value="@product.ProductId">@product.Name</option>
+                            }
+                        </select>
+                    </div>
+                    <!-- Other fields -->
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Mégse</button>
+                <button type="button" class="btn btn-primary save-new-quote-item" data-quote-id="@quoteId">Mentés</button>
+            </div>
+        </div>
+    </div>
+</div>

@@ -154,7 +154,7 @@
             </div>
         }
     </div>
-    </div>
+</div>
 
     <!-- Pagination Footer -->
     @await Html.PartialAsync("_PaginationFooter", new PaginationViewModel
@@ -167,9 +167,10 @@
         EntityName = "Quotes"
     })
 
+
+<!-- New Quote Modal -->
 <div class="container">
     <button id="newQuoteButton" class="btn btn-primary btn-lg mt-3"><i class="fas fa-plus"></i> Új árajánlat</button>
-    <!-- New Quote Modal -->
     <div class="modal fade" id="newQuoteModal" tabindex="-1" aria-labelledby="newQuoteModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
@@ -247,6 +248,7 @@
                                 <table id="quoteItemsTable" class="table table-striped">
                                     <thead>
                                         <tr>
+                                            <th></th>
                                             <th>Termék</th>
                                             <th>Leírás</th>
                                             <th>Mennyiség</th>
@@ -320,208 +322,195 @@
         </div>
     </div>
 </div>
-        
-        <!-- Edit Quote Item Modal -->
-        <div class="modal fade" id="editQuoteItemModal" tabindex="-1" aria-labelledby="editQuoteItemModalLabel" aria-hidden="true">
+
+
+<!-- Delete Confirmation Modals -->
+@foreach (var quote in Model.Quotes)
+    {
+        <div class="modal fade" id="deleteQuoteModal_@quote.QuoteId" tabindex="-1" aria-labelledby="deleteQuoteModalLabel_@quote.QuoteId" aria-hidden="true">
             <div class="modal-dialog">
                 <div class="modal-content">
                     <div class="modal-header">
-                        <h5 class="modal-title" id="editQuoteItemModalLabel">Tétel szerkesztése</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Bezárás"></button>
+                        <h5 class="modal-title" id="deleteQuoteModalLabel_@quote.QuoteId">Árajánlat törlése</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
                     <div class="modal-body">
-                        <form class="edit-quote-item-form">
-                            @Html.AntiForgeryToken()
-                            <input type="hidden" class="quote-id" value="">
-                            <input type="hidden" class="item-id" value="">
-                            <div class="mb-3">
-                                <label for="editProductId" class="form-label required">Termék</label>
-                                <select id="editProductId" class="form-control select2-product" required aria-label="Termék kiválasztása">
-                                    <option value="">Válasszon terméket...</option>
-                                </select>
-                            </div>
-                            <div class="mb-3">
-                                <label for="editItemDescription" class="form-label">Leírás</label>
-                                <input id="editItemDescription" class="form-control" aria-label="Tétel leírása">
-                            </div>
-                            <div class="mb-3">
-                                <label for="editQuantity" class="form-label required">Mennyiség</label>
-                                <input id="editQuantity" type="number" min="1" class="form-control" required aria-label="Mennyiség">
-                            </div>
-                            <div class="mb-3">
-                                <label for="editUnitPrice" class="form-label required">Egységár</label>
-                                <input id="editUnitPrice" type="number" step="0.01" class="form-control" required aria-label="Egységár">
-                            </div>
-                            <div class="mb-3">
-                                <label for="editTotalPrice" class="form-label">Összeg</label>
-                                <input id="editTotalPrice" class="form-control" readonly aria-label="Tétel összege">
-                            </div>
-                        </form>
+                        Biztosan törölni szeretné az árajánlatot (<strong>@quote.QuoteNumber</strong>) és az összes kapcsolódó tételt?
                     </div>
                     <div class="modal-footer">
-                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Mégse</button>
-                        <button type="button" class="btn btn-primary save-quote-item">Tétel mentése</button>
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Mégse</button>
+                        <button type="button" class="btn btn-danger confirm-delete-quote" data-quote-id="@quote.QuoteId">Törlés</button>
                     </div>
                 </div>
             </div>
         </div>
-    </div>
+    }
+        
 
-    <!-- Edit, View, Delete Modals -->
-    @foreach (var quote in Model.Quotes)
-    {
-
-    <!-- Quote Items Modal -->
+<!-- QuoteItem Modal List-->
+@foreach (var quote in Model.Quotes)
+{
+        <!-- QuoteItems Modal -->
         <div class="modal fade" id="quoteItemsModal_@quote.QuoteId" tabindex="-1" aria-labelledby="quoteItemsModalLabel_@quote.QuoteId" aria-hidden="true">
-        <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="quoteItemsModalLabel_@quote.QuoteId">Tételek: @(quote.Description ?? "N/A")</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    <div class="mb-3">
-                        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#newQuoteItemModal_@quote.QuoteId">
-                            <i class="bi bi-plus-circle me-1"></i> Új tétel
-                        </button>
+            <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="quoteItemsModalLabel_@quote.QuoteId">Tételek: @(quote.Description ?? "N/A")</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
-                    <table class="table table-hover" id="quoteItemsTable_@quote.QuoteId">
-                        <thead>
-                            <tr>
-                                <th scope="col">Termék</th>
-                                <th scope="col">Leírás</th>
-                                <th scope="col">Mennyiség</th>
-                                <th scope="col">Egységár</th>
-                                <th scope="col">Kedvezmény</th>
-                                <th scope="col">Összeg</th>
-                                <th scope="col">Műveletek</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @if (!quote.QuoteItems.Any())
-                            {
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#newQuoteItemModal_@quote.QuoteId">
+                                <i class="bi bi-plus-circle me-1"></i> Új tétel
+                            </button>
+                        </div>
+                        <table class="table table-hover" id="quoteItemsTable_@quote.QuoteId">
+                            <thead>
                                 <tr>
-                                    <td colspan="7">Nincsenek tételek az árajánlathoz.</td>
+                                    <th scope="col">Termék</th>
+                                    <th scope="col">Leírás</th>
+                                    <th scope="col">Mennyiség</th>
+                                    <th scope="col">Egységár</th>
+                                    <th scope="col">Kedvezmény</th>
+                                    <th scope="col">Összeg</th>
+                                    <th scope="col">Műveletek</th>
                                 </tr>
-                            }
-                            else
-                            {
-                                @foreach (var quoteItem in quote.QuoteItems)
+                            </thead>
+                            <tbody>
+                                @if (!quote.QuoteItems.Any())
                                 {
-                                    <tr data-item-id="@quoteItem.QuoteItemId">
-                                        <td>@(quoteItem.Product?.Name ?? "N/A")</td>
-                                        <td>@quoteItem.ItemDescription</td>
-                                        <td>@quoteItem.Quantity</td>
-                                        <td>@quoteItem.UnitPrice.ToString("F2", CultureInfo.GetCultureInfo("hu-HU"))</td>
-                                        <td>
-                                            @(quoteItem.DiscountPercentage.HasValue && quoteItem.DiscountPercentage.Value > 0
-                                                ? $"{quoteItem.DiscountPercentage.Value:F2}%"
-                                                : quoteItem.DiscountAmount.HasValue && quoteItem.DiscountAmount.Value > 0
-                                                    ? $"{quoteItem.DiscountAmount.Value:F2}"
-                                                    : "0,00")
-                                        </td>
-                                        <td>
-                                            @((quoteItem.Quantity * quoteItem.UnitPrice - (quoteItem.DiscountAmount ?? (quoteItem.DiscountPercentage.HasValue ? (quoteItem.Quantity * quoteItem.UnitPrice * quoteItem.DiscountPercentage.Value / 100) : 0))).ToString("F2", CultureInfo.GetCultureInfo("hu-HU")))
-                                        </td>
-                                        <td>
-                                            <div class="btn-group btn-group-sm" role="group">
-                                                <button class="btn btn-primary btn-sm"
-                                                        data-bs-toggle="modal"
-                                                        data-bs-target="#editQuoteItemModal_@quoteItem.QuoteItemId"
-                                                        data-quote-id="@quote.QuoteId"
-                                                        data-item-id="@quoteItem.QuoteItemId">
-                                                    <i class="bi bi-pencil-square me-1"></i>Szerkesztés
-                                                </button>
-                                                <button class="btn btn-danger btn-sm"
-                                                        onclick="deleteQuoteItem(@quote.QuoteId, @quoteItem.QuoteItemId)">
-                                                    <i class="bi bi-trash me-2"></i>
-                                                </button>
-                                            </div>
-                                        </td>
+                                    <tr>
+                                        <td colspan="7">Nincsenek tételek az árajánlathoz.</td>
                                     </tr>
                                 }
-                            }
-                        </tbody>
-                    </table>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Bezárás</button>
+                                else
+                                {
+                                    @foreach (var quoteItem in quote.QuoteItems)
+                                    {
+                                        <tr data-item-id="@quoteItem.QuoteItemId">
+                                            <td>@(quoteItem.Product?.Name ?? "N/A")</td>
+                                            <td>@quoteItem.ItemDescription</td>
+                                            <td>@quoteItem.Quantity</td>
+                                            <td>@quoteItem.UnitPrice.ToString("F2", CultureInfo.GetCultureInfo("hu-HU"))</td>
+                                            <td>
+                                                @(quoteItem.DiscountPercentage.HasValue && quoteItem.DiscountPercentage.Value > 0
+                                                    ? $"{quoteItem.DiscountPercentage.Value:F2}%"
+                                                    : quoteItem.DiscountAmount.HasValue && quoteItem.DiscountAmount.Value > 0
+                                                        ? $"{quoteItem.DiscountAmount.Value:F2}"
+                                                        : "0,00")
+                                            </td>
+                                            <td>
+                                                @((quoteItem.Quantity * quoteItem.UnitPrice - (quoteItem.DiscountAmount ?? (quoteItem.DiscountPercentage.HasValue ? (quoteItem.Quantity * quoteItem.UnitPrice * quoteItem.DiscountPercentage.Value / 100) : 0))).ToString("F2", CultureInfo.GetCultureInfo("hu-HU")))
+                                            </td>
+                                            <td>
+                                                <div class="btn-group btn-group-sm" role="group">
+<button class="btn btn-primary btn-sm edit-quote-item"
+        data-bs-toggle="modal"
+        data-bs-target="#editQuoteItemModal"
+        data-quote-id="@quote.QuoteId"
+        data-item-id="@quoteItem.QuoteItemId"
+        data-product-id="@quoteItem.ProductId"
+        data-product-name="@(quoteItem.Product?.Name ?? "")"
+        data-quantity="@quoteItem.Quantity"
+        data-unit-price="@quoteItem.UnitPrice.ToString("F2", CultureInfo.GetCultureInfo("hu-HU"))"
+        data-discount="@(quoteItem.DiscountPercentage.HasValue && quoteItem.DiscountPercentage.Value > 0 ? quoteItem.DiscountPercentage.Value.ToString("F2", CultureInfo.GetCultureInfo("hu-HU")) : quoteItem.DiscountAmount.HasValue && quoteItem.DiscountAmount.Value > 0 ? quoteItem.DiscountAmount.Value.ToString("F2", CultureInfo.GetCultureInfo("hu-HU")) : "")"
+        data-discount-type="@(quoteItem.DiscountPercentage.HasValue && quoteItem.DiscountPercentage.Value > 0 ? "percentage" : "amount")"
+        data-description="@quoteItem.ItemDescription"
+        data-total-price="@((quoteItem.Quantity * quoteItem.UnitPrice - (quoteItem.DiscountAmount ?? (quoteItem.DiscountPercentage.HasValue ? (quoteItem.Quantity * quoteItem.UnitPrice * quoteItem.DiscountPercentage.Value / 100) : 0))).ToString("F2", CultureInfo.GetCultureInfo("hu-HU")))">
+    <i class="bi bi-pencil-square me-1"></i>Szerkesztés
+</button>
+                                                    <button class="btn btn-danger btn-sm delete-item"
+                                                            data-quote-id="@quote.QuoteId"
+                                                            data-item-id="@quoteItem.QuoteItemId">
+                                                        <i class="bi bi-trash me-2"></i>
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    }
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Bezárás</button>
+                    </div>
                 </div>
             </div>
         </div>
-    </div>
 
-@foreach (var quoteItem in quote.QuoteItems)
-{
-    <div class="modal fade" id="editQuoteItemModal_@quoteItem.QuoteItemId" tabindex="-1" aria-labelledby="editQuoteItemModalLabel_@quoteItem.QuoteItemId" aria-hidden="true">
-        <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="editQuoteItemModalLabel_@quoteItem.QuoteItemId">Tétel szerkesztése: @(quoteItem.Product?.Name ?? "N/A")</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    <form id="editQuoteItemForm_@quoteItem.QuoteItemId" class="needs-validation" novalidate>
-                        @Html.AntiForgeryToken()
-                        <input type="hidden" name="QuoteId" value="@quote.QuoteId" autocomplete="off" />
-                        <input type="hidden" name="QuoteItemId" value="@quoteItem.QuoteItemId" autocomplete="off" />
-                        <div class="row g-3">
-                            <div class="col-md-6">
-                                <label for="editProductId_@quoteItem.QuoteItemId" class="form-label">Termék <span class="text-danger">*</span></label>
-                                <div class="select2-container-wrapper">
-                                    <select class="form-select select2-product" id="editProductId_@quoteItem.QuoteItemId" name="ProductId" required autocomplete="off" data-initial-id="@quoteItem.ProductId" data-initial-name="@(quoteItem.Product?.Name ?? "N/A")">
-                                        <option></option> <!-- Placeholder option -->
-                                    </select>
-                                </div>
-                                <div class="invalid-feedback">Termék kiválasztása kötelező.</div>
-                            </div>
-                            <div class="col-md-6">
-                                <label for="editQuantity_@quoteItem.QuoteItemId" class="form-label">Mennyiség <span class="text-danger">*</span></label>
-                                <input type="text" class="form-control quantity" id="editQuantity_@quoteItem.QuoteItemId" name="Quantity" value="@quoteItem.Quantity" required autocomplete="off">
-                                <div class="invalid-feedback">Mennyiség megadása kötelező.</div>
-                            </div>
-                            <div class="col-md-6">
-                                <label for="editUnitPrice_@quoteItem.QuoteItemId" class="form-label">Egységár <span class="text-danger">*</span></label>
-                                <input type="text" class="form-control unitPrice" id="editUnitPrice_@quoteItem.QuoteItemId" name="UnitPrice" value="@quoteItem.UnitPrice.ToString("F2", CultureInfo.GetCultureInfo("hu-HU"))" required autocomplete="off">
-                                <div class="invalid-feedback">Egységár megadása kötelező.</div>
-                            </div>
-                            <div class="col-md-6">
-                                <label for="editItemDiscount_@quoteItem.QuoteItemId" class="form-label">Kedvezmény</label>
-                                <div class="input-group">
-                                    <input type="text" class="form-control itemDiscount" id="editItemDiscount_@quoteItem.QuoteItemId" name="Discount" value="@(quoteItem.DiscountPercentage.HasValue && quoteItem.DiscountPercentage.Value > 0 ? quoteItem.DiscountPercentage.Value.ToString("F2", CultureInfo.GetCultureInfo("hu-HU")) : quoteItem.DiscountAmount.HasValue && quoteItem.DiscountAmount.Value > 0 ? quoteItem.DiscountAmount.Value.ToString("F2", CultureInfo.GetCultureInfo("hu-HU")) : "")" placeholder="0,00" autocomplete="off">
-                                    <select class="form-select" id="editItemDiscountType_@quoteItem.QuoteItemId" name="DiscountType" style="width: auto;">
-                                        @if (quoteItem.DiscountPercentage.HasValue && quoteItem.DiscountPercentage.Value > 0)
-                                        {
-                                            <option value="percentage" selected>Százalék (%)</option>
-                                            <option value="amount">Összeg (HUF)</option>
-                                        }
-                                        else
-                                        {
-                                            <option value="percentage">Százalék (%)</option>
-                                            <option value="amount" selected>Összeg (HUF)</option>
-                                        }
-                                    </select>
-                                </div>
-                            </div>
-                            <div class="col-12">
-                                <label for="editItemDescription_@quoteItem.QuoteItemId" class="form-label">Tétel leírása</label>
-                                <textarea class="form-control" id="editItemDescription_@quoteItem.QuoteItemId" name="ItemDescription" maxlength="200" rows="3" autocomplete="off">@quoteItem.ItemDescription</textarea>
-                            </div>
-                            <div class="col-md-6">
-                                <label for="editTotalPrice_@quoteItem.QuoteItemId" class="form-label">Összeg</label>
-                                <input type="text" class="form-control" id="editTotalPrice_@quoteItem.QuoteItemId" value="@((quoteItem.Quantity * quoteItem.UnitPrice - (quoteItem.DiscountAmount ?? (quoteItem.DiscountPercentage.HasValue ? (quoteItem.Quantity * quoteItem.UnitPrice * quoteItem.DiscountPercentage.Value / 100) : 0))).ToString("F2", CultureInfo.GetCultureInfo("hu-HU")))" readonly autocomplete="off">
-                            </div>
+        <!-- Edit QuoteItem Modal -->
+        @foreach (var quoteItem in quote.QuoteItems)
+        {
+            <div class="modal fade" id="editQuoteItemModal_@quoteItem.QuoteItemId" tabindex="-1" aria-labelledby="editQuoteItemModalLabel_@quoteItem.QuoteItemId" aria-hidden="true">
+                <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="editQuoteItemModalLabel_@quoteItem.QuoteItemId">Tétel szerkesztése: @(quoteItem.Product?.Name ?? "N/A")</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                         </div>
-                        <div class="mt-3">
-                            <button type="button" class="btn btn-primary" id="saveQuoteItem_@quoteItem.QuoteItemId" data-quote-id="@quote.QuoteId" data-item-id="@quoteItem.QuoteItemId">Tétel mentése</button>
-                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Mégse</button>
+                        <div class="modal-body">
+                            <form id="editQuoteItemForm_@quoteItem.QuoteItemId" class="needs-validation" novalidate>
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="QuoteId" value="@quote.QuoteId" autocomplete="off" />
+                                <input type="hidden" name="QuoteItemId" value="@quoteItem.QuoteItemId" autocomplete="off" />
+                                <div class="row g-3">
+                                    <div class="col-md-6">
+                                        <label for="editProductId_@quoteItem.QuoteItemId" class="form-label">Termék <span class="text-danger">*</span></label>
+                                        <div class="select2-container-wrapper">
+                                            <select class="form-select select2-product" id="editProductId_@quoteItem.QuoteItemId" name="ProductId" required autocomplete="off" data-initial-id="@quoteItem.ProductId" data-initial-name="@(quoteItem.Product?.Name ?? "N/A")">
+                                                <option></option>
+                                            </select>
+                                        </div>
+                                        <div class="invalid-feedback">Termék kiválasztása kötelező.</div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label for="editQuantity_@quoteItem.QuoteItemId" class="form-label">Mennyiség <span class="text-danger">*</span></label>
+                                        <input type="text" class="form-control quantity" id="editQuantity_@quoteItem.QuoteItemId" name="Quantity" value="@quoteItem.Quantity" required autocomplete="off">
+                                        <div class="invalid-feedback">Mennyiség megadása kötelező.</div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label for="editUnitPrice_@quoteItem.QuoteItemId" class="form-label">Egységár <span class="text-danger">*</span></label>
+                                        <input type="text" class="form-control unitPrice" id="editUnitPrice_@quoteItem.QuoteItemId" name="UnitPrice" value="@quoteItem.UnitPrice.ToString("F2", CultureInfo.GetCultureInfo("hu-HU"))" required autocomplete="off">
+                                        <div class="invalid-feedback">Egységár megadása kötelező.</div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label for="editItemDiscount_@quoteItem.QuoteItemId" class="form-label">Kedvezmény</label>
+                                        <div class="input-group">
+                                            <input type="text" class="form-control itemDiscount" id="editItemDiscount_@quoteItem.QuoteItemId" name="Discount" value="@(quoteItem.DiscountPercentage.HasValue && quoteItem.DiscountPercentage.Value > 0 ? quoteItem.DiscountPercentage.Value.ToString("F2", CultureInfo.GetCultureInfo("hu-HU")) : quoteItem.DiscountAmount.HasValue && quoteItem.DiscountAmount.Value > 0 ? quoteItem.DiscountAmount.Value.ToString("F2", CultureInfo.GetCultureInfo("hu-HU")) : "")" placeholder="0,00" autocomplete="off">
+                                            <select class="form-select" id="editItemDiscountType_@quoteItem.QuoteItemId" name="DiscountType" style="width: auto;">
+                                                @if (quoteItem.DiscountPercentage.HasValue && quoteItem.DiscountPercentage.Value > 0)
+                                                {
+                                                    <option value="percentage" selected>Százalék (%)</option>
+                                                    <option value="amount">Összeg (HUF)</option>
+                                                }
+                                                else
+                                                {
+                                                    <option value="percentage">Százalék (%)</option>
+                                                    <option value="amount" selected>Összeg (HUF)</option>
+                                                }
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="col-12">
+                                        <label for="editItemDescription_@quoteItem.QuoteItemId" class="form-label">Tétel leírása</label>
+                                        <textarea class="form-control" id="editItemDescription_@quoteItem.QuoteItemId" name="ItemDescription" maxlength="200" rows="3" autocomplete="off">@quoteItem.ItemDescription</textarea>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label for="editTotalPrice_@quoteItem.QuoteItemId" class="form-label">Összeg</label>
+                                        <input type="text" class="form-control" id="editTotalPrice_@quoteItem.QuoteItemId" value="@((quoteItem.Quantity * quoteItem.UnitPrice - (quoteItem.DiscountAmount ?? (quoteItem.DiscountPercentage.HasValue ? (quoteItem.Quantity * quoteItem.UnitPrice * quoteItem.DiscountPercentage.Value / 100) : 0))).ToString("F2", CultureInfo.GetCultureInfo("hu-HU")))" readonly autocomplete="off">
+                                    </div>
+                                </div>
+                                <div class="mt-3">
+                                    <button type="button" class="btn btn-primary" id="saveQuoteItem_@quoteItem.QuoteItemId" data-quote-id="@quote.QuoteId" data-item-id="@quoteItem.QuoteItemId">Tétel mentése</button>
+                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Mégse</button>
+                                </div>
+                            </form>
                         </div>
-                    </form>
+                    </div>
                 </div>
             </div>
-        </div>
-    </div>
-}
+        }
 
         <!-- Edit Quote Modal -->
         <div class="modal fade" id="editQuoteModal_@quote.QuoteId" tabindex="-1" aria-labelledby="editQuoteModalLabel_@quote.QuoteId" aria-hidden="true">
@@ -542,9 +531,6 @@
                                 <li class="nav-item" role="presentation">
                                     <button class="nav-link" id="details-tab_@quote.QuoteId" data-bs-toggle="tab" data-bs-target="#details_@quote.QuoteId" type="button" role="tab" aria-controls="details_@quote.QuoteId" aria-selected="false">Details</button>
                                 </li>
-                                <li class="nav-item" role="presentation">
-                                    <button class="nav-link" id="items-tab_@quote.QuoteId" data-bs-toggle="tab" data-bs-target="#items_@quote.QuoteId" type="button" role="tab" aria-controls="items_@quote.QuoteId" aria-selected="false">Items</button>
-                                </li>
                             </ul>
                             <div class="tab-content mt-3">
                                 <!-- Basic Info Tab -->
@@ -562,13 +548,14 @@
                                         <div class="col-md-6">
                                             <label for="editPartnerId_@quote.QuoteId" class="form-label">Partner <span class="text-danger">*</span></label>
                                             <div class="select2-container-wrapper">
-                                                <select class="form-select" id="editPartnerId_@quote.QuoteId" name="PartnerId" required autocomplete="off">
+                                                <select class="form-select" id="editPartnerId_@quote.QuoteId" name="PartnerId" required autocomplete="off"
+                                                        data-partner-id="@quote.PartnerId" data-partner-name="@quote.Partner.Name">
                                                     <option value="@quote.PartnerId" selected>@quote.Partner.Name</option>
                                                 </select>
                                             </div>
                                             <div class="invalid-feedback">Partner kiválasztása kötelező.</div>
                                         </div>
-                                        <div class="col-md-6">
+                                            <div class="col-md-6">
                                             <label for="editSalesPerson_@quote.QuoteId" class="form-label">Értékesítő</label>
                                             <input type="text" class="form-control" id="editSalesPerson_@quote.QuoteId" name="SalesPerson" value="@quote.SalesPerson" maxlength="100" autocomplete="off">
                                         </div>
@@ -616,48 +603,6 @@
                                         </div>
                                     </div>
                                 </div>
-                                <!-- Items Tab -->
-                                <div class="tab-pane fade" id="items_@quote.QuoteId" role="tabpanel" aria-labelledby="items-tab_@quote.QuoteId">
-                                    <div class="mb-3">
-                                        <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#newQuoteItemModal_@quote.QuoteId">
-                                            <i class="bi bi-plus-circle me-1"></i>Add Item
-                                        </button>
-                                    </div>
-                                    <table class="table table-sm" id="editQuoteItemsTable_@quote.QuoteId">
-                                        <thead>
-                                            <tr>
-                                                <th>Termék</th>
-                                                <th>Leírás</th>
-                                                <th>Mennyiség</th>
-                                                <th>Egységár</th>
-                                                <th>Összesen</th>
-                                                <th>Műveletek</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            @foreach (var quoteItem in quote.QuoteItems)
-                                                {
-                                                    <tr data-item-id="@quoteItem.QuoteItemId">
-                                                        <td>@(quoteItem.Product?.Name ?? "N/A")</td>
-                                                        <td>@quoteItem.ItemDescription</td>
-                                                        <td>@quoteItem.Quantity</td>
-                                                        <td>@quoteItem.UnitPrice.ToString("F2", CultureInfo.GetCultureInfo("hu-HU"))</td>
-                                                        <td>
-                                                            @(quoteItem.DiscountPercentage.HasValue && quoteItem.DiscountPercentage.Value > 0
-                                                                ? $"{quoteItem.DiscountPercentage.Value:F2}%"
-                                                                : quoteItem.DiscountAmount.HasValue && quoteItem.DiscountAmount.Value > 0
-                                                                    ? $"{quoteItem.DiscountAmount.Value:F2}"
-                                                                    : "0,00")
-                                                        </td>
-                                                        <td>
-                                                            @((quoteItem.Quantity * quoteItem.UnitPrice - (quoteItem.DiscountAmount ?? (quoteItem.DiscountPercentage.HasValue ? (quoteItem.Quantity * quoteItem.UnitPrice * quoteItem.DiscountPercentage.Value / 100) : 0))).ToString("F2", CultureInfo.GetCultureInfo("hu-HU")))
-                                                        </td>
-                                                        <!-- Action buttons for Edit Quote Modal -->
-                                                    </tr>
-                                                }
-                                        </tbody>
-                                    </table>
-                                </div>
                             </div>
                             <div class="mt-3">
                                 <button type="submit" class="btn btn-primary">Változtatások mentése</button>
@@ -678,51 +623,51 @@
                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
                     <div class="modal-body">
-                        <form id="newQuoteItemForm_@quote.QuoteId" class="needs-validation" novalidate>
-                            @Html.AntiForgeryToken()
-                            <input type="hidden" name="QuoteId" value="@quote.QuoteId" autocomplete="off" />
-                            <div class="row g-3">
-                                <div class="col-md-6">
-                                    <label for="productId_@quote.QuoteId" class="form-label">Termék <span class="text-danger">*</span></label>
-                                    <div class="select2-container-wrapper">
-                                        <select class="form-select select2-product" id="productId_@quote.QuoteId" name="ProductId" required autocomplete="off"></select>
-                                    </div>
-                                    <div class="invalid-feedback">Termék kiválasztása kötelező.</div>
+                    <form id="newQuoteItemForm_@quote.QuoteId" class="needs-validation" novalidate>
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="QuoteId" value="@quote.QuoteId" autocomplete="off" />
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label for="productId_@quote.QuoteId" class="form-label">Termék <span class="text-danger">*</span></label>
+                                <div class="select2-container-wrapper">
+                                    <select class="form-select select2-product" id="productId_@quote.QuoteId" name="ProductId" required autocomplete="off"></select>
                                 </div>
-                                <div class="col-md-6">
-                                    <label for="newQuantity_@quote.QuoteId" class="form-label">Mennyiség <span class="text-danger">*</span></label>
-                                    <input type="text" class="form-control quantity" id="newQuantity_@quote.QuoteId" name="Quantity" value="1" required autocomplete="off">
-                                    <div class="invalid-feedback">Mennyiség megadása kötelező.</div>
-                                </div>
-                                <div class="col-md-6">
-                                    <label for="newUnitPrice_@quote.QuoteId" class="form-label">Egységár <span class="text-danger">*</span></label>
-                                    <input type="text" class="form-control unitPrice" id="newUnitPrice_@quote.QuoteId" name="UnitPrice" value="0,00" required autocomplete="off">
-                                    <div class="invalid-feedback">Egységár megadása kötelező.</div>
-                                </div>
-                                <div class="col-md-6">
-                                    <label for="newItemDiscount_@quote.QuoteId" class="form-label">Kedvezmény</label>
-                                    <div class="input-group">
-                                        <input type="text" class="form-control itemDiscount" id="newItemDiscount_@quote.QuoteId" name="Discount" value="" placeholder="0,00" autocomplete="off">
-                                        <select class="form-select" id="newItemDiscountType_@quote.QuoteId" name="DiscountType" style="width: auto;">
-                                            <option value="percentage" selected>Százalék (%)</option>
-                                            <option value="amount">Összeg (HUF)</option>
-                                        </select>
-                                    </div>
-                                </div>
-                                <div class="col-12">
-                                    <label for="newItemDescription_@quote.QuoteId" class="form-label">Tétel leírása</label>
-                                    <textarea class="form-control" id="newItemDescription_@quote.QuoteId" name="ItemDescription" maxlength="200" rows="3" autocomplete="off"></textarea>
-                                </div>
-                                <div class="col-md-6">
-                                    <label for="newTotalPrice_@quote.QuoteId" class="form-label">Összeg</label>
-                                    <input type="text" class="form-control" id="newTotalPrice_@quote.QuoteId" value="0,00" readonly autocomplete="off">
+                                <div class="invalid-feedback">Termék kiválasztása kötelező.</div>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="newQuantity_@quote.QuoteId" class="form-label">Mennyiség <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control quantity" id="newQuantity_@quote.QuoteId" name="Quantity" value="1" required autocomplete="off">
+                                <div class="invalid-feedback">Mennyiség megadása kötelező.</div>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="newUnitPrice_@quote.QuoteId" class="form-label">Egységár <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control unitPrice" id="newUnitPrice_@quote.QuoteId" name="UnitPrice" value="0,00" required autocomplete="off">
+                                <div class="invalid-feedback">Egységár megadása kötelező.</div>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="newItemDiscount_@quote.QuoteId" class="form-label">Kedvezmény</label>
+                                <div class="input-group">
+                                    <input type="text" class="form-control itemDiscount" id="newItemDiscount_@quote.QuoteId" name="Discount" value="" placeholder="0,00" autocomplete="off">
+                                    <select class="form-select" id="newItemDiscountType_@quote.QuoteId" name="DiscountType" style="width: auto;">
+                                        <option value="percentage" selected>Százalék (%)</option>
+                                        <option value="amount">Összeg (HUF)</option>
+                                    </select>
                                 </div>
                             </div>
-                            <div class="mt-3">
-                                <button type="button" class="btn btn-primary" id=" _@quote.QuoteId" data-quote-id="@quote.QuoteId">Tétel mentése</button>
-                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Mégse</button>
+                            <div class="col-12">
+                                <label for="newItemDescription_@quote.QuoteId" class="form-label">Tétel leírása</label>
+                                <textarea class="form-control" id="newItemDescription_@quote.QuoteId" name="ItemDescription" maxlength="200" rows="3" autocomplete="off"></textarea>
                             </div>
-                        </form>
+                            <div class="col-md-6">
+                                <label for="newTotalPrice_@quote.QuoteId" class="form-label">Összeg</label>
+                                <input type="text" class="form-control" id="newTotalPrice_@quote.QuoteId" value="0,00" readonly autocomplete="off">
+                            </div>
+                        </div>
+                        <div class="mt-3">
+                            <button type="button" class="btn btn-primary" id="saveQuoteItem_@quote.QuoteId" data-quote-id="@quote.QuoteId">Tétel mentése</button>
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Mégse</button>
+                        </div>
+                    </form>
                     </div>
                 </div>
             </div>
@@ -837,6 +782,65 @@
         </div>
     }
 
+<!-- Single Edit Quote Item Modal -->
+<div class="modal fade" id="editQuoteItemModal" tabindex="-1" aria-labelledby="editQuoteItemModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="editQuoteItemModalLabel">Tétel szerkesztése</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="editQuoteItemForm" class="needs-validation" novalidate>
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="QuoteId" id="editQuoteId" autocomplete="off" />
+                    <input type="hidden" name="QuoteItemId" id="editQuoteItemId" autocomplete="off" />
+                    <input type="hidden" name="ProductId" id="editProductId" autocomplete="off" />
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label for="editProductName" class="form-label">Termék <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="editProductName" readonly autocomplete="off" required />
+                            <div class="invalid-feedback">Termék kiválasztása kötelező.</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="editQuantity" class="form-label">Mennyiség <span class="text-danger">*</span></label>
+                            <input type="number" step="1" min="1" class="form-control quantity" id="editQuantity" name="Quantity" required autocomplete="off" />
+                            <div class="invalid-feedback">Mennyiség megadása kötelező.</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="editUnitPrice" class="form-label">Egységár <span class="text-danger">*</span></label>
+                            <input type="number" step="0.01" min="0" class="form-control unitPrice" id="editUnitPrice" name="UnitPrice" required autocomplete="off" />
+                            <div class="invalid-feedback">Egységár megadása kötelező.</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="editItemDiscount" class="form-label">Kedvezmény</label>
+                            <div class="input-group">
+                                <input type="number" step="0.01" min="0" class="form-control itemDiscount" id="editItemDiscount" name="Discount" placeholder="0.00" autocomplete="off" />
+                                <select class="form-select" id="editItemDiscountType" name="DiscountType" style="width: auto;">
+                                    <option value="percentage">Százalék (%)</option>
+                                    <option value="amount">Összeg (HUF)</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-12">
+                            <label for="editItemDescription" class="form-label">Tétel leírása</label>
+                            <textarea class="form-control" id="editItemDescription" name="ItemDescription" maxlength="200" rows="3" autocomplete="off"></textarea>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="editTotalPrice" class="form-label">Összeg</label>
+                            <input type="text" class="form-control" id="editTotalPrice" readonly autocomplete="off" />
+                        </div>
+                    </div>
+                    <div class="mt-3">
+                        <button type="button" class="btn btn-primary" id="saveQuoteItemBtn">Tétel mentése</button>
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Mégse</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
 @section Scripts {
     <script>
         $(document).ready(function () {
@@ -846,13 +850,233 @@
                 if (debug) console.log(`[DEBUG] ${message}`, ...args);
             }
 
-            // Get today's date in YYYY-MM-DD format
+            // Debug dependencies
+            log('jQuery:', typeof jQuery, jQuery.fn.jquery);
+            log('Select2:', typeof $.fn.select2);
+            log('Bootstrap Modal:', typeof $.fn.modal);
+            log('SortableJS:', typeof Sortable);
+
+            // Add event listeners for real-time calculation
+            document.getElementById('newQuantity')?.addEventListener('input', calculateTotalPrice);
+            document.getElementById('newUnitPrice')?.addEventListener('input', calculateTotalPrice);
+            document.getElementById('newDiscountPercentage')?.addEventListener('input', function() {
+                calculateTotalPrice();
+                updateDiscountAmount();
+            });
+            document.getElementById('newDiscountAmount')?.addEventListener('input', function() {
+                calculateTotalPrice();
+                updateDiscountPercentage();
+            });
+
+            function calculateTotalPrice() {
+                const quantity = parseFloat(document.getElementById('newQuantity')?.value) || 0;
+                const unitPrice = parseFloat(document.getElementById('newUnitPrice')?.value) || 0;
+                const discountPercentage = parseFloat(document.getElementById('newDiscountPercentage')?.value) || 0;
+                const discountAmount = parseFloat(document.getElementById('newDiscountAmount')?.value) || 0;
+                
+                const grossAmount = quantity * unitPrice;
+                let totalPrice;
+                
+                if (discountAmount > 0) {
+                    totalPrice = grossAmount - discountAmount;
+                } else {
+                    totalPrice = grossAmount * (1 - discountPercentage / 100);
+                }
+                
+                if (document.getElementById('newTotalPrice')) {
+                    document.getElementById('newTotalPrice').value = totalPrice.toFixed(2);
+                }
+            }
+
+            function updateDiscountAmount() {
+                const quantity = parseFloat(document.getElementById('newQuantity')?.value) || 0;
+                const unitPrice = parseFloat(document.getElementById('newUnitPrice')?.value) || 0;
+                const discountPercentage = parseFloat(document.getElementById('newDiscountPercentage')?.value) || 0;
+                
+                const grossAmount = quantity * unitPrice;
+                const discountAmount = grossAmount * (discountPercentage / 100);
+                
+                if (document.getElementById('newDiscountAmount')) {
+                    document.getElementById('newDiscountAmount').value = discountAmount.toFixed(2);
+                }
+            }
+
+            function updateDiscountPercentage() {
+                const quantity = parseFloat(document.getElementById('newQuantity')?.value) || 0;
+                const unitPrice = parseFloat(document.getElementById('newUnitPrice')?.value) || 0;
+                const discountAmount = parseFloat(document.getElementById('newDiscountAmount')?.value) || 0;
+                
+                const grossAmount = quantity * unitPrice;
+                let discountPercentage = 0;
+                
+                if (grossAmount > 0) {
+                    discountPercentage = (discountAmount / grossAmount) * 100;
+                }
+                
+                if (document.getElementById('newDiscountPercentage')) {
+                    document.getElementById('newDiscountPercentage').value = discountPercentage.toFixed(2);
+                }
+            }
+
+            function showToast(type, message) {
+                const toast = $(`<div class="toast align-items-center text-white bg-${type} border-0" role="alert">
+                    <div class="d-flex">
+                        <div class="toast-body">${message}</div>
+                        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+                    </div>
+                </div>`);
+                
+                $('#toastContainer').append(toast);
+                const bsToast = new bootstrap.Toast(toast[0]);
+                bsToast.show();
+                
+                setTimeout(() => {
+                    toast.remove();
+                }, 5000);
+            }
+
+            function initializeEditSelect2(quoteId) {
+                log('[Select2] Initializing editPartnerId for QuoteId:', quoteId);
+                const $select = $(`#editPartnerId_${quoteId}`);
+                if (!$select.length) {
+                    log('[Select2] ERROR: editPartnerId select not found for QuoteId:', quoteId);
+                    alert('Partner select element not found.');
+                    return;
+                }
+
+                if ($select.hasClass('select2-hidden-accessible')) {
+                    $select.select2('destroy');
+                    log(`[Select2] Destroyed existing Select2 instance for editPartnerId_${quoteId}`);
+                }
+
+                $select.select2({
+                    placeholder: 'Válasszon partnert',
+                    allowClear: true,
+                    ajax: {
+                        url: '/CRM/Quotes?handler=Partners',
+                        dataType: 'json',
+                        delay: 250,
+                        data: function (params) {
+                            return { search: params.term || '' };
+                        },
+                        processResults: function (data) {
+                            log('[Select2] Partners response:', data);
+                            return {
+                                results: data.map(item => ({
+                                    id: item.id,
+                                    text: item.name
+                                }))
+                            };
+                        },
+                        cache: true
+                    },
+                    minimumInputLength: 0,
+                    theme: 'bootstrap-5',
+                    dropdownParent: $(`#editQuoteModal_${quoteId}`)
+                });
+
+                const partnerId = $select.data('partner-id');
+                const partnerName = $select.data('partner-name');
+                if (partnerId && partnerName) {
+                    log('[Select2] Pre-selecting partner:', partnerId, partnerName);
+                    const option = new Option(partnerName, partnerId, true, true);
+                    $select.append(option).trigger('change');
+                } else {
+                    log('[Select2] WARNING: No initial partnerId or partnerName for QuoteId:', quoteId);
+                    $select.val(null).trigger('change');
+                }
+
+                $select.on('select2:select select2:unselect', function () {
+                    log('[Select2] editPartnerId_${quoteId} value changed:', $select.val());
+                });
+            }
+
+            function initializeNewItemSelect2(quoteId) {
+                log('[Select2] Initializing productId for QuoteId:', quoteId);
+                const $select = $(`#productId_${quoteId}`);
+                if (!$select.length) {
+                    log('[Select2] ERROR: productId select not found for QuoteId:', quoteId);
+                    alert('Product select element not found.');
+                    return;
+                }
+
+                if ($select.hasClass('select2-hidden-accessible')) {
+                    $select.select2('destroy');
+                    log(`[Select2] Destroyed existing Select2 instance for productId_${quoteId}`);
+                }
+
+                $select.select2({
+                    placeholder: 'Keresés termékek között...',
+                    allowClear: true,
+                    ajax: {
+                        url: '/api/Product',
+                        dataType: 'json',
+                        delay: 250,
+                        data: function (params) {
+                            return { search: params.term || '' };
+                        },
+                        processResults: function (data) {
+                            log('[Select2] Product response:', data);
+                            if (!Array.isArray(data)) {
+                                log('[Select2] ERROR: Expected array, got:', data);
+                                return { results: [] };
+                            }
+                            return {
+                                results: data.map(function (product) {
+                                    return {
+                                        id: product.id,
+                                        text: product.name
+                                    };
+                                })
+                            };
+                        },
+                        transport: function (params, success, failure) {
+                            const $request = $.ajax(params);
+                            $request.then(data => {
+                                log('[Select2] Product success response:', data);
+                                success(data);
+                            });
+                            $request.fail((xhr, status, error) => {
+                                log('[Select2] Product AJAX error: Status=', xhr.status, 'Error=', error, 'Response=', xhr.responseText);
+                                failure();
+                            });
+                            return $request;
+                        }
+                    },
+                    minimumInputLength: 0,
+                    theme: 'bootstrap-5',
+                    dropdownParent: $(`#newQuoteItemModal_${quoteId}`),
+                    language: {
+                        noResults: function () {
+                            return 'Nincs találat';
+                        }
+                    }
+                });
+
+                $select.on('select2:select select2:unselect', function () {
+                    log('[Select2] productId_${quoteId} value changed:', $select.val());
+                });
+            }
+
+            function updateQuoteCard(quoteId, formData) {
+                log('[Quote] Updating card for QuoteId:', quoteId);
+                const $card = $(`.partner-card[data-quote-id="${quoteId}"]`);
+                const data = {};
+                formData.forEach(item => data[item.name] = item.value);
+
+                $card.find('.quote-number-col .fw-bold').text(data.QuoteNumber || 'N/A');
+                $card.find('.quote-partner-col .quote-partner').html(`<i class="bi bi-person me-1"></i>${$(`#editPartnerId_${quoteId} option:selected`).text() || 'N/A'}`);
+                $card.find('.quote-date-col .quote-date').html(`<i class="bi bi-calendar me-1"></i>${data.QuoteDate || 'N/A'}`);
+                $card.find('.quote-status-col .badge').text(data.Status || 'Draft').removeClass('badge-draft badge-sent badge-accepted badge-rejected')
+                    .addClass(data.Status === 'Draft' ? 'badge-draft' : data.Status === 'Sent' ? 'badge-sent' : data.Status === 'Accepted' ? 'badge-accepted' : 'badge-rejected');
+                $card.find('.quote-amount-col .quote-amount').html(`<i class="bi bi-currency-dollar me-1"></i>${parseFloat(data.TotalAmount || '0').toFixed(2)}`);
+            }
+
             function getTodayDate() {
                 const today = new Date();
                 return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
             }
 
-            // Initialize Select2 for dropdowns
             function initializeSelect2(selector, type, dropdownParent = null) {
                 log(`[Select2] Initializing for ${selector}, type: ${type}`);
                 const $select = $(selector);
@@ -862,11 +1086,15 @@
                     return;
                 }
 
-                log(`[Select2] Select HTML:`, $select[0].outerHTML);
+                if ($select.hasClass('select2-hidden-accessible')) {
+                    $select.select2('destroy');
+                    log(`[Select2] Destroyed existing Select2 instance for ${selector}`);
+                }
+
                 try {
                     $select.select2({
                         ajax: {
-                            url: type === 'product' ? '/api/Product' : type === 'currency' ? '/api/Currencies' : '/api/partners',
+                            url: type === 'product' ? '/api/Product' : type === 'currency' ? '/CRM/Quotes?handler=Currencies' : '/CRM/Quotes?handler=Partners',
                             dataType: 'json',
                             delay: 250,
                             data: params => {
@@ -882,9 +1110,7 @@
                                 }
                                 const results = data.map(item => {
                                     const id = item.id || item.Id || item.CurrencyId || item.ProductId || item.PartnerId;
-                                    const text = type === 'product' 
-                                        ? `${item.name || item.Name || item.text || 'No Name'}`
-                                        : item.name || item.Name || item.CurrencyName || item.text || 'No Name';
+                                    const text = item.name || item.Name || item.CurrencyName || item.text || 'No Name';
                                     return { id, text };
                                 });
                                 log(`[Select2] ${type} processed results:`, results);
@@ -898,16 +1124,6 @@
                                 });
                                 $request.fail((xhr, status, error) => {
                                     log(`[Select2] AJAX error for ${type}: Status=${xhr.status}, Error=${error}, Response=`, xhr.responseText);
-                                    try {
-                                        const data = JSON.parse(xhr.responseText);
-                                        if (Array.isArray(data) && data.length > 0) {
-                                            log(`[Select2] Processing valid data despite ${xhr.status} status`);
-                                            success(data);
-                                            return;
-                                        }
-                                    } catch (e) {
-                                        log(`[Select2] Failed to parse response:`, e.message);
-                                    }
                                     failure(null);
                                 });
                                 return $request;
@@ -920,7 +1136,7 @@
                         width: '100%',
                         dropdownParent: dropdownParent ? $(dropdownParent) : undefined,
                         language: {
-                            errorLoading: () => ''
+                            errorLoading: () => 'Hiba történt az adatok betöltése közben.'
                         }
                     });
                     log(`[Select2] Successfully initialized for ${selector}`);
@@ -928,7 +1144,675 @@
                     log(`[Select2] ERROR: Initialization failed for ${selector}:`, error.message);
                     alert(`Select2 initialization failed for ${selector}: ${error.message}`);
                 }
+
+                $select.on('select2:select select2:unselect', function () {
+                    log(`[Select2] ${selector} value changed:`, $select.val());
+                });
             }
+
+            function initializeSortable() {
+                log('[Sortable] Initializing quoteItemsTable with SortableJS');
+                const $tbody = $('#quoteItemsTable tbody')[0];
+                if (!$tbody) {
+                    log('[Sortable] ERROR: Table body not found');
+                    return;
+                }
+                if (!Sortable) {
+                    log('[Sortable] ERROR: SortableJS is not available');
+                    alert('Drag-and-drop functionality is not available. Please ensure SortableJS is loaded.');
+                    return;
+                }
+                try {
+                    new Sortable($tbody, {
+                        handle: '.drag-handle',
+                        animation: 150,
+                        ghostClass: 'placeholder',
+                        onStart: function (evt) {
+                            log('[Sortable] Drag started', evt.item.id);
+                        },
+                        onSort: function (evt) {
+                            log('[Sortable] Sorting', evt.item.id, evt.oldIndex, evt.newIndex);
+                        },
+                        onEnd: function (evt) {
+                            log('[Sortable] Drag ended', evt.item.id, evt.oldIndex, evt.newIndex);
+                            const newOrder = [];
+                            $('#quoteItemsTable tbody tr').each(function (index) {
+                                const rowId = $(this).attr('id');
+                                const itemIndex = parseInt(rowId.replace('item_', ''));
+                                newOrder.push(itemsData[itemIndex]);
+                                $(this).attr('id', `item_${index}`);
+                                $(this).find('.delete-item').attr('data-row-id', `item_${index}`);
+                            });
+                            itemsData = newOrder;
+                            log('[Sortable] New itemsData order:', itemsData);
+                            updateTotalAmount();
+                        }
+                    });
+                    log('[Sortable] Initialization successful');
+                } catch (error) {
+                    log('[Sortable] ERROR: Initialization failed:', error.message);
+                }
+            }
+
+            function updateItemTotal() {
+                log('[Calc] Updating item total');
+                const quantity = parseFloat($('#newQuantity').val()) || 0;
+                const unitPrice = parseFloat($('#newUnitPrice').val()) || 0;
+                const discountPercentage = parseFloat($('#newDiscountPercentage').val()) || 0;
+                const discountAmount = parseFloat($('#newDiscountAmount').val()) || 0;
+
+                let total = quantity * unitPrice;
+                if (discountPercentage > 0) {
+                    total -= (total * discountPercentage / 100);
+                } else if (discountAmount > 0) {
+                    total -= discountAmount;
+                }
+                $('#newTotalPrice').val(total.toFixed(2));
+                log(`[Calc] Item total: Quantity=${quantity}, UnitPrice=${unitPrice}, DiscountPercentage=${discountPercentage}, DiscountAmount=${discountAmount}, Total=${total}`);
+            }
+
+            function refreshQuoteItemsTable(quoteId) {
+                return new Promise((resolve, reject) => {
+                    log('[QuoteItem] Refreshing items table for QuoteId:', quoteId);
+                    const $table = $(`#quoteItemsTable_${quoteId}`);
+                    const $tbody = $table.find('tbody');
+                    if (!$table.length || !$tbody.length) {
+                        log('[QuoteItem] ERROR: Table or tbody not found for QuoteId:', quoteId, 'Table exists:', $table.length, 'Tbody exists:', $tbody.length);
+                        showToast('error', 'Hiba: Árajánlat táblázat nem található.');
+                        reject(new Error('Table or tbody not found'));
+                        return;
+                    }
+
+                    const ajaxUrl = `/CRM/Quotes?handler=QuoteItems&quoteId=${quoteId}`;
+                    log('[QuoteItem] AJAX URL:', ajaxUrl);
+
+                    // Log current table state
+                    log('[QuoteItem] Current table rows:', $tbody.find('tr').map((i, el) => ({
+                        itemId: el.dataset.itemId,
+                        quantity: $(el).find('td').eq(2).text(),
+                        unitPrice: $(el).find('td').eq(3).text()
+                    })).get());
+
+                    $.ajax({
+                        url: ajaxUrl,
+                        method: 'GET',
+                        headers: {
+                            "RequestVerificationToken": $('input[name="__RequestVerificationToken"]').val()
+                        },
+                        contentType: "application/json",
+                        dataType: 'json',
+                        cache: false,
+                        data: { _: new Date().getTime() },
+                        beforeSend: function (xhr) {
+                            log('[QuoteItem] Sending AJAX request for QuoteId:', quoteId);
+                            $tbody.empty(); // Force clear table
+                            xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+                        },
+                        success: function (data, textStatus, xhr) {
+                            try {
+                                const items = data.value || data;
+                                log('[QuoteItem] Success for QuoteId:', quoteId, 'Status:', xhr.status, 'Raw Data:', items);
+
+                                // Log data for quoteItemId: 1173 specifically
+                                const targetItem = items.find(item => item.quoteItemId === 1173);
+                                log('[QuoteItem] Data for quoteItemId 1173:', targetItem || 'Not found');
+
+                                // Check for missing productId
+                                items.forEach(item => {
+                                    if (!item.productId || item.productId === '') {
+                                        log('[WARN] Missing productId for quoteItemId:', item.quoteItemId);
+                                    }
+                                });
+
+                                if (!items || !Array.isArray(items) || items.length === 0) {
+                                    $tbody.append('<tr><td colspan="7">Nincsenek tételek az árajánlathoz.</td></tr>');
+                                    log('[QuoteItem] No items to display');
+                                    resolve();
+                                    return;
+                                }
+
+                                items.forEach(item => {
+                                    const discount = item.discountPercentage ?
+                                        `${item.discountPercentage.toFixed(2).replace('.', ',')}%` :
+                                        item.discountAmount ?
+                                        `${item.discountAmount.toFixed(2).replace('.', ',')}` :
+                                        '0,00';
+
+                                    const total = (item.quantity * item.unitPrice -
+                                        (item.discountAmount ||
+                                        (item.discountPercentage ?
+                                        (item.quantity * item.unitPrice * item.discountPercentage / 100) : 0)
+                                        )).toFixed(2).replace('.', ',');
+
+                                    const productId = item.productId ? String(item.productId) : '';
+
+                                    $tbody.append(`
+                                        <tr data-item-id="${item.quoteItemId}">
+                                            <td>${item.productName || 'N/A'}</td>
+                                            <td>${item.itemDescription || ''}</td>
+                                            <td>${item.quantity}</td>
+                                            <td>${item.unitPrice.toFixed(2).replace('.', ',')}</td>
+                                            <td>${discount}</td>
+                                            <td>${total}</td>
+                                            <td>
+                                                <div class="btn-group btn-group-sm" role="group">
+                                                    <button class="btn btn-primary btn-sm edit-quote-item"
+                                                            data-quote-id="${quoteId}"
+                                                            data-item-id="${item.quoteItemId}"
+                                                            data-product-id="${productId}"
+                                                            data-product-name="${item.productName || ''}"
+                                                            data-quantity="${item.quantity || 1}"
+                                                            data-unit-price="${item.unitPrice || 0}"
+                                                            data-discount="${item.discountPercentage || item.discountAmount || 0}"
+                                                            data-discount-type="${item.discountPercentage ? 'percentage' : item.discountAmount ? 'amount' : 'percentage'}"
+                                                            data-description="${item.itemDescription || ''}"
+                                                            data-total-price="${total.replace(',', '.') || 0}">
+                                                        <i class="bi bi-pencil-square me-1"></i>Szerkesztés
+                                                    </button>
+                                                    <button class="btn btn-danger btn-sm delete-item"
+                                                            data-quote-id="${quoteId}"
+                                                            data-item-id="${item.quoteItemId}">
+                                                        <i class="bi bi-trash me-2"></i>
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    `);
+                                });
+
+                                log('[QuoteItem] Table updated, edit buttons:', $tbody.find('.edit-quote-item').length);
+                                log('[QuoteItem] Rendered rows:', $tbody.find('tr').map((i, el) => ({
+                                    itemId: el.dataset.itemId,
+                                    quantity: $(el).find('td').eq(2).text(),
+                                    unitPrice: $(el).find('td').eq(3).text()
+                                })).get());
+                                resolve();
+                            } catch (e) {
+                                log('[QuoteItem] Error processing response:', e.message);
+                                showToast('error', 'Hiba történt az adatok feldolgozása közben: ' + e.message);
+                                reject(e);
+                            }
+                        },
+                        error: function (xhr, status, error) {
+                            let errorMsg = 'Ismeretlen hiba';
+                            try {
+                                const response = JSON.parse(xhr.responseText);
+                                errorMsg = response.message || response.error || response.errors?.join(', ') || errorMsg;
+                            } catch (e) {
+                                errorMsg = xhr.responseText || errorMsg;
+                            }
+                            log('[QuoteItem] Error:', status, error, 'StatusCode:', xhr.status, 'Response:', xhr.responseText);
+                            showToast('error', `Hiba történt az árajánlat tételek betöltésekor: ${errorMsg}`);
+                            reject(new Error(errorMsg));
+                        },
+                        complete: function () {
+                            log('[QuoteItem] AJAX request completed for QuoteId:', quoteId);
+                        }
+                    });
+                });
+            }
+
+            function updateTotalAmount(quoteId) {
+                log('[Total] Updating total for quote:', quoteId);
+                let subtotal = 0;
+                $(`#quoteItemsTable_${quoteId} tbody tr`).each(function() {
+                    const quantity = parseFloat($(this).find('td:nth-child(3)').text()) || 0;
+                    const unitPrice = parseFloat($(this).find('td:nth-child(4)').text().replace(',', '.')) || 0;
+                    const discountText = $(this).find('td:nth-child(5)').text();
+                    
+                    let discount = 0;
+                    if (discountText.includes('%')) {
+                        discount = quantity * unitPrice * parseFloat(discountText.replace('%', '').replace(',', '.')) / 100;
+                    } else {
+                        discount = parseFloat(discountText.replace(',', '.')) || 0;
+                    }
+                    
+                    subtotal += (quantity * unitPrice) - discount;
+                });
+                
+                const discountPercentage = parseFloat($('#discountPercentage').val()) || 0;
+                const discountAmount = parseFloat($('#discountAmount').val()) || 0;
+                let total = subtotal;
+                
+                if (discountPercentage > 0) {
+                    total = subtotal * (1 - discountPercentage / 100);
+                } else if (discountAmount > 0) {
+                    total = subtotal - discountAmount;
+                }
+                
+                $('#totalAmount').val(total.toFixed(2).replace('.', ','));
+                log('[Total] Updated total:', total);
+                return total;
+            }
+
+            function updateNewQuoteTotal() {
+                log('[Total] Updating new quote total');
+                let subtotal = itemsData.reduce((sum, item) => sum + item.totalPrice, 0);
+                const discountPercentage = parseFloat($('#discountPercentage').val()) || 0;
+                const discountAmount = parseFloat($('#discountAmount').val()) || 0;
+                let total = subtotal;
+                
+                if (discountPercentage > 0) {
+                    total = subtotal * (1 - discountPercentage / 100);
+                } else if (discountAmount > 0) {
+                    total = subtotal - discountAmount;
+                }
+                
+                $('#totalAmount').val(total.toFixed(2));
+                log('[Total] New quote total:', total);
+                return total;
+            }
+
+            function updateItemTotal(quoteId) {
+                log('[Calc] Updating item total for QuoteId:', quoteId);
+                const quantity = parseFloat($(`#newQuantity_${quoteId}`).val()) || 0;
+                const unitPrice = parseFloat($(`#newUnitPrice_${quoteId}`).val().replace(',', '.')) || 0;
+                const discount = parseFloat($(`#newItemDiscount_${quoteId}`).val().replace(',', '.')) || 0;
+                const discountType = $(`#newItemDiscountType_${quoteId}`).val();
+
+                let total = quantity * unitPrice;
+                if (discount > 0) {
+                    if (discountType === 'percentage') {
+                        total -= (total * discount / 100);
+                    } else if (discountType === 'amount') {
+                        total -= discount;
+                    }
+                }
+
+                $(`#newTotalPrice_${quoteId}`).val(total.toFixed(2).replace('.', ','));
+                log(`[Calc] Item total: Quantity=${quantity}, UnitPrice=${unitPrice}, Discount=${discount}, DiscountType=${discountType}, Total=${total}`);
+            }
+
+            // Real-time total price calculation for edit modal
+            function calculateEditItemTotal() {
+                const quantity = parseFloat($('#editQuantity').val()) || 0;
+                const unitPrice = parseFloat($('#editUnitPrice').val()) || 0;
+                const discount = parseFloat($('#editItemDiscount').val()) || 0;
+                const discountType = $('#editItemDiscountType').val();
+
+                let total = quantity * unitPrice;
+                if (discount > 0) {
+                    if (discountType === 'percentage') {
+                        total -= (total * discount / 100);
+                    } else if (discountType === 'amount') {
+                        total -= discount;
+                    }
+                }
+
+                $('#editTotalPrice').val(total.toFixed(2).replace('.', ','));
+                log('[Calc] Edit item total: Quantity=', quantity, 'UnitPrice=', unitPrice, 'Discount=', discount, 'Type=', discountType, 'Total=', total);
+            }
+
+            // Populate modal when edit button is clicked
+            $(document).on('click', '.edit-quote-item', function (e) {
+                e.preventDefault();
+                log('[DEBUG] Edit quote item button clicked');
+                const $button = $(this);
+
+                // Check modal existence
+                const $modal = $('#editQuoteItemModal');
+                if (!$modal.length) {
+                    log('[ERROR] EditQuoteItemModal not found in DOM');
+                    showToast('error', 'Hiba: Szerkesztő modal nem található.');
+                    return;
+                }
+
+                // Extract data attributes
+                const quoteId = $button.data('quote-id');
+                const quoteItemId = $button.data('item-id');
+                const productId = $button.data('product-id');
+                const productName = $button.data('product-name');
+                const quantity = parseInt($button.data('quantity')) || 1;
+                const unitPrice = parseFloat($button.data('unit-price')) || 0;
+                const discount = parseFloat($button.data('discount')) || 0;
+                const discountType = $button.data('discount-type') || 'percentage';
+                const description = $button.data('description') || '';
+                const totalPrice = parseFloat($button.data('total-price')) || 0;
+
+                log('[DEBUG] Edit button data:', {
+                    quoteId,
+                    quoteItemId,
+                    productId,
+                    productName,
+                    quantity,
+                    unitPrice,
+                    discount,
+                    discountType,
+                    description,
+                    totalPrice
+                });
+
+                // Warn about missing productId but allow modal to open for edits
+                if (!productId || productId === '') {
+                    log('[WARN] Missing or invalid productId:', productId, 'Proceeding with edit since quoteItemId exists:', quoteItemId);
+                    showToast('warning', 'Figyelem: Érvénytelen termék azonosító, de szerkesztés folytatódik.');
+                }
+
+                // Populate modal fields
+                try {
+                    $('#editQuoteId').val(quoteId || '');
+                    $('#editQuoteItemId').val(quoteItemId || '');
+                    $('#editProductId').val(productId || '');
+                    $('#editProductName').val(productName || '');
+                    $('#editQuantity').val(quantity);
+                    $('#editUnitPrice').val(unitPrice.toFixed(2));
+                    $('#editItemDiscount').val(discount.toFixed(2));
+                    $('#editItemDiscountType').val(discountType);
+                    $('#editItemDescription').val(description);
+                    $('#editTotalPrice').val(totalPrice.toFixed(2).replace('.', ','));
+                    $('#editQuoteItemModalLabel').text('Tétel szerkesztése: ' + (productName || 'N/A'));
+
+                    // Reset validation
+                    const $form = $('#editQuoteItemForm');
+                    $form.removeClass('was-validated');
+                    $form.find('.invalid-feedback').hide();
+
+                    // Calculate initial total
+                    calculateEditItemTotal();
+
+                    // Ensure modal is not already open
+                    if ($modal.hasClass('show')) {
+                        log('[DEBUG] Modal already open, hiding first');
+                        $modal.modal('hide');
+                    }
+
+                    // Show modal
+                    log('[DEBUG] Attempting to show EditQuoteItemModal');
+                    $modal.modal('show');
+                    log('[DEBUG] Modal shown, fields populated:', {
+                        quoteId: $('#editQuoteId').val(),
+                        quoteItemId: $('#editQuoteItemId').val(),
+                        productId: $('#editProductId').val(),
+                        productName: $('#editProductName').val(),
+                        quantity: $('#editQuantity').val(),
+                        unitPrice: $('#editUnitPrice').val(),
+                        discount: $('#editItemDiscount').val(),
+                        discountType: $('#editItemDiscountType').val(),
+                        description: $('#editItemDescription').val(),
+                        totalPrice: $('#editTotalPrice').val(),
+                        formSerialized: $form.serialize()
+                    });
+                } catch (error) {
+                    log('[ERROR] Failed to populate or show EditQuoteItemModal:', error.message);
+                    showToast('error', 'Hiba: Nem sikerült megnyitni a szerkesztő modalt: ' + error.message);
+                }
+            });
+
+            // Real-time calculation for quantity, unit price, and discount
+            $(document).on('input', '#editQuantity, #editUnitPrice, #editItemDiscount, #editItemDiscountType', calculateEditItemTotal);
+
+            // Handle form submission
+            $(document).on('click', '#saveQuoteItemBtn', function () {
+                const $form = $('#editQuoteItemForm');
+                const quoteId = $('#editQuoteId').val();
+                const quoteItemId = $('#editQuoteItemId').val();
+                const productId = $('#editProductId').val();
+                const productName = $('#editProductName').val();
+                const quantity = parseFloat($('#editQuantity').val()) || 0;
+                const unitPrice = parseFloat($('#editUnitPrice').val()) || 0;
+                const discount = parseFloat($('#editItemDiscount').val()) || 0;
+                const discountType = $('#editItemDiscountType').val();
+                const description = $('#editItemDescription').val();
+
+                log('[DEBUG] Save quote item button clicked, Form data:', {
+                    quoteId,
+                    quoteItemId,
+                    productId,
+                    productName,
+                    quantity,
+                    unitPrice,
+                    discount,
+                    discountType,
+                    description,
+                    formSerialized: $form.serialize()
+                });
+
+                // Client-side validation
+                if (!$form[0].checkValidity() || quantity < 1 || unitPrice <= 0 || !productName) {
+                    log('[WARN] Form validation failed', {
+                        formValid: $form[0].checkValidity(),
+                        quantity,
+                        unitPrice,
+                        productName
+                    });
+                    $form.addClass('was-validated');
+                    showToast('error', 'Kérjük, töltse ki az összes kötelező mezőt és ellenőrizze az értékeket.');
+                    return;
+                }
+
+                // Prepare payload
+                const payload = {
+                    QuoteId: parseInt(quoteId),
+                    QuoteItemId: parseInt(quoteItemId),
+                    ProductId: productId && productId !== '' ? parseInt(productId) : 1, // Fallback ProductId
+                    ProductName: productName || 'Unknown', // Include ProductName
+                    Quantity: quantity,
+                    UnitPrice: unitPrice,
+                    ItemDescription: description,
+                    DiscountPercentage: discountType === 'percentage' && discount > 0 ? discount : null,
+                    DiscountAmount: discountType === 'amount' && discount > 0 ? discount : null
+                };
+
+                if (!productId || productId === '') {
+                    log('[WARN] Using fallback ProductId: 1 for QuoteItemId:', quoteItemId);
+                    showToast('warning', 'Figyelem: Helyettesítő termék azonosító (1) használata.');
+                }
+
+                log('[DEBUG] Payload:', payload);
+                log('[DEBUG] Raw JSON:', JSON.stringify(payload));
+
+                // AJAX submission
+                try {
+                    $.ajax({
+                        url: '/CRM/Quotes?handler=UpdateItem',
+                        method: 'POST',
+                        contentType: 'application/json',
+                        data: JSON.stringify(payload),
+                        headers: {
+                            'RequestVerificationToken': $('input[name="__RequestVerificationToken"]').val()
+                        },
+                        beforeSend: function () {
+                            log('[DEBUG] Sending AJAX request for item update');
+                            $('#saveQuoteItemBtn').prop('disabled', true).html('<span class="spinner-border spinner-border-sm" role="status"></span> Mentés...');
+                        },
+                            success: function (response) {
+                                log('[DEBUG] Form submission success:', response);
+                                if (response.success) {
+                                    showToast('success', 'Tétel sikeresen mentve!');
+                                    $('#editQuoteItemModal').modal('hide');
+                                    log('[DEBUG] Triggering table refresh for QuoteId:', quoteId);
+                                    refreshQuoteItemsTable(quoteId).then(() => {
+                                        log('[DEBUG] Table refresh complete, showing quoteItemsModal_', quoteId);
+                                        // Verify table content after refresh
+                                        const tableRows = $(`#quoteItemsTable_${quoteId} tbody tr`).map((i, el) => ({
+                                            itemId: el.dataset.itemId,
+                                            quantity: $(el).find('td').eq(2).text()
+                                        })).get();
+                                        log('[DEBUG] Table content after refresh:', tableRows);
+                                        $(`#quoteItemsModal_${quoteId}`).modal('show');
+                                    }).catch(error => {
+                                        log('[ERROR] Table refresh failed:', error.message);
+                                        showToast('warning', 'Hiba történt az árajánlat tételek frissítése során, oldal újratöltése...');
+                                        setTimeout(() => {
+                                            location.reload();
+                                        }, 2000);
+                                    });
+                                } else {
+                                    log('[ERROR] Server validation failed:', response.message, 'Response:', response);
+                                    showToast('error', response.message || 'Hiba történt a mentés során.');
+                                }
+                        },
+                        error: function (xhr, status, error) {
+                            let errorMsg = 'Szerver hiba';
+                            try {
+                                const response = JSON.parse(xhr.responseText);
+                                errorMsg = response.message || response.error || response.errors?.join(', ') || errorMsg;
+                            } catch (e) {
+                                errorMsg = xhr.responseText || errorMsg;
+                            }
+                            log('[ERROR] AJAX error:', status, error, 'StatusCode:', xhr.status, 'Response:', xhr.responseText);
+                            showToast('error', 'Hiba történt a mentés során: ' + errorMsg);
+                        },
+                        complete: function () {
+                            log('[DEBUG] AJAX complete');
+                            $('#saveQuoteItemBtn').prop('disabled', false).html('Tétel mentése');
+                        }
+                    });
+                } catch (error) {
+                    log('[ERROR] AJAX submission failed:', error.message);
+                    $('#saveQuoteItemBtn').prop('disabled', false).html('Tétel mentése');
+                    showToast('error', 'Hiba történt a mentés során: ' + error.message);
+                }
+            });
+
+            // Reset modal on hide
+            $('#editQuoteItemModal').on('hidden.bs.modal', function () {
+                try {
+                    log('[DEBUG] Edit Quote Item Modal hidden');
+                    const $form = $('#editQuoteItemForm');
+                    const productId = $('#editProductId').val(); // Preserve productId
+                    $form[0].reset();
+                    $('#editProductId').val(productId); // Restore productId
+                    $form.removeClass('was-validated');
+                    $form.find('.invalid-feedback').hide();
+                    $('#editQuoteItemModalLabel').text('Tétel szerkesztése');
+                    log('[DEBUG] Modal reset complete, preserved productId:', productId);
+                } catch (error) {
+                    log('[ERROR] Error during modal reset:', error.message);
+                    showToast('error', 'Hiba: Modal visszaállítás sikertelen: ' + error.message);
+                }
+            });
+
+            // Open Edit Quote Modal
+            $(document).on('click', '[data-bs-target^="#editQuoteModal_"]', function () {
+                const quoteId = $(this).data('bs-target').replace('#editQuoteModal_', '');
+                log('[Quote] Opening edit modal for QuoteId:', quoteId);
+                const $modal = $(`#editQuoteModal_${quoteId}`);
+                $modal.on('shown.bs.modal', function () {
+                    initializeEditSelect2(quoteId);
+                    $(`#basic-tab_${quoteId}`).tab('show');
+                });
+            });
+
+            // Handle Edit Quote Form Submission
+            $(document).on('submit', '[id^="editQuoteForm_"]', function (e) {
+                e.preventDefault();
+                const $form = $(this);
+                const quoteId = $form.find('input[name="QuoteId"]').val();
+                log('[Quote] Submitting edit form for QuoteId:', quoteId);
+
+                if (!$form[0].checkValidity()) {
+                    $form.addClass('was-validated');
+                    showToast('error', 'Kérjük, töltse ki az összes kötelező mezőt.');
+                    return;
+                }
+
+                const partnerId = $(`#editPartnerId_${quoteId}`).val();
+                if (!partnerId || isNaN(parseInt(partnerId))) {
+                    log('[Quote] ERROR: Invalid PartnerId for QuoteId:', quoteId, 'Value:', partnerId);
+                    showToast('error', 'Kérjük, válasszon egy érvényes partnert.');
+                    return;
+                }
+
+                const formData = $form.serializeArray();
+                formData.push({ name: 'PartnerId', value: partnerId });
+                log('[Quote] Form data:', formData);
+
+                $.ajax({
+                    url: '/CRM/Quotes?handler=EditQuote',
+                    method: 'POST',
+                    data: formData,
+                    headers: { 'RequestVerificationToken': $('input[name="__RequestVerificationToken"]').val() },
+                    beforeSend: function () {
+                        log('[Quote] Sending AJAX request for QuoteId:', quoteId);
+                        $form.find('button[type="submit"]').prop('disabled', true).html('<span class="spinner-border spinner-border-sm" role="status"></span> Mentés...');
+                    },
+                    success: function (response) {
+                        log('[Quote] Edit response for QuoteId:', quoteId, response);
+                        if (response.success) {
+                            showToast('success', 'Árajánlat sikeresen frissítve!');
+                            updateQuoteCard(quoteId, formData);
+                            $(`#editQuoteModal_${quoteId}`).modal('hide');
+                        } else {
+                            showToast('error', response.message || 'Árajánlat frissítése sikertelen.');
+                        }
+                    },
+                    error: function (xhr, status, error) {
+                        log('[Quote] Edit error for QuoteId:', quoteId, xhr.responseJSON, status, error);
+                        showToast('error', 'Hiba történt az árajánlat frissítése közben: ' + (xhr.responseJSON?.message || 'Szerver hiba.'));
+                    },
+                    complete: function () {
+                        log('[Quote] AJAX complete for QuoteId:', quoteId);
+                        $form.find('button[type="submit"]').prop('disabled', false).html('Változtatások mentése');
+                    }
+                });
+            });
+
+            // Open New Quote Item Modal
+            $(document).on('click', '[data-bs-target^="#newQuoteItemModal_"]', function () {
+                const quoteId = $(this).data('bs-target').replace('#newQuoteItemModal_', '');
+                log('[QuoteItem] Opening new item modal for QuoteId:', quoteId);
+                const $modal = $(`#newQuoteItemModal_${quoteId}`);
+                $modal.on('shown.bs.modal', function () {
+                    initializeNewItemSelect2(quoteId);
+                });
+            });
+
+            // Handle New Quote Item Form Submission
+            $(document).on('submit', '[id^="newQuoteItemForm_"]', function (e) {
+                e.preventDefault();
+                const $form = $(this);
+                const quoteId = $form.find('input[name="QuoteId"]').val();
+                log('[QuoteItem] Submitting new item form for QuoteId:', quoteId);
+
+                if (!$form[0].checkValidity()) {
+                    $form.addClass('was-validated');
+                    showToast('error', 'Kérjük, töltse ki az összes kötelező mezőt.');
+                    return;
+                }
+
+                const productId = $(`#productId_${quoteId}`).val();
+                if (!productId) {
+                    log('[QuoteItem] ERROR: ProductId is missing for QuoteId:', quoteId);
+                    showToast('error', 'Kérjük, válasszon egy érvényes terméket.');
+                    return;
+                }
+                const formData = $form.serializeArray();
+                formData.push({ name: 'ProductId', value: productId });
+                log('[QuoteItem] Form data:', formData);
+
+                $.ajax({
+                    url: '/CRM/Quotes?handler=AddItem',
+                    method: 'POST',
+                    data: formData,
+                    headers: { 'RequestVerificationToken': $('input[name="__RequestVerificationToken"]').val() },
+                    beforeSend: function () {
+                        log('[QuoteItem] Sending AJAX request for QuoteId:', quoteId);
+                        $form.find('button[type="submit"]').prop('disabled', true).html('<span class="spinner-border spinner-border-sm" role="status"></span> Hozzáadás...');
+                    },
+                    success: function (response) {
+                        log('[QuoteItem] Add item response for QuoteId:', quoteId, response);
+                        if (response.success) {
+                            showToast('success', 'Tétel sikeresen hozzáadva!');
+                            refreshQuoteItemsTable(quoteId);
+                            $form[0].reset();
+                            $(`#productId_${quoteId}`).val(null).trigger('change');
+                            $(`#newQuoteItemModal_${quoteId}`).modal('hide');
+                            $(`#quoteItemsModal_${quoteId}`).modal('show');
+                        } else {
+                            showToast('error', response.message || 'Tétel hozzáadása sikertelen.');
+                        }
+                    },
+                    error: function (xhr, status, error) {
+                        log('[QuoteItem] Add item error for QuoteId:', quoteId, xhr.responseJSON, status, error);
+                        showToast('error', 'Hiba történt a tétel hozzáadása közben: ' + (xhr.responseJSON?.message || 'Szerver hiba.'));
+                    },
+                    complete: function () {
+                        log('[QuoteItem] AJAX complete for QuoteId:', quoteId);
+                        $form.find('button[type="submit"]').prop('disabled', false).html('Tétel hozzáadása');
+                    }
+                });
+            });
 
             // Store items for new quote
             let itemsData = [];
@@ -973,6 +1857,7 @@
                     initializeSelect2('#partnerId', 'partner', '#newQuoteModal');
                     initializeSelect2('#currencyId', 'currency', '#newQuoteModal');
                     initializeSelect2('#newProductId', 'product', '#newQuoteModal');
+                    initializeSortable();
                     $('#details-tab').tab('show');
                 });
             });
@@ -987,6 +1872,7 @@
                 $modal.find('#quoteItemsTable tbody').empty();
                 $modal.find('.item-form').hide();
                 itemsData = [];
+                $('#quoteItemsTable tbody').sortable('destroy');
                 log(`[Modal] Select elements after reset:`, $modal.find('select').map((i, el) => ({ id: el.id, html: el.outerHTML })).get());
             });
 
@@ -1005,6 +1891,16 @@
                     $itemForm.find('#newItemDescription').val('');
                     $itemForm.find('#newProductId').val(null).trigger('change');
                 }
+            });
+
+            // Handle discount changes
+            $(document).on('input', '#discountPercentage, #discountAmount', function() {
+                if ($(this).is('#discountPercentage') && $(this).val() > 0) {
+                    $('#discountAmount').val('0');
+                } else if ($(this).is('#discountAmount') && $(this).val() > 0) {
+                    $('#discountPercentage').val('0');
+                }
+                updateTotalAmount();
             });
 
             // Cancel item form
@@ -1038,51 +1934,13 @@
                 updateItemTotal();
             });
 
-            // Mutual exclusivity for quote discounts
-            $(document).on('input', '#discountPercentage', function () {
-                const value = parseFloat($(this).val()) || 0;
-                if (value > 0) {
-                    $('#discountAmount').val('0').prop('disabled', true);
-                } else {
-                    $('#discountAmount').prop('disabled', false);
-                }
-                updateTotalAmount();
-            });
-
-            $(document).on('input', '#discountAmount', function () {
-                const value = parseFloat($(this).val()) || 0;
-                if (value > 0) {
-                    $('#discountPercentage').val('0').prop('disabled', true);
-                } else {
-                    $('#discountPercentage').prop('disabled', false);
-                }
-                updateTotalAmount();
-            });
-
-            // Update item total in new quote
-            function updateItemTotal() {
-                log('[Calc] Updating item total');
-                const quantity = parseFloat($('#newQuantity').val()) || 0;
-                const unitPrice = parseFloat($('#newUnitPrice').val()) || 0;
-                const discountPercentage = parseFloat($('#newDiscountPercentage').val()) || 0;
-                const discountAmount = parseFloat($('#newDiscountAmount').val()) || 0;
-
-                let total = quantity * unitPrice;
-                if (discountPercentage > 0) {
-                    total -= (total * discountPercentage / 100);
-                } else if (discountAmount > 0) {
-                    total -= discountAmount;
-                }
-                $('#newTotalPrice').val(total.toFixed(2));
-                log(`[Calc] Item total: Quantity=${quantity}, UnitPrice=${unitPrice}, DiscountPercentage=${discountPercentage}, DiscountAmount=${discountAmount}, Total=${total}`);
-            }
-
             $(document).on('input', '#newQuantity, #newUnitPrice, #newDiscountPercentage, #newDiscountAmount', updateItemTotal);
 
             // Add item to new quote
-            $(document).on('click', '.add-item', function () {
+            $(document).on('click', '.add-item', function() {
                 log('[Item] Add item clicked');
                 const $itemForm = $('.item-form');
+                
                 const productData = $itemForm.find('#newProductId').select2('data')[0];
                 const productId = productData ? parseInt(productData.id) : 0;
                 const productText = productData ? productData.text : 'Ismeretlen termék';
@@ -1092,43 +1950,41 @@
                 const discountPercentage = parseFloat($itemForm.find('#newDiscountPercentage').val()) || 0;
                 const discountAmount = parseFloat($itemForm.find('#newDiscountAmount').val()) || 0;
 
-                log('[Item] Item details:', { productId, productText, description, quantity, unitPrice, discountPercentage, discountAmount, select2Data: productData });
-
                 if (!productId || productId <= 0) {
-                    alert('Kérem, válasszon egy érvényes terméket!');
+                    showToast('error', 'Kérem, válasszon egy érvényes terméket!');
                     return;
                 }
                 if (quantity < 1) {
-                    alert('Kérem, adja meg az érvényes mennyiséget (1 vagy több)!');
+                    showToast('error', 'Kérem, adja meg az érvényes mennyiséget (1 vagy több)!');
                     return;
                 }
                 if (unitPrice <= 0) {
-                    alert('Kérem, adja meg az érvényes egységárat (nagyobb, mint 0)!');
+                    showToast('error', 'Kérem, adja meg az érvényes egységárat (nagyobb, mint 0)!');
                     return;
                 }
                 if (discountPercentage > 0 && discountAmount > 0) {
-                    alert('Csak kedvezmény százaléka vagy összege adható meg, nem mindkettő!');
+                    showToast('error', 'Csak kedvezmény százaléka vagy összege adható meg, nem mindkettő!');
                     return;
                 }
                 if (discountPercentage < 0 || discountPercentage > 100) {
-                    alert('Kedvezmény százaléka 0 és 100 között kell legyen!');
+                    showToast('error', 'Kedvezmény százaléka 0 és 100 között kell legyen!');
                     return;
                 }
                 if (discountAmount < 0) {
-                    alert('Kedvezmény összege nem lehet negatív!');
+                    showToast('error', 'Kedvezmény összege nem lehet negatív!');
                     return;
                 }
 
-                let totalPrice = quantity * unitPrice;
+                let itemTotal = quantity * unitPrice;
                 let discountText = '0,00';
+                
                 if (discountPercentage > 0) {
-                    totalPrice -= (totalPrice * discountPercentage / 100);
+                    itemTotal = itemTotal * (1 - discountPercentage / 100);
                     discountText = `${discountPercentage.toFixed(2)}%`;
                 } else if (discountAmount > 0) {
-                    totalPrice -= discountAmount;
+                    itemTotal = itemTotal - discountAmount;
                     discountText = `${discountAmount.toFixed(2)}`;
                 }
-                totalPrice = totalPrice.toFixed(2);
 
                 const item = {
                     productId: productId,
@@ -1138,78 +1994,100 @@
                     unitPrice: unitPrice,
                     discountPercentage: discountPercentage > 0 ? discountPercentage : null,
                     discountAmount: discountAmount > 0 ? discountAmount : null,
-                    totalPrice: parseFloat(totalPrice)
+                    totalPrice: itemTotal
                 };
 
                 itemsData.push(item);
+                
                 const $tbody = $('#quoteItemsTable tbody');
                 const rowId = `item_${itemsData.length - 1}`;
                 $tbody.append(`
-                    <tr id="${rowId}" data-product-id="${productId}" data-description="${description}" 
-                        data-quantity="${quantity}" data-unit-price="${unitPrice}" 
-                        data-discount-percentage="${discountPercentage}" data-discount-amount="${discountAmount}">
+                    <tr id="${rowId}">
+                        <td class="drag-handle"><i class="bi bi-grip-vertical"></i></td>
                         <td>${productText}</td>
                         <td>${description || ''}</td>
                         <td>${quantity}</td>
                         <td>${unitPrice.toFixed(2)}</td>
                         <td>${discountText}</td>
-                        <td>${totalPrice}</td>
+                        <td>${itemTotal.toFixed(2)}</td>
                         <td><button class="btn btn-sm btn-danger delete-item" data-row-id="${rowId}"><i class="bi bi-trash me-2"></i></button></td>
                     </tr>
                 `);
 
                 updateTotalAmount();
+                
                 $itemForm.removeClass('active').slideUp();
                 $itemForm.find('input, select').val('');
                 $itemForm.find('#newQuantity').val(1);
                 $itemForm.find('#newDiscountPercentage').val('0');
                 $itemForm.find('#newDiscountAmount').val('0');
+                
                 log('[Item] Item added:', item);
             });
 
-            // Delete item from new quote
-            $(document).on('click', '.delete-item', function () {
-                log('[Item] Delete item clicked');
+            // Delete item handler
+            $(document).on('click', '.delete-item', function() {
                 const rowId = $(this).data('row-id');
-                const index = parseInt(rowId.replace('item_', ''));
-                itemsData.splice(index, 1);
-                $(`#${rowId}`).remove();
-                $('#quoteItemsTable tbody tr').each((i, row) => {
-                    $(row).attr('id', `item_${i}`);
-                    $(row).find('.delete-item').attr('data-row-id', `item_${i}`);
-                });
-                updateTotalAmount();
-                log('[Item] Item deleted, new itemsData:', itemsData);
+                if (rowId) {
+                    const index = parseInt(rowId.split('_')[1]);
+                    if (index >= 0 && index < itemsData.length) {
+                        itemsData.splice(index, 1);
+                    }
+                    $(`#${rowId}`).remove();
+                    updateTotalAmount();
+                } else {
+                    const quoteId = $(this).data('quote-id');
+                    const itemId = $(this).data('item-id');
+                    if (quoteId && itemId) {
+                        if (!confirm('Biztosan törölni szeretné ezt a tételt?')) return;
+                        $.ajax({
+                            url: '/CRM/Quotes?handler=DeleteItem',
+                            method: 'POST',
+                            headers: { 
+                                'RequestVerificationToken': $('input[name="__RequestVerificationToken"]').val() 
+                            },
+                            contentType: 'application/json',
+                            data: JSON.stringify({ quoteId: quoteId, quoteItemId: itemId }),
+                            success: function(response) {
+                                if (response.success) {
+                                    $(`tr[data-item-id="${itemId}"]`).remove();
+                                    updateTotalAmount(quoteId);
+                                    showToast('success', 'Tétel sikeresen törölve!');
+                                } else {
+                                    showToast('error', response.message || 'Hiba történt a tétel törlése során.');
+                                }
+                            },
+                            error: function(xhr) {
+                                showToast('error', 'Szerver hiba történt a tétel törlése közben.');
+                            }
+                        });
+                    }
+                }
             });
 
-            // Update total amount for new quote
-            function updateTotalAmount() {
-                log('[Calc] Updating total amount');
-                let subtotal = itemsData.reduce((sum, item) => sum + item.totalPrice, 0);
-                const discountPercentage = parseFloat($('#discountPercentage').val()) || 0;
-                const discountAmount = parseFloat($('#discountAmount').val()) || 0;
-                let total = subtotal;
-                if (discountPercentage > 0) {
-                    total -= (subtotal * discountPercentage / 100);
-                } else if (discountAmount > 0) {
-                    total -= discountAmount;
-                }
-                $('#totalAmount').val(total.toFixed(2));
-                log(`[Calc] Subtotal: ${subtotal}, DiscountPercentage: ${discountPercentage}, DiscountAmount: ${discountAmount}, Total: ${total}`);
-            }
+            // Remove item from new quote
+            $(document).on('click', '.remove-item', function() {
+                const $row = $(this).closest('tr');
+                const index = $row.index();
+                
+                itemsData.splice(index, 1);
+                $row.remove();
+                updateNewQuoteTotal();
+                showToast('success', 'Tétel eltávolítva!');
+            });
 
             // Save quote
             $('#saveQuoteButton').click(function () {
                 log('[Quote] Save quote clicked');
                 if (!itemsData.length) {
-                    alert('Legalább egy tétel hozzáadása kötelező!');
+                    showToast('error', 'Legalább egy tétel hozzáadása kötelező!');
                     return;
                 }
 
                 const discountPercentage = parseFloat($('#discountPercentage').val()) || 0;
                 const discountAmount = parseFloat($('#discountAmount').val()) || 0;
                 if (discountPercentage > 0 && discountAmount > 0) {
-                    alert('Csak kedvezmény százaléka vagy összege adható meg az árajánlat szintjén, nem mindkettő!');
+                    showToast('error', 'Csak kedvezmény százaléka vagy összege adható meg az árajánlat szintjén, nem mindkettő!');
                     return;
                 }
 
@@ -1238,7 +2116,6 @@
 
                 log('[Quote] Payload:', payload);
 
-                // Validate required fields
                 let missingFields = [];
                 if (!payload.partnerId) missingFields.push('partnerId');
                 if (!payload.currencyId) missingFields.push('currencyId');
@@ -1250,7 +2127,7 @@
 
                 if (missingFields.length > 0) {
                     log('[Quote] Missing required fields:', missingFields);
-                    alert('Kérem, töltse ki az összes kötelező mezőt! Hiányzó mezők: ' + missingFields.join(', '));
+                    showToast('error', 'Kérem, töltse ki az összes kötelező mezőt! Hiányzó mezők: ' + missingFields.join(', '));
                     return;
                 }
 
@@ -1263,242 +2140,122 @@
                     success: function (response) {
                         log('[Quote] Quote saved:', response);
                         if (response.quoteId) {
-                            alert('Árajánlat sikeresen mentve!');
+                            showToast('success', 'Árajánlat sikeresen mentve!');
                             $('#newQuoteModal').modal('hide');
                             location.reload();
                         } else {
-                            alert('Hiba: ' + (response.error || 'Árajánlat mentése sikertelen.'));
+                            showToast('error', response.error || 'Árajánlat mentése sikertelen.');
                         }
                     },
                     error: function (xhr) {
                         log('[Quote] Error saving quote:', xhr.responseJSON);
                         var errors = xhr.responseJSON?.errors || [xhr.responseJSON?.error || 'Árajánlat mentése sikertelen.'];
-                        alert('Hiba: ' + errors.join(', '));
+                        showToast('error', 'Hiba: ' + errors.join(', '));
                     }
                 });
             });
 
-            // Add/Edit Quote Item Modal
-            $(document).on('click', '.add-quote-item', function () {
-                log('[Item] Add/Edit quote item clicked');
+            // Attach real-time calculation to input fields
+            $(document).on('input change', '[id^="newQuantity_"], [id^="newUnitPrice_"], [id^="newItemDiscount_"], [id^="newItemDiscountType_"]', function () {
+                const quoteId = $(this).attr('id').split('_')[1];
+                updateItemTotal(quoteId);
+            });
+
+            // Handle Save Quote Item Button
+            $(document).on('click', '[id^="saveQuoteItem_"]', function () {
                 const quoteId = $(this).data('quote-id');
-                const itemId = 0; // New item
-                const $modal = $('#editQuoteItemModal');
-                const $form = $modal.find('.edit-quote-item-form');
-                $modal.find('.modal-title').text(itemId ? 'Tétel szerkesztése' : 'Új tétel hozzáadása');
-                $form.find('.quote-id').val(quoteId);
-                $form.find('.item-id').val(itemId);
-                $form.find('#editProductId').val(null).trigger('change');
-                $form.find('#editItemDescription').val('');
-                $form.find('#editQuantity').val(1);
-                $form.find('#editUnitPrice').val('');
-                $form.find('#editTotalPrice').val('');
+                const $form = $(`#newQuoteItemForm_${quoteId}`);
+                const $button = $(this);
+                log('[QuoteItem] Save button clicked for QuoteId:', quoteId);
 
-                $modal.modal('show');
-                $modal.off('shown.bs.modal').on('shown.bs.modal', function () {
-                    log('[Modal] Edit Quote Item Modal shown');
-                    initializeSelect2('#editProductId', 'product', '#editQuoteItemModal');
-                });
-            });
-
-            // Update item total in edit modal
-            $(document).on('input', '#editQuantity, #editUnitPrice', function () {
-                log('[Calc] Updating edit item total');
-                const quantity = parseFloat($('#editQuantity').val()) || 0;
-                const unitPrice = parseFloat($('#editUnitPrice').val()) || 0;
-                const total = (quantity * unitPrice).toFixed(2);
-                $('#editTotalPrice').val(total);
-            });
-
-            // Delete Quote Item
-            function deleteQuoteItem(quoteId, quoteItemId) {
-                log('[Item] Delete quote item clicked: QuoteId=' + quoteId + ', QuoteItemId=' + quoteItemId);
-                if (!confirm('Biztosan törölni szeretné ezt a tételt?')) {
+                if (!$form[0].checkValidity()) {
+                    $form.addClass('was-validated');
+                    showToast('error', 'Kérjük, töltse ki az összes kötelező mezőt.');
                     return;
                 }
 
+                const productId = $(`#productId_${quoteId}`).val();
+                if (!productId) {
+                    log('[QuoteItem] ERROR: ProductId is missing for QuoteId:', quoteId);
+                    showToast('error', 'Kérjük, válasszon egy érvényes terméket.');
+                    return;
+                }
+
+                const discount = parseFloat($(`#newItemDiscount_${quoteId}`).val().replace(',', '.')) || 0;
+                const discountType = $(`#newItemDiscountType_${quoteId}`).val();
+                const payload = {
+                    QuoteId: parseInt($form.find('input[name="QuoteId"]').val()),
+                    ProductId: parseInt(productId),
+                    Quantity: parseInt($(`#newQuantity_${quoteId}`).val()) || 0,
+                    UnitPrice: parseFloat($(`#newUnitPrice_${quoteId}`).val().replace(',', '.')) || 0,
+                    ItemDescription: $(`#newItemDescription_${quoteId}`).val() || '',
+                    DiscountPercentage: discountType === 'percentage' && discount > 0 ? discount : null,
+                    DiscountAmount: discountType === 'amount' && discount > 0 ? discount : null
+                };
+
+                log('[QuoteItem] Payload:', payload);
+
                 $.ajax({
-                    url: '/CRM/Quotes?handler=DeleteItem',
+                    url: '/CRM/Quotes?handler=AddItem',
                     method: 'POST',
-                    headers: { 'RequestVerificationToken': $('input[name="__RequestVerificationToken"]').val() },
                     contentType: 'application/json',
-                    data: JSON.stringify({ quoteId: quoteId, quoteItemId: quoteItemId }),
+                    data: JSON.stringify(payload),
+                    headers: { 'RequestVerificationToken': $('input[name="__RequestVerificationToken"]').val() },
+                    beforeSend: function () {
+                        log('[QuoteItem] Sending AJAX request for QuoteId:', quoteId);
+                        $button.prop('disabled', true).html('<span class="spinner-border spinner-border-sm" role="status"></span> Hozzáadás...');
+                    },
                     success: function (response) {
-                        log('[Item] Item deleted:', response);
+                        log('[QuoteItem] Add item response for QuoteId:', quoteId, response);
                         if (response.success) {
-                            // Fetch updated quote items
-                            $.ajax({
-                                url: `/CRM/Quotes?handler=QuoteItems&quoteId=${quoteId}`,
-                                method: 'GET',
-                                success: function (data) {
-                                    log('[Item] Fetched updated quote items:', data);
-                                    if (data.success && data.quoteItems) {
-                                        const $tbody = $(`#quoteItemsTable_${quoteId} tbody`);
-                                        $tbody.empty(); // Clear existing rows
-
-                                        if (data.quoteItems.length === 0) {
-                                            $tbody.append('<tr><td colspan="7">Nincsenek tételek az árajánlathoz.</td></tr>');
-                                        } else {
-                                            data.quoteItems.forEach(item => {
-                                                $tbody.append(`
-                                                    <tr data-item-id="${item.quoteItemId}">
-                                                        <td>${item.productName}</td>
-                                                        <td>${item.itemDescription || ''}</td>
-                                                        <td>${item.quantity}</td>
-                                                        <td>${item.unitPrice.toFixed(2)}</td>
-                                                        <td>${item.discount}</td>
-                                                        <td>${item.total}</td>
-                                                        <td>
-                                                            <div class="btn-group btn-group-sm" role="group">
-                                                                <button class="btn btn-primary btn-sm"
-                                                                        data-bs-toggle="modal"
-                                                                        data-bs-target="#editQuoteItemModal_${item.quoteItemId}"
-                                                                        data-quote-id="${quoteId}"
-                                                                        data-item-id="${item.quoteItemId}">
-                                                                    <i class="bi bi-pencil-square me-1"></i>Szerkesztés
-                                                                </button>
-                                                                <button class="btn btn-danger btn-sm"
-                                                                        onclick="deleteQuoteItem(${quoteId}, ${item.quoteItemId})">
-                                                                    <i class="bi bi-trash me-2"></i>
-                                                                </button>
-                                                            </div>
-                                                        </td>
-                                                    </tr>
-                                                `);
-                                            });
-                                        }
-
-                                        alert('Tétel sikeresen törölve!');
-                                    } else {
-                                        alert('Sikeres törlés, de a tételek betöltése sikertelen.');
-                                        window.location.reload(); // Fallback
-                                    }
-                                },
-                                error: function (xhr, status, error) {
-                                    log(`[Item] Failed to fetch quote items: ${xhr.status} ${error}`, xhr.responseText);
-                                    alert('Sikeres törlés, de a tételek betöltése sikertelen.');
-                                    window.location.reload(); // Fallback
-                                }
-                            });
+                            showToast('success', 'Tétel sikeresen hozzáadva!');
+                            refreshQuoteItemsTable(quoteId);
+                            $form[0].reset();
+                            $(`#productId_${quoteId}`).val(null).trigger('change');
+                            $(`#newQuoteItemModal_${quoteId}`).modal('hide');
+                            $(`#quoteItemsModal_${quoteId}`).modal('show');
                         } else {
-                            alert(response.message || 'Hiba történt a tétel törlése során.');
+                            showToast('error', response.message || 'Tétel hozzáadása sikertelen.');
                         }
                     },
                     error: function (xhr, status, error) {
-                        log(`[Item] Failed to delete item: ${xhr.status} ${error}`, xhr.responseText);
-                        alert('Hiba történt a tétel törlése során.');
-                    }
-                });
-            }
-
-            // Save Quote Item
-            $(document).on('click', '.save-quote-item', function () {
-                log('[Item] Save quote item clicked');
-                const $form = $(this).closest('.modal-content').find('.edit-quote-item-form');
-                const quoteId = parseInt($form.find('.quote-id').val());
-                const itemId = parseInt($form.find('.item-id').val()) || 0;
-                const productId = $form.find('#editProductId').val();
-                const itemDescription = $form.find('#editItemDescription').val();
-                const quantity = parseFloat($form.find('#editQuantity').val()) || 0;
-                const unitPrice = parseFloat($form.find('#editUnitPrice').val()) || 0;
-
-                if (!productId || quantity < 1 || unitPrice <= 0) {
-                    alert('Kérjük, töltse ki az összes kötelező mezőt (termék, mennyiség, egységár).');
-                    return;
-                }
-
-                const itemData = {
-                    quoteId: quoteId,
-                    quoteItemId: itemId,
-                    productId: parseInt(productId),
-                    quantity: quantity,
-                    unitPrice: unitPrice,
-                    itemDescription: itemDescription,
-                    discountPercentage: null,
-                    discountAmount: null
-                };
-
-                const url = itemId ? '/CRM/Quotes?handler=UpdateItem' : '/CRM/Quotes?handler=AddItem';
-                log(`[Item] Submitting item: QuoteId=${quoteId}, ItemId=${itemId}`, itemData);
-
-                $.ajax({
-                    url: url,
-                    method: 'POST',
-                    headers: { 'RequestVerificationToken': $('input[name="__RequestVerificationToken"]').val() },
-                    contentType: 'application/json',
-                    data: JSON.stringify(itemData),
-                    success: function (response) {
-                        log('[Item] Item saved:', response);
-                        $('#editQuoteItemModal').modal('hide');
-
-                        // Fetch updated quote items
-                        $.ajax({
-                            url: `/CRM/Quotes?handler=QuoteItems&quoteId=${quoteId}`,
-                            method: 'GET',
-                            success: function (data) {
-                                log('[Item] Fetched updated quote items:', data);
-                                if (data.success && data.quoteItems) {
-                                    const $tbody = $(`#quoteItemsTable_${quoteId} tbody`);
-                                    $tbody.empty(); // Clear existing rows
-
-                                    if (data.quoteItems.length === 0) {
-                                        $tbody.append('<tr><td colspan="7">Nincsenek tételek az árajánlathoz.</td></tr>');
-                                    } else {
-                                        data.quoteItems.forEach(item => {
-                                            $tbody.append(`
-                                                <tr data-item-id="${item.quoteItemId}">
-                                                    <td>${item.productName}</td>
-                                                    <td>${item.itemDescription || ''}</td>
-                                                    <td>${item.quantity}</td>
-                                                    <td>${item.unitPrice.toFixed(2)}</td>
-                                                    <td>${item.discount}</td>
-                                                    <td>${item.total}</td>
-                                                    <td>
-                                                        <div class="btn-group btn-group-sm" role="group">
-                                                            <button class="btn btn-primary btn-sm"
-                                                                    data-bs-toggle="modal"
-                                                                    data-bs-target="#editQuoteItemModal_${item.quoteItemId}"
-                                                                    data-quote-id="${quoteId}"
-                                                                    data-item-id="${item.quoteItemId}">
-                                                                <i class="bi bi-pencil-square me-1"></i>Szerkesztés
-                                                            </button>
-                                                            <button class="btn btn-danger btn-sm"
-                                                                    onclick="deleteQuoteItem(${quoteId}, ${item.quoteItemId})">
-                                                                <i class="bi bi-trash me-2"></i>
-                                                            </button>
-                                                        </div>
-                                                    </td>
-                                                </tr>
-                                            `);
-                                        });
-                                    }
-
-                                    // Reopen the quoteItemsModal
-                                    $(`#quoteItemsModal_${quoteId}`).modal('show');
-                                    alert('Tétel sikeresen mentve!');
-                                } else {
-                                    alert('Sikeres mentés, de a tételek betöltése sikertelen.');
-                                    window.location.reload(); // Fallback
-                                }
-                            },
-                            error: function (xhr, status, error) {
-                                log(`[Item] Failed to fetch quote items: ${xhr.status} ${error}`, xhr.responseText);
-                                alert('Sikeres mentés, de a tételek betöltése sikertelen.');
-                                window.location.reload(); // Fallback
-                            }
-                        });
+                        log('[QuoteItem] Add item error for QuoteId:', quoteId, xhr.responseJSON, status, error);
+                        showToast('error', 'Hiba történt a tétel hozzáadása közben: ' + (xhr.responseJSON?.message || 'Szerver hiba.'));
                     },
-                    error: function (xhr, status, error) {
-                        log(`[Item] Failed to save item: ${xhr.status} ${error}`, xhr.responseText);
-                        alert('Hiba történt a tétel mentése során.');
+                    complete: function () {
+                        log('[QuoteItem] AJAX complete for QuoteId:', quoteId);
+                        $button.prop('disabled', false).html('Tétel mentése');
                     }
                 });
             });
         });
     </script>
 }
-
     <style>
+
+        .drag-handle {
+    cursor: move;
+    width: 30px;
+    text-align: center;
+    vertical-align: middle;
+}
+
+.drag-handle .bi-grip-vertical {
+    font-size: 1.2rem;
+    color: #6c757d;
+}
+
+#quoteItemsTable tbody tr:hover .drag-handle .bi-grip-vertical {
+    color: #007bff;
+}
+
+#quoteItemsTable .placeholder {
+    background-color: #f8f9fa;
+    border: 2px dashed #007bff;
+    height: 50px;
+}
+
+
 
 [data-theme="dark"] .partner-card {
         background-color: #2a2a2a;

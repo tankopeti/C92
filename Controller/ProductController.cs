@@ -26,16 +26,10 @@ namespace Cloud9_2.Controllers
         public async Task<IActionResult> OnGetProductsAsync([FromQuery] string? search = "")
         {
             var products = await _context.Products
-                .Where(p => string.IsNullOrEmpty(search) ||
-                            p.Name.Contains(search) ||
-                            (p.Name != null && p.Name.Contains(search)))
+                .Where(p => string.IsNullOrEmpty(search) || p.Name.Contains(search, StringComparison.OrdinalIgnoreCase))
                 .Select(p => new { id = p.ProductId, name = p.Name })
                 .ToListAsync();
             return Ok(products);
-
-
         }
-
-
     }
 }

@@ -26,14 +26,14 @@ namespace Cloud9_2.Models
         public string? Status { get; set; }
         public List<QuoteItemDto> QuoteItems { get; set; }
     }
-    public class QuoteItemDto
-    {
-        public int QuoteId { get; set; }
-        public int ProductId { get; set; }
-        public decimal Quantity { get; set; }
-        public decimal UnitPrice { get; set; }
-        public string ItemDescription { get; set; }
-        public decimal? DiscountPercentage { get; set; }
-        public decimal? DiscountAmount { get; set; }
-    }
+    // public class QuoteItemDto
+    // {
+    //     public int QuoteId { get; set; }
+    //     public int ProductId { get; set; }
+    //     public decimal Quantity { get; set; }
+    //     public decimal UnitPrice { get; set; }
+    //     public string ItemDescription { get; set; }
+    //     public decimal? DiscountPercentage { get; set; }
+    //     public decimal? DiscountAmount { get; set; }
+    // }
 }

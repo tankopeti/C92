@@ -30,34 +30,32 @@ namespace Cloud9_2.Pages.CRM.Quotes
         public int TotalRecords { get; set; }
         public int PageSize { get; set; } = 10;
         public string NextQuoteNumber { get; set; }
+        public QuoteStatus Status { get; set; }
+        public QuoteDto Quote { get; set; }
 
-        public async Task OnGetAsync(int? pageIndex, string searchTerm, int? pageSize)
+        public async Task OnGetAsync(int? pageNumber, string searchTerm, int? pageSize)
         {
-            CurrentPage = pageIndex ?? 1;
+            CurrentPage = pageNumber ?? 1;
             SearchTerm = searchTerm;
-            PageSize = pageSize ?? PageSize;
+            PageSize = pageSize ?? 10;
 
             _logger.LogInformation("Fetching quotes: Page={Page}, PageSize={PageSize}, SearchTerm={SearchTerm}", CurrentPage, PageSize, SearchTerm);
 
             IQueryable<Quote> quotesQuery = _context.Quotes
                 .Include(q => q.Partner)
                 .Include(q => q.QuoteItems)
-                .ThenInclude(qi => qi.Product)
-                .AsNoTracking();
+                .ThenInclude(qi => qi.Product);
 
-            if (!string.IsNullOrEmpty(SearchTerm))
+            if (!string.IsNullOrEmpty(searchTerm))
             {
-                quotesQuery = quotesQuery.Where(q => q.QuoteNumber.Contains(SearchTerm) ||
-                                                    q.Partner.Name.Contains(SearchTerm) ||
-                                                    q.Subject.Contains(SearchTerm));
-                _logger.LogInformation("Applied search filter: SearchTerm={SearchTerm}", SearchTerm);
+                quotesQuery = quotesQuery.Where(q => q.QuoteNumber.Contains(searchTerm) ||
+                                                    q.Subject.Contains(searchTerm) ||
+                                                    q.Description.Contains(searchTerm));
             }
 
             TotalRecords = await quotesQuery.CountAsync();
             TotalPages = (int)Math.Ceiling(TotalRecords / (double)PageSize);
-
-            if (CurrentPage < 1) CurrentPage = 1;
-            if (CurrentPage > TotalPages && TotalPages > 0) CurrentPage = TotalPages;
+            CurrentPage = Math.Max(1, Math.Min(CurrentPage, TotalPages)); // Clamp CurrentPage
 
             Quotes = await quotesQuery
                 .OrderBy(q => q.QuoteDate)
@@ -205,4 +203,17 @@ namespace Cloud9_2.Pages.CRM.Quotes
             await _context.SaveChangesAsync();
         }
     }
+
+            public enum QuoteStatus
+        {
+            Folyamatban,
+            Felfüggesztve,
+            Jóváhagyásra_vár,
+            Jóváhagyva,
+            Kiküldve,
+            Elfogadva,
+            Megrendelve,
+            Teljesístve,
+            Lezárva
+        }
 }

@@ -72,6 +72,7 @@ namespace Cloud9_2.Models
         public ApplicationUser? LastModifier { get; set; }
         public Category? Category { get; set; }
         public List<ProductFile>? Files { get; set; } = new List<ProductFile>();
+        public ICollection<QuoteItem> QuoteItems { get; set; }
     }
 }
 

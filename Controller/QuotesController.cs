@@ -2,6 +2,13 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Cloud9_2.Models;
 using Cloud9_2.Services;
+using Cloud9_2.Data;
+using Cloud9_2.Data;
+using Cloud9_2.Models;
+using Cloud9_2.Controllers;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
@@ -16,6 +23,8 @@ namespace Cloud9_2.Controllers
     {
         private readonly IQuoteService _quoteService;
         private readonly ILogger<QuotesController> _logger;
+
+        private readonly ApplicationDbContext _context;
 
         public QuotesController(IQuoteService quoteService, ILogger<QuotesController> logger)
         {
@@ -97,25 +106,95 @@ namespace Cloud9_2.Controllers
 
         [HttpGet("{quoteId}")]
         [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
         public async Task<IActionResult> GetQuote(int quoteId)
         {
+            if (quoteId <= 0)
+            {
+                _logger.LogWarning("Invalid quote ID received: {QuoteId}", quoteId);
+                return BadRequest(new { error = "Invalid quote ID. It must be a positive integer." });
+            }
+
             try
             {
                 _logger.LogInformation("Fetching quote ID: {QuoteId}", quoteId);
+
                 var quote = await _quoteService.GetQuoteByIdAsync(quoteId);
                 if (quote == null)
                 {
                     _logger.LogWarning("Quote not found: {QuoteId}", quoteId);
                     return NotFound(new { error = $"Quote with ID {quoteId} not found" });
                 }
+
                 return Ok(quote);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error fetching quote ID: {QuoteId}", quoteId);
                 return StatusCode(500, new { error = "Failed to retrieve quote" });
+            }
+        }
+
+        [HttpGet]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+        public async Task<IActionResult> GetPartners()
+        {
+            try
+            {
+                _logger.LogInformation("Fetching all partners.");
+
+                var partners = await _quoteService.GetPartnersAsync();
+                if (partners == null || !partners.Any())
+                {
+                    _logger.LogWarning("No partners found in the database.");
+                    return NotFound(new { message = "No partners found" });
+                }
+
+                _logger.LogInformation($"Returning {partners.Count} partners.");
+                return Ok(partners);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error fetching partners.");
+                return StatusCode(500, new { error = "Failed to retrieve partners.", details = ex.Message });
+            }
+        }
+
+        [HttpGet("{id}")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+        public async Task<IActionResult> GetPartnerById(int id)
+        {
+            try
+            {
+                _logger.LogInformation($"Fetching partner with ID {id}.");
+                var partner = await _context.Partners
+                    .Where(p => p.PartnerId == id)
+                    .Select(p => new PartnerDto
+                    {
+                        PartnerId = p.PartnerId,
+                        Name = p.Name
+                    })
+                    .FirstOrDefaultAsync();
+
+                if (partner == null)
+                {
+                    _logger.LogWarning($"Partner with ID {id} not found.");
+                    return NotFound(new { message = $"Partner with ID {id} not found" });
+                }
+
+                _logger.LogInformation($"Returning partner: {partner.Name}");
+                return Ok(partner);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error fetching partner with ID {id}.");
+                return StatusCode(500, new { error = "Failed to retrieve partner.", details = ex.Message });
             }
         }
 
@@ -221,10 +300,10 @@ namespace Cloud9_2.Controllers
                 return BadRequest(new { error = "Érvénytelen adatok", details = ModelState });
             }
 
-            if (itemDto.Quantity < 1)
+            if (itemDto.Quantity <= 0) // Updated to <= 0 for decimal
             {
                 _logger.LogWarning("Invalid quantity for quote item: {Quantity}", itemDto.Quantity);
-                return BadRequest(new { error = "A mennyiség legalább 1 kell legyen." });
+                return BadRequest(new { error = "A mennyiség nagyobb kell legyen, mint 0." });
             }
 
             if (itemDto.UnitPrice <= 0)
@@ -242,7 +321,7 @@ namespace Cloud9_2.Controllers
                     _logger.LogWarning("Quote or item not found: Quote ID {QuoteId}, Item ID {QuoteItemId}", quoteId, quoteItemId);
                     return NotFound(new { error = $"Az árajánlat vagy tétel nem található: Quote ID {quoteId}, Item ID {quoteItemId}" });
                 }
-                _logger.LogInformation("Updated quote item ID: {QuoteItemId} for quote ID: {QuoteId}", quoteItemId, quoteId);
+                _logger.LogInformation("Updated quote item ID: {QuoteItemId} for quote ID: {QuoteId}", item.QuoteItemId, quoteId);
                 return Ok(item);
             }
             catch (Exception ex)

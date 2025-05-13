@@ -8,14 +8,15 @@ namespace Cloud9_2.Services
     {
         Task<string> GetNextQuoteNumberAsync();
         Task<bool> QuoteExistsAsync(int quoteId);
+        Task<List<PartnerDto>> GetPartnersAsync();
         Task<List<QuoteItemDto>> GetQuoteItemsAsync(int quoteId);
         Task<QuoteDto> CreateQuoteAsync(CreateQuoteDto quoteDto);
         Task<QuoteDto> GetQuoteByIdAsync(int quoteId);
-        Task<QuoteDto> CopyQuoteAsync(int quoteId);
         Task<QuoteDto> UpdateQuoteAsync(int quoteId, UpdateQuoteDto quoteDto);
         Task<bool> DeleteQuoteAsync(int quoteId);
-        Task<QuoteItemDto> CreateQuoteItemAsync(int quoteId, CreateQuoteItemDto itemDto);
-        Task<QuoteItemDto> UpdateQuoteItemAsync(int quoteId, int quoteItemId, UpdateQuoteItemDto itemDto);
+        Task<QuoteItemResponseDto> CreateQuoteItemAsync(int quoteId, CreateQuoteItemDto itemDto); // Changed to QuoteItemResponseDto
+        Task<QuoteItemResponseDto> UpdateQuoteItemAsync(int quoteId, int quoteItemId, UpdateQuoteItemDto itemDto); // Changed to QuoteItemResponseDto
         Task<bool> DeleteQuoteItemAsync(int quoteId, int quoteItemId);
+        Task<QuoteDto> CopyQuoteAsync(int quoteId);
     }
 }

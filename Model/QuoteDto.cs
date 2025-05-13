@@ -11,6 +11,14 @@ namespace Cloud9_2.Models
         public DateTime? QuoteDate { get; set; }
         public string Status { get; set; }
         public decimal? TotalAmount { get; set; }
+        public string SalesPerson { get; set; }
+        public DateTime? ValidityDate { get; set; }
+        public string Subject { get; set; }
+        public string Description { get; set; }
+        public string DetailedDescription { get; set; }
+        public decimal? DiscountPercentage { get; set; }
+        public decimal? DiscountAmount { get; set; }
+        public List<QuoteItemDto> Items { get; set; } = new List<QuoteItemDto>(); // Add Items
     }
 
     public class CreateQuoteDto
@@ -31,90 +39,44 @@ namespace Cloud9_2.Models
         [Range(1, int.MaxValue, ErrorMessage = "PartnerId must be a positive number")]
         public int PartnerId { get; set; }
 
+        [Required]
+        [MaxLength(100, ErrorMessage = "Quote number cannot exceed 100 characters")]
+        public string QuoteNumber { get; set; }
+
         public DateTime? QuoteDate { get; set; }
+
+        [Required]
+        [MaxLength(100, ErrorMessage = "SalesPerson name cannot exceed 100 characters")]
+        public string SalesPerson { get; set; }
+
+        public DateTime? ValidityDate { get; set; }
 
         [Required]
         [RegularExpression("^(Tervezet|Elküldve|Elfogadva|Elutasítva)$", ErrorMessage = "Nem létező státusz")]
         public string Status { get; set; }
 
-        [Range(0, double.MaxValue, ErrorMessage = "Az összeg nem lehet negatív")]
+        [MaxLength(200, ErrorMessage = "Subject cannot exceed 200 characters")]
+        public string Subject { get; set; }
+
+        [MaxLength(500, ErrorMessage = "Description cannot exceed 500 characters")]
+        public string Description { get; set; }
+
+        public string DetailedDescription { get; set; }
+
+        [Range(0, 100, ErrorMessage = "Discount percentage must be between 0 and 100")]
+        public decimal? DiscountPercentage { get; set; }
+
+        [Range(0, double.MaxValue, ErrorMessage = "Discount amount cannot be negative")]
+        public decimal? DiscountAmount { get; set; }
+
+        [Range(0, double.MaxValue, ErrorMessage = "Total amount cannot be negative")]
         public decimal? TotalAmount { get; set; }
     }
 
-    public class QuoteItemDto
+        public class PartnerDto
     {
-        public int QuoteItemId { get; set; }
-        public int QuoteId { get; set; }
-
-        [Required]
-        [Range(1, int.MaxValue, ErrorMessage = "ProductId must be a positive number")]
-        public int ProductId { get; set; }
-
-        [Required]
-        [Range(0.01, double.MaxValue, ErrorMessage = "A mennyiség nem lehet negatív")]
-        public decimal Quantity { get; set; }
-
-        [Required]
-        [Range(0, double.MaxValue, ErrorMessage = "Az ár nem lehet negatív")]
-        public decimal UnitPrice { get; set; }
-
-        [StringLength(200)]
-        public string ItemDescription { get; set; }
-
-        [Range(0, 100, ErrorMessage = "A százaléknak 0 és 100 közé kell esnie")]
-        public decimal? DiscountPercentage { get; set; }
-
-        [Range(0, double.MaxValue, ErrorMessage = "Az összeg nem lehet negatív")]
-        public decimal? DiscountAmount { get; set; }
-
-        public decimal TotalPrice { get; set; }
+        public int PartnerId { get; set; }
+        public string Name { get; set; }
     }
 
-    public class CreateQuoteItemDto
-    {
-        [Required]
-        [Range(1, int.MaxValue, ErrorMessage = "ProductId must be a positive number")]
-        public int ProductId { get; set; }
-
-        [Required]
-        [Range(0.01, double.MaxValue, ErrorMessage = "Az mennyiség nem lehet negatív")]
-        public decimal Quantity { get; set; }
-
-        [Required]
-        [Range(0, double.MaxValue, ErrorMessage = "Az ár nem lehet negatív")]
-        public decimal UnitPrice { get; set; }
-
-        [StringLength(200)]
-        public string ItemDescription { get; set; }
-
-        [Range(0, 100, ErrorMessage = "A százaléknak 0 és 100 közé kell esnie")]
-        public decimal? DiscountPercentage { get; set; }
-
-        [Range(0, double.MaxValue, ErrorMessage = "Az összeg nem lehet negatív")]
-        public decimal? DiscountAmount { get; set; }
-    }
-
-    public class UpdateQuoteItemDto
-    {
-        [Required]
-        [Range(1, int.MaxValue, ErrorMessage = "ProductId must be a positive number")]
-        public int ProductId { get; set; }
-
-        [Required]
-        [Range(0.01, double.MaxValue, ErrorMessage = "A mennyiség nem lehet negatív")]
-        public decimal Quantity { get; set; }
-
-        [Required]
-        [Range(0, double.MaxValue, ErrorMessage = "Az ár nem lehet negatív")]
-        public decimal UnitPrice { get; set; }
-
-        [StringLength(200)]
-        public string ItemDescription { get; set; }
-
-        [Range(0, 100, ErrorMessage = "A százaléknak 0 és 100 közé kell esnie")]
-        public decimal? DiscountPercentage { get; set; }
-
-        [Range(0, double.MaxValue, ErrorMessage = "Az összeg nem lehet negatív")]
-        public decimal? DiscountAmount { get; set; }
-    }
 }

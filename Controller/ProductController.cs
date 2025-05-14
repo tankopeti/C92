@@ -23,13 +23,35 @@ namespace Cloud9_2.Controllers
         }
 
         [HttpGet]
-        public async Task<IActionResult> OnGetProductsAsync([FromQuery] string? search = "")
+        public async Task<IActionResult> GetProducts([FromQuery] string? search = "")
         {
-            var products = await _context.Products
-                .Where(p => string.IsNullOrEmpty(search) || p.Name.Contains(search, StringComparison.OrdinalIgnoreCase))
+            _logger.LogInformation("GetProducts called with search: {search}", search);
+            var query = _context.Products.AsQueryable();
+            if (!string.IsNullOrEmpty(search))
+            {
+                query = query.Where(p => EF.Functions.Like(p.Name, $"%{search}%"));
+            }
+            var products = await query
                 .Select(p => new { id = p.ProductId, name = p.Name })
                 .ToListAsync();
+            _logger.LogInformation("Returning {count} products", products.Count);
             return Ok(products);
+        }
+
+        [HttpGet("{id}")]
+        public async Task<IActionResult> GetProduct(int id)
+        {
+            _logger.LogInformation("GetProduct called with id: {id}", id);
+            var product = await _context.Products
+                .Where(p => p.ProductId == id)
+                .Select(p => new { id = p.ProductId, name = p.Name })
+                .FirstOrDefaultAsync();
+            if (product == null)
+            {
+                _logger.LogWarning("Product not found for id: {id}", id);
+                return NotFound();
+            }
+            return Ok(product);
         }
     }
 }

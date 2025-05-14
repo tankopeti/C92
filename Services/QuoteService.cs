@@ -1,6 +1,8 @@
 using Cloud9_2.Data;
 using Cloud9_2.Models;
 using Microsoft.EntityFrameworkCore;
+using System.Text.Json;
+using Cloud9_2.Pages.CRM.Quotes;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
@@ -16,8 +18,8 @@ namespace Cloud9_2.Services
 
         public QuoteService(ApplicationDbContext context, ILogger<QuoteService> logger)
         {
-            _context = context;
-            _logger = logger;
+        _context = context ?? throw new ArgumentNullException(nameof(context));
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
         public async Task<string> GetNextQuoteNumberAsync()
@@ -133,7 +135,6 @@ namespace Cloud9_2.Services
                         QuoteItemId = i.QuoteItemId,
                         QuoteId = i.QuoteId,
                         ProductId = i.ProductId,
-                        ProductName = i.Product.Name ?? "Ismeretlen", // Set ProductName directly
                         Quantity = i.Quantity,
                         UnitPrice = i.UnitPrice,
                         ItemDescription = i.ItemDescription,
@@ -150,23 +151,44 @@ namespace Cloud9_2.Services
             return quote;
         }
 
-        public async Task<QuoteDto> UpdateQuoteAsync(int quoteId, UpdateQuoteDto quoteDto)
+public async Task<QuoteDto> UpdateQuoteAsync(int quoteId, UpdateQuoteDto quoteDto)
         {
-            var quote = await _context.Quotes
-                .FirstOrDefaultAsync(q => q.QuoteId == quoteId);
+            _logger.LogInformation("UpdateQuoteAsync called for QuoteId: {QuoteId}, QuoteDto: {QuoteDto}", 
+                quoteId, JsonSerializer.Serialize(quoteDto));
 
+            if (quoteDto == null)
+            {
+                _logger.LogWarning("UpdateQuoteAsync received null QuoteDto for QuoteId: {QuoteId}", quoteId);
+                throw new ArgumentNullException(nameof(quoteDto));
+            }
+
+            if (_context == null)
+            {
+                _logger.LogError("Database context is null for UpdateQuoteAsync QuoteId: {QuoteId}", quoteId);
+                throw new InvalidOperationException("Adatbázis kapcsolat nem érhető el");
+            }
+
+            var quote = await _context.Quotes.FirstOrDefaultAsync(q => q.QuoteId == quoteId);
             if (quote == null)
             {
+                _logger.LogWarning("Quote not found for QuoteId: {QuoteId}", quoteId);
                 return null;
             }
 
+            quote.QuoteNumber = quoteDto.QuoteNumber;
             quote.PartnerId = quoteDto.PartnerId;
-            quote.QuoteDate = quoteDto.QuoteDate ?? quote.QuoteDate;
-            quote.Status = quoteDto.Status ?? quote.Status;
-            quote.TotalAmount = quoteDto.TotalAmount ?? quote.TotalAmount;
+            quote.QuoteDate = quoteDto.QuoteDate;
+            quote.Status = quoteDto.Status;
+            quote.TotalAmount = quoteDto.TotalAmount;
+            quote.SalesPerson = quoteDto.SalesPerson;
+            quote.ValidityDate = quoteDto.ValidityDate;
+            quote.Subject = quoteDto.Subject;
+            quote.Description = quoteDto.Description;
+            quote.DetailedDescription = quoteDto.DetailedDescription;
 
             await _context.SaveChangesAsync();
 
+            _logger.LogInformation("Updated quote ID: {QuoteId}", quoteId);
             return new QuoteDto
             {
                 QuoteId = quote.QuoteId,
@@ -174,7 +196,12 @@ namespace Cloud9_2.Services
                 PartnerId = quote.PartnerId,
                 QuoteDate = quote.QuoteDate,
                 Status = quote.Status,
-                TotalAmount = quote.TotalAmount
+                TotalAmount = quote.TotalAmount,
+                SalesPerson = quote.SalesPerson,
+                ValidityDate = quote.ValidityDate,
+                Subject = quote.Subject,
+                Description = quote.Description,
+                DetailedDescription = quote.DetailedDescription
             };
         }
 
@@ -197,167 +224,117 @@ namespace Cloud9_2.Services
 
 public async Task<QuoteItemResponseDto> CreateQuoteItemAsync(int quoteId, CreateQuoteItemDto itemDto)
 {
-    _logger.LogInformation("Creating quote item for QuoteId: {QuoteId}", quoteId);
+    _logger.LogInformation("CreateQuoteItemAsync called for QuoteId: {QuoteId}, ItemDto: {ItemDto}", 
+        quoteId, JsonSerializer.Serialize(itemDto));
 
-    var quote = await _context.Quotes
-        .Include(q => q.QuoteItems)
-        .FirstOrDefaultAsync(q => q.QuoteId == quoteId);
+    if (itemDto == null)
+    {
+        _logger.LogWarning("CreateQuoteItemAsync received null ItemDto for QuoteId: {QuoteId}", quoteId);
+        throw new ArgumentNullException(nameof(itemDto));
+    }
+
+    if (_context == null)
+    {
+        _logger.LogError("Database context is null for CreateQuoteItemAsync QuoteId: {QuoteId}", quoteId);
+        throw new InvalidOperationException("Adatbázis kapcsolat nem érhető el");
+    }
+
+    var quote = await _context.Quotes.FirstOrDefaultAsync(q => q.QuoteId == quoteId);
     if (quote == null)
     {
-        _logger.LogWarning("Quote not found: {QuoteId}", quoteId);
-        throw new KeyNotFoundException("Quote not found");
+        _logger.LogWarning("Quote not found for QuoteId: {QuoteId}", quoteId);
+        return null;
     }
 
-    var product = await _context.Products
-        .FirstOrDefaultAsync(p => p.ProductId == itemDto.ProductId);
+    var product = await _context.Products.FirstOrDefaultAsync(p => p.ProductId == itemDto.ProductId);
     if (product == null)
     {
-        _logger.LogWarning("Product not found: {ProductId}", itemDto.ProductId);
-        throw new KeyNotFoundException("Product not found");
+        _logger.LogWarning("Product not found for ProductId: {ProductId}", itemDto.ProductId);
+        throw new ArgumentException($"Érvénytelen ProductId: {itemDto.ProductId}");
     }
 
-    using var transaction = await _context.Database.BeginTransactionAsync();
-    try
+    var quoteItem = new QuoteItem
     {
-        var quoteItem = new QuoteItem
-        {
-            QuoteId = quoteId,
-            ProductId = itemDto.ProductId,
-            Quantity = itemDto.Quantity,
-            UnitPrice = itemDto.UnitPrice,
-            ItemDescription = itemDto.ItemDescription,
-            DiscountPercentage = itemDto.DiscountPercentage,
-            DiscountAmount = itemDto.DiscountAmount
-        };
+        QuoteId = quoteId,
+        ProductId = itemDto.ProductId,
+        Quantity = itemDto.Quantity,
+        UnitPrice = itemDto.UnitPrice,
+        ItemDescription = itemDto.ItemDescription ?? "", // Ensure empty string if null
+        DiscountPercentage = itemDto.DiscountPercentage,
+        DiscountAmount = itemDto.DiscountAmount
+    };
 
-        _context.QuoteItems.Add(quoteItem);
-        _logger.LogDebug("Before SaveChangesAsync for new quote item");
-        await _context.SaveChangesAsync();
-        _logger.LogDebug("After SaveChangesAsync for new quote item");
+    _context.QuoteItems.Add(quoteItem);
+    await _context.SaveChangesAsync();
 
-        quote.TotalAmount = quote.QuoteItems.Sum(qi =>
-        {
-            var baseAmount = qi.Quantity * qi.UnitPrice;
-            var percentageDiscount = qi.DiscountPercentage.HasValue ? (baseAmount * qi.DiscountPercentage.Value / 100) : 0M;
-            var totalDiscount = percentageDiscount + (qi.DiscountAmount ?? 0M);
-            return baseAmount - totalDiscount;
-        });
-
-        if (quote.TotalAmount < 0)
-        {
-            _logger.LogWarning("Calculated negative TotalAmount for QuoteId: {QuoteId}", quoteId);
-            throw new InvalidOperationException("Total amount cannot be negative");
-        }
-
-        _logger.LogDebug("Before SaveChangesAsync for quote {QuoteId} TotalAmount", quoteId);
-        await _context.SaveChangesAsync();
-        _logger.LogDebug("After SaveChangesAsync for quote {QuoteId} TotalAmount", quoteId);
-
-        await transaction.CommitAsync();
-
-        _logger.LogInformation("Created quote item ID: {QuoteItemId} for QuoteId: {QuoteId}", quoteItem.QuoteItemId, quoteId);
-
-        return new QuoteItemResponseDto
-        {
-            QuoteItemId = quoteItem.QuoteItemId,
-            QuoteId = quoteItem.QuoteId,
-            ProductId = quoteItem.ProductId,
-            Product = new ProductDto { Name = product.Name },
-            Quantity = quoteItem.Quantity,
-            UnitPrice = quoteItem.UnitPrice,
-            ItemDescription = quoteItem.ItemDescription, // Keep null if null
-            DiscountPercentage = quoteItem.DiscountPercentage,
-            DiscountAmount = quoteItem.DiscountAmount,
-            QuoteTotalAmount = quote.TotalAmount ?? 0M // Consider renaming to QuoteTotal
-        };
-    }
-    catch (Exception ex)
+    _logger.LogInformation("Created quote item ID: {QuoteItemId} for QuoteId: {QuoteId}", quoteItem.QuoteItemId, quoteId);
+    return new QuoteItemResponseDto
     {
-        _logger.LogError(ex, "Failed to create quote item for quote {QuoteId}", quoteId);
-        await transaction.RollbackAsync();
-        throw;
-    }
+        QuoteItemId = quoteItem.QuoteItemId,
+        QuoteId = quoteItem.QuoteId,
+        ProductId = quoteItem.ProductId,
+        Quantity = quoteItem.Quantity,
+        UnitPrice = quoteItem.UnitPrice,
+        ItemDescription = quoteItem.ItemDescription,
+        DiscountPercentage = quoteItem.DiscountPercentage,
+        DiscountAmount = quoteItem.DiscountAmount
+    };
 }
 
 public async Task<QuoteItemResponseDto> UpdateQuoteItemAsync(int quoteId, int quoteItemId, UpdateQuoteItemDto itemDto)
-{
-    _logger.LogInformation("Updating quote item ID: {QuoteItemId} for QuoteId: {QuoteId}", quoteItemId, quoteId);
-
-    var quoteItem = await _context.QuoteItems
-        .FirstOrDefaultAsync(qi => qi.QuoteId == quoteId && qi.QuoteItemId == quoteItemId);
-    if (quoteItem == null)
-    {
-        _logger.LogWarning("Quote item not found: QuoteId {QuoteId}, QuoteItemId {QuoteItemId}", quoteId, quoteItemId);
-        throw new KeyNotFoundException("Quote item not found");
-    }
-
-    var product = await _context.Products
-        .FirstOrDefaultAsync(p => p.ProductId == itemDto.ProductId);
-    if (product == null)
-    {
-        _logger.LogWarning("Product not found: {ProductId}", itemDto.ProductId);
-        throw new KeyNotFoundException("Product not found");
-    }
-
-    using var transaction = await _context.Database.BeginTransactionAsync();
-    try
-    {
-        quoteItem.ProductId = itemDto.ProductId;
-        quoteItem.Quantity = itemDto.Quantity;
-        quoteItem.UnitPrice = itemDto.UnitPrice;
-        quoteItem.ItemDescription = itemDto.ItemDescription;
-        quoteItem.DiscountPercentage = itemDto.DiscountPercentage;
-        quoteItem.DiscountAmount = itemDto.DiscountAmount;
-
-        var quote = await _context.Quotes
-            .Include(q => q.QuoteItems)
-            .FirstOrDefaultAsync(q => q.QuoteId == quoteId);
-        if (quote == null)
         {
-            _logger.LogWarning("Quote not found: {QuoteId}", quoteId);
-            throw new KeyNotFoundException("Quote not found");
+            _logger.LogInformation("UpdateQuoteItemAsync called for QuoteId: {QuoteId}, QuoteItemId: {QuoteItemId}, ItemDto: {ItemDto}", 
+                quoteId, quoteItemId, JsonSerializer.Serialize(itemDto));
+
+            if (itemDto == null)
+            {
+                _logger.LogWarning("UpdateQuoteItemAsync received null ItemDto for QuoteId: {QuoteId}", quoteId);
+                throw new ArgumentNullException(nameof(itemDto));
+            }
+
+            if (_context == null)
+            {
+                _logger.LogError("Database context is null for UpdateQuoteItemAsync QuoteId: {QuoteId}", quoteId);
+                throw new InvalidOperationException("Adatbázis kapcsolat nem érhető el");
+            }
+
+            var quoteItem = await _context.QuoteItems
+                .FirstOrDefaultAsync(q => q.QuoteId == quoteId && q.QuoteItemId == quoteItemId);
+            if (quoteItem == null)
+            {
+                _logger.LogWarning("Quote item not found for QuoteId: {QuoteId}, QuoteItemId: {QuoteItemId}", quoteId, quoteItemId);
+                return null;
+            }
+
+            var product = await _context.Products.FirstOrDefaultAsync(p => p.ProductId == itemDto.ProductId);
+            if (product == null)
+            {
+                _logger.LogWarning("Product not found for ProductId: {ProductId}", itemDto.ProductId);
+                throw new ArgumentException($"Érvénytelen ProductId: {itemDto.ProductId}");
+            }
+
+            quoteItem.ProductId = itemDto.ProductId;
+            quoteItem.Quantity = itemDto.Quantity;
+            quoteItem.UnitPrice = itemDto.UnitPrice;
+            quoteItem.ItemDescription = itemDto.ItemDescription;
+            quoteItem.DiscountPercentage = itemDto.DiscountPercentage;
+            quoteItem.DiscountAmount = itemDto.DiscountAmount;
+
+            await _context.SaveChangesAsync();
+
+            _logger.LogInformation("Updated quote item ID: {QuoteItemId} for QuoteId: {QuoteId}", quoteItemId, quoteId);
+            return new QuoteItemResponseDto
+            {
+                QuoteItemId = quoteItem.QuoteItemId,
+                QuoteId = quoteItem.QuoteId,
+                ProductId = quoteItem.ProductId,
+                Quantity = quoteItem.Quantity,
+                UnitPrice = quoteItem.UnitPrice,
+                ItemDescription = quoteItem.ItemDescription,
+                DiscountPercentage = quoteItem.DiscountPercentage,
+                DiscountAmount = quoteItem.DiscountAmount
+            };
         }
-
-        quote.TotalAmount = quote.QuoteItems.Sum(qi =>
-        {
-            var baseAmount = qi.Quantity * qi.UnitPrice;
-            var percentageDiscount = qi.DiscountPercentage.HasValue ? (baseAmount * qi.DiscountPercentage.Value / 100) : 0M;
-            var totalDiscount = percentageDiscount + (qi.DiscountAmount ?? 0M);
-            return baseAmount - totalDiscount;
-        });
-
-        if (quote.TotalAmount < 0)
-        {
-            _logger.LogWarning("Calculated negative TotalAmount for QuoteId: {QuoteId}", quoteId);
-            throw new InvalidOperationException("Total amount cannot be negative");
-        }
-
-        await _context.SaveChangesAsync();
-        await transaction.CommitAsync();
-
-        _logger.LogInformation("Updated quote item ID: {QuoteItemId} for QuoteId: {QuoteId}", quoteItemId, quoteId);
-
-        return new QuoteItemResponseDto
-        {
-            QuoteItemId = quoteItem.QuoteItemId,
-            QuoteId = quoteItem.QuoteId,
-            ProductId = quoteItem.ProductId,
-            Product = new ProductDto { Name = product.Name },
-            Quantity = quoteItem.Quantity,
-            UnitPrice = quoteItem.UnitPrice,
-            ItemDescription = quoteItem.ItemDescription, // Already correct
-            DiscountPercentage = quoteItem.DiscountPercentage,
-            DiscountAmount = quoteItem.DiscountAmount,
-            QuoteTotalAmount = quote.TotalAmount ?? 0M // Consider renaming to QuoteTotal
-        };
-    }
-    catch (Exception ex)
-    {
-        _logger.LogError(ex, "Failed to update quote item {QuoteItemId} for quote {QuoteId}", quoteItemId, quoteId);
-        await transaction.RollbackAsync();
-        throw;
-    }
-}
 
         public async Task<bool> DeleteQuoteItemAsync(int quoteId, int quoteItemId)
         {

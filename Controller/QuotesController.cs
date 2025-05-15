@@ -263,30 +263,30 @@ namespace Cloud9_2.Controllers
     }
     
 
-        [HttpDelete("{quoteId}")]
-        [ProducesResponseType(StatusCodes.Status204NoContent)]
-        [ProducesResponseType(StatusCodes.Status404NotFound)]
-        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-        public async Task<IActionResult> DeleteQuote(int quoteId)
+[HttpDelete("{quoteId}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+    public async Task<IActionResult> DeleteQuote(int quoteId)
+    {
+        try
         {
-            try
+            _logger.LogInformation("Deleting quote ID: {QuoteId}", quoteId);
+            var success = await _quoteService.DeleteQuoteAsync(quoteId);
+            if (!success)
             {
-                _logger.LogInformation("Deleting quote ID: {QuoteId}", quoteId);
-                var success = await _quoteService.DeleteQuoteAsync(quoteId);
-                if (!success)
-                {
-                    _logger.LogWarning("Quote not found: {QuoteId}", quoteId);
-                    return NotFound(new { error = $"Quote with ID {quoteId} not found" });
-                }
-                _logger.LogInformation("Deleted quote ID: {QuoteId}", quoteId);
-                return NoContent();
+                _logger.LogWarning("Quote not found: {QuoteId}", quoteId);
+                return NotFound(new { error = "Az árajánlat nem található." });
             }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error deleting quote ID: {QuoteId}", quoteId);
-                return StatusCode(500, new { error = "Failed to delete quote" });
-            }
+            _logger.LogInformation("Deleted quote ID: {QuoteId}", quoteId);
+            return NoContent();
         }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error deleting quote ID: {QuoteId}", quoteId);
+            return StatusCode(500, new { error = "Hiba történt az árajánlat törlése során." });
+        }
+    }
 
 
 [HttpPost("{quoteId}/Items")]

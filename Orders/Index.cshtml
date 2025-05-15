@@ -1,0 +1,911 @@
+@page
+@using System.Globalization
+@using Cloud9_2.Models
+@model Cloud9_2.Pages.CRM.Orders.IndexModel
+@{
+    ViewData["Title"] = "Megrendelések";
+    var statusDisplayNames = new Dictionary<string, string>
+    {
+        { "Pending", "Folyamatban" },
+        { "Approved", "Jóváhagyva" },
+        { "Processing", "Feldolgozás alatt" },
+        { "Shipped", "Kiszállítva" },
+        { "Delivered", "Kézbesítve" },
+        { "Cancelled", "Törölve" },
+        { "Completed", "Teljesítve" }
+    };
+}
+
+<div class="container-fluid">
+    <div class="row mb-3">
+        <div class="col">
+            <h1>Megrendelések</h1>
+        </div>
+        <div class="col-auto">
+            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#newOrderModal">
+                <i class="bi bi-plus-circle me-1"></i> Új megrendelés
+            </button>
+        </div>
+    </div>
+
+    <!-- Search and Filter Form -->
+    <form asp-page="./Index" method="get">
+        <div class="row mb-3">
+            <div class="col-md-6">
+                <div class="input-group">
+                    <input type="text" class="form-control" name="SearchTerm" value="@Model.SearchTerm" placeholder="Keresés megrendelés szám, partner neve alapján..." />
+                    <button type="submit" class="btn btn-outline-secondary">
+                        <i class="bi bi-search"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="col-md-6 text-md-end">
+                <div class="dropdown">
+                    <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                        Szűrő: @(string.IsNullOrEmpty(Model.StatusFilter) ? "Összes" : statusDisplayNames.GetValueOrDefault(Model.StatusFilter, Model.StatusFilter))
+                    </button>
+                    <ul class="dropdown-menu">
+                        <li><a class="dropdown-item" href="#" data-filter="all">Összes</a></li>
+                        @foreach (var status in statusDisplayNames)
+                        {
+                            <li><a class="dropdown-item" href="#" data-filter="@status.Key">@status.Value</a></li>
+                        }
+                    </ul>
+                </div>
+            </div>
+        </div>
+        <input type="hidden" name="StatusFilter" value="@Model.StatusFilter" />
+        <input type="hidden" name="SortBy" value="@Model.SortBy" />
+    </form>
+
+    <!-- Order List -->
+    <div class="row">
+        <div class="col">
+            @if (Model.Orders.Any())
+            {
+                @foreach (var order in Model.Orders)
+                {
+                    <div class="card partner-card mb-3" data-order-id="@order.OrderId">
+                        <div class="card-body p-2">
+                            <div class="card-grid-row align-items-center">
+                                <div class="card-grid-cell order-number-col">
+                                    <a href="#" class="text-decoration-none text-dark fw-bold" data-bs-toggle="modal" data-bs-target="#editOrderModal_@order.OrderId">
+                                        @order.OrderNumber
+                                    </a>
+                                    <div class="partner-name text-muted small">
+                                        <i class="bi bi-person me-1"></i>@order.Partner?.Name
+                                    </div>
+                                </div>
+                                <div class="card-grid-cell order-date-col">
+                                    <div class="order-date text-muted small">
+                                        <i class="bi bi-calendar me-1"></i>
+                                        @(order.OrderDate.HasValue ? order.OrderDate.Value.ToString("yyyy-MM-dd") : "N/A")
+                                    </div>
+                                </div>
+                                <div class="card-grid-cell status-col">
+                                    <span class="badge bg-@(order.Status switch { "Pending" => "warning", "Approved" => "info", "Processing" => "primary", "Shipped" => "success", "Delivered" => "success", "Cancelled" => "danger", "Completed" => "dark", _ => "secondary" })">
+                                        @statusDisplayNames.GetValueOrDefault(order.Status, order.Status)
+                                    </span>
+                                </div>
+                                <div class="card-grid-cell total-amount-col">
+                                    <div class="total-amount">
+                                        <i class="bi bi-currency-dollar me-1"></i>
+                                        @(order.TotalAmount.HasValue ? order.TotalAmount.Value.ToString("C", CultureInfo.GetCultureInfo("en-US")) : "N/A")
+                                    </div>
+                                </div>
+                                <div class="card-grid-cell actions-col">
+                                    <div class="dropdown">
+                                        <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                            <i class="bi bi-three-dots"></i>
+                                        </button>
+                                        <ul class="dropdown-menu">
+                                            <li><a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#editOrderModal_@order.OrderId">Szerkesztés</a></li>
+                                            <li><a class="dropdown-item" href="#" onclick="copyOrder(@order.OrderId)">Másolás</a></li>
+                                            <li><a class="dropdown-item text-danger" href="#" onclick="deleteOrder(@order.OrderId)">Törlés</a></li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Edit Order Modal -->
+                    <div class="modal fade" id="editOrderModal_@order.OrderId" tabindex="-1" aria-labelledby="editOrderModalLabel_@order.OrderId" aria-hidden="true">
+                        <div class="modal-dialog modal-lg">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title" id="editOrderModalLabel_@order.OrderId">Megrendelés szerkesztése: @order.OrderNumber</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                </div>
+                                <div class="modal-body">
+                                    <!-- Base Info Form -->
+                                    <form id="orderBaseInfoForm_@order.OrderId">
+                                        <div class="row mb-3">
+                                            <div class="col-md-6">
+                                                <label class="form-label">Megrendelés száma</label>
+                                                <input type="text" class="form-control" name="orderNumber" value="@order.OrderNumber" readonly />
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label class="form-label">Partner</label>
+                                                <select name="partnerId" class="form-select tom-select-partner" data-selected-id="@order.Partner?.PartnerId" data-selected-text="@order.Partner?.Name" required>
+                                                    <option value="" disabled selected>-- Válasszon partnert --</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                        <div class="row mb-3">
+                                            <div class="col-md-6">
+                                                <label class="form-label">Megrendelés dátuma</label>
+                                                <input type="date" class="form-control" name="orderDate" value="@(order.OrderDate.HasValue ? order.OrderDate.Value.ToString("yyyy-MM-dd") : "")" required />
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label class="form-label">Státusz</label>
+                                                <select name="status" class="form-select" required>
+                                                    @foreach (var status in statusDisplayNames)
+                                                    {
+                                                        <option value="@status.Key" selected="@(order.Status == status.Key)">@status.Value</option>
+                                                    }
+                                                </select>
+                                            </div>
+                                        </div>
+                                        <div class="row mb-3">
+                                            <div class="col-md-6">
+                                                <label class="form-label">Valuta</label>
+                                                <select name="currencyId" class="form-select" required>
+                                                    <option value="1" selected="@(order.CurrencyId == 1)">USD</option>
+                                                    <!-- Add more currencies as needed -->
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </form>
+
+                                    <!-- Order Items Form -->
+                                    <form id="orderItemsForm_@order.OrderId" method="post">
+                                        <div class="mb-3">
+                                            <button type="button" class="btn btn-outline-primary btn-sm add-item-row" data-order-id="@order.OrderId">
+                                                <i class="bi bi-plus-circle"></i> Tétel hozzáadása
+                                            </button>
+                                        </div>
+                                        <table class="table table-sm">
+                                            <thead>
+                                                <tr>
+                                                    <th>Termék</th>
+                                                    <th>Mennyiség</th>
+                                                    <th>Egységár</th>
+                                                    <th>Kedvezmény</th>
+                                                    <th>Összeg</th>
+                                                    <th>Műveletek</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="items-tbody_@order.OrderId">
+                                                @foreach (var item in order.OrderItems)
+                                                {
+                                                    <tr class="order-item-row" data-item-id="@item.OrderItemId">
+                                                        <td>
+                                                            <select name="orderItems[@item.OrderItemId].ProductId" class="form-select tom-select-product" data-selected-id="@(item.ProductId?.ToString() ?? "")" data-selected-text="@(item.ProductName ?? "")" required>
+                                                                <option value="" disabled selected>-- Válasszon terméket --</option>
+                                                            </select>
+                                                        </td>
+                                                        <td>
+                                                            <input type="number" name="orderItems[@item.OrderItemId].Quantity" class="form-control form-control-sm quantity" value="@item.Quantity" min="0" step="1" required />
+                                                        </td>
+                                                        <td>
+                                                            <input type="number" name="orderItems[@item.OrderItemId].UnitPrice" class="form-control form-control-sm unit-price" value="@item.UnitPrice" min="0" step="0.01" required />
+                                                        </td>
+                                                        <td>
+                                                            <div class="input-group input-group-sm">
+                                                                <input type="number" name="orderItems[@item.OrderItemId].@(item.DiscountPercentage.HasValue ? "DiscountPercentage" : "DiscountAmount")" class="form-control discount-value" value="@(item.DiscountPercentage ?? item.DiscountAmount ?? 0)" min="0" step="0.01" />
+                                                                <select class="form-select discount-type" data-discount-name-prefix="orderItems[@item.OrderItemId]">
+                                                                    <option value="Percentage" selected="@(item.DiscountPercentage.HasValue)">%</option>
+                                                                    <option value="Amount" selected="@(item.DiscountAmount.HasValue)">Összeg</option>
+                                                                </select>
+                                                            </div>
+                                                        </td>
+                                                        <td>
+                                                            <span class="total-price">
+                                                                @((item.Quantity * item.UnitPrice - (item.DiscountAmount ?? (item.DiscountPercentage.HasValue ? (item.Quantity * item.UnitPrice * item.DiscountPercentage.Value / 100) : 0))).ToString("C", CultureInfo.GetCultureInfo("en-US")))
+                                                            </span>
+                                                            <input type="hidden" name="orderItems[@item.OrderItemId].ItemDescription" class="item-description" value="@(item.ItemDescription ?? "")" />
+                                                        </td>
+                                                        <td>
+                                                            <button type="button" class="btn btn-outline-secondary btn-sm edit-description" data-item-id="@item.OrderItemId"><i class="bi bi-pencil"></i></button>
+                                                            <button type="button" class="btn btn-danger btn-sm remove-item-row"><i class="bi bi-trash"></i></button>
+                                                        </td>
+                                                    </tr>
+                                                    <tr class="description-row" data-item-id="@item.OrderItemId" style="display: none;">
+                                                        <td colspan="6">
+                                                            <div class="mb-2">
+                                                                <label class="form-label">Leírás (max 200 karakter)</label>
+                                                                <textarea name="orderItems[@item.OrderItemId].ItemDescriptionInput" class="form-control form-control-sm item-description-input" maxlength="200" rows="2">@(item.ItemDescription ?? "")</textarea>
+                                                                <div class="form-text">Karakterek: <span class="char-count">@(item.ItemDescription?.Length ?? 0)</span>/200</div>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                }
+                                                <tr class="order-total-row">
+                                                    <td colspan="4" class="text-end">Összesen:</td>
+                                                    <td>
+                                                        <span class="order-total-amount">0.00</span>
+                                                    </td>
+                                                    <td></td>
+                                                </tr>
+                                                <tr>
+                                                    <td colspan="3"></td>
+                                                    <td>
+                                                        <div class="input-group input-group-sm">
+                                                            <input type="number" class="form-control order-discount-value" value="@(order.DiscountPercentage ?? order.DiscountAmount ?? 0)" min="0" step="0.01" name="@(order.DiscountPercentage.HasValue ? "DiscountPercentage" : "DiscountAmount")" />
+                                                            <select class="form-select order-discount-type">
+                                                                <option value="Percentage" selected="@(order.DiscountPercentage.HasValue)">%</option>
+                                                                <option value="Amount" selected="@(order.DiscountAmount.HasValue)">Összeg</option>
+                                                            </select>
+                                                        </div>
+                                                    </td>
+                                                    <td>
+                                                        <span class="order-final-total">0.00</span>
+                                                    </td>
+                                                    <td></td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </form>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Bezár</button>
+                                    <button type="button" class="btn btn-primary save-order" data-order-id="@order.OrderId">Mentés</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                }
+            }
+            else
+            {
+                <div class="alert alert-info">Nincsenek megrendelések.</div>
+            }
+        </div>
+    </div>
+
+    <!-- Pagination -->
+    @if (Model.TotalPages > 1)
+    {
+        <nav aria-label="Page navigation">
+            <ul class="pagination justify-content-center">
+                <li class="page-item @(Model.CurrentPage == 1 ? "disabled" : "")">
+                    <a class="page-link" href="@Url.Page("./Index", new { pageNumber = Model.CurrentPage - 1, pageSize = Model.PageSize, searchTerm = Model.SearchTerm, statusFilter = Model.StatusFilter, sortBy = Model.SortBy })" aria-label="Previous">
+                        <span aria-hidden="true">«</span>
+                    </a>
+                </li>
+                @for (var i = 1; i <= Model.TotalPages; i++)
+                {
+                    <li class="page-item @(i == Model.CurrentPage ? "active" : "")">
+                        <a class="page-link" href="@Url.Page("./Index", new { pageNumber = i, pageSize = Model.PageSize, searchTerm = Model.SearchTerm, statusFilter = Model.StatusFilter, sortBy = Model.SortBy })">@i</a>
+                    </li>
+                }
+                <li class="page-item @(Model.CurrentPage == Model.TotalPages ? "disabled" : "")">
+                    <a class="page-link" href="@Url.Page("./Index", new { pageNumber = Model.CurrentPage + 1, pageSize = Model.PageSize, searchTerm = Model.SearchTerm, statusFilter = Model.StatusFilter, sortBy = Model.SortBy })" aria-label="Next">
+                        <span aria-hidden="true">»</span>
+                    </a>
+                </li>
+            </ul>
+        </nav>
+    }
+
+    <!-- New Order Modal -->
+    <div class="modal fade" id="newOrderModal" tabindex="-1" aria-labelledby="newOrderModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="newOrderModalLabel">Új megrendelés</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <!-- Base Info Form -->
+                    <form id="orderBaseInfoForm_new">
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Megrendelés száma</label>
+                                <input type="text" class="form-control" name="orderNumber" value="@Model.NextOrderNumber" readonly />
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Partner</label>
+                                <select name="partnerId" class="form-select tom-select-partner" data-selected-id="" data-selected-text="" required>
+                                    <option value="" disabled selected>-- Válasszon partnert --</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Megrendelés dátuma</label>
+                                <input type="date" class="form-control" name="orderDate" value="@DateTime.Now.ToString("yyyy-MM-dd")" required />
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Státusz</label>
+                                <select name="status" class="form-select" required>
+                                    <option value="Pending" selected>Folyamatban</option>
+                                    @foreach (var status in statusDisplayNames.Where(s => s.Key != "Pending"))
+                                    {
+                                        <option value="@status.Key">@status.Value</option>
+                                    }
+                                </select>
+                            </div>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Valuta</label>
+                                <select name="currencyId" class="form-select" required>
+                                    <option value="1" selected>USD</option>
+                                    <!-- Add more currencies as needed -->
+                                </select>
+                            </div>
+                        </div>
+                    </form>
+
+                    <!-- Order Items Form -->
+                    <form id="orderItemsForm_new" method="post">
+                        <div class="mb-3">
+                            <button type="button" class="btn btn-outline-primary btn-sm add-item-row" data-order-id="new">
+                                <i class="bi bi-plus-circle"></i> Tétel hozzáadása
+                            </button>
+                        </div>
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Termék</th>
+                                    <th>Mennyiség</th>
+                                    <th>Egységár</th>
+                                    <th>Kedvezmény</th>
+                                    <th>Összeg</th>
+                                    <th>Műveletek</th>
+                                </tr>
+                            </thead>
+                            <tbody id="items-tbody_new">
+                                <tr class="order-total-row">
+                                    <td colspan="4" class="text-end">Összesen:</td>
+                                    <td>
+                                        <span class="order-total-amount">0.00</span>
+                                    </td>
+                                    <td></td>
+                                </tr>
+                                <tr>
+                                    <td colspan="3"></td>
+                                    <td>
+                                        <div class="input-group input-group-sm">
+                                            <input type="number" class="form-control order-discount-value" value="0" min="0" step="0.01" name="DiscountPercentage" />
+                                            <select class="form-select order-discount-type">
+                                                <option value="Percentage" selected>%</option>
+                                                <option value="Amount">Összeg</option>
+                                            </select>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span class="order-final-total">0.00</span>
+                                    </td>
+                                    <td></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Bezár</button>
+                    <button type="button" class="btn btn-primary save-order" data-order-id="new">Mentés</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div class="toast-container position-fixed bottom-0 end-0 p-3" id="toastContainer"></div>
+</div>
+
+@section Scripts {
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const statusMapping = {
+                'Folyamatban': 'Pending',
+                'Jóváhagyva': 'Approved',
+                'Feldolgozás alatt': 'Processing',
+                'Kiszállítva': 'Shipped',
+                'Kézbesítve': 'Delivered',
+                'Törölve': 'Cancelled',
+                'Teljesítve': 'Completed',
+                'Pending': 'Pending',
+                'Approved': 'Approved',
+                'Processing': 'Processing',
+                'Shipped': 'Shipped',
+                'Delivered': 'Delivered',
+                'Cancelled': 'Cancelled',
+                'Completed': 'Completed'
+            };
+
+            // Filter dropdown handling
+            document.querySelectorAll('.dropdown-menu [data-filter]').forEach(filterItem => {
+                filterItem.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    const filter = this.getAttribute('data-filter');
+                    const form = document.querySelector('form[asp-page="./Index"]');
+                    if (form) {
+                        form.querySelector('input[name="StatusFilter"]').value = filter === 'all' ? '' : filter;
+                        form.submit();
+                    }
+                });
+            });
+
+            // Calculate total price for a row
+            function calculateTotalPrice(row, forceRecalculate = false) {
+                try {
+                    const quantityInput = row.querySelector('.quantity');
+                    const unitPriceInput = row.querySelector('.unit-price');
+                    const discountValueInput = row.querySelector('.discount-value');
+                    const discountTypeSelect = row.querySelector('.discount-type');
+                    const totalPriceSpan = row.querySelector('.total-price');
+
+                    if (!quantityInput || !unitPriceInput || !discountValueInput || !discountTypeSelect || !totalPriceSpan) {
+                        console.error('Missing elements in row:', row.dataset.itemId);
+                        return 0;
+                    }
+
+                    const quantity = parseFloat(quantityInput.value) || 0;
+                    const unitPrice = parseFloat(unitPriceInput.value) || 0;
+                    const discountValue = parseFloat(discountValueInput.value) || 0;
+                    const discountType = discountTypeSelect.value;
+
+                    let total = quantity * unitPrice;
+                    let discount = 0;
+
+                    if (discountValue > 0) {
+                        if (discountType === 'Percentage') {
+                            discount = total * (discountValue / 100);
+                        } else {
+                            discount = discountValue;
+                        }
+                    }
+
+                    total = total - discount;
+                    total = total < 0 ? 0 : total;
+                    totalPriceSpan.textContent = total.toFixed(2);
+                    return total;
+                } catch (error) {
+                    console.error('Error calculating total price for row:', row.dataset.itemId, error);
+                    return 0;
+                }
+            }
+
+            // Calculate order totals
+            function calculateOrderTotals(orderId) {
+                try {
+                    const tbody = document.querySelector(`#items-tbody_${orderId}`);
+                    const totalAmountSpan = tbody.querySelector('.order-total-amount');
+                    const finalTotalSpan = tbody.querySelector('.order-final-total');
+                    const discountValueInput = tbody.querySelector('.order-discount-value');
+                    const discountTypeSelect = tbody.querySelector('.order-discount-type');
+
+                    if (!tbody || !totalAmountSpan || !finalTotalSpan) {
+                        console.error('Missing order total elements for orderId:', orderId);
+                        return 0;
+                    }
+
+                    const rows = tbody.querySelectorAll('.order-item-row');
+                    let totalAmount = 0;
+                    rows.forEach(row => {
+                        const price = parseFloat(row.querySelector('.total-price').textContent) || 0;
+                        totalAmount += price;
+                    });
+
+                    const discountValue = parseFloat(discountValueInput?.value) || 0;
+                    const discountType = discountTypeSelect?.value;
+                    let orderDiscount = 0;
+
+                    if (discountValue > 0 && discountType) {
+                        if (discountType === 'Percentage') {
+                            orderDiscount = totalAmount * (discountValue / 100);
+                        } else {
+                            orderDiscount = discountValue;
+                        }
+                    }
+
+                    const finalTotal = totalAmount - orderDiscount;
+                    totalAmountSpan.textContent = totalAmount.toFixed(2);
+                    finalTotalSpan.textContent = finalTotal < 0 ? '0.00' : finalTotal.toFixed(2);
+                    return finalTotal;
+                } catch (error) {
+                    console.error('Error calculating order totals for orderId:', orderId, error);
+                    return 0;
+                }
+            }
+
+            // Update discount input name
+            function updateDiscountInputName(row) {
+                const discountInput = row.querySelector('.discount-value');
+                const discountType = row.querySelector('.discount-type');
+                if (discountInput && discountType) {
+                    const prefix = discountType.dataset.discountNamePrefix;
+                    discountInput.name = `${prefix}.${discountType.value === 'Percentage' ? 'DiscountPercentage' : 'DiscountAmount'}`;
+                }
+            }
+
+            // Update order discount input name
+            function updateOrderDiscountInputName(orderId) {
+                const discountInput = document.querySelector(`#items-tbody_${orderId} .order-discount-value`);
+                const discountType = document.querySelector(`#items-tbody_${orderId} .order-discount-type`);
+                if (discountInput && discountType) {
+                    discountInput.name = discountType.value === 'Percentage' ? 'DiscountPercentage' : 'DiscountAmount';
+                }
+            }
+
+            // Initialize row calculations
+            function initializeRowCalculations(row) {
+                const inputs = row.querySelectorAll('.quantity, .unit-price, .discount-value, .discount-type');
+                inputs.forEach(input => {
+                    input.addEventListener('input', () => {
+                        updateDiscountInputName(row);
+                        calculateTotalPrice(row, true);
+                        calculateOrderTotals(row.closest('tbody').id.replace('items-tbody_', ''));
+                    });
+                });
+                updateDiscountInputName(row);
+                calculateTotalPrice(row);
+            }
+
+            // Initialize description toggle
+            function initializeDescriptionToggle(row) {
+                const itemId = row.dataset.itemId;
+                const descriptionRow = document.querySelector(`.description-row[data-item-id="${itemId}"]`);
+                const editButton = row.querySelector('.edit-description');
+                if (!descriptionRow || !editButton) {
+                    console.warn('Description row or edit button missing for item:', itemId);
+                    return;
+                }
+                const textarea = descriptionRow.querySelector('.item-description-input');
+                const charCount = descriptionRow.querySelector('.char-count');
+                const hiddenInput = row.querySelector('.item-description');
+
+                textarea.addEventListener('input', () => {
+                    const length = textarea.value.length;
+                    charCount.textContent completar com: `${length}/200`;
+                    hiddenInput.value = textarea.value;
+                });
+
+                editButton.addEventListener('click', () => {
+                    const isHidden = descriptionRow.style.display === 'none';
+                    descriptionRow.style.display = isHidden ? 'table-row' : 'none';
+                });
+            }
+
+            // Initialize order discount calculations
+            function initializeOrderDiscountCalculations(orderId) {
+                const tbody = document.querySelector(`#items-tbody_${orderId}`);
+                const inputs = tbody.querySelectorAll('.order-discount-value, .order-discount-type');
+                inputs.forEach(input => {
+                    input.addEventListener('input', () => {
+                        updateOrderDiscountInputName(orderId);
+                        calculateOrderTotals(orderId);
+                    });
+                });
+                updateOrderDiscountInputName(orderId);
+            }
+
+            // Initialize delete buttons
+            function initializeDeleteButtons(orderId) {
+                const tbody = document.querySelector(`#items-tbody_${orderId}`);
+                if (!tbody) return;
+                tbody.addEventListener('click', function(event) {
+                    if (event.target.closest('.remove-item-row')) {
+                        const button = event.target.closest('.remove-item-row');
+                        const row = button.closest('.order-item-row');
+                        const itemId = row.dataset.itemId;
+                        const descriptionRow = document.querySelector(`.description-row[data-item-id="${itemId}"]`);
+                        row.remove();
+                        if (descriptionRow) descriptionRow.remove();
+                        calculateOrderTotals(orderId);
+                    }
+                });
+            }
+
+            // Initialize Tom Select for partners
+            function initializePartnerTomSelect(select, orderId) {
+                const selectedId = select.dataset.selectedId;
+                const selectedText = select.dataset.selectedText;
+                new TomSelect(select, {
+                    valueField: 'partnerId',
+                    labelField: 'name',
+                    searchField: 'name',
+                    placeholder: '-- Válasszon partnert --',
+                    allowEmptyOption: true,
+                    maxOptions: 100,
+                    load: function(query, callback) {
+                        fetch(`/api/Orders/partners?term=${encodeURIComponent(query)}`)
+                            .then(response => response.json())
+                            .then(data => callback(data))
+                            .catch(error => {
+                                console.error('Partner Search Error:', error);
+                                callback([]);
+                            });
+                    },
+                    shouldLoad: function(query) {
+                        return query.length > 0;
+                    },
+                    render: {
+                        option: function(data, escape) {
+                            return `<div>${escape(data.name)}</div>`;
+                        },
+                        item: function(data, escape) {
+                            return `<div>${escape(data.name)}</div>`;
+                        }
+                    }
+                }).setValue(selectedId || '');
+            }
+
+            // Initialize Tom Select for products
+            function initializeProductTomSelect(select, orderId) {
+                const selectedId = select.dataset.selectedId;
+                const selectedText = select.dataset.selectedText;
+                new TomSelect(select, {
+                    valueField: 'productId',
+                    labelField: 'name',
+                    searchField: 'name',
+                    placeholder: '-- Válasszon terméket --',
+                    allowEmptyOption: true,
+                    maxOptions: 100,
+                    load: function(query, callback) {
+                        fetch(`/api/Product?search=${encodeURIComponent(query)}`)
+                            .then(response => response.json())
+                            .then(data => callback(data))
+                            .catch(error => {
+                                console.error('Product Search Error:', error);
+                                callback([]);
+                            });
+                    },
+                    shouldLoad: function(query) {
+                        return query.length > 0;
+                    },
+                    render: {
+                        option: function(data, escape) {
+                            return `<div>${escape(data.name)}</div>`;
+                        },
+                        item: function(data, escape) {
+                            return `<div>${escape(data.name)}</div>`;
+                        }
+                    }
+                }).setValue(selectedId || '');
+            }
+
+            // Add new item row
+            function addItemRow(orderId) {
+                const tbody = document.querySelector(`#items-tbody_${orderId}`);
+                const newItemId = 'new_' + Date.now();
+                const itemRow = document.createElement('tr');
+                itemRow.className = 'order-item-row';
+                itemRow.dataset.itemId = newItemId;
+                itemRow.innerHTML = `
+                    <td>
+                        <select name="orderItems[${newItemId}].ProductId" class="form-select tom-select-product" data-selected-id="" data-selected-text="" required>
+                            <option value="" disabled selected>-- Válasszon terméket --</option>
+                        </select>
+                    </td>
+                    <td>
+                        <input type="number" name="orderItems[${newItemId}].Quantity" class="form-control form-control-sm quantity" value="1" min="0" step="1" required>
+                    </td>
+                    <td>
+                        <input type="number" name="orderItems[${newItemId}].UnitPrice" class="form-control form-control-sm unit-price" value="0" min="0" step="0.01" required>
+                    </td>
+                    <td>
+                        <div class="input-group input-group-sm">
+                            <input type="number" name="orderItems[${newItemId}].DiscountPercentage" class="form-control discount-value" value="0" min="0" step="0.01">
+                            <select class="form-select discount-type" data-discount-name-prefix="orderItems[${newItemId}]">
+                                <option value="Percentage" selected>%</option>
+                                <option value="Amount">Összeg</option>
+                            </select>
+                        </div>
+                    </td>
+                    <td>
+                        <span class="total-price">0.00</span>
+                        <input type="hidden" name="orderItems[${newItemId}].ItemDescription" class="item-description" value="">
+                    </td>
+                    <td>
+                        <button type="button" class="btn btn-outline-secondary btn-sm edit-description" data-item-id="${newItemId}"><i class="bi bi-pencil"></i></button>
+                        <button type="button" class="btn btn-danger btn-sm remove-item-row"><i class="bi bi-trash"></i></button>
+                    </td>
+                `;
+                const descriptionRow = document.createElement('tr');
+                descriptionRow.className = 'description-row';
+                descriptionRow.dataset.itemId = newItemId;
+                descriptionRow.style.display = 'none';
+                descriptionRow.innerHTML = `
+                    <td colspan="6">
+                        <div class="mb-2">
+                            <label class="form-label">Leírás (max 200 karakter)</label>
+                            <textarea name="orderItems[${newItemId}].ItemDescriptionInput" class="form-control form-control-sm item-description-input" maxlength="200" rows="2"></textarea>
+                            <div class="form-text">Karakterek: <span class="char-count">0</span>/200</div>
+                        </div>
+                    </td>
+                `;
+                const totalRow = tbody.querySelector('.order-total-row');
+                totalRow.parentNode.insertBefore(itemRow, totalRow);
+                totalRow.parentNode.insertBefore(descriptionRow, totalRow);
+                initializeProductTomSelect(itemRow.querySelector('.tom-select-product'), orderId);
+                initializeRowCalculations(itemRow);
+                initializeDescriptionToggle(itemRow);
+                calculateOrderTotals(orderId);
+            }
+
+            // Initialize add item buttons
+            document.querySelectorAll('.add-item-row').forEach(button => {
+                button.addEventListener('click', () => {
+                    const orderId = button.dataset.orderId;
+                    addItemRow(orderId);
+                });
+            });
+
+            // Initialize existing rows
+            document.querySelectorAll('.order-item-row').forEach(row => {
+                const orderId = row.closest('tbody').id.replace('items-tbody_', '');
+                initializeRowCalculations(row);
+                initializeDescriptionToggle(row);
+                const productSelect = row.querySelector('.tom-select-product');
+                if (productSelect) initializeProductTomSelect(productSelect, orderId);
+            });
+
+            // Initialize partner selects
+            document.querySelectorAll('select[name="partnerId"]').forEach(select => {
+                const orderId = select.closest('.modal').id.replace('editOrderModal_', '').replace('newOrderModal', 'new');
+                initializePartnerTomSelect(select, orderId);
+            });
+
+            // Initialize order totals and discounts
+            document.querySelectorAll('[id^="items-tbody_"]').forEach(tbody => {
+                const orderId = tbody.id.replace('items-tbody_', '');
+                initializeOrderDiscountCalculations(orderId);
+                initializeDeleteButtons(orderId);
+                calculateOrderTotals(orderId);
+            });
+
+            // Save order
+            document.querySelectorAll('.save-order').forEach(button => {
+                button.addEventListener('click', function () {
+                    const orderId = this.dataset.orderId;
+                    const baseForm = document.querySelector(`#orderBaseInfoForm_${orderId}`);
+                    const itemsForm = document.querySelector(`#orderItemsForm_${orderId}`);
+                    if (!baseForm || !itemsForm) {
+                        showToast('danger', 'Hiba: Űrlapok nem találhatók.');
+                        return;
+                    }
+
+                    const baseFormData = new FormData(baseForm);
+                    const itemsFormData = new FormData(itemsForm);
+                    const data = {
+                        orderId: orderId === 'new' ? 0 : parseInt(orderId),
+                        partnerId: parseInt(baseFormData.get('partnerId')) || 0,
+                        currencyId: parseInt(baseFormData.get('currencyId')) || 1,
+                        orderDate: baseFormData.get('orderDate'),
+                        status: baseFormData.get('status'),
+                        orderItems: []
+                    };
+
+                    const rows = itemsForm.querySelectorAll('.order-item-row');
+                    rows.forEach(row => {
+                        const itemId = row.dataset.itemId;
+                        const item = {
+                            orderItemId: itemId.startsWith('new_') ? 0 : parseInt(itemId) || 0,
+                            productId: parseInt(row.querySelector(`[name="orderItems[${itemId}].ProductId"]`).value) || null,
+                            quantity: parseFloat(row.querySelector(`[name="orderItems[${itemId}].Quantity"]`).value) || 0,
+                            unitPrice: parseFloat(row.querySelector(`[name="orderItems[${itemId}].UnitPrice"]`).value) || 0,
+                            itemDescription: row.querySelector(`[name="orderItems[${itemId}].ItemDescription"]`).value || ''
+                        };
+
+                        const discountValue = parseFloat(row.querySelector(`[name="orderItems[${itemId}].DiscountPercentage"], [name="orderItems[${itemId}].DiscountAmount"]`).value) || 0;
+                        const discountType = row.querySelector('.discount-type').value;
+                        if (discountType === 'Percentage') {
+                            item.discountPercentage = discountValue;
+                            item.discountAmount = null;
+                        } else {
+                            item.discountAmount = discountValue;
+                            item.discountPercentage = null;
+                        }
+
+                        if (item.quantity > 0 && item.unitPrice >= 0) {
+                            data.orderItems.push(item);
+                        }
+                    });
+
+                    const orderDiscountValue = parseFloat(itemsForm.querySelector('.order-discount-value').value) || 0;
+                    const orderDiscountType = itemsForm.querySelector('.order-discount-type').value;
+                    if (orderDiscountType === 'Percentage') {
+                        data.discountPercentage = orderDiscountValue;
+                        data.discountAmount = null;
+                    } else {
+                        data.discountAmount = orderDiscountValue;
+                        data.discountPercentage = null;
+                    }
+
+                    const url = orderId === 'new' ? '/api/Orders' : `/api/Orders/${orderId}`;
+                    const method = orderId === 'new' ? 'POST' : 'PUT';
+                    const token = document.querySelector('input[name="__RequestVerificationToken"]').value;
+
+                    fetch(url, {
+                        method: method,
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'RequestVerificationToken': token
+                        },
+                        body: JSON.stringify(data)
+                    })
+                        .then(response => {
+                            if (!response.ok) {
+                                return response.json().then(err => { throw new Error(err.error || 'Hiba történt'); });
+                            }
+                            return response.json();
+                        })
+                        .then(result => {
+                            showToast('success', orderId === 'new' ? 'Megrendelés sikeresen létrehozva!' : 'Megrendelés sikeresen frissítve!');
+                            setTimeout(() => window.location.reload(), 1500);
+                        })
+                        .catch(error => {
+                            showToast('danger', error.message || 'Hiba történt a mentés során.');
+                        });
+                });
+            });
+
+            // Copy order
+            window.copyOrder = function (orderId) {
+                const token = document.querySelector('input[name="__RequestVerificationToken"]').value;
+                fetch(`/api/Orders/${orderId}/copy`, {
+                    method: 'POST',
+                    headers: {
+                        'RequestVerificationToken': token
+                    }
+                })
+                    .then(response => {
+                        if (!response.ok) {
+                            return response.json().then(err => { throw new Error(err.error || 'Hiba történt'); });
+                        }
+                        return response.json();
+                    })
+                    .then(result => {
+                        showToast('success', 'Megrendelés sikeresen másolva!');
+                        setTimeout(() => window.location.reload(), 1500);
+                    })
+                    .catch(error => {
+                        showToast('danger', error.message || 'Hiba történt a másolás során.');
+                    });
+            };
+
+            // Delete order
+            window.deleteOrder = function (orderId) {
+                if (!confirm('Biztosan törölni szeretné a megrendelést?')) return;
+                const token = document.querySelector('input[name="__RequestVerificationToken"]').value;
+                fetch(`/api/Orders/${orderId}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'RequestVerificationToken': token
+                    }
+                })
+                    .then(response => {
+                        if (!response.ok) {
+                            return response.json().then(err => { throw new Error(err.error || 'Hiba történt'); });
+                        }
+                        showToast('success', 'Megrendelés sikeresen törölve!');
+                        setTimeout(() => window.location.reload(), 1500);
+                    })
+                    .catch(error => {
+                        showToast('danger', error.message || 'Hiba történt a törlés során.');
+                    });
+            };
+
+            // Show toast notification
+            function showToast(type, message) {
+                const toast = document.createElement('div');
+                toast.className = `toast align-items-center text-white bg-${type} border-0`;
+                toast.innerHTML = `
+                    <div class="d-flex">
+                        <div class="toast-body">${message}</div>
+                        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+                    </div>
+                `;
+                document.querySelector('#toastContainer').appendChild(toast);
+                const bsToast = new bootstrap.Toast(toast);
+                bsToast.show();
+                setTimeout(() => toast.remove(), 5000);
+            }
+        });
+    </script>
+}

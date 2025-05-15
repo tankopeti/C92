@@ -65,5 +65,12 @@ namespace Cloud9_2.Models
         [Display(Name = "Módosítás dátuma")]
         [DataType(DataType.DateTime)]
         public DateTime? ModifiedDate { get; set; } = DateTime.UtcNow;
+
+        [Required]
+        [Display(Name = "Termék")]
+        public int? ProductId { get; set; }
+
+        [ForeignKey("ProductId")]
+        public Product Product { get; set; }
     }
 }

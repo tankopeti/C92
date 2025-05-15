@@ -32,38 +32,58 @@ namespace Cloud9_2.Pages.CRM.Quotes
         public string NextQuoteNumber { get; set; }
         public QuoteStatus Status { get; set; }
         public QuoteDto Quote { get; set; }
+        public string StatusFilter { get; set; }
+        public string SortBy { get; set; }
 
-        public async Task OnGetAsync(int? pageNumber, string searchTerm, int? pageSize)
+        public async Task OnGetAsync(int? pageNumber, string searchTerm, int? pageSize, string statusFilter, string sortBy)
         {
             CurrentPage = pageNumber ?? 1;
             SearchTerm = searchTerm;
             PageSize = pageSize ?? 10;
+            StatusFilter = statusFilter;
+            SortBy = sortBy;
 
-            _logger.LogInformation("Fetching quotes: Page={Page}, PageSize={PageSize}, SearchTerm={SearchTerm}", CurrentPage, PageSize, SearchTerm);
+            _logger.LogInformation("Fetching quotes: Page={Page}, PageSize={PageSize}, SearchTerm={SearchTerm}, StatusFilter={StatusFilter}, SortBy={SortBy}", 
+                CurrentPage, PageSize, SearchTerm, StatusFilter, SortBy);
 
             IQueryable<Quote> quotesQuery = _context.Quotes
                 .Include(q => q.Partner)
                 .Include(q => q.QuoteItems)
                 .ThenInclude(qi => qi.Product);
 
-            if (!string.IsNullOrEmpty(searchTerm))
+            if (!string.IsNullOrEmpty(SearchTerm))
             {
-                quotesQuery = quotesQuery.Where(q => q.QuoteNumber.Contains(searchTerm) ||
-                                                    q.Subject.Contains(searchTerm) ||
-                                                    q.Description.Contains(searchTerm));
+                quotesQuery = quotesQuery.Where(q => q.QuoteNumber.Contains(SearchTerm) ||
+                                                    q.Subject.Contains(SearchTerm) ||
+                                                    q.Partner.Name.Contains(SearchTerm) ||
+                                                    q.Description.Contains(SearchTerm));
             }
+
+            // Apply status filter
+            if (!string.IsNullOrEmpty(StatusFilter) && StatusFilter != "all")
+            {
+                quotesQuery = quotesQuery.Where(q => q.Status == StatusFilter);
+            }
+
+            // Apply sorting
+            quotesQuery = SortBy switch
+            {
+                "QuoteId" => quotesQuery.OrderByDescending(q => q.QuoteId),
+                "ValidityDate" => quotesQuery.OrderBy(q => q.ValidityDate),
+                _ => quotesQuery.OrderByDescending(q => q.QuoteDate) // Default: newest first
+            };
 
             TotalRecords = await quotesQuery.CountAsync();
             TotalPages = (int)Math.Ceiling(TotalRecords / (double)PageSize);
-            CurrentPage = Math.Max(1, Math.Min(CurrentPage, TotalPages)); // Clamp CurrentPage
+            CurrentPage = Math.Max(1, Math.Min(CurrentPage, TotalPages));
 
             Quotes = await quotesQuery
-                .OrderBy(q => q.QuoteDate)
                 .Skip((CurrentPage - 1) * PageSize)
                 .Take(PageSize)
                 .ToListAsync();
 
-            _logger.LogInformation("Retrieved {Count} quotes for page {Page}. TotalRecords={TotalRecords}, TotalPages={TotalPages}", Quotes.Count, CurrentPage, TotalRecords, TotalPages);
+            _logger.LogInformation("Retrieved {Count} quotes for page {Page}. TotalRecords={TotalRecords}, TotalPages={TotalPages}, StatusFilter={StatusFilter}, SortBy={SortBy}", 
+                Quotes.Count, CurrentPage, TotalRecords, TotalPages, StatusFilter, SortBy);
 
             if (!Quotes.Any() && TotalRecords > 0)
             {

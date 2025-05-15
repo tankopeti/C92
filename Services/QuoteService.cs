@@ -185,6 +185,8 @@ public async Task<QuoteDto> UpdateQuoteAsync(int quoteId, UpdateQuoteDto quoteDt
             quote.Subject = quoteDto.Subject;
             quote.Description = quoteDto.Description;
             quote.DetailedDescription = quoteDto.DetailedDescription;
+            quote.DiscountAmount = quoteDto.DiscountAmount;
+            quote.DiscountPercentage = quoteDto.DiscountPercentage;
 
             await _context.SaveChangesAsync();
 
@@ -205,22 +207,22 @@ public async Task<QuoteDto> UpdateQuoteAsync(int quoteId, UpdateQuoteDto quoteDt
             };
         }
 
-        public async Task<bool> DeleteQuoteAsync(int quoteId)
+public async Task<bool> DeleteQuoteAsync(int quoteId)
+    {
+        var quote = await _context.Quotes
+            .Include(q => q.QuoteItems)
+            .FirstOrDefaultAsync(q => q.QuoteId == quoteId);
+
+        if (quote == null)
         {
-            var quote = await _context.Quotes
-                .Include(q => q.QuoteItems)
-                .FirstOrDefaultAsync(q => q.QuoteId == quoteId);
-
-            if (quote == null)
-            {
-                return false;
-            }
-
-            _context.QuoteItems.RemoveRange(quote.QuoteItems);
-            _context.Quotes.Remove(quote);
-            await _context.SaveChangesAsync();
-            return true;
+            return false;
         }
+
+        _context.QuoteItems.RemoveRange(quote.QuoteItems);
+        _context.Quotes.Remove(quote);
+        await _context.SaveChangesAsync();
+        return true;
+    }
 
 public async Task<QuoteItemResponseDto> CreateQuoteItemAsync(int quoteId, CreateQuoteItemDto itemDto)
 {

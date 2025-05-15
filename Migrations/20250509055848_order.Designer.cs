@@ -4,6 +4,7 @@ using Cloud9_2.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Cloud9._2.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250509055848_order")]
+    partial class order
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -653,10 +656,6 @@ namespace Cloud9._2.Migrations
                     b.Property<int>("OrderId")
                         .HasColumnType("int");
 
-                    b.Property<int?>("ProductId")
-                        .IsRequired()
-                        .HasColumnType("int");
-
                     b.Property<decimal>("Quantity")
                         .HasColumnType("decimal(18,4)");
 
@@ -673,8 +672,6 @@ namespace Cloud9._2.Migrations
                     b.HasKey("OrderItemId");
 
                     b.HasIndex("OrderId");
-
-                    b.HasIndex("ProductId");
 
                     b.ToTable("OrderItems");
                 });
@@ -1228,9 +1225,6 @@ namespace Cloud9._2.Migrations
                     b.Property<int>("ProductId")
                         .HasColumnType("int");
 
-                    b.Property<int?>("ProductId1")
-                        .HasColumnType("int");
-
                     b.Property<decimal>("Quantity")
                         .HasColumnType("decimal(18,2)");
 
@@ -1243,8 +1237,6 @@ namespace Cloud9._2.Migrations
                     b.HasKey("QuoteItemId");
 
                     b.HasIndex("ProductId");
-
-                    b.HasIndex("ProductId1");
 
                     b.HasIndex("QuoteId");
 
@@ -1763,15 +1755,7 @@ namespace Cloud9._2.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("Cloud9_2.Models.Product", "Product")
-                        .WithMany("OrderItems")
-                        .HasForeignKey("ProductId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
                     b.Navigation("Order");
-
-                    b.Navigation("Product");
                 });
 
             modelBuilder.Entity("Cloud9_2.Models.PartnerType", b =>
@@ -1988,10 +1972,6 @@ namespace Cloud9._2.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("Cloud9_2.Models.Product", null)
-                        .WithMany("QuoteItems")
-                        .HasForeignKey("ProductId1");
-
                     b.HasOne("Cloud9_2.Models.Quote", "Quote")
                         .WithMany("QuoteItems")
                         .HasForeignKey("QuoteId")
@@ -2200,10 +2180,6 @@ namespace Cloud9._2.Migrations
             modelBuilder.Entity("Cloud9_2.Models.Product", b =>
                 {
                     b.Navigation("Files");
-
-                    b.Navigation("OrderItems");
-
-                    b.Navigation("QuoteItems");
                 });
 
             modelBuilder.Entity("Cloud9_2.Models.Quote", b =>

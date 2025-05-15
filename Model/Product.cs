@@ -73,6 +73,7 @@ namespace Cloud9_2.Models
         public Category? Category { get; set; }
         public List<ProductFile>? Files { get; set; } = new List<ProductFile>();
         public ICollection<QuoteItem> QuoteItems { get; set; }
+        public ICollection<OrderItem> OrderItems { get; set; }
     }
 }
 

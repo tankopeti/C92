@@ -35,24 +35,134 @@ namespace Cloud9_2.Data
         public DbSet<Category> Categories { get; set; }
         public DbSet<Quote> Quotes { get; set; }
         public DbSet<QuoteItem> QuoteItems { get; set; }
-
-        // public DbSet<Order> Orders { get; set; }
-        // public DbSet<OrderItem> OrderItems { get; set; }
-        // public DbSet<DeliveryNote> DeliveryNotes { get; set; }
-        // public DbSet<DeliveryNoteItem> DeliveryNoteItems { get; set; }
-        // public DbSet<TaxRate> TaxRates { get; set; }
-        // public DbSet<Invoice> Invoices { get; set; }
-        // public DbSet<InvoiceItem> InvoiceItems { get; set; }
-        // public DbSet<PaymentMethod> PaymentMethods { get; set; }
-        // public DbSet<Receipt> Receipts { get; set; }
-        // public DbSet<WarehouseMovement> WarehouseMovements { get; set; }
-        // public DbSet<WarehouseMovementItem> WarehouseMovementItems { get; set; }
         public DbSet<ProductFile> ProductFiles { get; set; }
         public DbSet<QuoteHistory> QuoteHistories { get; set; }
+        public DbSet<Order> Orders { get; set; }
+        public DbSet<OrderItem> OrderItems { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
+
+                        // Order configuration
+            modelBuilder.Entity<Order>(entity =>
+            {
+                entity.HasKey(e => e.OrderId);
+                entity.Property(e => e.OrderNumber)
+                    .HasMaxLength(100);
+                entity.Property(e => e.OrderDate)
+                    .HasColumnType("date");
+                entity.Property(e => e.Deadline)
+                    .HasColumnType("date");
+                entity.Property(e => e.Description)
+                    .HasMaxLength(500);
+                entity.Property(e => e.TotalAmount)
+                    .HasColumnType("decimal(18,2)");
+                entity.Property(e => e.SalesPerson)
+                    .HasMaxLength(100);
+                entity.Property(e => e.DeliveryDate)
+                    .HasColumnType("date");
+                entity.Property(e => e.DiscountPercentage)
+                    .HasColumnType("decimal(5,2)");
+                entity.Property(e => e.DiscountAmount)
+                    .HasColumnType("decimal(18,2)");
+                entity.Property(e => e.CompanyName)
+                    .HasMaxLength(100);
+                entity.Property(e => e.Subject)
+                    .HasMaxLength(200);
+                entity.Property(e => e.CreatedBy)
+                    .HasMaxLength(100)
+                    .HasDefaultValue("System");
+                entity.Property(e => e.CreatedDate)
+                    .HasColumnType("datetime")
+                    .HasDefaultValueSql("GETUTCDATE()");
+                entity.Property(e => e.ModifiedBy)
+                    .HasMaxLength(100)
+                    .HasDefaultValue("System");
+                entity.Property(e => e.ModifiedDate)
+                    .HasColumnType("datetime")
+                    .HasDefaultValueSql("GETUTCDATE()");
+                entity.Property(e => e.Status)
+                    .HasMaxLength(50)
+                    .HasDefaultValue("Pending");
+                entity.Property(e => e.ReferenceNumber)
+                    .HasMaxLength(100);
+                entity.Property(e => e.PaymentTerms)
+                    .HasMaxLength(100);
+                entity.Property(e => e.ShippingMethod)
+                    .HasMaxLength(100);
+                entity.Property(e => e.OrderType)
+                    .HasMaxLength(50);
+
+                // Relationships
+                entity.HasOne(e => e.Partner)
+                    .WithMany(p => p.Orders)
+                    .HasForeignKey(e => e.PartnerId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(e => e.Site)
+                    .WithMany(s => s.Orders)
+                    .HasForeignKey(e => e.SiteId)
+                    .OnDelete(DeleteBehavior.SetNull);
+
+                entity.HasOne(e => e.Currency)
+                    .WithMany(c => c.Orders)
+                    .HasForeignKey(e => e.CurrencyId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(e => e.Quote)
+                    .WithMany(q => q.Orders)
+                    .HasForeignKey(e => e.QuoteId)
+                    .OnDelete(DeleteBehavior.SetNull);
+
+                entity.HasMany(e => e.OrderItems)
+                    .WithOne(oi => oi.Order)
+                    .HasForeignKey(oi => oi.OrderId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                // Index
+                entity.HasIndex(e => e.OrderNumber).IsUnique();
+            });
+
+            // OrderItem configuration
+            modelBuilder.Entity<OrderItem>(entity =>
+            {
+                entity.HasKey(e => e.OrderItemId);
+                entity.Property(e => e.ItemName)
+                    .HasMaxLength(200);
+                entity.Property(e => e.Description)
+                    .HasMaxLength(500);
+                entity.Property(e => e.Quantity)
+                    .HasColumnType("decimal(18,4)");
+                entity.Property(e => e.UnitPrice)
+                    .HasColumnType("decimal(18,2)");
+                entity.Property(e => e.TotalPrice)
+                    .HasColumnType("decimal(18,2)");
+                entity.Property(e => e.DiscountPercentage)
+                    .HasColumnType("decimal(5,2)");
+                entity.Property(e => e.DiscountAmount)
+                    .HasColumnType("decimal(18,2)");
+                entity.Property(e => e.UnitOfMeasure)
+                    .HasMaxLength(50);
+                entity.Property(e => e.CreatedBy)
+                    .HasMaxLength(100)
+                    .HasDefaultValue("System");
+                entity.Property(e => e.CreatedDate)
+                    .HasColumnType("datetime")
+                    .HasDefaultValueSql("GETUTCDATE()");
+                entity.Property(e => e.ModifiedBy)
+                    .HasMaxLength(100)
+                    .HasDefaultValue("System");
+                entity.Property(e => e.ModifiedDate)
+                    .HasColumnType("datetime")
+                    .HasDefaultValueSql("GETUTCDATE()");
+
+                // Relationship
+                entity.HasOne(e => e.Order)
+                    .WithMany(o => o.OrderItems)
+                    .HasForeignKey(e => e.OrderId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
 
             // Configure Partner-Lead one-to-many relationship
             modelBuilder.Entity<Lead>()
@@ -73,6 +183,12 @@ namespace Cloud9_2.Data
                 entity.Property(e => e.ModifiedBy).IsRequired(false);
                 entity.Property(e => e.Status).IsRequired(false);
             });
+
+            modelBuilder.Entity<Quote>()
+            .HasMany(q => q.QuoteHistories)
+            .WithOne(qi => qi.Quote)
+            .HasForeignKey(qi => qi.QuoteId)
+            .OnDelete(DeleteBehavior.Cascade);
 
             modelBuilder.Entity<Quote>()
             .HasMany(q => q.QuoteItems)
@@ -99,6 +215,16 @@ namespace Cloud9_2.Data
             .WithMany(p => p.Contacts)
             .HasForeignKey(c => c.PartnerId)
             .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<Quote>()
+                .HasOne(q => q.Partner)
+                .WithMany(p => p.Quotes)
+                .HasForeignKey(q => q.PartnerId);
+
+            modelBuilder.Entity<Partner>()
+                .HasMany(p => p.Quotes)
+                .WithOne(q => q.Partner)
+                .HasForeignKey(q => q.PartnerId);
 
             modelBuilder.Entity<Product>()
             .HasOne(p => p.BaseUOM)

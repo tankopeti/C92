@@ -72,7 +72,7 @@ public class UpdateQuoteDto
         public class PartnerDto
     {
         public int PartnerId { get; set; }
-        public string Name { get; set; }
+        public string? Name { get; set; }
     }
 
     public class UpdateQuoteResponseDto

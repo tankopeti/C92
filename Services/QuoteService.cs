@@ -207,22 +207,22 @@ public async Task<QuoteDto> UpdateQuoteAsync(int quoteId, UpdateQuoteDto quoteDt
             };
         }
 
-public async Task<bool> DeleteQuoteAsync(int quoteId)
-    {
-        var quote = await _context.Quotes
-            .Include(q => q.QuoteItems)
-            .FirstOrDefaultAsync(q => q.QuoteId == quoteId);
-
-        if (quote == null)
+        public async Task<bool> DeleteQuoteAsync(int quoteId)
         {
-            return false;
-        }
+            var quote = await _context.Quotes
+                .Include(q => q.QuoteItems)
+                .FirstOrDefaultAsync(q => q.QuoteId == quoteId);
 
-        _context.QuoteItems.RemoveRange(quote.QuoteItems);
-        _context.Quotes.Remove(quote);
-        await _context.SaveChangesAsync();
-        return true;
-    }
+            if (quote == null)
+            {
+                return false;
+            }
+
+            _context.QuoteItems.RemoveRange(quote.QuoteItems);
+            _context.Quotes.Remove(quote);
+            await _context.SaveChangesAsync();
+            return true;
+        }
 
 public async Task<QuoteItemResponseDto> CreateQuoteItemAsync(int quoteId, CreateQuoteItemDto itemDto)
 {

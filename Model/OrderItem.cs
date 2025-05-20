@@ -68,7 +68,7 @@ namespace Cloud9_2.Models
 
         [Required]
         [Display(Name = "Termék")]
-        public int? ProductId { get; set; }
+        public int ProductId { get; set; }
 
         [ForeignKey("ProductId")]
         public Product Product { get; set; }

@@ -1,23 +1,25 @@
 using Cloud9_2.Models;
+using Microsoft.EntityFrameworkCore;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 
 namespace Cloud9_2.Services
 {
     public interface IOrderService
     {
-        Task<IEnumerable<OrderDto>> GetOrdersAsync(int page, int pageSize, string statusFilter, string searchTerm);
         Task<string> GetNextOrderNumberAsync();
-        Task<OrderDto> CreateOrderAsync(OrderDto orderDto);
-        Task<OrderDto> UpdateOrderAsync(int id, OrderDto orderDto);
-        Task<OrderDto> CopyOrderAsync(int id);
-        Task<bool> DeleteOrderAsync(int id);
-        Task<IEnumerable<PartnerDto>> GetPartnersAsync(string searchTerm);
-        Task<IEnumerable<ProductDto>> GetProductsAsync(string searchTerm);
-        Task<IEnumerable<OrderItemDto>> GetOrderItemsAsync(int orderId);
-        Task<OrderDto> GetOrderByIdAsync(int orderId);
-        Task<OrderItemDto> CreateOrderItemAsync(int orderId, OrderItemDto itemDto);
-        Task<OrderItemDto> UpdateOrderItemAsync(int orderId, int orderItemId, OrderItemDto itemDto);
-        Task<bool> DeleteOrderItemAsync(int orderId, int orderItemId);
+        Task<bool> OrderExistsAsync(int OrderId);
+        Task<List<PartnerDto>> GetPartnersAsync();
+        Task<List<OrderItemDto>> GetOrderItemsAsync(int OrderId);
+        Task<OrderDto> CreateOrderAsync(CreateOrderDto OrderDto);
+        Task<OrderDto> GetOrderByIdAsync(int OrderId);
+        Task<OrderDto> UpdateOrderAsync(int OrderId, UpdateOrderDto OrderDto);
+        Task<bool> DeleteOrderAsync(int OrderId);
+        Task<OrderItemResponseDto> CreateOrderItemAsync(int OrderId, CreateOrderItemDto itemDto);
+        Task<OrderItemResponseDto> UpdateOrderItemAsync(int OrderId, int OrderItemId, UpdateOrderItemDto itemDto);
+        Task<bool> DeleteOrderItemAsync(int OrderId, int OrderItemId);
+        Task<OrderDto> CopyOrderAsync(int OrderId);
+        Task<List<OrderDto>> GetOrdersAsync(string searchTerm, string statusFilter, string sortBy, int skip, int take);
     }
 }

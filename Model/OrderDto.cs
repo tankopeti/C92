@@ -47,23 +47,93 @@ namespace Cloud9_2.Models
         public string? Address { get; set; }
     }
 
-    public class CurrencyDto
-    {
-        public int CurrencyId { get; set; }
-        public string? Code { get; set; }
-    }
-
     public class OrderItemDto
     {
         public int OrderItemId { get; set; }
         public int OrderId { get; set; }
-        public int? ProductId { get; set; }
-        public string? ProductName { get; set; }
+        public int ProductId { get; set; }
+        public ProductDto Product { get; set; }
+        [Range(1, int.MaxValue)]
         public decimal Quantity { get; set; }
+        [DataType(DataType.Currency)]
         public decimal UnitPrice { get; set; }
+        [StringLength(200)]
+        public string Description { get; set; }
+        [Range(0, 100)]
+        public decimal? DiscountPercentage { get; set; }
+        [DataType(DataType.Currency)]
+        public decimal? DiscountAmount { get; set; }
+        [NotMapped]
+        public decimal TotalPrice => Quantity * UnitPrice - (DiscountAmount ?? (DiscountPercentage.HasValue ? (Quantity * UnitPrice * DiscountPercentage.Value / 100) : 0));
+    }
+
+        public class CreateOrderDto
+    {
+        public int orderId { get; set; }
+        public int PartnerId { get; set; }
+        public DateTime? OrderDate { get; set; }
+        public decimal TotalAmount { get; set; }
+        public string SalesPerson { get; set; }
+        public DateTime? ValidityDate { get; set; }
+        public string Subject { get; set; }
+        public string Description { get; set; }
+        public string DetailedDescription { get; set; }
         public decimal? DiscountPercentage { get; set; }
         public decimal? DiscountAmount { get; set; }
-        public string? ItemDescription { get; set; }
+    }
+
+    public class UpdateOrderDto
+    {
+        public int? OrderId { get; set; }
+        public string OrderNumber { get; set; }
+        public int PartnerId { get; set; }
+        public DateTime? OrderDate { get; set; }
+        public string Status { get; set; }
+        public decimal TotalAmount { get; set; }
+        public string SalesPerson { get; set; }
+        public DateTime? ValidityDate { get; set; }
+        public string Subject { get; set; }
+        public string Description { get; set; }
+        public string DetailedDescription { get; set; }
+        public decimal? DiscountPercentage { get; set; }
+        public decimal? DiscountAmount { get; set; }
+        public DateTime? Deadline { get; set; }
+    }
+
+    public class OrderItemResponseDto
+    {
+        public int OrderItemId { get; set; }
+        public int OrderId { get; set; }
+        public int ProductId { get; set; }
+        public decimal Quantity { get; set; }
+        public decimal UnitPrice { get; set; }
+        public string ItemDescription { get; set; }
+        public decimal? DiscountPercentage { get; set; }
+        public decimal? DiscountAmount { get; set; }
+        public string? Description { get; set; }
+    }
+
+    public class CreateOrderItemDto
+    {
+        public int? OrderId { get; set; }
+        public int ProductId { get; set; }
+        public decimal Quantity { get; set; }
+        public decimal UnitPrice { get; set; }
+        public string ItemDescription { get; set; }
+        public decimal? DiscountPercentage { get; set; }
+        public decimal? DiscountAmount { get; set; }
+        public string? Description { get; set; }
+    }
+
+    public class UpdateOrderItemDto
+    {
+        public int? OrderId { get; set; }
+        public int ProductId { get; set; }
+        public decimal Quantity { get; set; }
+        public decimal UnitPrice { get; set; }
+        public string Description { get; set; }
+        public decimal? DiscountPercentage { get; set; }
+        public decimal? DiscountAmount { get; set; }
     }
 
 

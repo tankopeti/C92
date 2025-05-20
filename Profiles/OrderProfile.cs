@@ -1,7 +1,7 @@
 using AutoMapper;
 using Cloud9_2.Models;
 
-namespace Cloud9_2.Profiles
+namespace Cloud9_2.Models
 {
     public class OrderProfile : Profile
     {
@@ -10,15 +10,12 @@ namespace Cloud9_2.Profiles
             CreateMap<Order, OrderDto>()
                 .ForMember(dest => dest.Partner, opt => opt.MapFrom(src => src.Partner))
                 .ForMember(dest => dest.Currency, opt => opt.MapFrom(src => src.Currency))
+                .ForMember(dest => dest.OrderItems, opt => opt.MapFrom(src => src.OrderItems))
                 .ReverseMap();
 
             CreateMap<OrderItem, OrderItemDto>()
-                .ForMember(dest => dest.ProductName, opt => opt.MapFrom(src => src.Product != null ? src.Product.Name : null))
+                .ForMember(dest => dest.Product, opt => opt.MapFrom(src => src.Product))
                 .ReverseMap();
-
-            CreateMap<Partner, PartnerDto>().ReverseMap();
-            CreateMap<Product, ProductDto>().ReverseMap();
-            CreateMap<Currency, Currency>().ReverseMap();
         }
     }
 }

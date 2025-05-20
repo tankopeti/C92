@@ -131,9 +131,4 @@ public class QuoteItemResponseDto
     public decimal QuoteTotalAmount { get; set; }
 }
 
-public class ProductDto
-{
-    public int ProductId { get; set; }
-    public string Name { get; set; }
-}
 }

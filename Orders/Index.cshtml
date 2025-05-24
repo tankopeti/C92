@@ -1,5 +1,6 @@
-
 @page
+@using Microsoft.AspNetCore.Mvc.Rendering
+@using Cloud9_2.Models
 @model Cloud9_2.Pages.CRM.Orders.IndexModel
 @using System.Globalization
 @{
@@ -184,9 +185,9 @@
                                                         <tr>
                                                             <th>Pénznem</th>
                                                             <td>
-                                                                <select name="currencyId" class="form-select tom-select" data-selected-id="@order.CurrencyId" data-selected-text="@(order.Currency?.CurrencyName ?? "Unknown")" autocomplete="off" required>
-                                                                    <option value=""></option>
-                                                                </select>
+<select name="currencyId" class="form-select tom-select" data-selected-id="" data-selected-text="" autocomplete="off" required>
+    <option value="" disabled selected>-- Válasszon pénznemet --</option>
+</select>
                                                             </td>
                                                         </tr>
                                                         <tr>
@@ -440,116 +441,208 @@
         EntityName = "Orders"
     })
 
-    <!-- New Order Modal -->
-    <div class="modal fade" id="newOrderModal" tabindex="-1" aria-labelledby="newOrderModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-xl">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="newOrderModalLabel">Új rendelés létrehozása</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    <!-- Tabs -->
-                    <ul class="nav nav-tabs" id="orderTabs_new" role="tablist">
-                        <li class="nav-item" role="presentation">
-                            <button class="nav-link active" id="base-info-tab_new" data-bs-toggle="tab" data-bs-target="#base-info_new" type="button" role="tab" aria-controls="base-info_new" aria-selected="true">Alapadatok</button>
-                        </li>
-                        <li class="nav-item" role="presentation">
-                            <button class="nav-link" id="items-tab_new" data-bs-toggle="tab" data-bs-target="#items_new" type="button" role="tab" aria-controls="items_new" aria-selected="false">Tételek</button>
-                        </li>
-                    </ul>
-                    <!-- Tab Content -->
-                    <div class="tab-content" id="orderTabContent_new">
-                        <!-- Base Info Tab -->
-                        <div class="tab-pane fade show active" id="base-info_new" role="tabpanel" aria-labelledby="base-info-tab_new">
-                            <form id="orderBaseInfoForm_new">
-                                <table class="table table-sm mt-3">
-                                    <tbody>
-                                        <tr>
-                                            <th>Rendelésszám</th>
-                                            <td><input type="text" class="form-control" name="orderNumber" value="@Model.NextOrderNumber" placeholder="Automatikusan generálódik" readonly></td>
-                                        </tr>
-                                        <tr>
-                                            <th>Rendelés dátuma</th>
-                                            <td><input type="date" class="form-control" name="orderDate" value="@DateTime.Today.ToString("yyyy-MM-dd")" required></td>
-                                        </tr>
-                                        <tr>
-                                            <th>Partner</th>
-                                            <td>
-                                                <select name="partnerId" class="form-select tom-select" data-selected-id="" data-selected-text="" autocomplete="off" required>
-                                                    <option value="" disabled selected>-- Válasszon partnert --</option>
-                                                </select>
-                                            </td>
-                                        </tr>
-                                        <tr>
-                                            <th>Pénznem</th>
-                                            <td>
-                                                <select name="currencyId" class="form-select tom-select" data-selected-id="" data-selected-text="" autocomplete="off" required>
-                                                    <option value="" disabled selected>-- Válasszon pénznemet --</option>
-                                                </select>
-                                            </td>
-                                        </tr>
-                                        <tr>
-                                            <th>Státusz</th>
-                                            <td>
-                                                <select class="form-select" name="status" required>
-                                                    @foreach (var status in Model.StatusDisplayNames)
-                                                    {
-                                                        <option value="@status.Key" selected="@(status.Key == "Pending" ? "selected" : "")">@status.Value</option>
-                                                    }
-                                                </select>
-                                            </td>
-                                        </tr>
-                                        <tr>
-                                            <th>Összesen</th>
-                                            <td><input type="number" step="0.01" class="form-control" name="totalAmount" value="" required></td>
-                                        </tr>
-                                    </tbody>
-                                </table>
-                            </form>
-                        </div>
-                        <!-- Items Tab -->
-                        <div class="tab-pane fade" id="items_new" role="tabpanel" aria-labelledby="items-tab_new">
-                            <button type="button" class="btn btn-primary mb-3 add-item-row" data-order-id="new">Tétel hozzáadása</button>
-                            <form id="orderItemsForm_new" data-order-id="new">
-                                <table class="table table-sm table-bordered">
-                                    <thead>
-                                        <tr>
-                                            <th style="width: 30%;">Termék</th>
-                                            <th style="width: 15%;">Mennyiség</th>
-                                            <th style="width: 15%;">Egységár</th>
-                                            <th style="width: 20%;">Kedvezmény</th>
-                                            <th style="width: 15%;">Összesen</th>
-                                            <th style="width: 5%;"></th>
-                                        </tr>
-                                    </thead>
-                                    <tbody id="items-tbody_new">
-                                        <!-- Order Total Row -->
-                                        <tr class="order-total-row">
-                                            <td colspan="3"></td>
-                                            <td><strong>Összesen:</strong></td>
-                                            <td><span class="order-total-amount">0.00</span></td>
-                                            <td></td>
-                                        </tr>
-                                        <tr class="order-discount-row">
-                                            <td colspan="3"></td>
-                                            <td><strong>Kedvezményes ár:</strong></td>
-                                            <td><span class="order-final-total">0.00</span></td>
-                                            <td></td>
-                                        </tr>
-                                    </tbody>
-                                </table>
-                            </form>
-                        </div>
+  <div class="modal fade" id="newOrderModal" tabindex="-1" aria-labelledby="newOrderModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="newOrderModalLabel">Új rendelés létrehozása</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <!-- Tabs -->
+                <ul class="nav nav-tabs" id="orderTabs_new" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="base-info-tab_new" data-bs-toggle="tab" data-bs-target="#base-info_new" type="button" role="tab" aria-controls="base-info_new" aria-selected="true">Alapadatok</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="items-tab_new" data-bs-toggle="tab" data-bs-target="#items_new" type="button" role="tab" aria-controls="items_new" aria-selected="false">Tételek</button>
+                    </li>
+                </ul>
+                <!-- Tab Content -->
+                <div class="tab-content" id="orderTabContent_new">
+                    <!-- Base Info Tab -->
+                    <div class="tab-pane fade show active" id="base-info_new" role="tabpanel" aria-labelledby="base-info-tab_new">
+                        <form id="orderBaseInfoForm_new">
+                            <!-- Hidden Fields -->
+                            <input type="hidden" name="createdBy" value="System">
+                            <input type="hidden" name="createdDate" value="@DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss")">
+                            <input type="hidden" name="modifiedBy" value="System">
+                            <input type="hidden" name="modifiedDate" value="@DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss")">
+                            <!-- General Section -->
+                            <h6 class="mt-3">Általános adatok</h6>
+                            <table class="table table-sm">
+                                <tbody>
+                                    <tr>
+                                        <th>Rendelésszám</th>
+                                        <td><input type="text" class="form-control" name="orderNumber" value="@Model.NextOrderNumber" placeholder="Automatikusan generálódik" readonly></td>
+                                    </tr>
+                                    <tr>
+                                        <th>Rendelés dátuma</th>
+                                        <td><input type="date" class="form-control" name="orderDate" value="@DateTime.Today.ToString("yyyy-MM-dd")" required></td>
+                                    </tr>
+                                    <tr>
+                                        <th>Határidő</th>
+                                        <td><input type="date" class="form-control" name="deadline"></td>
+                                    </tr>
+                                    <tr>
+                                        <th>Szállítási dátum</th>
+                                        <td><input type="date" class="form-control" name="deliveryDate"></td>
+                                    </tr>
+                                    <tr>
+                                        <th>Referenciaszám</th>
+                                        <td><input type="text" class="form-control" name="referenceNumber" maxlength="100"></td>
+                                    </tr>
+                                    <tr>
+                                        <th>Rendelés típusa</th>
+                                        <td><input type="text" class="form-control" name="orderType" maxlength="50"></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                            <!-- Partner Section -->
+                            <h6>Partner adatok</h6>
+                            <table class="table table-sm">
+                                <tbody>
+                                    <tr>
+                                        <th>Partner</th>
+                                        <td>
+                                            <select name="partnerId" class="form-select tom-select" data-selected-id="" data-selected-text="" autocomplete="off" required>
+                                                <option value="" disabled selected>-- Válasszon partnert --</option>
+                                            </select>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <th>Partner telephely</th>
+                                        <td>
+                                            <select name="siteId" class="form-select tom-select" data-selected-id="" data-selected-text="" autocomplete="off">
+                                                <option value="" disabled selected>-- Válasszon telephelyet --</option>
+                                            </select>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <th>Cég neve</th>
+                                        <td><input type="text" class="form-control" name="companyName" maxlength="100"></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                            <!-- Financial Section -->
+                            <h6>Pénzügyi adatok</h6>
+                            <table class="table table-sm">
+                                <tbody>
+                                    <tr>
+                                        <th>Pénznem</th>
+                                        <td>
+                                            <select name="currencyId" class="form-select tom-select" data-selected-id="" data-selected-text="" autocomplete="off" required>
+                                                <option value="" disabled selected>-- Válasszon pénznemet --</option>
+                                            </select>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <th>Összesen</th>
+                                        <td><input type="number" step="0.01" class="form-control" name="totalAmount" value="" required></td>
+                                    </tr>
+                                    <tr>
+                                        <th>Kedvezmény %</th>
+                                        <td><input type="number" step="0.1" min="0" max="100" class="form-control" name="discountPercentage"></td>
+                                    </tr>
+                                    <tr>
+                                        <th>Kedvezmény összeg</th>
+                                        <td><input type="number" step="0.01" class="form-control" name="discountAmount"></td>
+                                    </tr>
+                                    <tr>
+                                        <th>Fizetési feltételek</th>
+                                        <td><input type="text" class="form-control" name="paymentTerms" maxlength="100"></td>
+                                    </tr>
+                                    <tr>
+                                        <th>Szállítási mód</th>
+                                        <td><input type="text" class="form-control" name="shippingMethod" maxlength="100"></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                            <!-- Additional Info Section -->
+                            <h6>További adatok</h6>
+                            <table class="table table-sm">
+                                <tbody>
+                                    <tr>
+                                        <th>Státusz</th>
+                                        <td>
+                                            <select class="form-select" name="status" required>
+                                                @foreach (var status in Model.StatusDisplayNames)
+                                                {
+                                                    <option value="@status.Key" selected="@(status.Key == "Pending" ? "selected" : "")">@status.Value</option>
+                                                }
+                                            </select>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <th>Értékesítő</th>
+                                        <td><input type="text" class="form-control" name="salesPerson" maxlength="100"></td>
+                                    </tr>
+                                    <tr>
+                                        <th>Árajánlat azonosító</th>
+                                        <td>
+                                            <select name="quoteId" class="form-select tom-select" data-selected-id="" data-selected-text="" autocomplete="off">
+                                                <option value="" disabled selected>-- Válasszon árajánlatot --</option>
+                                            </select>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <th>Tárgy</th>
+                                        <td><input type="text" class="form-control" name="subject" maxlength="200"></td>
+                                    </tr>
+                                    <tr>
+                                        <th>Leírás</th>
+                                        <td><textarea class="form-control" name="description" maxlength="500" rows="3"></textarea></td>
+                                    </tr>
+                                    <tr>
+                                        <th>Részletes leírás</th>
+                                        <td><textarea class="form-control" name="detailedDescription" rows="5"></textarea></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </form>
+                    </div>
+                    <!-- Items Tab -->
+                    <div class="tab-pane fade" id="items_new" role="tabpanel" aria-labelledby="items-tab_new">
+                        <button type="button" class="btn btn-primary mb-3 add-item-row" data-order-id="new">Tétel hozzáadása</button>
+                        <form id="orderItemsForm_new" data-order-id="new">
+                            <table class="table table-sm table-bordered">
+                                <thead>
+                                    <tr>
+                                        <th style="width: 30%;">Termék</th>
+                                        <th style="width: 15%;">Mennyiség</th>
+                                        <th style="width: 15%;">Egységár</th>
+                                        <th style="width: 20%;">Kedvezmény</th>
+                                        <th style="width: 15%;">Összesen</th>
+                                        <th style="width: 5%;"></th>
+                                    </tr>
+                                </thead>
+                                <tbody id="items-tbody_new">
+                                    <!-- Order Total Row -->
+                                    <tr class="order-total-row">
+                                        <td colspan="3"></td>
+                                        <td><strong>Összesen:</strong></td>
+                                        <td><span class="order-total-amount">0.00</span></td>
+                                        <td></td>
+                                    </tr>
+                                    <tr class="order-discount-row">
+                                        <td colspan="3"></td>
+                                        <td><strong>Kedvezményes ár:</strong></td>
+                                        <td><span class="order-final-total">0.00</span></td>
+                                        <td></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </form>
                     </div>
                 </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Bezár</button>
-                    <button type="button" class="btn btn-primary save-order" data-order-id="new">Mentés</button>
-                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Bezár</button>
+                <button type="button" class="btn btn-primary save-order" data-order-id="new">Mentés</button>
             </div>
         </div>
     </div>
+</div>
 
     <div id="toastContainer" class="position-fixed bottom-0 end-0 p-3" style="z-index: 1055;"></div>
 </div>
@@ -560,83 +653,868 @@
 <link href="https://cdn.jsdelivr.net/npm/tom-select@2.4.3/dist/css/tom-select.bootstrap5.css" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/tom-select@2.4.3/dist/js/tom-select.complete.min.js"></script>
 
-   <script>
-    // Ensure jQuery is loaded
-        if (typeof jQuery === 'undefined') {
-            console.error('jQuery is not loaded!');
-        } else {
-            console.log('jQuery loaded successfully');
-        }
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    console.log('Main script loaded');
 
-            $(document).ready(function () {
-                const debug = true;
+    // --- Filter/Sort Dropdown Logic ---
+    const filterItems = document.querySelectorAll('.dropdown-menu [data-filter]');
+    console.log('Found filter items:', filterItems.length);
 
-            // Use event delegation for dynamic buttons
-            $(document).on('click', '.confirm-delete-Order', function (e) {
-                e.preventDefault();
-                const $button = $(this);
-                const orderId = $button.data('Order-id');
-                console.log('Delete button clicked for orderId:', orderId); // Debug
+    filterItems.forEach(item => {
+        item.addEventListener('click', function (e) {
+            e.preventDefault();
+            const filter = this.getAttribute('data-filter');
+            const sort = this.getAttribute('data-sort');
+            console.log('Clicked filter/sort item:', { filter, sort });
 
-                if (!orderId) {
-                    console.error('orderId is missing from button data-Order-id');
-                    return;
+            let form = document.querySelector('form[asp-page="./Index"]') ||
+                       document.querySelector('form[action="/CRM/Orders"]') ||
+                       document.querySelector('form[action="/CRM/Orders/Index"]');
+
+            if (form) {
+                console.log('Form found, submitting:', { filter, sort });
+                form.querySelectorAll('input[name="StatusFilter"], input[name="SortBy"]').forEach(input => input.remove());
+
+                const statusInput = document.createElement('input');
+                statusInput.type = 'hidden';
+                statusInput.name = 'StatusFilter';
+                statusInput.value = filter === 'all' ? '' : filter;
+                form.appendChild(statusInput);
+
+                const sortInput = document.createElement('input');
+                sortInput.type = 'hidden';
+                sortInput.name = 'SortBy';
+                sortInput.value = sort;
+                form.appendChild(sortInput);
+
+                form.submit();
+            } else {
+                console.error('Form not found. Available forms:', document.querySelectorAll('form').length);
+                document.querySelectorAll('form').forEach(f => console.log('Form action:', f.getAttribute('action')));
+            }
+        });
+    });
+
+    // --- Status Mapping ---
+    const statusMapping = {
+        'Folyamatban': 'InProgress',
+        'Felfüggesztve': 'Suspended',
+        'Jóváhagyásra_vár': 'PendingApproval',
+        'Jóváhagyva': 'Approved',
+        'Kiküldve': 'Sent',
+        'Elfogadva': 'Accepted',
+        'Megrendelve': 'Ordered',
+        'Teljesítve': 'Fulfilled',
+        'Lezárva': 'Closed',
+        'InProgress': 'InProgress',
+        'Accepted': 'Accepted',
+        'Rejected': 'Rejected',
+        'Draft': 'Draft'
+    };
+
+    // --- Utility Functions ---
+
+    function calculateTotalPrice(row, forceRecalculate = false) {
+        try {
+            console.log('Calculating total price for row:', row.dataset.itemId);
+            const quantityInput = row.querySelector('.quantity');
+            const unitPriceInput = row.querySelector('.unit-price');
+            const discountValueInput = row.querySelector('.discount-value');
+            const discountTypeSelect = row.querySelector('.discount-type');
+            const totalPriceSpan = row.querySelector('.total-price');
+
+            if (!quantityInput || !unitPriceInput || !discountValueInput || !discountTypeSelect || !totalPriceSpan) {
+                console.error('Missing elements in row:', row.dataset.itemId, {
+                    quantity: !!quantityInput,
+                    unitPrice: !!unitPriceInput,
+                    discountValue: !!discountValueInput,
+                    discountType: !!discountTypeSelect,
+                    totalPrice: !!totalPriceSpan
+                });
+                return 0;
+            }
+
+            if (forceRecalculate || row.dataset.initialized !== 'true') {
+                const quantity = parseFloat(quantityInput.value) || 0;
+                const unitPrice = parseFloat(unitPriceInput.value) || 0;
+                const discountValue = parseFloat(discountValueInput.value) || 0;
+                const discountType = discountTypeSelect.value;
+
+                let total = quantity * unitPrice;
+                let discount = 0;
+
+                if (discountValue > 0) {
+                    if (discountType === 'Percentage') {
+                        discount = total * (discountValue / 100);
+                    } else {
+                        discount = discountValue;
+                    }
                 }
 
-                const $form = $(`#deleteOrderForm_${orderId}`);
-                const $warningDiv = $(`#deleteWarning_${orderId}`);
+                total = total - discount;
+                total = total < 0 ? 0 : total;
+                totalPriceSpan.textContent = total.toFixed(2);
+                row.dataset.initialized = 'true';
+                console.log('Total price set to:', total.toFixed(2), 'for item:', row.dataset.itemId);
+                return total;
+            } else {
+                const currentTotal = parseFloat(totalPriceSpan.textContent) || 0;
+                console.log('Using existing total price:', currentTotal, 'for item:', row.dataset.itemId);
+                return currentTotal;
+            }
+        } catch (error) {
+            console.error('Error calculating total price for row:', row.dataset.itemId, error);
+            return 0;
+        }
+    }
 
-                if ($form.length) {
-                    console.log('Form found for orderId:', orderId); // Debug
-                    const token = $form.find('input[name="__RequestVerificationToken"]').val();
-                    if (!token) {
-                        console.error('Anti-forgery token not found in form');
-                        $warningDiv.text('Hiba: Biztonsági token hiányzik.');
-                        $warningDiv.show();
-                        return;
-                    }
+    function calculateOrderTotals(orderId, retryCount = 0) {
+        try {
+            const tbody = document.querySelector(`#items-tbody_${orderId}`);
+            const totalAmountSpan = tbody.querySelector('.order-total-amount');
+            const finalTotalSpan = tbody.querySelector('.order-final-total');
 
-                    $.ajax({
-                        url: `/api/Orders/${orderId}`, // Adjust if endpoint differs
-                        type: 'DELETE',
-                        headers: {
-                            'RequestVerificationToken': token
-                        },
-                        beforeSend: function () {
-                            console.log('Sending DELETE request for orderId:', orderId); // Debug
-                        },
-                        success: function (data, status, xhr) {
-                            console.log('Delete response:', { status: xhr.status, data }); // Debug
-                            if (xhr.status === 204) {
-                                console.log('Order deleted successfully, reloading page');
-                                $(`#deleteOrderModal_${orderId}`).modal('hide');
-                                window.location.reload();
-                            } else {
-                                console.warn('Unexpected status code:', xhr.status);
-                                $warningDiv.text('Sikeres törlés, de váratlan válasz: ' + xhr.status);
-                                $warningDiv.show();
-                            }
-                        },
-                        error: function (xhr, status, error) {
-                            console.error('Delete error:', { status: xhr.status, response: xhr.responseText }); // Debug
-                            let message = 'Hiba történt a törlés során.';
-                            if (xhr.status === 404) {
-                                message = xhr.responseJSON?.error || 'Az árajánlat nem található.';
-                            } else if (xhr.status === 500) {
-                                message = xhr.responseJSON?.error || 'Szerver hiba történt a törlés során.';
-                            } else if (xhr.status === 403) {
-                                message = 'Hozzáférés megtagadva: bejelentkezés szükséges.';
-                            }
-                            $warningDiv.text(message);
-                            $warningDiv.show();
+            if (!tbody || !totalAmountSpan || !finalTotalSpan) {
+                console.error('Missing order total elements for orderId:', orderId, {
+                    tbody: !!tbody,
+                    totalAmountSpan: !!totalAmountSpan,
+                    finalTotalSpan: !!finalTotalSpan
+                });
+                return 0;
+            }
+
+            const rows = tbody.querySelectorAll('.order-item-row');
+            console.log('Found rows for order totals:', rows.length, 'IDs:', Array.from(rows).map(r => r.dataset.itemId));
+            if (rows.length === 0 && retryCount < 5) {
+                console.warn('No rows found for orderId:', orderId, 'retrying in 100ms, attempt:', retryCount + 1);
+                setTimeout(() => calculateOrderTotals(orderId, retryCount + 1), 100);
+                return 0;
+            }
+
+            let totalAmount = 0;
+            rows.forEach(row => {
+                const price = parseFloat(row.querySelector('.total-price').textContent) || 0;
+                console.log('Row price:', price, 'for item:', row.dataset.itemId);
+                totalAmount += price;
+            });
+
+            totalAmountSpan.textContent = totalAmount.toFixed(2);
+            finalTotalSpan.textContent = totalAmount.toFixed(2);
+            console.log('Total Amount:', totalAmount.toFixed(2), 'Final Total:', totalAmount.toFixed(2));
+            return totalAmount;
+        } catch (error) {
+            console.error('Error calculating order totals for orderId:', orderId, error);
+            return 0;
+        }
+    }
+
+    function updateDiscountInputName(row) {
+        const discountInput = row.querySelector('.discount-value');
+        const discountType = row.querySelector('.discount-type');
+        if (discountInput && discountType) {
+            const prefix = discountType.dataset.discountNamePrefix;
+            discountInput.name = `${prefix}.${discountType.value === 'Percentage' ? 'DiscountPercentage' : 'DiscountAmount'}`;
+        }
+    }
+
+    function initializeRowCalculations(row) {
+        const inputs = row.querySelectorAll('.quantity, .unit-price, .discount-value, .discount-type');
+        console.log('Initializing row:', row.dataset.itemId, 'Found inputs:', inputs.length);
+        inputs.forEach(input => {
+            input.addEventListener('input', () => {
+                console.log('Input changed:', input.name, 'Value:', input.value);
+                updateDiscountInputName(row);
+                calculateTotalPrice(row, true);
+                calculateOrderTotals(row.closest('tbody').id.replace('items-tbody_', ''));
+            });
+        });
+        updateDiscountInputName(row);
+        calculateTotalPrice(row);
+    }
+
+    function initializeDescriptionToggle(row) {
+        const itemId = row.dataset.itemId;
+        const descriptionRow = document.querySelector(`.description-row[data-item-id="${itemId}"]`);
+        const editButton = row.querySelector('.edit-description');
+        if (!descriptionRow || !editButton) {
+            console.warn('Description row or edit button missing for item:', itemId);
+            return;
+        }
+        const textarea = descriptionRow.querySelector('textarea.item-description');
+        const charCount = descriptionRow.querySelector('.char-count');
+        const hiddenInput = row.querySelector('.item-description');
+
+        textarea.addEventListener('input', () => {
+            const length = textarea.value.length;
+            charCount.textContent = `${length}/200`;
+            hiddenInput.value = textarea.value;
+            console.log('Description updated for item:', itemId, 'Value:', textarea.value);
+        });
+
+        editButton.addEventListener('click', () => {
+            const isHidden = descriptionRow.style.display === 'none';
+            descriptionRow.style.display = isHidden ? 'table-row' : 'none';
+            console.log('Toggled description for item:', itemId, 'Visible:', isHidden);
+        });
+    }
+
+    function initializeDeleteButtons(orderId) {
+        const tbody = document.querySelector(`#items-tbody_${orderId}`);
+        if (!tbody) {
+            console.error('Tbody not found for orderId:', orderId);
+            return;
+        }
+        tbody.addEventListener('click', function(event) {
+            if (event.target.closest('.remove-item-row')) {
+                const button = event.target.closest('.remove-item-row');
+                const row = button.closest('.order-item-row');
+                const itemId = row.dataset.itemId;
+                const descriptionRow = document.querySelector(`.description-row[data-item-id="${itemId}"]`);
+
+                console.log('Delete clicked for item:', itemId);
+                row.remove();
+                if (descriptionRow) {
+                    descriptionRow.remove();
+                }
+                calculateOrderTotals(orderId);
+            }
+        });
+    }
+
+    function initializeProductTomSelect(select, orderId) {
+        const selectedId = select.dataset.selectedId;
+        const selectedText = select.dataset.selectedText;
+        console.log('Tom Select Product Init for orderId:', orderId, 'selectedId:', selectedId, 'selectedText:', selectedText);
+
+        if (typeof TomSelect === 'undefined') {
+            console.error('TomSelect is not defined');
+            return;
+        }
+
+        if (select.tomselect) {
+            select.tomselect.destroy();
+        }
+
+        const tomSelectInstance = new TomSelect(select, {
+            valueField: 'id',
+            labelField: 'name',
+            searchField: ['name'],
+            dropdownParent: 'body',
+            load: function(search, callback) {
+                console.log('Fetching products for search:', search);
+                fetch(`/api/Product?search=${encodeURIComponent(search)}`)
+                    .then(response => {
+                        if (!response.ok) {
+                            console.error('API error:', response.status, response.statusText);
+                            return response.text().then(text => {
+                                throw new Error(`HTTP error: ${response.status}, ${text}`);
+                            });
                         }
+                        return response.json();
+                    })
+                    .then(json => {
+                        console.log('API response:', json);
+                        if (Array.isArray(json)) {
+                            callback(json);
+                        } else {
+                            console.error('Invalid API response format:', json);
+                            callback([{ id: 0, name: 'Hiba: Érvénytelen válaszformátum' }]);
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Fetch error:', error);
+                        callback([{ id: 0, name: 'Hiba: Nem sikerült betölteni a termékeket' }]);
                     });
-                } else {
-                    console.error('Form not found for orderId:', orderId);
-                    $warningDiv.text('Hiba: Törlési űrlap nem található.');
+            },
+            placeholder: '-- Válasszon terméket --',
+            render: {
+                option: function(data, escape) {
+                    return `<div>${escape(data.name)}</div>`;
+                },
+                item: function(data, escape) {
+                    return `<div>${escape(data.name)}</div>`;
+                },
+                no_results: function(data, escape) {
+                    return `<div class="no-results">Nincs találat "${escape(data.input)}"</div>`;
+                }
+            },
+            items: selectedId ? [selectedId.toString()] : [],
+            options: selectedId && selectedText ? [{ id: selectedId, name: selectedText }] : []
+        });
+
+        tomSelectInstance.load('');
+    }
+
+    function addItemRow(orderId) {
+        const tbody = document.querySelector(`#items-tbody_${orderId}`);
+        if (!tbody) {
+            console.error('Items tbody not found for orderId:', orderId);
+            return;
+        }
+        const newItemId = 'new_' + Date.now();
+        console.log('Adding new item row for orderId:', orderId, 'NewItemId:', newItemId);
+
+        const itemRow = document.createElement('tr');
+        itemRow.className = 'order-item-row';
+        itemRow.dataset.itemId = newItemId;
+        itemRow.innerHTML = `
+            <td>
+                <select name="orderItems[${newItemId}].ProductId" class="form-select tom-select-product" autocomplete="off" required>
+                    <option value="" disabled selected>-- Válasszon terméket --</option>
+                </select>
+            </td>
+            <td>
+                <input type="number" name="orderItems[${newItemId}].Quantity" class="form-control form-control-sm quantity" value="1" min="0" step="1" required>
+            </td>
+            <td>
+                <input type="number" name="orderItems[${newItemId}].UnitPrice" class="form-control form-control-sm unit-price" value="0" min="0" step="0.01" required>
+            </td>
+            <td>
+                <div class="input-group input-group-sm">
+                    <input type="text" name="orderItems[${newItemId}].DiscountPercentage" class="form-control discount-value" value="0" placeholder="pl. 10">
+                    <select class="form-select discount-type" data-discount-name-prefix="orderItems[${newItemId}]">
+                        <option value="Percentage" selected>%</option>
+                        <option value="Amount">Összeg</option>
+                    </select>
+                </div>
+            </td>
+            <td>
+                <span class="total-price">0.00</span>
+                <input type="hidden" name="orderItems[${newItemId}].Description" class="item-description" value="">
+            </td>
+            <td>
+                <button type="button" class="btn btn-outline-secondary btn-sm edit-description" data-item-id="${newItemId}"><i class="bi bi-pencil"></i></button>
+                <button type="button" class="btn btn-danger btn-sm remove-item-row"><i class="bi bi-trash"></i></button>
+            </td>`;
+
+        const descriptionRow = document.createElement('tr');
+        descriptionRow.className = 'description-row';
+        descriptionRow.dataset.itemId = newItemId;
+        descriptionRow.style.display = 'none';
+        descriptionRow.innerHTML = `
+            <td colspan="6">
+                <div class="mb-2">
+                    <label class="form-label">Leírás (max 200 karakter)</label>
+                    <textarea name="orderItems[${newItemId}].DescriptionInput" class="form-control form-control-sm item-description" maxlength="200" rows="2"></textarea>
+                    <div class="form-text">Karakterek: <span class="char-count">0</span>/200</div>
+                </div>
+            </td>`;
+
+        tbody.insertBefore(itemRow, tbody.querySelector('.order-total-row'));
+        tbody.insertBefore(descriptionRow, tbody.querySelector('.order-total-row'));
+
+        initializeRowCalculations(itemRow);
+        initializeDescriptionToggle(itemRow);
+        const newSelect = itemRow.querySelector('.tom-select-product');
+        initializeProductTomSelect(newSelect, orderId);
+        calculateOrderTotals(orderId);
+    }
+
+    function initializePartnerTomSelect(select, orderId) {
+        const selectedId = select.dataset.selectedId || '';
+        const selectedText = select.dataset.selectedText || '';
+        console.log('Tom Select Partner Init for orderId:', orderId, 'selectedId:', selectedId, 'selectedText:', selectedText);
+
+        if (select.tomselect) {
+            select.tomselect.destroy();
+        }
+
+        const control = new TomSelect(select, {
+            valueField: 'id',
+            labelField: 'text',
+            searchField: 'text',
+            placeholder: '',
+            allowEmptyOption: true,
+            maxOptions: 100,
+            load: function(query, callback) {
+                const url = `/api/partners?term=${encodeURIComponent(query)}`;
+                console.log('Partner Search Query:', url);
+                fetch(url)
+                    .then(response => {
+                        if (!response.ok) {
+                            return response.text().then(text => {
+                                throw new Error(`HTTP error: ${response.status}, ${text}`);
+                            });
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        console.log('API /api/partners Response:', data);
+                        if (Array.isArray(data)) {
+                            callback(data);
+                        } else {
+                            console.warn('Invalid response format for partners:', data);
+                            callback([]);
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Partner Search Error:', error);
+                        callback([{ id: 0, text: 'Hiba: Nem sikerült betölteni a partnereket' }]);
+                    });
+            },
+            shouldLoad: function(query) {
+                return true;
+            },
+            render: {
+                option: function(data, escape) {
+                    return `<div>${escape(data.text)}</div>`;
+                },
+                item: function(data, escape) {
+                    return `<div>${escape(data.text)}</div>`;
+                },
+                no_results: function(data, escape) {
+                    return `<div class="no-results">Nincs találat "${escape(data.input)}"</div>`;
+                }
+            },
+            onInitialize: function() {
+                console.log('Tom Select initialized for orderId:', orderId, 'select element:', select);
+                if (selectedId && selectedText) {
+                    this.addOption({ id: selectedId, text: selectedText });
+                    this.setValue(selectedId);
+                }
+                this.load('');
+            }
+        });
+
+        return control;
+    }
+
+    function initializeCurrencyTomSelect(select, orderId) {
+        const selectedId = select.dataset.selectedId || '';
+        const selectedText = select.dataset.selectedText || '';
+        console.log('Tom Select Currency Init for orderId:', orderId, 'selectedId:', selectedId, 'selectedText:', selectedText);
+
+        if (select.tomselect) {
+            select.tomselect.destroy();
+        }
+
+        const control = new TomSelect(select, {
+            dropdownParent: 'body',
+            valueField: 'id',
+            labelField: 'text',
+            searchField: 'text',
+            placeholder: '',
+            allowEmptyOption: true,
+            maxOptions: 100,
+            load: function(query, callback) {
+                const url = `/api/currencies?search=${encodeURIComponent(query)}`;
+                console.log('Currency Search Query:', url);
+                fetch(url)
+                    .then(response => {
+                        if (!response.ok) {
+                            return response.text().then(text => {
+                                throw new Error(`HTTP error: ${response.status}, ${text}`);
+                            });
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        console.log('API /api/currencies Response:', data);
+                        if (Array.isArray(data)) {
+                            callback(data);
+                        } else {
+                            console.warn('Invalid response format for currencies:', data);
+                            callback([]);
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Currency Search Error:', error);
+                        callback([{ id: 0, text: 'Hiba: Nem sikerült betölteni a pénznemeket' }]);
+                    });
+            },
+            shouldLoad: function(query) {
+                return true;
+            },
+            render: {
+                option: function(data, escape) {
+                    return `<div>${escape(data.text)}</div>`;
+                },
+                item: function(data, escape) {
+                    return `<div>${escape(data.text)}</div>`;
+                },
+                no_results: function(data, escape) {
+                    return `<div class="no-results">Nincs találat "${escape(data.input)}"</div>`;
+                }
+            },
+            onInitialize: function() {
+                console.log('Tom Select Currency initialized for orderId:', orderId, 'options:', this.options);
+                if (selectedId && selectedText) {
+                    this.addOption({ id: selectedId, text: selectedText });
+                    this.setValue(selectedId);
+                }
+                this.load('');
+            }
+        });
+
+        return control;
+    }
+
+    function initializeSiteTomSelect(select, orderId, partnerData = null) {
+        const selectedId = select.dataset.selectedId || '';
+        const selectedText = select.dataset.selectedText || '';
+        console.log('Tom Select Site Init for orderId:', orderId, 'selectedId:', selectedId, 'selectedText:', selectedText);
+
+        if (select.tomselect) {
+            select.tomselect.destroy();
+        }
+
+        const control = new TomSelect(select, {
+            dropdownParent: 'body',
+            valueField: 'id',
+            labelField: 'text',
+            searchField: 'text',
+            placeholder: '-- Válasszon telephelyet --',
+            allowEmptyOption: true,
+            maxOptions: 100,
+            options: partnerData?.sites || [],
+            load: function(query, callback) {
+                if (partnerData?.sites) {
+                    callback(partnerData.sites.filter(s => s.text.toLowerCase().includes(query.toLowerCase())));
+                    return;
+                }
+                const url = `/api/sites?search=${encodeURIComponent(query)}`;
+                console.log('Site Search Query:', url);
+                fetch(url)
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error(`HTTP error: ${response.status}`);
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        if (Array.isArray(data)) {
+                            callback(data);
+                        } else {
+                            console.warn('Invalid response format for sites:', data);
+                            callback([]);
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Site Search Error:', error);
+                        callback([{ id: 0, text: 'Hiba: Nem sikerült betölteni a telephelyeket' }]);
+                    });
+            },
+            shouldLoad: function(query) {
+                return !partnerData?.sites;
+            },
+            render: {
+                option: function(data, escape) {
+                    if (!data.id || data.disabled) return null;
+                    const primaryBadge = data.isPrimary ? '<span class="badge bg-primary ms-2">Elsődleges</span>' : '';
+                    return `<div>${escape(data.text)}${primaryBadge}</div>`;
+                },
+                item: function(data, escape) {
+                    return `<div>${escape(data.text)}</div>`;
+                },
+                no_results: function(data, escape) {
+                    return `<div class="no-results">Nincs találat "${escape(data.input)}"</div>`;
+                }
+            },
+            onInitialize: function() {
+                console.log('Tom Select Site initialized for orderId:', orderId);
+                if (selectedId && selectedText) {
+                    this.addOption({ id: selectedId, text: selectedText, isPrimary: false });
+                    this.setValue(selectedId);
+                } else if (partnerData?.sites) {
+                    const primarySite = partnerData.sites.find(s => s.isPrimary);
+                    if (primarySite) {
+                        this.addOption(primarySite);
+                        this.setValue(primarySite.id);
+                        console.log('Set primary site:', primarySite.text, 'for orderId:', orderId);
+                    }
+                }
+            }
+        });
+
+        return control;
+    }
+
+    function initializeContactTomSelect(select, orderId, partnerData = null) {
+        const selectedId = select.dataset.selectedId || '';
+        const selectedText = select.dataset.selectedText || '';
+        console.log('Tom Select Contact Init for orderId:', orderId, 'selectedId:', selectedId, 'selectedText:', selectedText);
+
+        if (select.tomselect) {
+            select.tomselect.destroy();
+        }
+
+        const control = new TomSelect(select, {
+            dropdownParent: 'body',
+            valueField: 'id',
+            labelField: 'text',
+            searchField: 'text',
+            placeholder: '-- Válasszon kapcsolattartót --',
+            allowEmptyOption: true,
+            maxOptions: 100,
+            options: partnerData?.contacts || [],
+            load: function(query, callback) {
+                if (partnerData?.contacts) {
+                    callback(partnerData.contacts.filter(c => c.text.toLowerCase().includes(query.toLowerCase())));
+                    return;
+                }
+                const url = `/api/contacts?search=${encodeURIComponent(query)}`;
+                console.log('Contact Search Query:', url);
+                fetch(url)
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error(`HTTP error: ${response.status}`);
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        if (Array.isArray(data)) {
+                            callback(data);
+                        } else {
+                            console.warn('Invalid response format for contacts:', data);
+                            callback([]);
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Contact Search Error:', error);
+                        callback([{ id: 0, text: 'Hiba: Nem sikerült betölteni a kapcsolattartókat' }]);
+                    });
+            },
+            shouldLoad: function(query) {
+                return !partnerData?.contacts;
+            },
+            render: {
+                option: function(data, escape) {
+                    if (!data.id || data.disabled) return null;
+                    const primaryBadge = data.isPrimary ? '<span class="badge bg-primary ms-2">Elsődleges</span>' : '';
+                    return `<div>${escape(data.text)}${primaryBadge}</div>`;
+                },
+                item: function(data, escape) {
+                    return `<div>${escape(data.text)}</div>`;
+                },
+                no_results: function(data, escape) {
+                    return `<div class="no-results">Nincs találat "${escape(data.input)}"</div>`;
+                }
+            },
+            onInitialize: function() {
+                console.log('Tom Select Contact initialized for orderId:', orderId);
+                if (selectedId && selectedText) {
+                    this.addOption({ id: selectedId, text: selectedText, isPrimary: false });
+                    this.setValue(selectedId);
+                } else if (partnerData?.contacts) {
+                    const primaryContact = partnerData.contacts.find(c => c.isPrimary);
+                    if (primaryContact) {
+                        this.addOption(primaryContact);
+                        this.setValue(primaryContact.id);
+                        console.log('Set primary contact:', primaryContact.text, 'for orderId:', orderId);
+                    }
+                }
+            }
+        });
+
+        return control;
+    }
+
+    function initializeQuoteTomSelect(selectElement, orderId, partner) {
+        if (!selectElement) {
+            console.error('Quote select element not found for orderId:', orderId);
+            return;
+        }
+
+        console.log('Tom Select Quote Init for orderId:', orderId, 'partner:', partner);
+
+        const quotes = partner?.quotes ?? [];
+        if (selectElement.tomselect) {
+            selectElement.tomselect.destroy();
+        }
+
+        selectElement.innerHTML = '<option value="">Válasszon árajánlatot</option>';
+        quotes.forEach(q => {
+            const option = document.createElement('option');
+            option.value = q.id;
+            option.text = q.text;
+            selectElement.appendChild(option);
+        });
+
+        const control = new TomSelect(selectElement, {
+            create: false,
+            sortField: {
+                field: 'text',
+                direction: 'asc'
+            },
+            dropdownParent: 'body',
+            placeholder: 'Válasszon árajánlatot...',
+            render: {
+                option: function(data, escape) {
+                    return `<div>${escape(data.text)}</div>`;
+                },
+                item: function(data, escape) {
+                    return `<div>${escape(data.text)}</div>`;
+                },
+                no_results: function(data, escape) {
+                    return `<div class="no-results">Nincs találat "${escape(data.input)}"</div>`;
+                }
+            }
+        });
+
+        const selectedId = selectElement.dataset.selectedId;
+        const selectedText = selectElement.dataset.selectedText;
+        if (selectedId && selectedText) {
+            control.addOption({ id: selectedId, text: selectedText });
+            control.setValue(selectedId);
+            console.log('Set initial quote:', selectedText, 'for ID:', selectedId, 'orderId:', orderId);
+        }
+    }
+
+    function initializeEventListeners(orderId) {
+        const addButtons = document.querySelectorAll(`.add-item-row[data-order-id="${orderId}"]`);
+        console.log('Found add-item-row buttons for orderId:', orderId, addButtons.length);
+        addButtons.forEach((button, index) => {
+            const newButton = button.cloneNode(true);
+            button.replaceWith(newButton);
+            newButton.addEventListener('click', function() {
+                console.log(`Add item button ${index} clicked for orderId: ${orderId}`);
+                addItemRow(orderId);
+            });
+        });
+
+        const productSelects = document.querySelectorAll(`#items-tbody_${orderId} .tom-select-product`);
+        console.log('Found tom-select-product selects for orderId:', orderId, productSelects.length);
+        productSelects.forEach(select => {
+            initializeProductTomSelect(select, orderId);
+            const row = select.closest('.order-item-row');
+            if (row) {
+                initializeRowCalculations(row);
+                initializeDescriptionToggle(row);
+            }
+        });
+
+        initializeDeleteButtons(orderId);
+        calculateOrderTotals(orderId);
+        console.log('Event listeners initialized for orderId:', orderId);
+    }
+
+    document.querySelectorAll('.modal[id^="editOrderModal_"]').forEach(modal => {
+        const orderId = modal.id.replace('editOrderModal_', '');
+        modal.addEventListener('shown.bs.modal', function () {
+            console.log('Edit modal shown for orderId:', orderId);
+            initializeEventListeners(orderId);
+            calculateOrderTotals(orderId);
+        });
+    });
+
+    const newOrderModal = document.getElementById('newOrderModal');
+    if (newOrderModal) {
+        newOrderModal.addEventListener('shown.bs.modal', function () {
+            console.log('New Order modal shown for orderId: new');
+
+            const partnerSelects = document.querySelectorAll('#orderBaseInfoForm_new .tom-select[name="partnerId"]');
+            const currencySelects = document.querySelectorAll('#orderBaseInfoForm_new .tom-select[name="currencyId"]');
+            const siteSelects = document.querySelectorAll('#orderBaseInfoForm_new .tom-select[name="siteId"]');
+            const quoteSelects = document.querySelectorAll('#orderBaseInfoForm_new .tom-select[name="quoteId"]');
+            const contactSelects = document.querySelectorAll('#orderBaseInfoForm_new .tom-select[name="contactId"]');
+
+            setTimeout(() => {
+                partnerSelects.forEach(select => {
+                    const control = initializePartnerTomSelect(select, 'new');
+                    control.on('change', function(value) {
+                        const partner = this.options[value];
+                        siteSelects.forEach(siteSelect => {
+                            initializeSiteTomSelect(siteSelect, 'new', partner);
+                        });
+                        contactSelects.forEach(contactSelect => {
+                            initializeContactTomSelect(contactSelect, 'new', partner);
+                        });
+                        quoteSelects.forEach(quoteSelect => {
+                            initializeQuoteTomSelect(quoteSelect, 'new', partner);
+                        });
+                    });
+                });
+                currencySelects.forEach(select => initializeCurrencyTomSelect(select, 'new'));
+                siteSelects.forEach(select => initializeSiteTomSelect(select, 'new'));
+                quoteSelects.forEach(select => initializeQuoteTomSelect(select, 'new'));
+                contactSelects.forEach(select => initializeContactTomSelect(select, 'new'));
+                initializeEventListeners('new');
+                calculateOrderTotals('new');
+            }, 100);
+        });
+    }
+});
+</script>
+
+<script>
+    // Rendelés törlése
+    
+    if (typeof jQuery === 'undefined') {
+        console.error('jQuery is not loaded!');
+    } else {
+        console.log('jQuery loaded successfully');
+    }
+
+    $(document).ready(function () {
+        const debug = true;
+
+    // Use event delegation for delete buttons
+    $(document).on('click', '.confirm-delete-order', function (e) {
+        e.preventDefault();
+        const $button = $(this);
+        const orderId = $button.data('order-id');
+        console.log('Delete button clicked for orderId:', orderId); // Debug
+
+        if (!orderId) {
+            console.error('orderId is missing from button data-Order-id');
+            return;
+        }
+
+        const $form = $(`#deleteOrderForm_${orderId}`);
+        const $warningDiv = $(`#deleteWarning_${orderId}`);
+
+        if ($form.length) {
+            console.log('Form found for orderId:', orderId); // Debug
+            const token = $form.find('input[name="__RequestVerificationToken"]').val();
+            if (!token) {
+                console.error('Anti-forgery token not found in form');
+                $warningDiv.text('Hiba: Biztonsági token hiányzik.');
+                $warningDiv.show();
+                return;
+            }
+
+            $.ajax({
+                url: `/api/Orders/${orderId}`, // Adjust if endpoint differs
+                type: 'DELETE',
+                headers: {
+                    'RequestVerificationToken': token
+                },
+                beforeSend: function () {
+                    console.log('Sending DELETE request for orderId:', orderId); // Debug
+                },
+                success: function (data, status, xhr) {
+                    console.log('Delete response:', { status: xhr.status, data }); // Debug
+                    if (xhr.status === 204) {
+                        console.log('Order deleted successfully, reloading page');
+                        $(`#deleteOrderModal_${orderId}`).modal('hide');
+                        window.location.reload();
+                    } else {
+                        console.warn('Unexpected status code:', xhr.status);
+                        $warningDiv.text('Sikeres törlés, de váratlan válasz: ' + xhr.status);
+                        $warningDiv.show();
+                    }
+                },
+                error: function (xhr, status, error) {
+                    console.error('Delete error:', { status: xhr.status, response: xhr.responseText }); // Debug
+                    let message = 'Hiba történt a törlés során.';
+                    if (xhr.status === 404) {
+                        message = xhr.responseJSON?.error || 'Az árajánlat nem található.';
+                    } else if (xhr.status === 500) {
+                        message = xhr.responseJSON?.error || 'Szerver hiba történt a törlés során.';
+                    } else if (xhr.status === 403) {
+                        message = 'Hozzáférés megtagadva: bejelentkezés szükséges.';
+                    }
+                    $warningDiv.text(message);
                     $warningDiv.show();
                 }
             });
+        } else {
+            console.error('Form not found for orderId:', orderId);
+            $warningDiv.text('Hiba: Törlési űrlap nem található.');
+            $warningDiv.show();
+        }
+    });
 
         function showToast(type, message) {
             const toast = $(`
@@ -657,891 +1535,8 @@
             const today = new Date();
             return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
         }
-
-
-        $(document).on('click', '.confirm-delete-Order', function () {
-            const orderId = $(this).data('Order-id');
-            $.ajax({
-                url: `/api/Orders/${orderId}`,
-                method: 'DELETE',
-                success: function (response) {
-                    showToast('success', 'Árajánlat sikeresen törölve!');
-                    $(`#deleteOrderModal_${orderId}`).modal('hide');
-                    $(`.partner-card[data-Order-id="${orderId}"]`).remove();
-                },
-                error: function (xhr) {
-                    console.error('Error deleting Order:', xhr.responseText);
-                    showToast('error', 'Hiba történt a törlés során.');
-                }
-            });
-        });
     });
 </script>
-
-<!-- JavaScript for Tom Select, Add Row, Total Price Calculation, and Save -->
-@section Scripts {
-    <script>
-        document.addEventListener('DOMContentLoaded', function () {
-            console.log('Dropdown script loaded'); // Debug
-
-            const filterItems = document.querySelectorAll('.dropdown-menu [data-filter]');
-            console.log('Found filter items:', filterItems.length); // Debug
-
-            filterItems.forEach(item => {
-                item.addEventListener('click', function (e) {
-                    e.preventDefault();
-                    const filter = this.getAttribute('data-filter');
-                    const sort = this.getAttribute('data-sort');
-                    console.log('Clicked item:', { filter, sort }); // Debug
-
-                    // Try multiple selectors to find the form
-                    let form = document.querySelector('form[asp-page="./Index"]') ||
-                               document.querySelector('form[action="/CRM/Orders"]') ||
-                               document.querySelector('form[action="/CRM/Orders/Index"]');
-
-                    if (form) {
-                        console.log('Form found, submitting:', { filter, sort }); // Debug
-
-                        // Clear previous hidden inputs
-                        form.querySelectorAll('input[name="StatusFilter"], input[name="SortBy"]').forEach(input => input.remove());
-
-                        // Add StatusFilter
-                        const statusInput = document.createElement('input');
-                        statusInput.type = 'hidden';
-                        statusInput.name = 'StatusFilter';
-                        statusInput.value = filter === 'all' ? '' : filter;
-                        form.appendChild(statusInput);
-
-                        // Add SortBy
-                        const sortInput = document.createElement('input');
-                        sortInput.type = 'hidden';
-                        sortInput.name = 'SortBy';
-                        sortInput.value = sort;
-                        form.appendChild(sortInput);
-
-                        form.submit();
-                    } else {
-                        console.error('Form not found. Available forms:', document.querySelectorAll('form').length);
-                        document.querySelectorAll('form').forEach(f => console.log('Form action:', f.getAttribute('action')));
-                    }
-                });
-            });
-        });
-    </script>
-    <script>
-        document.addEventListener('DOMContentLoaded', function () {
-            // Status mapping
-            const statusMapping = {
-                'Folyamatban': 'InProgress',
-                'Felfüggesztve': 'Suspended',
-                'Jóváhagyásra_vár': 'PendingApproval',
-                'Jóváhagyva': 'Approved',
-                'Kiküldve': 'Sent',
-                'Elfogadva': 'Accepted',
-                'Megrendelve': 'Ordered',
-                'Teljesítve': 'Fulfilled',
-                'Lezárva': 'Closed',
-                'InProgress': 'InProgress',
-                'Accepted': 'Accepted',
-                'Rejected': 'Rejected',
-                'Draft': 'Draft'
-            };
-            // Handle filter/sort dropdown
-            document.querySelectorAll('.dropdown-menu [data-filter]').forEach(filterItem => {
-                filterItem.addEventListener('click', function (e) {
-                    e.preventDefault();
-                    const filter = this.getAttribute('data-filter');
-                    const sort = this.getAttribute('data-sort');
-                    const form = document.querySelector('form[action="./Index"]');
-                    if (form) {
-                        // Add StatusFilter
-                        const statusInput = document.createElement('input');
-                        statusInput.type = 'hidden';
-                        statusInput.name = 'StatusFilter';
-                        statusInput.value = filter === 'all' ? '' : filter;
-                        form.appendChild(statusInput);
-
-                        // Add SortBy
-                        const sortInput = document.createElement('input');
-                        sortInput.type = 'hidden';
-                        sortInput.name = 'SortBy';
-                        sortInput.value = sort;
-                        form.appendChild(sortInput);
-
-                        form.submit();
-                    }
-                });
-            });
-
-            // Calculate Total Price for a Row
-            function calculateTotalPrice(row, forceRecalculate = false) {
-                try {
-                    console.log('Calculating total price for row:', row.dataset.itemId);
-                    const quantityInput = row.querySelector('.quantity');
-                    const unitPriceInput = row.querySelector('.unit-price');
-                    const discountValueInput = row.querySelector('.discount-value');
-                    const discountTypeSelect = row.querySelector('.discount-type');
-                    const totalPriceSpan = row.querySelector('.total-price');
-
-                    if (!quantityInput || !unitPriceInput || !discountValueInput || !discountTypeSelect || !totalPriceSpan) {
-                        console.error('Missing elements in row:', row.dataset.itemId, {
-                            quantity: !!quantityInput,
-                            unitPrice: !!unitPriceInput,
-                            discountValue: !!discountValueInput,
-                            discountType: !!discountTypeSelect,
-                            totalPrice: !!totalPriceSpan
-                        });
-                        return 0;
-                    }
-
-                    if (forceRecalculate || row.dataset.initialized !== 'true') {
-                        const quantity = parseFloat(quantityInput.value) || 0;
-                        const unitPrice = parseFloat(unitPriceInput.value) || 0;
-                        const discountValue = parseFloat(discountValueInput.value) || 0;
-                        const discountType = discountTypeSelect.value;
-
-                        let total = quantity * unitPrice;
-                        let discount = 0;
-
-                        if (discountValue > 0) {
-                            if (discountType === 'Percentage') {
-                                discount = total * (discountValue / 100);
-                            } else {
-                                discount = discountValue;
-                            }
-                        }
-
-                        total = total - discount;
-                        total = total < 0 ? 0 : total;
-                        totalPriceSpan.textContent = total.toFixed(2);
-                        row.dataset.initialized = 'true';
-                        console.log('Total price set to:', total.toFixed(2), 'for item:', row.dataset.itemId);
-                        return total;
-                    } else {
-                        const currentTotal = parseFloat(totalPriceSpan.textContent) || 0;
-                        console.log('Using existing total price:', currentTotal, 'for item:', row.dataset.itemId);
-                        return currentTotal;
-                    }
-                } catch (error) {
-                    console.error('Error calculating total price for row:', row.dataset.itemId, error);
-                    return 0;
-                }
-            }
-
-            // Calculate Order Totals
-            function calculateOrderTotals(orderId, retryCount = 0) {
-                try {
-                    const tbody = document.querySelector(`#items-tbody_${orderId}`);
-                    const totalAmountSpan = document.querySelector(`#items-tbody_${orderId} .Order-total-amount`);
-                    const finalTotalSpan = document.querySelector(`#items-tbody_${orderId} .Order-final-total`);
-                    const discountValueInput = document.querySelector(`#items-tbody_${orderId} .Order-discount-value`);
-                    const discountTypeSelect = document.querySelector(`#items-tbody_${orderId} .Order-discount-type`);
-
-                    if (!tbody || !totalAmountSpan || !finalTotalSpan) {
-                        console.error('Missing Order total elements for orderId:', orderId, {
-                            tbody: !!tbody,
-                            totalAmountSpan: !!totalAmountSpan,
-                            finalTotalSpan: !!finalTotalSpan,
-                            discountValueInput: !!discountValueInput,
-                            discountTypeSelect: !!discountTypeSelect
-                        });
-                        return 0;
-                    }
-
-                    const rows = tbody.querySelectorAll('.Order-item-row');
-                    console.log('Found rows for Order totals:', rows.length, 'IDs:', Array.from(rows).map(r => r.dataset.itemId));
-                    if (rows.length === 0 && retryCount < 5) {
-                        console.warn('No rows found for orderId:', orderId, 'retrying in 100ms, attempt:', retryCount + 1);
-                        setTimeout(() => calculateOrderTotals(orderId, retryCount + 1), 100);
-                        return 0;
-                    }
-
-                    let totalAmount = 0;
-                    rows.forEach(row => {
-                        const price = parseFloat(row.querySelector('.total-price').textContent) || 0;
-                        console.log('Row price:', price, 'for item:', row.dataset.itemId);
-                        totalAmount += price;
-                    });
-
-                    const discountValue = parseFloat(discountValueInput?.value) || 0;
-                    const discountType = discountTypeSelect?.value;
-                    let OrderDiscount = 0;
-
-                    if (discountValue > 0 && discountType) {
-                        if (discountType === 'Percentage') {
-                            OrderDiscount = totalAmount * (discountValue / 100);
-                        } else {
-                            OrderDiscount = discountValue;
-                        }
-                    }
-
-                    const finalTotal = totalAmount - OrderDiscount;
-                    console.log('Total Amount:', totalAmount.toFixed(2), 'Final Total:', finalTotal.toFixed(2));
-                    totalAmountSpan.textContent = totalAmount.toFixed(2);
-                    finalTotalSpan.textContent = finalTotal < 0 ? '0.00' : finalTotal.toFixed(2);
-                    return finalTotal;
-                } catch (error) {
-                    console.error('Error calculating Order totals for orderId:', orderId, error);
-                    return 0;
-                }
-            }
-
-            // Update Discount Input Name Based on Type
-            function updateDiscountInputName(row) {
-                const discountInput = row.querySelector('.discount-value');
-                const discountType = row.querySelector('.discount-type');
-                if (discountInput && discountType) {
-                    const prefix = discountType.dataset.discountNamePrefix;
-                    discountInput.name = `${prefix}.${discountType.value === 'Percentage' ? 'DiscountPercentage' : 'DiscountAmount'}`;
-                }
-            }
-
-            // Update Order-Level Discount Input Name
-            function updateOrderDiscountInputName(orderId) {
-                const discountInput = document.querySelector(`#items-tbody_${orderId} .Order-discount-value`);
-                const discountType = document.querySelector(`#items-tbody_${orderId} .Order-discount-type`);
-                if (discountInput && discountType) {
-                    discountInput.name = discountType.value === 'Percentage' ? 'DiscountPercentage' : 'DiscountAmount';
-                }
-            }
-
-            // Initialize Row Calculations
-            function initializeRowCalculations(row) {
-                const inputs = row.querySelectorAll('.quantity, .unit-price, .discount-value, .discount-type');
-                console.log('Initializing row:', row.dataset.itemId, 'Found inputs:', inputs.length);
-                inputs.forEach(input => {
-                    input.addEventListener('input', () => {
-                        console.log('Input changed:', input.name, 'Value:', input.value);
-                        updateDiscountInputName(row);
-                        calculateTotalPrice(row, true);
-                        calculateOrderTotals(row.closest('tbody').id.replace('items-tbody_', ''));
-                    });
-                });
-                updateDiscountInputName(row);
-                calculateTotalPrice(row);
-            }
-
-            // Initialize Description Toggle
-            function initializeDescriptionToggle(row) {
-                const itemId = row.dataset.itemId;
-                const descriptionRow = document.querySelector(`.description-row[data-item-id="${itemId}"]`);
-                const editButton = row.querySelector('.edit-description');
-                if (!descriptionRow || !editButton) {
-                    console.warn('Description row or edit button missing for item:', itemId);
-                    return;
-                }
-                const textarea = descriptionRow.querySelector('.item-description-input');
-                const charCount = descriptionRow.querySelector('.char-count');
-                const hiddenInput = row.querySelector('.item-description');
-
-                textarea.addEventListener('input', () => {
-                    const length = textarea.value.length;
-                    charCount.textContent = `${length}/200`;
-                    hiddenInput.value = textarea.value;
-                    console.log('Description updated for item:', itemId, 'Value:', textarea.value);
-                });
-
-                editButton.addEventListener('click', () => {
-                    const isHidden = descriptionRow.style.display === 'none';
-                    descriptionRow.style.display = isHidden ? 'table-row' : 'none';
-                    console.log('Toggled description for item:', itemId, 'Visible:', isHidden);
-                });
-            }
-
-            // Initialize Order-Level Discount Calculations
-            function initializeOrderDiscountCalculations(orderId) {
-                const tbody = document.querySelector(`#items-tbody_${orderId}`);
-                const inputs = tbody.querySelectorAll('.Order-discount-value, .Order-discount-type');
-                inputs.forEach(input => {
-                    input.addEventListener('input', () => {
-                        updateOrderDiscountInputName(orderId);
-                        calculateOrderTotals(orderId);
-                    });
-                });
-                updateOrderDiscountInputName(orderId);
-            }
-
-            // Initialize Delete Functionality
-            function initializeDeleteButtons(orderId) {
-                const tbody = document.querySelector(`#items-tbody_${orderId}`);
-                if (!tbody) {
-                    console.error('Tbody not found for orderId:', orderId);
-                    return;
-                }
-                tbody.addEventListener('click', function(event) {
-                    if (event.target.closest('.remove-item-row')) {
-                        const button = event.target.closest('.remove-item-row');
-                        const row = button.closest('.Order-item-row');
-                        const itemId = row.dataset.itemId;
-                        const descriptionRow = document.querySelector(`.description-row[data-item-id="${itemId}"]`);
-
-                        console.log('Delete clicked for item:', itemId);
-                        row.remove();
-                        if (descriptionRow) {
-                            descriptionRow.remove();
-                        }
-                        calculateOrderTotals(orderId);
-                    }
-                });
-            }
-
-            // Initialize Tom Select for Partners
-            function initializePartnerTomSelect(select, orderId) {
-                const selectedId = select.dataset.selectedId;
-                const selectedText = select.dataset.selectedText;
-                console.log('Tom Select Partner Init for orderId:', orderId, 'selectedId:', selectedId, 'selectedText:', selectedText);
-
-                const control = new TomSelect(select, {
-                    valueField: 'id',
-                    labelField: 'text',
-                    searchField: 'text',
-                    placeholder: '-- Válasszon partnert --',
-                    allowEmptyOption: true,
-                    maxOptions: 100,
-                    load: function(query, callback) {
-                        const url = `/api/partners?term=${encodeURIComponent(query)}`;
-                        console.log('Partner Search Query:', url);
-                        fetch(url)
-                            .then(response => {
-                                if (!response.ok) {
-                                    return response.text().then(text => {
-                                        throw new Error(`HTTP error! status: ${response.status}, body: ${text}`);
-                                    });
-                                }
-                                return response.json();
-                            })
-                            .then(data => {
-                                console.log('API /api/partners Response:', data);
-                                if (Array.isArray(data)) {
-                                    callback(data);
-                                } else {
-                                    console.warn('Invalid response format for partners:', data);
-                                    callback([]);
-                                }
-                            })
-                            .catch(error => {
-                                console.error('Partner Search Error:', error);
-                                callback([{ id: 0, text: 'Hiba: Nem sikerült betölteni a partnereket' }]);
-                            });
-                    },
-                    shouldLoad: function(query) {
-                        return query.length > 0;
-                    },
-                    render: {
-                        option: function(data, escape) {
-                            return `<div>${escape(data.text)}</div>`;
-                        },
-                        item: function(data, escape) {
-                            return `<div>${escape(data.text)}</div>`;
-                        },
-                        no_results: function(data, escape) {
-                            return `<div class="no-results">Nincs találat "${escape(data.input)}"</div>`;
-                        }
-                    }
-                });
-
-                if (selectedId && selectedId !== '0') {
-                    control.addOption({ id: selectedId, text: selectedText });
-                    control.setValue(selectedId);
-                    const url = `/api/partners/${selectedId}`;
-                    fetch(url)
-                        .then(response => {
-                            if (!response.ok) {
-                                return response.text().then(text => {
-                                    throw new Error(`HTTP error! status: ${response.status}, body: ${text}`);
-                                });
-                            }
-                            return response.json();
-                        })
-                        .then(data => {
-                            if (data && data.text) {
-                                control.addOption({ id: data.id, text: data.text });
-                                control.setValue(data.id);
-                            }
-                        })
-                        .catch(error => {
-                            console.error('Failed to preload partner for ID:', selectedId, 'orderId:', orderId, error);
-                        });
-                }
-            }
-
-            // Initialize Tom Select for Products
-            function initializeProductTomSelect(select, orderId) {
-                const selectedId = select.dataset.selectedId;
-                const selectedText = select.dataset.selectedText;
-                console.log('Tom Select Product Init for orderId:', orderId, 'selectedId:', selectedId, 'selectedText:', selectedText);
-
-                const control = new TomSelect(select, {
-                    valueField: 'id',
-                    labelField: 'name',
-                    searchField: 'name',
-                    placeholder: '-- Válasszon terméket --',
-                    allowEmptyOption: true,
-                    maxOptions: 100,
-                    load: function(query, callback) {
-                        const url = `/api/Product?search=${encodeURIComponent(query)}`;
-                        console.log('Product Search Query:', url);
-                        fetch(url)
-                            .then(response => {
-                                if (!response.ok) {
-                                    return response.text().then(text => {
-                                        throw new Error(`HTTP error! status: ${response.status}, body: ${text}`);
-                                    });
-                                }
-                                return response.json();
-                            })
-                            .then(data => {
-                                console.log('API /api/Product Response:', data);
-                                if (Array.isArray(data)) {
-                                    callback(data);
-                                } else {
-                                    console.warn('Invalid response format for products:', data);
-                                    callback([]);
-                                }
-                            })
-                            .catch(error => {
-                                console.error('Product Search Error:', error);
-                                callback([{ id: 0, name: 'Hiba: Nem sikerült betölteni a termékeket' }]);
-                            });
-                    },
-                    shouldLoad: function(query) {
-                        return query.length > 0;
-                    },
-                    render: {
-                        option: function(data, escape) {
-                            return `<div>${escape(data.name)}</div>`;
-                        },
-                        item: function(data, escape) {
-                            return `<div>${escape(data.name)}</div>`;
-                        },
-                        no_results: function(data, escape) {
-                            return `<div class="no-results">Nincs találat "${escape(data.input)}"</div>`;
-                        }
-                    }
-                });
-
-                if (selectedId && selectedId !== '0' && selectedText) {
-                    control.addOption({ id: selectedId, name: selectedText });
-                    control.setValue(selectedId);
-                    console.log('Set initial product:', selectedText, 'for ID:', selectedId, 'orderId:', orderId);
-                    const url = `/api/Product/${selectedId}`;
-                    fetch(url)
-                        .then(response => {
-                            if (!response.ok) {
-                                return response.text().then(text => {
-                                    throw new Error(`HTTP error! status: ${response.status}, body: ${text}`);
-                                });
-                            }
-                            return response.json();
-                        })
-                        .then(data => {
-                            if (data && data.name) {
-                                control.addOption({ id: data.id, name: data.name });
-                                control.setValue(data.id);
-                            }
-                        })
-                        .catch(error => {
-                            console.error('Failed to preload product for ID:', selectedId, 'orderId:', orderId, error);
-                        });
-                }
-            }
-
-            // Add Row Functionality
-            function addItemRow(orderId) {
-                const tbody = document.querySelector(`#items-tbody_${orderId}`);
-                if (!tbody) {
-                    console.error('Items tbody not found for orderId:', orderId);
-                    return;
-                }
-                const newItemId = 'new_' + Date.now();
-                console.log('Adding new item row for orderId:', orderId, 'NewItemId:', newItemId);
-
-                const itemRow = document.createElement('tr');
-                itemRow.className = 'Order-item-row';
-                itemRow.dataset.itemId = newItemId;
-                itemRow.innerHTML = `
-                    <td>
-                        <select name="OrderItems[${newItemId}].ProductId" class="form-select tom-select-product" data-selected-id="" data-selected-text="" autocomplete="off" required>
-                            <option value="" disabled selected>-- Válasszon terméket --</option>
-                        </select>
-                    </td>
-                    <td>
-                        <input type="number" name="OrderItems[${newItemId}].Quantity" class="form-control form-control-sm quantity" value="1" min="0" step="1" required>
-                    </td>
-                    <td>
-                        <input type="number" name="OrderItems[${newItemId}].UnitPrice" class="form-control form-control-sm unit-price" value="0" min="0" step="0.01" required>
-                    </td>
-                    <td>
-                        <div class="input-group input-group-sm">
-                            <input type="number" name="OrderItems[${newItemId}].DiscountPercentage" class="form-control discount-value" value="" placeholder="pl. 10" min="0" step="0.01">
-                            <select class="form-select discount-type" data-discount-name-prefix="OrderItems[${newItemId}]">
-                                <option value="Percentage" selected>%</option>
-                                <option value="Amount">Összeg</option>
-                            </select>
-                        </div>
-                    </td>
-                    <td>
-                        <span class="total-price">0.00</span>
-                        <input type="hidden" name="OrderItems[${newItemId}].ItemDescription" class="item-description" value="">
-                    </td>
-                    <td>
-                        <button type="button" class="btn btn-outline-secondary btn-sm edit-description" data-item-id="${newItemId}"><i class="bi bi-pencil"></i></button>
-                        <button type="button" class="btn btn-danger btn-sm remove-item-row"><i class="bi bi-trash"></i></button>
-                    </td>
-                `;
-
-                const descriptionRow = document.createElement('tr');
-                descriptionRow.className = 'description-row';
-                descriptionRow.dataset.itemId = newItemId;
-                descriptionRow.style.display = 'none';
-                descriptionRow.innerHTML = `
-                    <td colspan="6">
-                        <div class="mb-2">
-                            <label class="form-label">Leírás (max 200 karakter)</label>
-                            <textarea name="OrderItems[${newItemId}].ItemDescriptionInput" class="form-control form-control-sm item-description-input" maxlength="200" rows="2"></textarea>
-                            <div class="form-text">Karakterek: <span class="char-count">0</span>/200</div>
-                        </div>
-                    </td>
-                `;
-
-                tbody.insertBefore(itemRow, tbody.querySelector('.Order-total-row'));
-                tbody.insertBefore(descriptionRow, tbody.querySelector('.Order-total-row'));
-
-                initializeRowCalculations(itemRow);
-                initializeDescriptionToggle(itemRow);
-                const newSelect = itemRow.querySelector('.tom-select-product');
-                initializeProductTomSelect(newSelect, orderId);
-                calculateOrderTotals(orderId);
-                console.log('Added new item row:', newItemId, 'Row HTML:', itemRow.outerHTML);
-            }
-
-            // Validate Form
-            function validateForm(form, orderId) {
-                const errors = [];
-                const requiredFields = form.querySelectorAll('[required]');
-                requiredFields.forEach(field => {
-                    const value = field.value.trim();
-                    if (!value) {
-                        const label = field.closest('tr')?.querySelector('th')?.textContent || field.name;
-                        errors.push(`${label} mező kitöltése kötelező`);
-                    }
-                    if (['subject'].includes(field.name)) {
-                        if (!value || value === '1' || value === 'x') {
-                            const label = field.closest('tr')?.querySelector('th')?.textContent || field.name;
-                            errors.push(`${label} mező nem lehet üres, "1" vagy "x"`);
-                            console.warn(`Invalid value for ${field.name}: ${value}`);
-                        }
-                    }
-                    if (field.name.includes('.Quantity') || field.name.includes('.UnitPrice')) {
-                        const numValue = parseFloat(value);
-                        if (isNaN(numValue) || numValue <= 0) {
-                            const label = field.closest('tr')?.querySelector('th')?.textContent || field.name;
-                            errors.push(`${label} mező pozitív szám kell legyen`);
-                        }
-                    }
-                    console.log('Validating field:', field.name, 'Value:', value);
-                });
-                return errors;
-            }
-
-            // Save Order
-            function saveOrder(orderId) {
-                const baseForm = document.querySelector(`#OrderBaseInfoForm_${orderId}`);
-                const itemsForm = document.querySelector(`#OrderItemsForm_${orderId}`);
-                const totalAmount = calculateOrderTotals(orderId);
-
-                // Switch to base-info tab
-                const baseInfoTab = document.querySelector(`#base-info-tab_${orderId}`);
-                if (baseInfoTab) {
-                    baseInfoTab.click();
-                    console.log('Switched to base-info tab for orderId:', orderId);
-                }
-
-                // Validate forms
-                const baseErrors = validateForm(baseForm, orderId);
-                const itemErrors = validateForm(itemsForm, orderId);
-                if (baseErrors.length > 0 || itemErrors.length > 0) {
-                    const allErrors = [...baseErrors, ...itemErrors];
-                    console.log('Validation errors for orderId:', orderId, allErrors);
-                    alert('Kérjük, töltse ki az összes kötelező mezőt megfelelően:\n' + allErrors.join('\n'));
-                    return;
-                }
-
-                const baseData = new FormData(baseForm);
-                const itemsData = new FormData(itemsForm);
-
-                // Get Order-level discount
-                const discountValue = parseFloat(itemsData.get('DiscountPercentage') || itemsData.get('DiscountAmount')) || 0;
-                const discountType = document.querySelector(`#items-tbody_${orderId} .Order-discount-type`)?.value;
-                const discountPercentage = discountType === 'Percentage' && discountValue > 0 ? discountValue : null;
-                const discountAmount = discountType === 'Amount' && discountValue > 0 ? discountValue : null;
-
-                console.log('Base form data for orderId:', orderId, Object.fromEntries(baseData));
-                console.log('Items form data for orderId:', orderId, Object.fromEntries(itemsData));
-
-                const OrderDto = {
-                    OrderNumber: baseData.get('OrderNumber') || '',
-                    PartnerId: parseInt(baseData.get('partnerId')) || null,
-                    OrderDate: baseData.get('OrderDate') || null,
-                    Status: statusMapping[baseData.get('status')] || baseData.get('status'),
-                    TotalAmount: totalAmount,
-                    SalesPerson: baseData.get('salesPerson') || '',
-                    ValidityDate: baseData.get('validityDate') || null,
-                    Subject: baseData.get('subject') || '',
-                    Description: baseData.get('description') || '',
-                    DetailedDescription: baseData.get('detailedDescription') || '',
-                    DiscountPercentage: discountPercentage,
-                    DiscountAmount: discountAmount
-                };
-
-                const OrderItems = [];
-                const rows = document.querySelectorAll(`#items-tbody_${orderId} .Order-item-row`);
-                console.log('Found rows for saving:', rows.length, 'IDs:', Array.from(rows).map(r => r.dataset.itemId));
-                rows.forEach(row => {
-                    const itemId = row.dataset.itemId;
-                    const isNew = itemId.startsWith('new_');
-                    const productId = itemsData.get(`OrderItems[${itemId}].ProductId`);
-                    if (!productId) {
-                        console.warn('Skipping item with no ProductId:', itemId);
-                        return;
-                    }
-                    const itemDescription = itemsData.get(`OrderItems[${itemId}].ItemDescription`) || "";
-                    const discountValue = itemsData.get(`OrderItems[${itemId}].DiscountPercentage`) || itemsData.get(`OrderItems[${itemId}].DiscountAmount`);
-                    const discountType = row.querySelector('.discount-type')?.value;
-                    const productSelect = row.querySelector('.tom-select-product');
-                    const productName = productSelect?.dataset.selectedText || row.querySelector('.ts-control .item')?.textContent || '';
-                    const item = {
-                        OrderItemId: isNew ? null : parseInt(itemId),
-                        orderId: parseInt(orderId) || null,
-                        ProductId: parseInt(productId),
-                        ProductName: productName,
-                        Quantity: parseFloat(itemsData.get(`OrderItems[${itemId}].Quantity`)) || 0,
-                        UnitPrice: parseFloat(itemsData.get(`OrderItems[${itemId}].UnitPrice`)) || 0,
-                        ItemDescription: itemDescription,
-                        DiscountPercentage: discountType === 'Percentage' && discountValue ? parseFloat(discountValue) : null,
-                        DiscountAmount: discountType === 'Amount' && discountValue ? parseFloat(discountValue) : null
-                    };
-                    OrderItems.push({ item, isNew });
-                });
-
-                if (OrderItems.length === 0) {
-                    console.log('No Order items found for orderId:', orderId);
-                    alert('Legalább egy tétel szükséges az árajánlathoz.');
-                    return;
-                }
-
-                console.log('Saving Order for orderId:', orderId, { OrderDto, OrderItems });
-
-                // Handle new Order creation differently
-                if (orderId === 'new') {
-                    // Create Order
-                    console.log('Creating new Order: /api/Orders, Payload:', OrderDto);
-                    fetch('/api/Orders', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(OrderDto)
-                    })
-                    .then(response => {
-                        console.log(`Order create response for orderId: ${orderId}, Status ${response.status}, Headers:`, Object.fromEntries(response.headers));
-                        if (!response.ok) {
-                            return response.json().then(err => {
-                                console.error(`Order error details:`, err);
-                                throw new Error(`Failed to create Order: ${response.status} "${err.title || JSON.stringify(err.errors) || 'Request failed'}"`);
-                            });
-                        }
-                        return response.json();
-                    })
-                    .then(data => {
-                        const neworderId = data.orderId || data.orderId;
-                        console.log('Order created successfully, orderId:', neworderId);
-
-                        // Save Order Items
-                        const itemPromises = OrderItems.map(({ item }) => {
-                            const url = `/api/Orders/${neworderId}/Items`;
-                            const payload = {
-                                orderId: neworderId,
-                                ProductId: item.ProductId,
-                                ProductName: item.ProductName,
-                                Quantity: item.Quantity,
-                                UnitPrice: item.UnitPrice,
-                                ItemDescription: item.ItemDescription,
-                                DiscountPercentage: item.DiscountPercentage,
-                                DiscountAmount: item.DiscountAmount
-                            };
-                            console.log(`Saving item: new, Method: POST, URL: ${url}, Payload:`, payload);
-                            return fetch(url, {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify(payload)
-                            })
-                            .then(response => {
-                                console.log(`Item response for new: Status ${response.status}, Headers:`, Object.fromEntries(response.headers));
-                                if (!response.ok) {
-                                    return response.json().then(err => {
-                                        console.error(`Error details for new:`, err);
-                                        throw new Error(`Failed to create item: ${response.status} "${err.title || JSON.stringify(err.errors) || 'Request failed'}"`);
-                                    });
-                                }
-                                return response.json();
-                            });
-                        });
-
-                        return Promise.all(itemPromises).then(savedItems => {
-                            console.log('All items saved for orderId:', neworderId, savedItems.map(i => ({ OrderItemId: i.OrderItemId || i.OrderItemId, ProductId: i.productId || i.ProductId })));
-                            return neworderId;
-                        });
-                    })
-                    .then(neworderId => {
-                        console.log('Order and items saved successfully for orderId:', neworderId);
-                        alert('Árajánlat sikeresen létrehozva!');
-                        const modal = document.getElementById('newOrderModal');
-                        bootstrap.Modal.getInstance(modal).hide();
-                        window.location.reload();
-                    })
-                    .catch(error => {
-                        console.error('Save error for orderId:', orderId, error);
-                        alert('Hiba történt az árajánlat létrehozása közben: ' + error.message);
-                    });
-                } else {
-                    // Existing Order update logic
-                    const itemPromises = OrderItems.map(({ item, isNew }) => {
-                        const url = isNew ? `/api/Orders/${orderId}/Items` : `/api/Orders/${orderId}/Items/${item.OrderItemId}`;
-                        const method = isNew ? 'POST' : 'PUT';
-                        const payload = {
-                            orderId: item.orderId,
-                            ProductId: item.ProductId,
-                            ProductName: item.ProductName,
-                            Quantity: item.Quantity,
-                            UnitPrice: item.UnitPrice,
-                            ItemDescription: item.ItemDescription,
-                            DiscountPercentage: item.DiscountPercentage,
-                            DiscountAmount: item.DiscountAmount
-                        };
-                        console.log(`Saving item: ${item.OrderItemId || 'new'}, Method: ${method}, URL: ${url}, Payload:`, payload);
-                        return fetch(url, {
-                            method: method,
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify(payload)
-                        })
-                        .then(response => {
-                            console.log(`Item response for ${item.OrderItemId || 'new'}: Status ${response.status}, Headers:`, Object.fromEntries(response.headers));
-                            if (!response.ok) {
-                                return response.json().then(err => {
-                                    console.error(`Error details for ${item.OrderItemId || 'new'}:`, err);
-                                    throw new Error(`Failed to ${isNew ? 'create' : 'update'} item ${item.OrderItemId || 'new'}: ${response.status} "${err.title || JSON.stringify(err.errors) || 'Request failed'}"`);
-                                });
-                            }
-                            return response.json();
-                        });
-                    });
-
-                    Promise.all(itemPromises)
-                        .then(savedItems => {
-                            console.log('All items saved for orderId:', orderId, savedItems.map(i => ({ OrderItemId: i.OrderItemId || i.OrderItemId, ProductId: i.productId || i.ProductId })));
-                            console.log(`Updating Order: /api/Orders/${orderId}, Payload:`, OrderDto);
-                            return fetch(`/api/Orders/${orderId}`, {
-                                method: 'PUT',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify(OrderDto)
-                            });
-                        })
-                        .then(response => {
-                            console.log(`Order update response for orderId: ${orderId}, Status ${response.status}, Headers:`, Object.fromEntries(response.headers));
-                            if (!response.ok) {
-                                return response.json().then(err => {
-                                    console.error(`Order error details:`, err);
-                                    throw new Error(`Failed to update Order: ${response.status} "${err.title || JSON.stringify(err.errors) || 'Request failed'}"`);
-                                });
-                            }
-                            return response.json();
-                        })
-                        .then(data => {
-                            console.log('Order saved successfully for orderId:', orderId, data);
-                            alert('Árajánlat sikeresen mentve!');
-                            const modal = document.getElementById(`editOrderModal_${orderId}`);
-                            bootstrap.Modal.getInstance(modal).hide();
-                            window.location.reload();
-                        })
-                        .catch(error => {
-                            console.error('Save error for orderId:', orderId, error);
-                            alert('Hiba történt az árajánlat mentése közben: ' + error.message);
-                        });
-                }
-            }
-
-            // Initialize Event Listeners for a Order
-            function initializeEventListeners(orderId) {
-                // Add Row
-                const addButtons = document.querySelectorAll(`.add-item-row[data-Order-id="${orderId}"]`);
-                console.log('Found add-item-row buttons for orderId:', orderId, addButtons.length, 'Selectors:', Array.from(addButtons).map(b => b.outerHTML));
-                if (addButtons.length === 0) {
-                    console.error('No add-item-row buttons found for orderId:', orderId);
-                }
-                addButtons.forEach((button, index) => {
-                    button.removeEventListener('click', () => addItemRow(orderId));
-                    button.addEventListener('click', () => {
-                        console.log(`Add item button ${index} clicked for orderId: ${orderId}`);
-                        addItemRow(orderId);
-                    });
-                });
-
-                // Save Order
-                const saveButtons = document.querySelectorAll(`.save-Order[data-Order-id="${orderId}"]`);
-                console.log('Found save-Order buttons for orderId:', orderId, saveButtons.length, 'Selectors:', Array.from(saveButtons).map(b => b.outerHTML));
-                saveButtons.forEach((button, index) => {
-                    button.removeEventListener('click', () => saveOrder(orderId));
-                    button.addEventListener('click', () => {
-                        console.log(`Save Order button ${index} clicked for orderId: ${orderId}`);
-                        saveOrder(orderId);
-                    });
-                });
-
-                // Initialize existing rows
-                const productSelects = document.querySelectorAll(`#items-tbody_${orderId} .tom-select-product`);
-                console.log('Found tom-select-product selects for orderId:', orderId, productSelects.length);
-                productSelects.forEach(select => {
-                    initializeProductTomSelect(select, orderId);
-                    const row = select.closest('.Order-item-row');
-                    if (row) {
-                        initializeRowCalculations(row);
-                        initializeDescriptionToggle(row);
-                    }
-                });
-
-                const partnerSelects = document.querySelectorAll(`#OrderBaseInfoForm_${orderId} .tom-select`);
-                console.log('Found tom-select partner selects for orderId:', orderId, partnerSelects.length);
-                partnerSelects.forEach(select => {
-                    initializePartnerTomSelect(select, orderId);
-                });
-
-                initializeDeleteButtons(orderId);
-                initializeOrderDiscountCalculations(orderId);
-                calculateOrderTotals(orderId);
-                console.log('Event listeners initialized for orderId:', orderId);
-            }
-
-            // Initialize all modals
-            document.querySelectorAll('.modal[id^="editOrderModal_"]').forEach(modal => {
-                const orderId = modal.id.replace('editOrderModal_', '');
-                modal.addEventListener('shown.bs.modal', function () {
-                    console.log('Edit modal shown for orderId:', orderId);
-                    initializeEventListeners(orderId);
-                    calculateOrderTotals(orderId);
-                });
-            });
-
-            // Initialize new Order modal
-            const newOrderModal = document.getElementById('newOrderModal');
-            if (newOrderModal) {
-                newOrderModal.addEventListener('shown.bs.modal', function () {
-                    console.log('New Order modal shown for orderId: new');
-                    initializeEventListeners('new');
-                    calculateOrderTotals('new');
-                });
-            }
-        });
-    </script>
-}
 
 
     <script>
@@ -1606,93 +1601,66 @@
 
 }
 
-<!-- CSS Fix for Tom Select Placeholder and Layout -->
 <style>
 
-    .bg-success-dark {
-    background-color: #146c43 !important;
-    color: white;
-    }
-    .bg-primary-dark {
-        background-color: #0a58ca !important;
-        color: white;
-    }
-    .bg-info-dark {
-        background-color: #087990 !important;
-        color: white;
-    }
-    .ts-wrapper .ts-control > .placeholder {
-        color: #6c757d !important; /* Bootstrap secondary color */
-        opacity: 1 !important;
-    }
-    .ts-wrapper .ts-control {
-        min-height: calc(1.5em + 0.5rem + 2px); /* Smaller for clarity */
-    }
-    .table {
-        border-collapse: separate;
-    }
-    .table th, .table td {
-        padding: 12px 10px; /* More padding for breathing room */
-        vertical-align: middle;
-    }
-    .table thead th {
-        background-color: #e9ecef; /* Subtle header background */
-        font-weight: 600;
-    }
-    .Order-item-row {
-        background-color: #fff; /* White background for rows */
-        box-shadow: 0 1px 3px rgba(0,0,0,0.1); /* Subtle shadow for separation */
-    }
-    .form-control-sm, .form-select-sm {
-        font-size: 0.85rem; /* Smaller font for inputs */
-        padding: 0.25rem 0.5rem; /* Compact padding */
-    }
-    .input-group-sm .form-control, .input-group-sm .form-select {
-        height: 30px; /* Compact input group */
-    }
-    .input-group .form-control.discount-value, .input-group .form-control.Order-discount-value {
-        width: 80px; /* Smaller discount input */
-    }
-    .input-group .form-select.discount-type, .input-group .form-select.Order-discount-type {
-        width: 60px; /* Smaller discount type select */
-    }
-    .total-price, .Order-total-amount, .Order-final-total {
-        display: inline-block;
-        min-width: 80px;
-        text-align: right;
-        font-weight: 500;
-    }
-    .btn-sm {
-        padding: 0.2rem 0.4rem; /* Smaller buttons */
-        font-size: 0.8rem;
-    }
-    .edit-description, .remove-item-row {
-        margin-right: 6px;
-    }
-    .char-count {
-        font-weight: bold;
-    }
-    .description-row {
-        background-color: #f8f9fa; /* Light background for contrast */
-    }
-    .description-row .form-label {
-        font-weight: 500;
-        font-size: 0.9rem;
-    }
-    .description-row .mb-2 {
-        padding: 8px 10px; /* Reduced padding */
-    }
-    .description-row .form-control-sm {
-        font-size: 0.85rem;
-        resize: vertical; /* Allow vertical resize only */
-    }
-    .Order-total-row, .Order-discount-row {
-        font-weight: bold;
-        background-color: #f1f3f5; /* Slightly darker for totals */
-    }
-</style>
-
-<style>
+    .ts-wrapper.form-select {
+    width: 100%;
+    padding: 0;
+    position: relative;
+}
+.ts-control {
+    min-height: calc(1.5em + 0.75rem + 2px);
+    padding: 0.375rem 0.75rem;
+    font-size: 1rem;
+    border: 1px solid #ced4da;
+    border-radius: 0.25rem;
+    background-color: #fff;
+    cursor: pointer;
+}
+.ts-dropdown {
+    z-index: 1070 !important; /* Above Select2 (1060) and modal (1050) */
+    max-height: 200px;
+    overflow-y: auto;
+    border: 1px solid #ced4da;
+    border-radius: 0.25rem;
+    background-color: #fff;
+    display: none; /* Tom Select toggles */
+    visibility: visible !important;
+    opacity: 1 !important;
+    position: absolute;
+    width: 100%;
+    top: 100%;
+    left: 0;
+}
+.ts-dropdown.active {
+    display: block !important;
+}
+.ts-dropdown .option {
+    padding: 0.375rem 0.75rem;
+    cursor: pointer;
+}
+.ts-dropdown .option:hover {
+    background-color: #f8f9fa;
+}
+[data-theme="dark"] .ts-wrapper.form-select {
+    background-color: #2a2a2a;
+}
+[data-theme="dark"] .ts-control {
+    background-color: #333333 !important;
+    border-color: #666 !important;
+    color: #e0e0e0 !important;
+}
+[data-theme="dark"] .ts-dropdown {
+    background-color: #2a2a2a !important;
+    border-color: #666 !important;
+    color: #e0e0e0 !important;
+}
+[data-theme="dark"] .ts-dropdown .option {
+    color: #e0e0e0 !important;
+}
+[data-theme="dark"] .ts-dropdown .option:hover {
+    background-color: #3a3a3a !important;
+}
 
     .table .description-row {
         background-color: #f8f9fa; /* Light background for description row */

@@ -190,22 +190,25 @@ public async Task<OrderDto> UpdateOrderAsync(int OrderId, UpdateOrderDto OrderDt
             };
         }
 
-        public async Task<bool> DeleteOrderAsync(int OrderId)
-        {
-            var Order = await _context.Orders
-                .Include(q => q.OrderItems)
-                .FirstOrDefaultAsync(q => q.OrderId == OrderId);
+public async Task<bool> DeleteOrderAsync(int orderId)
+{
+    var order = await _context.Orders
+        .Include(q => q.OrderItems)
+        .FirstOrDefaultAsync(q => q.OrderId == orderId);
 
-            if (Order == null)
-            {
-                return false;
-            }
+    if (order == null)
+        return false;
 
-            _context.OrderItems.RemoveRange(Order.OrderItems);
-            _context.Orders.Remove(Order);
-            await _context.SaveChangesAsync();
-            return true;
-        }
+    // Remove other related entities if any
+    _context.OrderItems.RemoveRange(order.OrderItems);
+
+    // Add more as needed
+
+    _context.Orders.Remove(order);
+
+    await _context.SaveChangesAsync();
+    return true;
+}
 
 public async Task<OrderItemResponseDto> CreateOrderItemAsync(int OrderId, CreateOrderItemDto itemDto)
 {

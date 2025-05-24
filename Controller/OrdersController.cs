@@ -141,32 +141,71 @@ namespace Cloud9_2.Controllers
             }
         }
 
-        [HttpGet]
-        [ProducesResponseType(StatusCodes.Status200OK)]
-        [ProducesResponseType(StatusCodes.Status404NotFound)]
-        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-        public async Task<IActionResult> GetPartners()
+[HttpGet("api/partners")]
+[ProducesResponseType(StatusCodes.Status200OK)]
+[ProducesResponseType(StatusCodes.Status404NotFound)]
+[ProducesResponseType(StatusCodes.Status500InternalServerError)]
+public async Task<IActionResult> GetPartners(string term)
+{
+    try
+    {
+        _logger.LogInformation("Fetching partners with term: {term}", term);
+
+        var query = _context.Partners.AsQueryable();
+        if (!string.IsNullOrEmpty(term))
         {
-            try
-            {
-                _logger.LogInformation("Fetching all partners.");
-
-                var partners = await _orderService.GetPartnersAsync();
-                if (partners == null || !partners.Any())
-                {
-                    _logger.LogWarning("No partners found in the database.");
-                    return NotFound(new { message = "No partners found" });
-                }
-
-                _logger.LogInformation($"Returning {partners.Count} partners.");
-                return Ok(partners);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error fetching partners.");
-                return StatusCode(500, new { error = "Failed to retrieve partners.", details = ex.Message });
-            }
+            query = query.Where(p => p.Name.Contains(term, StringComparison.OrdinalIgnoreCase));
         }
+
+        var partners = await query
+            .Select(p => new { id = p.PartnerId, text = p.Name }) // Map to { id, text }
+            .Take(100)
+            .ToListAsync();
+
+        if (partners == null || !partners.Any())
+        {
+            _logger.LogWarning("No partners found for term: {term}", term);
+            return NotFound(new { message = "No partners found" });
+        }
+
+        _logger.LogInformation("Returning {count} partners.", partners.Count);
+        return Ok(partners);
+    }
+    catch (Exception ex)
+    {
+        _logger.LogError(ex, "Error fetching partners.");
+        return StatusCode(500, new { error = "Failed to retrieve partners.", details = ex.Message });
+    }
+}
+
+[HttpGet("api/partners/{id}")]
+[ProducesResponseType(StatusCodes.Status200OK)]
+[ProducesResponseType(StatusCodes.Status404NotFound)]
+[ProducesResponseType(StatusCodes.Status500InternalServerError)]
+public async Task<IActionResult> GetPartner(int id)
+{
+    try
+    {
+        var partner = await _context.Partners
+            .Where(p => p.PartnerId == id)
+            .Select(p => new { id = p.PartnerId, text = p.Name }) // Map to { id, text }
+            .FirstOrDefaultAsync();
+
+        if (partner == null)
+        {
+            _logger.LogWarning("Partner with ID {id} not found.", id);
+            return NotFound(new { message = $"Partner with ID {id} not found" });
+        }
+
+        _logger.LogInformation("Returning partner with ID {id}.", id);
+        return Ok(partner);
+    }
+    catch (Exception ex)
+    {
+        _logger.LogError(ex, "Error fetching partner with ID {id}.", id);
+        return StatusCode(500, new { error = "Failed to retrieve partner.", details = ex.Message });
+    }
+}
 
         [HttpGet("{id}")]
         [ProducesResponseType(StatusCodes.Status200OK)]

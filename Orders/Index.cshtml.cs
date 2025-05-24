@@ -44,6 +44,8 @@ namespace Cloud9_2.Pages.CRM.Orders
         public int TotalPages { get; set; }
         public int DistinctOrderIdCount { get; set; }
         public string NextOrderNumber { get; set; }
+        public int? SelectedPartnerId { get; set; } 
+        public string SelectedPartnerName { get; set; } = string.Empty;
         public Dictionary<string, string> StatusDisplayNames { get; set; } = new Dictionary<string, string>
         {
             { "Pending", "Függőben" },
@@ -78,6 +80,7 @@ public async Task OnGetAsync(int? pageNumber, string searchTerm, int? pageSize, 
 
             IQueryable<Order> OrdersQuery = _context.Orders
                 .Include(q => q.Partner)
+                .Include(p => p.Quote)
                 .Include(q => q.OrderItems)
                     .ThenInclude(qi => qi.Product);
 
@@ -223,6 +226,8 @@ public async Task OnGetAsync(int? pageNumber, string searchTerm, int? pageSize, 
 
         public async Task<IActionResult> OnGetPartnersAsync(string search)
         {
+            _logger.LogInformation("OnGetPartnersAsync called with search: {Search}", search ?? "null");
+
             try
             {
                 var partners = await _context.Partners
@@ -230,6 +235,7 @@ public async Task OnGetAsync(int? pageNumber, string searchTerm, int? pageSize, 
                     .Select(p => new { id = p.PartnerId, name = p.Name })
                     .Take(10)
                     .ToListAsync();
+                _logger.LogInformation("Retrieved {Count} partners for search: {Search}", partners.Count, search);
                 return new JsonResult(partners);
             }
             catch (Exception ex)

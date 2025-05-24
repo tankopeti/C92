@@ -1,8 +1,8 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Cloud9_2.Data;
-using Cloud9_2.Models;
-using Microsoft.Extensions.Logging;
+using System.Linq;
+using System.Threading.Tasks;
 
 namespace Cloud9_2.Controllers
 {
@@ -11,35 +11,42 @@ namespace Cloud9_2.Controllers
     public class CurrenciesController : ControllerBase
     {
         private readonly ApplicationDbContext _context;
-        private readonly ILogger<CurrenciesController> _logger;
 
-        public CurrenciesController(ApplicationDbContext context, ILogger<CurrenciesController> logger)
+        public CurrenciesController(ApplicationDbContext context)
         {
             _context = context;
-            _logger = logger;
         }
 
         [HttpGet]
-public async Task<IActionResult> OnGetCurrenciesAsync([FromQuery] string? search = "")
+        public async Task<IActionResult> GetCurrencies(string term = "")
         {
-            try
-            {
-                _logger.LogInformation("Fetching currencies with search: '{Search}'", search ?? "null");
-                var currencies = await _context.Currencies
-                .Where(p => string.IsNullOrEmpty(search) ||
-                            p.CurrencyName.Contains(search) ||
-                            (p.CurrencyName != null && p.CurrencyName.Contains(search)))
-                    .Select(c => new { id = c.CurrencyId, name = c.CurrencyName })
-                    .Take(10)
-                    .ToListAsync();
-                _logger.LogInformation("Found {Count} currencies: {@Currencies}", currencies.Count, currencies);
-                return new JsonResult(currencies) { StatusCode = 200 };
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error fetching currencies: {Message}", ex.Message);
-                return StatusCode(500, new { error = ex.Message });
-            }
+            var currencies = await _context.Currencies
+                .Where(c => string.IsNullOrEmpty(term) || c.CurrencyName.Contains(term))
+                .Select(c => new
+                {
+                    id = c.CurrencyId,
+                    text = c.CurrencyName
+                })
+                .ToListAsync();
+            return Ok(currencies);
         }
+
+        // [HttpGet("{id}")]
+        // public async Task<IActionResult> GetCurrency(int id)
+        // {
+        //     var currency = await _context.Currencies
+        //         .Where(c => c.CurrencyId == id)
+        //         .Select(c => new
+        //         {
+        //             id = c.CurrencyId,
+        //             text = c.CurrencyName
+        //         })
+        //         .FirstOrDefaultAsync();
+        //     if (currency == null)
+        //     {
+        //         return NotFound(new { message = $"Currency with ID {id} not found" });
+        //     }
+        //     return Ok(currency);
+        // }
     }
 }

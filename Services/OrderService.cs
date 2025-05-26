@@ -24,19 +24,60 @@ namespace Cloud9_2.Services
 
         public async Task<string> GetNextOrderNumberAsync()
         {
-            var lastOrderNumber = await _context.Orders
-                .Where(q => q.OrderNumber != null && q.OrderNumber.StartsWith("Order-"))
-                .OrderByDescending(q => q.OrderNumber)
-                .Select(q => q.OrderNumber)
-                .FirstOrDefaultAsync();
-
-            string nextNumber = "Order-0001";
-            if (!string.IsNullOrEmpty(lastOrderNumber) && int.TryParse(lastOrderNumber.Replace("Order-", ""), out int lastNumber))
+            try
             {
-                nextNumber = $"Order-{lastNumber + 1:D4}";
-            }
+                if (_context == null)
+                {
+                    _logger.LogError("Database context is null");
+                    throw new InvalidOperationException("Database context is not initialized");
+                }
 
-            return nextNumber;
+                var lastOrderNumber = await _context.Orders
+                    .Where(q => q.OrderNumber != null && q.OrderNumber.StartsWith("TestOrder-"))
+                    .OrderByDescending(q => q.OrderNumber)
+                    .Select(q => q.OrderNumber)
+                    .FirstOrDefaultAsync();
+
+                string baseNumber = "TestOrder-0001";
+                if (!string.IsNullOrEmpty(lastOrderNumber))
+                {
+                    var parts = lastOrderNumber.Split('-');
+                    if (parts.Length >= 2 && int.TryParse(parts[1], out int lastNumber))
+                    {
+                        baseNumber = $"TestOrder-{lastNumber + 1:D4}";
+                    }
+                    else
+                    {
+                        _logger.LogWarning("Failed to parse lastOrderNumber: {LastOrderNumber}", lastOrderNumber);
+                    }
+                }
+
+                string nextNumber;
+                var random = new Random();
+                int attempts = 0;
+                const int maxAttempts = 5;
+
+                do
+                {
+                    if (attempts++ >= maxAttempts)
+                    {
+                        _logger.LogError("Failed to generate unique order number after {MaxAttempts} attempts", maxAttempts);
+                        throw new InvalidOperationException("Unable to generate unique order number");
+                    }
+
+                    var randomSuffix = random.Next(0, 10000).ToString("D4");
+                    nextNumber = $"{baseNumber}-{randomSuffix}";
+                }
+                while (await _context.Orders.AnyAsync(o => o.OrderNumber == nextNumber));
+
+                _logger.LogInformation("Generated next order number: {NextNumber}", nextNumber);
+                return nextNumber;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error generating next order number: {Message}", ex.Message);
+                throw;
+            }
         }
 
         public async Task<bool> OrderExistsAsync(int OrderId)
@@ -44,48 +85,75 @@ namespace Cloud9_2.Services
             return await _context.Orders.AnyAsync(q => q.OrderId == OrderId);
         }
 
-        // public async Task<List<OrderItemDto>> GetOrderItemsAsync(int OrderId)
-        // {
-        //     return await _context.OrderItems
-        //         .Where(qi => qi.OrderId == OrderId)
-        //         .Select(qi => new OrderItemDto
-        //         {
-        //             OrderItemId = qi.OrderItemId,
-        //             OrderId = qi.OrderId,
-        //             ProductId = qi.ProductId,
-        //             Quantity = qi.Quantity,
-        //             UnitPrice = qi.UnitPrice,
-        //             Description = qi.Description,
-        //             DiscountPercentage = qi.DiscountPercentage,
-        //             DiscountAmount = qi.DiscountAmount,
-        //             TotalPrice = qi.Quantity * qi.UnitPrice
-        //         })
-        //         .ToListAsync();
-        // }
-
-        public async Task<OrderDto> CreateOrderAsync(CreateOrderDto OrderDto)
+        public async Task<OrderDto> CreateOrderAsync(CreateOrderDto orderDto)
         {
-            var Order = new Order
+            try
             {
-                OrderNumber = await GetNextOrderNumberAsync(),
-                PartnerId = OrderDto.PartnerId,
-                OrderDate = OrderDto.OrderDate ?? DateTime.UtcNow,
-                Status = "Draft",
-                TotalAmount = OrderDto.TotalAmount
-            };
+                if (orderDto.PartnerId <= 0)
+                    throw new ArgumentException("PartnerId is required.");
+                if (orderDto.OrderItems == null || !orderDto.OrderItems.Any())
+                    throw new ArgumentException("At least one order item is required.");
 
-            _context.Orders.Add(Order);
-            await _context.SaveChangesAsync();
+                var order = new Order
+                {
+                    OrderNumber = await GetNextOrderNumberAsync(), // Always generate
+                    PartnerId = orderDto.PartnerId,
+                    CurrencyId = orderDto.CurrencyId,
+                    SiteId = orderDto.SiteId,
+                    QuoteId = orderDto.QuoteId,
+                    OrderDate = orderDto.OrderDate ?? DateTime.UtcNow,
+                    Deadline = orderDto.Deadline,
+                    DeliveryDate = orderDto.DeliveryDate,
+                    ReferenceNumber = orderDto.ReferenceNumber,
+                    OrderType = orderDto.OrderType,
+                    CompanyName = orderDto.CompanyName,
+                    TotalAmount = orderDto.TotalAmount ?? 0,
+                    DiscountPercentage = orderDto.DiscountPercentage,
+                    DiscountAmount = orderDto.DiscountAmount,
+                    PaymentTerms = orderDto.PaymentTerms,
+                    ShippingMethod = orderDto.ShippingMethod,
+                    SalesPerson = orderDto.SalesPerson,
+                    Subject = orderDto.Subject,
+                    Description = orderDto.Description,
+                    DetailedDescription = orderDto.DetailedDescription,
+                    Status = orderDto.Status ?? "Draft",
+                    CreatedBy = orderDto.CreatedBy,
+                    CreatedDate = orderDto.CreatedDate ?? DateTime.UtcNow,
+                    ModifiedBy = orderDto.ModifiedBy,
+                    ModifiedDate = orderDto.ModifiedDate,
+                    OrderItems = new List<OrderItem>()
+                };
 
-            return new OrderDto
+                foreach (var itemDto in orderDto.OrderItems)
+                {
+                    if (itemDto.ProductId <= 0)
+                        throw new ArgumentException($"Invalid ProductId for order item: {itemDto.ProductId}");
+                    var orderItem = new OrderItem
+                    {
+                        ProductId = itemDto.ProductId,
+                        Quantity = itemDto.Quantity,
+                        UnitPrice = itemDto.UnitPrice,
+                        DiscountPercentage = itemDto.DiscountPercentage,
+                        DiscountAmount = itemDto.DiscountAmount,
+                        Description = itemDto.Description
+                    };
+                    order.OrderItems.Add(orderItem);
+                }
+
+                _context.Orders.Add(order);
+                await _context.SaveChangesAsync();
+
+                return new OrderDto
+                {
+                    OrderId = order.OrderId,
+                    OrderNumber = order.OrderNumber
+                };
+            }
+            catch (Exception ex)
             {
-                OrderId = Order.OrderId,
-                OrderNumber = Order.OrderNumber,
-                PartnerId = Order.PartnerId,
-                OrderDate = Order.OrderDate,
-                Status = Order.Status,
-                TotalAmount = Order.TotalAmount
-            };
+                _logger.LogError(ex, "Error creating order: {Message}", ex.Message);
+                throw;
+            }
         }
 
         public async Task<List<PartnerDto>> GetPartnersAsync()
@@ -247,7 +315,7 @@ public async Task<OrderItemResponseDto> CreateOrderItemAsync(int OrderId, Create
         ProductId = itemDto.ProductId,
         Quantity = itemDto.Quantity,
         UnitPrice = itemDto.UnitPrice,
-        Description = itemDto.ItemDescription ?? "", // Ensure empty string if null
+        Description = itemDto.Description ?? "", // Ensure empty string if null
         DiscountPercentage = itemDto.DiscountPercentage,
         DiscountAmount = itemDto.DiscountAmount
     };
@@ -465,6 +533,75 @@ public async Task<List<OrderDto>> GetOrdersAsync(string searchTerm, string statu
 
             return orders;
         }
+
+    public async Task<OrderDto> GetOrderAsync(int orderId)
+{
+    try
+    {
+        _logger.LogInformation("Fetching order with ID: {OrderId}", orderId);
+
+        var order = await _context.Orders
+            .Include(o => o.OrderItems) // Include related OrderItems
+            .Where(o => o.OrderId == orderId)
+            .Select(o => new OrderDto
+            {
+                OrderId = o.OrderId,
+                OrderNumber = o.OrderNumber,
+                PartnerId = o.PartnerId,
+                CurrencyId = o.CurrencyId,
+                SiteId = o.SiteId,
+                QuoteId = o.QuoteId,
+                OrderDate = o.OrderDate,
+                Deadline = o.Deadline,
+                DeliveryDate = o.DeliveryDate,
+                ReferenceNumber = o.ReferenceNumber,
+                OrderType = o.OrderType,
+                CompanyName = o.CompanyName,
+                TotalAmount = o.TotalAmount,
+                DiscountPercentage = o.DiscountPercentage,
+                DiscountAmount = o.DiscountAmount,
+                PaymentTerms = o.PaymentTerms,
+                ShippingMethod = o.ShippingMethod,
+                SalesPerson = o.SalesPerson,
+                Subject = o.Subject,
+                Description = o.Description,
+                DetailedDescription = o.DetailedDescription,
+                Status = o.Status,
+                CreatedBy = o.CreatedBy,
+                CreatedDate = o.CreatedDate,
+                ModifiedBy = o.ModifiedBy,
+                ModifiedDate = o.ModifiedDate,
+                OrderItems = o.OrderItems.Select(i => new OrderItemDto
+                {
+                    OrderItemId = i.OrderItemId,
+                    ProductId = i.ProductId,
+                    Quantity = i.Quantity,
+                    UnitPrice = i.UnitPrice,
+                    DiscountPercentage = i.DiscountPercentage,
+                    DiscountAmount = i.DiscountAmount,
+                    Description = i.Description,
+                    OrderId = i.OrderId
+                }).ToList()
+            })
+            .FirstOrDefaultAsync();
+
+        if (order == null)
+        {
+            _logger.LogWarning("Order not found with ID: {OrderId}", orderId);
+        }
+        else
+        {
+            _logger.LogInformation("Retrieved order with ID: {OrderId}", orderId);
+        }
+
+        return order;
+    }
+    catch (Exception ex)
+    {
+        _logger.LogError(ex, "Error fetching order with ID: {OrderId}", orderId);
+        throw;
+    }
+}
 
         public async Task<OrderDto> GetOrderByIdAsync(int orderId)
         {

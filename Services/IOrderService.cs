@@ -21,5 +21,6 @@ namespace Cloud9_2.Services
         Task<bool> DeleteOrderItemAsync(int OrderId, int OrderItemId);
         Task<OrderDto> CopyOrderAsync(int OrderId);
         Task<List<OrderDto>> GetOrdersAsync(string searchTerm, string statusFilter, string sortBy, int skip, int take);
+        Task<OrderDto> GetOrderAsync(int orderId);
     }
 }

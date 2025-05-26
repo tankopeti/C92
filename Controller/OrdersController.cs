@@ -36,22 +36,31 @@ namespace Cloud9_2.Controllers
                 _context != null ? "Not null" : "Null", _orderService != null ? "Not null" : "Null");
         }
 
-        [HttpGet("nextorderNumber")]
-        [ProducesResponseType(StatusCodes.Status200OK)]
-        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-        public async Task<IActionResult> GetNextorderNumber()
+    [HttpGet("next-number")]
+        public async Task<IActionResult> GetNextOrderNumber()
         {
             try
             {
-                _logger.LogInformation("Generating next order number.");
-                var nextNumber = await _orderService.GetNextOrderNumberAsync();
-                _logger.LogInformation("Generated next order number: {NextNumber}", nextNumber);
-                return Ok(new { orderNumber = nextNumber });
+                if (_orderService == null)
+                {
+                    _logger.LogError("OrderService is null");
+                    return StatusCode(500, new { error = "Service configuration error" });
+                }
+
+                var orderNumber = await _orderService.GetNextOrderNumberAsync();
+                if (string.IsNullOrEmpty(orderNumber))
+                {
+                    _logger.LogError("GetNextOrderNumberAsync returned null or empty");
+                    return StatusCode(500, new { error = "Invalid order number generated" });
+                }
+
+                _logger.LogInformation("Generated order number: {OrderNumber}", orderNumber);
+                return Ok(new { orderNumber });
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error generating next order number");
-                return StatusCode(500, new { error = "Failed to generate order number" });
+                _logger.LogError(ex, "Failed to get next order number: {Message}", ex.Message);
+                return StatusCode(500, new { error = $"Failed to get order number: {ex.Message}" });
             }
         }
 
@@ -83,70 +92,102 @@ namespace Cloud9_2.Controllers
         }
 
         [HttpPost]
-        [ProducesResponseType(StatusCodes.Status201Created)]
-        [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-        public async Task<IActionResult> Createorder([FromBody] CreateOrderDto orderDto)
+        public async Task<IActionResult> CreateOrder([FromBody] CreateOrderDto orderDto)
         {
-            if (!ModelState.IsValid)
-            {
-                _logger.LogWarning("Invalid order data submitted: {@orderDto}", orderDto);
-                return BadRequest(ModelState);
-            }
-
             try
             {
-                _logger.LogInformation("Creating new order for partner ID: {PartnerId}", orderDto.PartnerId);
+                if (!ModelState.IsValid)
+                {
+                    _logger.LogWarning("Invalid model state for CreateOrder: {Errors}", 
+                        ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage));
+                    return BadRequest(ModelState);
+                }
+
                 var order = await _orderService.CreateOrderAsync(orderDto);
-                _logger.LogInformation("Created order with ID: {orderId}", order.OrderId);
-                return CreatedAtAction(nameof(Getorder), new { orderId = order.OrderId }, order);
+                _logger.LogInformation("Order created successfully: {OrderNumber}", order.OrderNumber);
+                return Ok(order);
+            }
+            catch (ArgumentException ex)
+            {
+                _logger.LogError(ex, "Validation error in CreateOrder: {Message}", ex.Message);
+                return BadRequest(new { error = ex.Message });
+            }
+            catch (DbUpdateException ex)
+            {
+                _logger.LogError(ex, "Database error in CreateOrder: {Message}", ex.InnerException?.Message ?? ex.Message);
+                return StatusCode(500, new { error = $"Database error: {ex.InnerException?.Message ?? ex.Message}" });
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error creating order");
-                return StatusCode(500, new { error = "Failed to create order" });
+                _logger.LogError(ex, "Unexpected error in CreateOrder: {Message}", ex.Message);
+                return StatusCode(500, new { error = $"Failed to create order: {ex.Message}" });
             }
         }
 
         [HttpGet("{orderId}")]
         [ProducesResponseType(StatusCodes.Status200OK)]
-        [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-        public async Task<IActionResult> Getorder(int orderId)
+        public async Task<IActionResult> GetOrder(int orderId)
         {
-            if (orderId <= 0)
-            {
-                _logger.LogWarning("Invalid order ID received: {orderId}", orderId);
-                return BadRequest(new { error = "Invalid order ID. It must be a positive integer." });
-            }
-
             try
             {
-                _logger.LogInformation("Fetching order ID: {orderId}", orderId);
-
-                var order = await _orderService.GetOrderItemsAsync(orderId);
+                _logger.LogInformation("Fetching order with ID: {OrderId}", orderId);
+                var order = await _orderService.GetOrderAsync(orderId);
                 if (order == null)
                 {
-                    _logger.LogWarning("order not found: {orderId}", orderId);
-                    return NotFound(new { error = $"order with ID {orderId} not found" });
+                    _logger.LogWarning("Order not found with ID: {OrderId}", orderId);
+                    return NotFound(new { error = $"Order with ID {orderId} not found" });
                 }
-
+                _logger.LogInformation("Retrieved order with ID: {OrderId}", orderId);
                 return Ok(order);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error fetching order ID: {orderId}", orderId);
+                _logger.LogError(ex, "Error fetching order with ID: {OrderId}", orderId);
                 return StatusCode(500, new { error = "Failed to retrieve order" });
             }
         }
 
-[HttpGet("api/partners")]
-[ProducesResponseType(StatusCodes.Status200OK)]
-[ProducesResponseType(StatusCodes.Status404NotFound)]
-[ProducesResponseType(StatusCodes.Status500InternalServerError)]
-public async Task<IActionResult> GetPartners(string term)
-{
+        [HttpGet]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+        public async Task<IActionResult> GetOrders(
+            [FromQuery] string searchTerm = "",
+            [FromQuery] string statusFilter = "",
+            [FromQuery] string sortBy = "",
+            [FromQuery] int skip = 0,
+            [FromQuery] int take = 10)
+        {
+            try
+            {
+                _logger.LogInformation("Fetching orders with searchTerm: {SearchTerm}, statusFilter: {StatusFilter}, sortBy: {SortBy}, skip: {Skip}, take: {Take}",
+                    searchTerm, statusFilter, sortBy, skip, take);
+
+                if (skip < 0 || take <= 0)
+                {
+                    _logger.LogWarning("Invalid pagination parameters: skip={Skip}, take={Take}", skip, take);
+                    return BadRequest(new { error = "Invalid pagination parameters" });
+                }
+
+                var orders = await _orderService.GetOrdersAsync(searchTerm, statusFilter, sortBy, skip, take);
+                _logger.LogInformation("Retrieved {OrderCount} orders", orders.Count);
+                return Ok(orders);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error fetching orders");
+                return StatusCode(500, new { error = "Failed to retrieve orders" });
+            }
+        }
+
+    [HttpGet("api/partners")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+    public async Task<IActionResult> GetPartners(string term)
+    {
     try
     {
         _logger.LogInformation("Fetching partners with term: {term}", term);
@@ -328,62 +369,21 @@ public async Task<IActionResult> GetPartner(int id)
     }
 
 
-[HttpPost("{orderId}/Items")]
-[ProducesResponseType(StatusCodes.Status200OK)]
-[ProducesResponseType(StatusCodes.Status400BadRequest)]
-[ProducesResponseType(StatusCodes.Status404NotFound)]
-[ProducesResponseType(StatusCodes.Status500InternalServerError)]
-public async Task<IActionResult> CreateorderItem(int orderId, [FromBody] OrderItemDto itemDto)
-{
-    _logger.LogInformation("CreateorderItem called for orderId: {orderId}, ItemDto: {ItemDto}", 
-        orderId, JsonSerializer.Serialize(itemDto));
-
-    if (itemDto == null)
+    [HttpPost("{orderId}/Items")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+    public async Task<IActionResult> CreateorderItem(int orderId, [FromBody] OrderItemDto itemDto)
     {
-        _logger.LogWarning("CreateorderItem received null ItemDto for orderId: {orderId}", orderId);
-        return BadRequest(new { error = "Érvénytelen tétel adatok" });
-    }
+        _logger.LogInformation("CreateorderItem called for orderId: {orderId}, ItemDto: {ItemDto}", 
+            orderId, JsonSerializer.Serialize(itemDto));
 
-    if (!ModelState.IsValid)
-    {
-        var errors = ModelState
-            .Where(x => x.Value.Errors.Count > 0)
-            .ToDictionary(
-                kvp => kvp.Key,
-                kvp => kvp.Value.Errors.Select(e => e.ErrorMessage).ToArray()
-            );
-        _logger.LogWarning("ModelState validation failed for orderId: {orderId}, Errors: {Errors}", 
-            orderId, JsonSerializer.Serialize(errors));
-        return BadRequest(new { error = "Érvénytelen adatok", details = errors });
-    }
-
-    try
-    {
-        if (_context == null)
+        if (itemDto == null)
         {
-            _logger.LogError("Database context is null for CreateorderItem orderId: {orderId}", orderId);
-            return StatusCode(500, new { error = "Adatbázis kapcsolat nem érhető el" });
+            _logger.LogWarning("CreateorderItem received null ItemDto for orderId: {orderId}", orderId);
+            return BadRequest(new { error = "Érvénytelen tétel adatok" });
         }
-
-        var createDto = new CreateOrderItemDto
-        {
-            ProductId = itemDto.ProductId,
-            Quantity = itemDto.Quantity,
-            UnitPrice = itemDto.UnitPrice,
-            Description = itemDto.Description ?? "", // Convert null to empty string
-            DiscountPercentage = itemDto.DiscountPercentage,
-            DiscountAmount = itemDto.DiscountAmount
-        };
-
-        // Validate createDto manually
-        if (createDto.ProductId <= 0)
-            ModelState.AddModelError("ProductId", "ProductId must be a positive number");
-        if (createDto.Quantity <= 0)
-            ModelState.AddModelError("Quantity", "Quantity must be greater than 0");
-        if (createDto.UnitPrice < 0)
-            ModelState.AddModelError("UnitPrice", "UnitPrice cannot be negative");
-        if (createDto.OrderId <= 0)
-            ModelState.AddModelError("orderId", "orderId must be a positive number");
 
         if (!ModelState.IsValid)
         {
@@ -393,39 +393,80 @@ public async Task<IActionResult> CreateorderItem(int orderId, [FromBody] OrderIt
                     kvp => kvp.Key,
                     kvp => kvp.Value.Errors.Select(e => e.ErrorMessage).ToArray()
                 );
-            _logger.LogWarning("Manual validation failed for orderId: {orderId}, Errors: {Errors}", 
+            _logger.LogWarning("ModelState validation failed for orderId: {orderId}, Errors: {Errors}", 
                 orderId, JsonSerializer.Serialize(errors));
             return BadRequest(new { error = "Érvénytelen adatok", details = errors });
         }
 
-        var result = await _orderService.CreateOrderItemAsync(orderId, createDto);
-        if (result == null)
+        try
         {
-            _logger.LogWarning("order not found or invalid data for orderId: {orderId}", orderId);
-            return NotFound(new { error = $"Az árajánlat nem található vagy érvénytelen adatok: order ID {orderId}" });
+            if (_context == null)
+            {
+                _logger.LogError("Database context is null for CreateorderItem orderId: {orderId}", orderId);
+                return StatusCode(500, new { error = "Adatbázis kapcsolat nem érhető el" });
+            }
+
+            var createDto = new CreateOrderItemDto
+            {
+                ProductId = itemDto.ProductId,
+                Quantity = itemDto.Quantity,
+                UnitPrice = itemDto.UnitPrice,
+                Description = itemDto.Description ?? "", // Convert null to empty string
+                DiscountPercentage = itemDto.DiscountPercentage,
+                DiscountAmount = itemDto.DiscountAmount
+            };
+
+            // Validate createDto manually
+            if (createDto.ProductId <= 0)
+                ModelState.AddModelError("ProductId", "ProductId must be a positive number");
+            if (createDto.Quantity <= 0)
+                ModelState.AddModelError("Quantity", "Quantity must be greater than 0");
+            if (createDto.UnitPrice < 0)
+                ModelState.AddModelError("UnitPrice", "UnitPrice cannot be negative");
+            if (createDto.OrderId <= 0)
+                ModelState.AddModelError("orderId", "orderId must be a positive number");
+
+            if (!ModelState.IsValid)
+            {
+                var errors = ModelState
+                    .Where(x => x.Value.Errors.Count > 0)
+                    .ToDictionary(
+                        kvp => kvp.Key,
+                        kvp => kvp.Value.Errors.Select(e => e.ErrorMessage).ToArray()
+                    );
+                _logger.LogWarning("Manual validation failed for orderId: {orderId}, Errors: {Errors}", 
+                    orderId, JsonSerializer.Serialize(errors));
+                return BadRequest(new { error = "Érvénytelen adatok", details = errors });
+            }
+
+            var result = await _orderService.CreateOrderItemAsync(orderId, createDto);
+            if (result == null)
+            {
+                _logger.LogWarning("order not found or invalid data for orderId: {orderId}", orderId);
+                return NotFound(new { error = $"Az árajánlat nem található vagy érvénytelen adatok: order ID {orderId}" });
+            }
+
+            _logger.LogInformation("Created order item ID: {orderItemId} for order ID: {orderId}", result.OrderItemId, orderId);
+            return Ok(result);
         }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Validation error for order ID: {orderId}", orderId);
+            return BadRequest(new { error = ex.Message });
+        }
+        catch (DbUpdateException ex)
+        {
+            _logger.LogError(ex, "Database error creating order item for orderId: {orderId}", orderId);
+            return BadRequest(new { error = "Adatbázis hiba: " + (ex.InnerException?.Message ?? ex.Message) });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Unexpected error creating order item for orderId: {orderId}", orderId);
+            return StatusCode(500, new { error = "Nem sikerült a tétel létrehozása: " + ex.Message });
+        }
+    }
 
-        _logger.LogInformation("Created order item ID: {orderItemId} for order ID: {orderId}", result.OrderItemId, orderId);
-        return Ok(result);
-    }
-    catch (ArgumentException ex)
-    {
-        _logger.LogWarning(ex, "Validation error for order ID: {orderId}", orderId);
-        return BadRequest(new { error = ex.Message });
-    }
-    catch (DbUpdateException ex)
-    {
-        _logger.LogError(ex, "Database error creating order item for orderId: {orderId}", orderId);
-        return BadRequest(new { error = "Adatbázis hiba: " + (ex.InnerException?.Message ?? ex.Message) });
-    }
-    catch (Exception ex)
-    {
-        _logger.LogError(ex, "Unexpected error creating order item for orderId: {orderId}", orderId);
-        return StatusCode(500, new { error = "Nem sikerült a tétel létrehozása: " + ex.Message });
-    }
-}
-
-[HttpPut("{orderId}/Items/{orderItemId}")]
+    [HttpPut("{orderId}/Items/{orderItemId}")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -532,7 +573,7 @@ public async Task<IActionResult> CreateorderItem(int orderId, [FromBody] OrderIt
 
                 var copiedorder = await _orderService.CopyOrderAsync(orderId);
                 _logger.LogInformation("Copied order to new order ID: {NeworderId}", copiedorder.OrderId);
-                return CreatedAtAction(nameof(Getorder), new { orderId = copiedorder.OrderId }, copiedorder);
+                return CreatedAtAction(nameof(GetOrder), new { orderId = copiedorder.OrderId }, copiedorder);
             }
             catch (Exception ex)
             {

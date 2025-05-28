@@ -7,5 +7,7 @@ namespace Cloud9_2.Models
     {
         public bool? MustChangePassword { get; set; } = false;
         public bool? Disabled { get; set; } = false;
+
+        public ICollection<CustomerCommunication> CustomerCommunications { get; set; } = new List<CustomerCommunication>();
     }
 }

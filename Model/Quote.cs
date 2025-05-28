@@ -94,11 +94,12 @@ namespace Cloud9_2.Models
         [StringLength(100)]
         [Display(Name = "Referenciaszám")]
         public string? ReferenceNumber { get; set; }
-        
+
         // Navigation property for history
         public List<QuoteHistory>? QuoteHistories { get; set; }
 
         // Navigation property for Orders (one-to-many)
         public ICollection<Order> Orders { get; set; } = new List<Order>();
+        public ICollection<CustomerCommunication>? Communications { get; set; }
     }
 }

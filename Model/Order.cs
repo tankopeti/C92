@@ -122,6 +122,7 @@ namespace Cloud9_2.Models
 
         [ForeignKey("QuoteId")]
         public Quote? Quote { get; set; }
+        public ICollection<CustomerCommunication>? Communications { get; set; }
 
     }
 }

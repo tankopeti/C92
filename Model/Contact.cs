@@ -13,6 +13,8 @@ namespace Cloud9_2.Models
         public string? Comment { get; set; }
         public bool IsPrimary { get; set; }
 
+        public ICollection<CustomerCommunication> CustomerCommunications { get; set; } = new List<CustomerCommunication>();
+
         // Foreign key to Partner
         public int PartnerId { get; set; }
         public Partner Partner { get; set; }

@@ -116,7 +116,8 @@ namespace Cloud9_2.Models
         public List<PartnerType>? PartnerTypes { get; set; } // Multiple Types per partner e.g., "Client", "Vendor", "Both"
         public List<LeadSource>? LeadSources { get; set; } // Multiple Lead sources e.g., "Website", "Referral"
         public List<Quote>? Quotes { get; set; } 
-        public ICollection<Order> Orders { get; set; }
+        public ICollection<Order>? Orders { get; set; }
+        public ICollection<CustomerCommunication>? Communications { get; set; }
  
         // Constructor to initialize collections
         public Partner()

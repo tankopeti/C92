@@ -74,7 +74,7 @@
             {
                 @foreach (var lead in Model.Leads)
                 {
-                    <div class="card lead-card mb-3" data-lead-id="@lead.LeadId">
+                    <div class="card partner-card mb-3" data-lead-id="@lead.LeadId">
                         <div class="card-body p-2">
                             <div class="card-grid-row align-items-center">
                                 <div class="card-grid-cell lead-name-col">
@@ -604,7 +604,14 @@
             });
         });
     </script>
+    
     <style>
+        
+[data-theme="dark"] .partner-card {
+        background-color: #2a2a2a;
+        border: 1px solid #444;
+    }
+
         /* Page-specific styles to match card-based layout */
         .card-grid-header {
             padding: 0 15px 2px 15px;

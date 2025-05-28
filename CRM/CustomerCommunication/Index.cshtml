@@ -1,0 +1,1389 @@
+@page
+@using Microsoft.AspNetCore.Mvc.Rendering
+@using Cloud9_2.Models
+@using Cloud9_2.Data
+@using Microsoft.AspNetCore.Antiforgery
+@model Cloud9_2.Pages.CRM.CustomerCommunication.IndexModel
+@using System.Globalization
+
+@functions {
+    public string GetAntiForgeryToken()
+    {
+        var antiForgery = PageContext.HttpContext.RequestServices.GetService<IAntiforgery>();
+        var tokenSet = antiForgery?.GetAndStoreTokens(PageContext.HttpContext);
+        return tokenSet?.RequestToken ?? string.Empty;
+    }
+}
+@{
+    ViewData["Title"] = "Ügyfélkommunikáció";
+    Layout = "_Layout";
+}
+@await Html.PartialAsync("_CRMSidebar")
+
+<div class="right-content">
+    <div class="page-header-fixed-top">
+        <!-- Breadcrumb Navigation -->
+        <div class="d-flex justify-content-between align-items-center mb-2">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb bg-body-tertiary rounded-3 p-2 mb-0">
+                    <li class="breadcrumb-item"><a href="../../">Főoldal</a></li>
+                    <li class="breadcrumb-item"><a href="../">CRM Dashboard</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">Ügyfélkommunikáció</li>
+                    <li class="breadcrumb-item active" aria-current="page">@Model.Communications.Count of @Model.DistinctCommunicationIdCount kommunikáció (Page @Model.CurrentPage of @Model.TotalPages)</li>
+                </ol>
+            </nav>
+        </div>
+
+        <!-- Header with Buttons and Search -->
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <div class="d-flex align-items-center gap-2">
+                <button type="button" id="newCommunicationButton" class="btn-new" data-bs-toggle="modal" data-bs-target="#newCommunicationModal" aria-label="Új kommunikáció hozzáadása">
+                    <i class="bi bi-plus-circle me-1"></i>Új kommunikáció
+                </button>
+            </div>
+            <div class="d-flex align-items-center gap-2">
+                <form method="get" class="input-group input-group-sm" style="width: 250px;">
+                    <input type="text" class="form-control" placeholder="Keresés..." id="searchInput" name="SearchTerm" value="@Model.SearchTerm" autocomplete="off" aria-label="Keresés kommunikációk között">
+                    <input type="hidden" name="pageSize" value="@Model.PageSize" />
+                    <button class="btn btn-outline-secondary" type="submit" aria-label="Keresés indítása">
+                        <i class="bi bi-search"></i>
+                    </button>
+                </form>
+                <!-- Filter/Sort Dropdown -->
+                <div class="dropdown">
+                    <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Rendezési és szűrési opciók">
+                        <i class="bi bi-funnel me-1"></i>Rendezés/Szűrés
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                        <li><a class="dropdown-item" href="?SearchTerm=@Model.SearchTerm&PageSize=@Model.PageSize&TypeFilter=all&SortBy=CommunicationDate">Összes kommunikáció (Legújabb elöl)</a></li>
+                        <li><a class="dropdown-item" href="?SearchTerm=@Model.SearchTerm&PageSize=@Model.PageSize&TypeFilter=all&SortBy=CommunicationId">Rendezés: Kommunikáció ID (Csökkenő)</a></li>
+                        <li><a class="dropdown-item" href="?SearchTerm=@Model.SearchTerm&PageSize=@Model.PageSize&TypeFilter=all&SortBy=PartnerName">Partner neve</a></li>
+                        <li><a class="dropdown-item" href="?SearchTerm=@Model.SearchTerm&PageSize=@Model.PageSize&TypeFilter=email">Csak email</a></li>
+                        <li><a class="dropdown-item" href="?SearchTerm=@Model.SearchTerm&PageSize=@Model.PageSize&TypeFilter=Phone">Csak telefonhívás</a></li>
+                        <li><a class="dropdown-item" href="?SearchTerm=@Model.SearchTerm&PageSize=@Model.PageSize&TypeFilter=meeting">Csak találkozó</a></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Card Grid Header -->
+        <div class="card-grid-header">
+            <div class="card-grid-row">
+                <div class="card-grid-column communication-type-col">Típus</div>
+                <div class="card-grid-column communication-partner-col">Partner</div>
+                <div class="card-grid-column communication-date-col">Dátum</div>
+                <div class="card-grid-column communication-subject-col">Tárgy</div>
+                <div class="card-grid-column communication-status-col">Státusz</div>
+                <div class="card-grid-column actions-column">Műveletek</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Card Grid Body -->
+    <div class="scrollable-card-container">
+        <div class="card-grid-body">
+            @if (Model.Communications.Any())
+            {
+                @foreach (var communication in Model.Communications)
+                {
+                    <div class="card partner-card mb-3" data-communication-id="@communication.CustomerCommunicationId">
+                        <div class="card-body p-2">
+                            <div class="card-grid-row align-items-center">
+                                <div class="card-grid-cell communication-type-col">
+                                    <div class="">
+                                        @if (communication.CommunicationTypeName == "Email")
+                                        {
+                                                    <div class="fw-bold">E-mail</div>
+                                        }
+                                        else if (communication.CommunicationTypeName == "Phone")
+                                        {
+                                                    <div class="fw-bold">Telefon</div>    }
+                                        else if (communication.CommunicationTypeName == "Meeting")
+                                        {
+                                                    <div class="fw-bold">Találkozó</div>   }
+                                        else
+                                        {
+                                                    <div class="fw-bold">Egyéb</div>   }
+                                    </div>
+                                </div>
+                                <div class="card-grid-cell communication-partner-col">
+                                    <div class="communication-partner text-muted small">
+                                        <i class="bi bi-person me-1"></i>@(string.Join(" ", new[] { communication.FirstName, communication.LastName }.Where(s => !string.IsNullOrEmpty(s))))
+                                    </div>
+                                </div>
+                                <div class="card-grid-cell communication-date-col">
+                                    <div class="communication-date text-muted small">
+                                        <i class="bi bi-calendar me-1"></i>@(communication.Date.ToString("yyyy-MM-dd"))
+                                    </div>
+                                </div>
+                                <div class="card-grid-cell communication-subject-col">
+                                    <div class="communication-subject text-muted small">
+                                        @communication.Subject
+                                    </div>
+                                </div>
+                                <div class="card-grid-cell communication-status-col">
+                                    @{
+                                        var badgeClass = "badge bg-secondary";
+                                        if (communication.StatusName == "Open") badgeClass = "badge badge-pending";
+                                        else if (communication.StatusName == "Resolved") badgeClass = "badge badge-accepted";
+                                        else if (communication.StatusName == "Escalated") badgeClass = "badge badge-rejected";
+                                        else if (communication.StatusName == "InProgress") badgeClass = "badge badge-pending";
+                                    }
+                                    <span class="@badgeClass">@Model.StatusDisplayNames[communication.StatusName]</span>
+                                </div>
+                                <div class="card-grid-cell actions-cell">
+                                    <div class="btn-group btn-group-sm" role="group">
+                                        <button type="button" class="btn btn-outline-info btn-sm view-communication-btn"
+                                                data-bs-toggle="modal"
+                                                data-bs-target="#viewCommunicationModal_@communication.CustomerCommunicationId"
+                                                aria-label="Kommunikáció részleteinek megtekintése">
+                                            <i class="bi bi-eye"></i>
+                                        </button>
+                                        <div class="dropdown">
+                                            <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button"
+                                                    id="actionsDropdown_@communication.CustomerCommunicationId"
+                                                    data-bs-toggle="dropdown"
+                                                    aria-expanded="false"
+                                                    aria-label="További műveletek">
+                                                <i class="bi bi-three-dots-vertical"></i>
+                                            </button>
+                                            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="actionsDropdown_@communication.CustomerCommunicationId">
+                                                <li>
+                                                    <a class="dropdown-item" href="#"
+                                                    data-bs-toggle="modal"
+                                                    data-bs-target="#editCommunicationModal_@communication.CustomerCommunicationId">
+                                                        <i class="bi bi-pencil-square me-2"></i>Szerkesztés
+                                                    </a>
+                                                </li>
+                                                <li><a class="dropdown-item" href="#" onclick="copyCommunication(@communication.CustomerCommunicationId)"><i class="bi bi-copy me-2"></i>Másolás</a></li>
+                                                <li><hr class="dropdown-divider"></li>
+                                                <li><a class="dropdown-item text-danger" href="#" data-bs-toggle="modal" data-bs-target="#deleteCommunicationModal_@communication.CustomerCommunicationId"><i class="bi bi-trash me-2"></i>Törlés</a></li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Edit Communication Modal -->
+                    <div class="modal fade" id="editCommunicationModal_@communication.CustomerCommunicationId" tabindex="-1" aria-labelledby="editCommunicationModalLabel_@communication.CustomerCommunicationId" aria-hidden="true">
+                        <div class="modal-dialog modal-lg">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title" id="editCommunicationModalLabel_@communication.CustomerCommunicationId">Kommunikáció szerkesztése: @communication.Subject</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                </div>
+                                <div class="modal-body">
+                                    <form id="communicationForm_@communication.CustomerCommunicationId">
+                                        @Html.AntiForgeryToken()
+                                        <table class="table table-sm mt-3">
+                                            <tbody>
+                                                <tr>
+                                                    <th>Típus</th>
+                                                    <td>
+                                                        <select class="form-select" name="CommunicationTypeName" required>
+                                                            <option value="Email" selected="@(communication.CommunicationTypeName == "Email")">Email</option>
+                                                            <option value="Phone" selected="@(communication.CommunicationTypeName == "Phone")">Telefonhívás</option>
+                                                            <option value="Meeting" selected="@(communication.CommunicationTypeName == "Meeting")">Találkozó</option>
+                                                        </select>
+                                                    </td>
+                                                </tr>
+                                                <tr>
+                                                    <th>Partner</th>
+                                                    <td>
+                                                        <select name="ContactId" class="form-select tom-select" data-selected-id="@communication.ContactId" data-selected-text="@(string.Join(" ", new[] { communication.FirstName, communication.LastName }.Where(s => !string.IsNullOrEmpty(s))))" autocomplete="off" required>
+                                                            <option value=""></option>
+                                                        </select>
+                                                    </td>
+                                                </tr>
+                                                <tr>
+                                                    <th>Dátum</th>
+                                                    <td><input type="date" class="form-control" name="Date" value="@(communication.Date.ToString("yyyy-MM-dd"))" required></td>
+                                                </tr>
+                                                <tr>
+                                                    <th>Tárgy</th>
+                                                    <td><input type="text" class="form-control" name="Subject" value="@communication.Subject" required maxlength="1000"></td>
+                                                </tr>
+                                                <tr>
+                                                    <th>Tartalom</th>
+                                                    <td><textarea class="form-control" name="Note" rows="6" maxlength="2000">@communication.Note</textarea></td>
+                                                </tr>
+                                                <tr>
+                                                    <th>Státusz</th>
+                                                    <td>
+                                                        <select class="form-select" name="StatusName" required>
+                                                            @foreach (var status in Model.StatusDisplayNames)
+                                                            {
+                                                                <option value="@status.Key" selected="@(communication.StatusName == status.Key)">@status.Value</option>
+                                                            }
+                                                        </select>
+                                                    </td>
+                                                </tr>
+                                                <tr>
+                                                    <th>Felelős</th>
+                                                    <td><input type="text" class="form-control" name="AgentName" value="@communication.AgentName" maxlength="100"></td>
+                                                </tr>
+                                                <tr>
+                                                    <th>Megjegyzések</th>
+                                                    <td><textarea class="form-control" name="Metadata" rows="4" maxlength="1000">@communication.Metadata</textarea></td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </form>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Bezár</button>
+                                    <button type="button" class="btn btn-primary save-communication" data-communication-id="@communication.CustomerCommunicationId">Mentés</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- View Communication Modal -->
+                    <div class="modal fade" id="viewCommunicationModal_@communication.CustomerCommunicationId" tabindex="-1" aria-labelledby="viewCommunicationModalLabel_@communication.CustomerCommunicationId" aria-hidden="true">
+                        <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title" id="viewCommunicationModalLabel_@communication.CustomerCommunicationId">Részletek: @communication.Subject</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Bezárás"></button>
+                                </div>
+                                <div class="modal-body">
+                                    <table class="table table-sm">
+                                        <tbody>
+                                            <tr>
+                                                <th>Kommunikáció ID</th>
+                                                <td>@communication.CustomerCommunicationId</td>
+                                            </tr>
+                                            <tr>
+                                                <th>Típus</th>
+                                                <td>@communication.CommunicationTypeName</td>
+                                            </tr>
+                                            <tr>
+                                                <th>Partner</th>
+                                                <td>@(string.Join(" ", new[] { communication.FirstName, communication.LastName }.Where(s => !string.IsNullOrEmpty(s))) ?? "Nincs partner megadva")</td>
+                                            </tr>
+                                            <tr>
+                                                <th>Dátum</th>
+                                                <td>@(communication.Date.ToString("yyyy-MM-dd") ?? "Nincs megadva")</td>
+                                            </tr>
+                                            <tr>
+                                                <th>Tárgy</th>
+                                                <td>@(string.IsNullOrEmpty(communication.Subject) ? "Nincs megadva" : communication.Subject)</td>
+                                            </tr>
+                                            <tr>
+                                                <th>Tartalom</th>
+                                                <td>@(string.IsNullOrEmpty(communication.Note) ? "Nincs megadva" : communication.Note)</td>
+                                            </tr>
+                                            <tr>
+                                                <th>Státusz</th>
+                                                <td>@(Model.StatusDisplayNames.ContainsKey(communication.StatusName) ? Model.StatusDisplayNames[communication.StatusName] : "Ismeretlen")</td>
+                                            </tr>
+                                            <tr>
+                                                <th>Felelős</th>
+                                                <td>@(string.IsNullOrEmpty(communication.AgentName) ? "Nincs megadva" : communication.AgentName)</td>
+                                            </tr>
+                                            <tr>
+                                                <th>Megjegyzések</th>
+                                                <td>@(string.IsNullOrEmpty(communication.Metadata) ? "Nincs megadva" : communication.Metadata)</td>
+                                            </tr>
+                                            <tr>
+                                                <th>Csatolmány</th>
+                                                <td>@(string.IsNullOrEmpty(communication.AttachmentPath) ? "Nincs megadva" : communication.AttachmentPath)</td>
+                                            </tr>
+                                            <tr>
+                                                <th>Partner ID</th>
+                                                <td>@(communication.PartnerId.HasValue ? communication.PartnerId.ToString() : "Nincs megadva")</td>
+                                            </tr>
+                                            <tr>
+                                                <th>Lead ID</th>
+                                                <td>@(communication.LeadId.HasValue ? communication.LeadId.ToString() : "Nincs megadva")</td>
+                                            </tr>
+                                            <tr>
+                                                <th>Árajánlat ID</th>
+                                                <td>@(communication.QuoteId.HasValue ? communication.QuoteId.ToString() : "Nincs megadva")</td>
+                                            </tr>
+                                            <tr>
+                                                <th>Rendelés ID</th>
+                                                <td>@(communication.OrderId.HasValue ? communication.OrderId.ToString() : "Nincs megadva")</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Bezárás</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Delete Communication Modal -->
+                    <div class="modal fade" id="deleteCommunicationModal_@communication.CustomerCommunicationId" tabindex="-1" aria-labelledby="deleteCommunicationModalLabel_@communication.CustomerCommunicationId" aria-hidden="true">
+                        <div class="modal-dialog modal-dialog-centered">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title" id="deleteCommunicationModalLabel_@communication.CustomerCommunicationId">Kommunikáció törlése</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Bezárás"></button>
+                                </div>
+                                <div class="modal-body">
+                                    <form id="deleteCommunicationForm_@communication.CustomerCommunicationId" method="post">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="communicationId" value="@communication.CustomerCommunicationId" autocomplete="off" />
+                                        <p>Biztosan törölni szeretné a következő kommunikációt: <strong>@communication.Subject</strong>?</p>
+                                        <div id="deleteWarning_@communication.CustomerCommunicationId" class="alert alert-warning" style="display: none;">
+                                            Ez a kommunikáció nem törölhető, mert kapcsolódó rekordok léteznek.
+                                        </div>
+                                    </form>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Mégse</button>
+                                    <button type="button" class="btn btn-danger confirm-delete-communication" data-communication-id="@communication.CustomerCommunicationId" aria-label="Kommunikáció törlése">Törlés</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                }
+            }
+            else
+            {
+                <div class="alert alert-warning text-center mt-3" role="alert">
+                    @if (!string.IsNullOrEmpty(Model.SearchTerm))
+                    {
+                        @:Nincs találat a "@Model.SearchTerm" keresésre az @Model.CurrentPage. oldalon.
+                    }
+                    else if (Model.TotalRecords > 0)
+                    {
+                        @:Nincs kommunikáció az @Model.CurrentPage. oldalon, de @Model.TotalRecords kommunikáció létezik. Próbáljon másik oldalt vagy szűrőt.
+                    }
+                    else
+                    {
+                        @:Nincs kommunikáció. <button type="button" class="btn btn-link alert-link p-0 align-baseline" data-bs-toggle="modal" data-bs-target="#newCommunicationModal" aria-label="Első kommunikáció létrehozása">Hozza létre az elsőt?</button>
+                    }
+                    <div class="mt-2 small text-muted">
+                        Debug: Page=@Model.CurrentPage, PageSize=@Model.PageSize, TotalRecords=@Model.TotalRecords, DistinctCommunicationIdCount=@Model.DistinctCommunicationIdCount, SearchTerm="@Model.SearchTerm"
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+    <!-- Pagination Footer -->
+    @await Html.PartialAsync("_PaginationFooter", new Cloud9_2.Models.PaginationViewModel
+    {
+        CurrentPage = Model.CurrentPage,
+        TotalPages = Model.TotalPages,
+        PageSize = Model.PageSize,
+        SearchTerm = Model.SearchTerm,
+        PageRoute = "./Index",
+        EntityName = "Communications"
+    })
+
+    <!-- New Communication Modal -->
+    <div class="modal fade" id="newCommunicationModal" tabindex="-1" aria-labelledby="newCommunicationModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="newCommunicationModalLabel">Új kommunikáció hozzáadása</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="communicationForm_new">
+                        <input type="hidden" name="createdBy" value="System">
+                        <input type="hidden" name="createdDate" value="@DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss")">
+                        <input type="hidden" name="modifiedBy" value="System">
+                        <input type="hidden" name="modifiedDate" value="@DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss")">
+                        <table class="table table-sm mt-3">
+                            <tbody>
+                                <tr>
+                                    <th>Típus</th>
+                                    <td>
+                                        <select class="form-select" name="CommunicationType" required>
+                                            <option value="" disabled selected>-- Válasszon típust --</option>
+                                            <option value="Email">Email</option>
+                                            <option value="Phone">Telefonhívás</option>
+                                            <option value="Meeting">Találkozó</option>
+                                        </select>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th>Partner</th>
+                                    <td>
+                                        <select name="PartnerId" class="form-select tom-select" data-selected-id="" data-selected-text="" autocomplete="off" required>
+                                            <option value="" disabled selected>-- Válasszon partnert --</option>
+                                        </select>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th>Dátum</th>
+                                    <td><input type="date" class="form-control" name="CommunicationDate" value="@DateTime.Today.ToString("yyyy-MM-dd")" required></td>
+                                </tr>
+                                <tr>
+                                    <th>Tárgy</th>
+                                    <td><input type="text" class="form-control" name="Subject" maxlength="200" required></td>
+                                </tr>
+                                <tr>
+                                    <th>Tartalom</th>
+                                    <td><textarea class="form-control" name="Content" rows="6" maxlength="2000"></textarea></td>
+                                </tr>
+                                <tr>
+                                    <th>Státusz</th>
+                                    <td>
+                            <select class="form-select" name="Status" required>
+                                <option value="" disabled selected>Kérem válasszon</option>
+                                @foreach (var status in Model.StatusDisplayNames)
+                                {
+                                    <option value="@status.Key">@status.Value</option>
+                                }
+                            </select>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th>Felelős</th>
+                                    <td><input type="text" class="form-control" name="ResponsiblePerson" maxlength="100"></td>
+                                </tr>
+                                <tr>
+                                    <th>Megjegyzések</th>
+                                    <td><textarea class="form-control" name="Notes" rows="4" maxlength="1000"></textarea></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Bezár</button>
+                    <button type="button" class="btn btn-primary save-communication" data-communication-id="new">Mentés</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="toastContainer" class="position-fixed bottom-0 end-0 p-3" style="z-index: 1055;"></div>
+</div>
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js" integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4=" crossorigin="anonymous"></script>
+<link href="https://cdn.jsdelivr.net/npm/tom-select@2.4.3/dist/css/tom-select.bootstrap5.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/tom-select@2.4.3/dist/js/tom-select.complete.min.js"></script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    console.log('Main script loaded');
+
+    // --- Filter/Sort Dropdown Logic ---
+    const filterItems = document.querySelectorAll('.dropdown-menu [data-filter]');
+    console.log('Found filter items:', filterItems.length);
+
+    filterItems.forEach(item => {
+        item.addEventListener('click', function (e) {
+            e.preventDefault();
+            const filter = this.getAttribute('data-filter');
+            const sort = this.getAttribute('data-sort');
+            console.log('Clicked filter/sort item:', { filter, sort });
+
+            let form = document.querySelector('form[asp-page="./Index"]') ||
+                       document.querySelector('form[action="/CRM/Communications"]') ||
+                       document.querySelector('form[action="/CRM/Communications/Index"]');
+
+            if (form) {
+                console.log('Form found, submitting:', { filter, sort });
+                form.querySelectorAll('input[name="TypeFilter"], input[name="SortBy"]').forEach(input => input.remove());
+
+                const typeInput = document.createElement('input');
+                typeInput.type = 'hidden';
+                typeInput.name = 'TypeFilter';
+                typeInput.value = filter === 'all' ? '' : filter;
+                form.appendChild(typeInput);
+
+                const sortInput = document.createElement('input');
+                sortInput.type = 'hidden';
+                sortInput.name = 'SortBy';
+                sortInput.value = sort;
+                form.appendChild(sortInput);
+
+                form.submit();
+            } else {
+                console.error('Form not found.');
+            }
+        });
+    });
+
+    // --- Status Mapping ---
+    const statusMapping = {
+        'Tervezett': 'Planned',
+        'Megtörtént': 'Completed',
+        'Lemondva': 'Cancelled',
+        'Planned': 'Planned',
+        'Completed': 'Completed',
+        'Cancelled': 'Cancelled'
+    };
+
+    // --- Utility Functions ---
+    function showAlert(message, type = 'danger') {
+        console.log('Displaying alert:', { message, type });
+        const toastContainer = document.getElementById('toastContainer');
+        const toastId = `toast_${Date.now()}`;
+        const toastHtml = `
+            <div id="${toastId}" class="toast custom-toast" role="alert" aria-live="polite" aria-atomic="true" data-bs-autohide="true" data-bs-delay="5000">
+                <div class="toast-header ${type === 'success' ? 'bg-success text-white' : 'bg-danger text-white'}">
+                    <strong class="me-auto">${type === 'success' ? 'Siker' : 'Hiba'}</strong>
+                    <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+                </div>
+                <div class="toast-body">${message}</div>
+            </div>
+        `;
+        toastContainer.innerHTML += toastHtml;
+        const toastElement = document.getElementById(toastId);
+        const toast = new bootstrap.Toast(toastElement);
+        toast.show();
+        toastElement.addEventListener('hidden.bs.toast', () => toastElement.remove());
+    }
+
+    function initializePartnerTomSelect(select, communicationId) {
+        const selectedId = select.dataset.selectedId || '';
+        const selectedText = select.dataset.selectedText || '';
+        console.log('Tom Select Partner Init for communicationId:', communicationId, 'selectedId:', selectedId, 'selectedText:', selectedText);
+
+        if (select.tomselect) {
+            select.tomselect.destroy();
+        }
+
+        const control = new TomSelect(select, {
+            valueField: 'id',
+            labelField: 'text',
+            searchField: 'text',
+            placeholder: '-- Válasszon partnert --',
+            allowEmptyOption: true,
+            maxOptions: 100,
+            load: function(query, Phoneback) {
+                const url = `/api/partners?term=${encodeURIComponent(query)}`;
+                console.log('Partner Search Query:', url);
+                fetch(url)
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error(`HTTP error: ${response.status}`);
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        console.log('API /api/partners Response:', data);
+                        if (Array.isArray(data)) {
+                            Phoneback(data);
+                        } else {
+                            Phoneback([]);
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Partner Search Error:', error);
+                        Phoneback([{ id: 0, text: 'Hiba: Nem sikerült betölteni a partnereket' }]);
+                    });
+            },
+            shouldLoad: function(query) {
+                return true;
+            },
+            render: {
+                option: function(data, escape) {
+                    return `<div>${escape(data.text)}</div>`;
+                },
+                item: function(data, escape) {
+                    return `<div>${escape(data.text)}</div>`;
+                },
+                no_results: function(data, escape) {
+                    return `<div class="no-results">Nincs találat "${escape(data.input)}"</div>`;
+                }
+            },
+            onInitialize: function() {
+                if (selectedId && selectedText) {
+                    this.addOption({ id: selectedId, text: selectedText });
+                    this.setValue(selectedId);
+                }
+                this.load('');
+            }
+        });
+
+        return control;
+    }
+
+async function saveCommunication(communicationId) {
+    const form = document.getElementById(`communicationForm_${communicationId}`);
+    if (!form) {
+        console.error('Form not found for communicationId:', communicationId);
+        showAlert('Hiba: Az űrlap nem található.', 'danger');
+        return;
+    }
+
+    const formData = new FormData(form);
+    const data = {
+        customerCommunicationId: communicationId === 'new' ? 0 : parseInt(communicationId),
+        partnerId: formData.get('PartnerId') ? parseInt(formData.get('PartnerId'), 10) : null, // Changed to PartnerId
+        communicationTypeName: formData.get('CommunicationType')?.trim() || null, // Changed to CommunicationType
+        subject: formData.get('Subject')?.trim() || null,
+        date: formData.get('CommunicationDate')?.trim() || null, // Changed to CommunicationDate
+        note: formData.get('Content')?.trim() || '', // Changed to Content
+        statusName: formData.get('Status')?.trim() || 'Planned', // Changed to Status
+        metadata: formData.get('Notes')?.trim() || '', // Changed to Notes
+        attachmentPath: formData.get('AttachmentPath')?.trim() || '',
+        leadId: formData.get('LeadId') ? parseInt(formData.get('LeadId'), 10) : null,
+        quoteId: formData.get('QuoteId') ? parseInt(formData.get('QuoteId'), 10) : null,
+        orderId: formData.get('OrderId') ? parseInt(formData.get('OrderId'), 10) : null
+    };
+
+    // Debug logs
+    console.log('Raw form values:', Object.fromEntries(formData));
+    console.log('Processed data:', data);
+
+    // Validate required fields
+    if (!data.partnerId || !data.communicationTypeName || !data.subject || !data.date) {
+        console.error('Validation failed:', {
+            partnerId: data.partnerId,
+            communicationTypeName: data.communicationTypeName,
+            subject: data.subject,
+            date: data.date
+        });
+        showAlert('Kérjük, töltse ki az összes kötelező mezőt (Partner, Típus, Tárgy, Dátum).', 'danger');
+        return;
+    }
+
+    try {
+        const response = await fetch('/api/customercommunication', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]').value
+            },
+            body: JSON.stringify(data)
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`Server error: ${response.status} ${response.statusText}. Response: ${errorText}`);
+        }
+
+        const contentType = response.headers.get('content-type');
+        let result;
+        if (contentType && contentType.includes('application/json')) {
+            result = await response.json();
+        } else {
+            throw new Error('Response is not JSON');
+        }
+
+        console.log('Save communication success:', result);
+        showAlert('Kommunikáció sikeresen mentve!', 'success');
+        window.location.reload();
+    } catch (error) {
+        console.error('Save communication error:', error);
+        showAlert(`Kommunikáció mentése sikertelen: ${error.message}`, 'danger');
+    }
+}
+
+function showAlert(message, type) {
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+    alertDiv.role = 'alert';
+    alertDiv.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    `;
+    const container = document.querySelector('.scrollable-card-container') || document.body;
+    container.prepend(alertDiv);
+    setTimeout(() => alertDiv.remove(), 5000);
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    const tomSelectElements = document.querySelectorAll('.tom-select');
+    tomSelectElements.forEach(element => {
+        if (!element.tomselect) {
+            new TomSelect(element, {
+                valueField: 'id',
+                labelField: 'name',
+                searchField: ['name'],
+                load: async (query, Phoneback) => {
+                    try {
+                        const response = await fetch(`/api/partners?term=${encodeURIComponent(query)}`);
+                        const data = await response.json();
+                        Phoneback(data);
+                    } catch (error) {
+                        console.error('Tom Select load error:', error);
+                        Phoneback();
+                    }
+                }
+            });
+        }
+    });
+
+    document.querySelectorAll('.save-communication').forEach(button => {
+        button.addEventListener('click', () => {
+            const communicationId = button.getAttribute('data-communication-id');
+            saveCommunication(communicationId);
+        });
+    });
+});
+
+    const newCommunicationModal = document.getElementById('newCommunicationModal');
+    if (newCommunicationModal) {
+        newCommunicationModal.addEventListener('shown.bs.modal', function () {
+            console.log('New Communication modal shown');
+            const partnerSelect = document.querySelector('#communicationForm_new select[name="PartnerId"]');
+            if (partnerSelect) {
+                initializePartnerTomSelect(partnerSelect, 'new');
+            }
+            const saveButton = newCommunicationModal.querySelector('.save-communication');
+            if (saveButton) {
+                console.log('Save button found for communicationId: new');
+                const newSaveButton = saveButton.cloneNode(true);
+                saveButton.replaceWith(newSaveButton);
+                newSaveButton.addEventListener('click', () => {
+                    console.log('Save button clicked for communicationId: new');
+                    saveCommunication('new');
+                });
+            }
+        });
+
+        newCommunicationModal.addEventListener('hidden.bs.modal', function () {
+            console.log('New Communication modal hidden');
+            document.querySelector('#communicationForm_new').reset();
+        });
+    }
+
+    document.querySelectorAll('.save-communication').forEach(button => {
+        const communicationId = button.dataset.communicationId;
+        button.addEventListener('click', () => {
+            saveCommunication(communicationId);
+        });
+    });
+});
+</script>
+
+<script>
+function copyCommunication(communicationId) {
+    let isCopying = false;
+    if (isCopying) {
+        console.log('Copy in progress, ignoring additional click for communication ID:', communicationId);
+        return;
+    }
+    isCopying = true;
+
+    const dropdownItem = document.querySelector(`a[onclick="copyCommunication(${communicationId})"]`);
+    if (dropdownItem) {
+        dropdownItem.classList.add('disabled');
+        dropdownItem.style.pointerEvents = 'none';
+    }
+
+    console.log('Initiating copy for communication ID:', communicationId);
+    fetch(`/api/communications/${communicationId}/copy`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+    })
+        .then(response => {
+            if (!response.ok) {
+                return response.text().then(text => {
+                    let errorMessage;
+                    try {
+                        const err = JSON.parse(text);
+                        errorMessage = err.error || `HTTP error: ${response.status}`;
+                    } catch {
+                        errorMessage = text || `HTTP error: ${response.status}`;
+                    }
+                    throw new Error(errorMessage);
+                });
+            }
+            return response.json();
+        })
+        .then(data => {
+            console.log('Communication copied successfully:', data);
+            const toastContainer = document.getElementById('toastContainer');
+            const toastDiv = document.createElement('div');
+            toastDiv.className = 'toast custom-toast';
+            toastDiv.setAttribute('role', 'alert');
+            toastDiv.setAttribute('aria-live', 'assertive');
+            toastDiv.setAttribute('aria-atomic', 'true');
+            toastDiv.setAttribute('data-bs-autohide', 'true');
+            toastDiv.setAttribute('data-bs-delay', '5000');
+            toastDiv.innerHTML = `
+                <div class="toast-header bg-success text-white">
+                    <strong class="me-auto">Siker</strong>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast" aria-label="Bezárás"></button>
+                </div>
+                <div class="toast-body">
+                    Kommunikáció azonosító: ${data.communicationId} sikeresen másolva!
+                </div>
+            `;
+            toastContainer.appendChild(toastDiv);
+            const toast = new bootstrap.Toast(toastDiv);
+            toast.show();
+            toastDiv.addEventListener('hidden.bs.toast', () => toastDiv.remove());
+            location.reload();
+        })
+        .catch(error => {
+            console.error('Copy communication failed:', error.message);
+            const toastContainer = document.getElementById('toastContainer');
+            const toastDiv = document.createElement('div');
+            toastDiv.className = 'toast custom-toast';
+            toastDiv.setAttribute('role', 'alert');
+            toastDiv.setAttribute('aria-live', 'assertive');
+            toastDiv.setAttribute('aria-atomic', 'true');
+            toastDiv.setAttribute('data-bs-autohide', 'true');
+            toastDiv.setAttribute('data-bs-delay', '5000');
+            toastDiv.innerHTML = `
+                <div class="toast-header bg-danger text-white">
+                    <strong class="me-auto">Hiba</strong>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast" aria-label="Bezárás"></button>
+                </div>
+                <div class="toast-body">
+                    Nem sikerült másolni a kommunikációt: ${error.message}
+                </div>
+            `;
+            toastContainer.appendChild(toastDiv);
+            const toast = new bootstrap.Toast(toastDiv);
+            toast.show();
+            toastDiv.addEventListener('hidden.bs.toast', () => toastDiv.remove());
+        })
+        .finally(() => {
+            isCopying = false;
+            if (dropdownItem) {
+                dropdownItem.classList.remove('disabled');
+                dropdownItem.style.pointerEvents = 'auto';
+            }
+        });
+}
+</script>
+
+<script>
+$(document).on('click', '.confirm-delete-communication', function (e) {
+    e.preventDefault();
+    const $button = $(this);
+    const communicationId = $button.data('communication-id');
+    console.log('Delete button clicked for communicationId:', communicationId);
+
+    if (!communicationId) {
+        console.error('communicationId is missing');
+        showToast('danger', 'Hiba: Kommunikáció azonosító hiányzik.');
+        return;
+    }
+
+    const $form = $(`#deleteCommunicationForm_${communicationId}`);
+    if ($form.length) {
+        const token = $form.find('input[name="__RequestVerificationToken"]').val();
+        if (!token) {
+            console.error('Anti-forgery token not found');
+            showToast('danger', 'Hiba: Biztonsági token hiányzik.');
+            return;
+        }
+
+        $button.prop('disabled', true);
+
+        $.ajax({
+            url: `/api/communications/${communicationId}`,
+            type: 'DELETE',
+            headers: {
+                'RequestVerificationToken': token
+            },
+            success: function (data, status, xhr) {
+                console.log('Delete response:', { status: xhr.status, data });
+                if (xhr.status === 204) {
+                    $(`#deleteCommunicationModal_${communicationId}`).modal('hide');
+                    showToast('success', `Kommunikáció azonosító: ${communicationId} sikeresen törölve!`);
+                    $(`div[data-communication-id="${communicationId}"]`).fadeOut(500, function () {
+                        $(this).remove();
+                    });
+                } else {
+                    showToast('warning', `Sikeres törlés, de váratlan válasz: ${xhr.status}`);
+                }
+            },
+            error: function (xhr, status, error) {
+                console.error('Delete error:', { status: xhr.status, response: xhr.responseText });
+                let message = 'Hiba történt a törlés során.';
+                if (xhr.status === 404) {
+                    message = xhr.responseJSON?.error || 'A kommunikáció nem található.';
+                } else if (xhr.status === 500) {
+                    message = xhr.responseJSON?.error || 'Szerver hiba történt.';
+                }
+                showToast('danger', message);
+            },
+            complete: function () {
+                $button.prop('disabled', false);
+            }
+        });
+    } else {
+        console.error('Form not found for communicationId:', communicationId);
+        showToast('danger', 'Hiba: Törlési űrlap nem található.');
+    }
+
+    function showToast(type, message) {
+        const toast = $(`
+            <div class="toast custom-toast align-items-center text-white bg-${type} border-0" role="alert" aria-live="assertive" aria-atomic="true">
+                <div class="d-flex">
+                    <div class="toast-body">${message}</div>
+                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+                </div>
+            </div>
+        `);
+        $('#toastContainer').append(toast);
+        const bsToast = new bootstrap.Toast(toast[0]);
+        bsToast.show();
+        setTimeout(() => toast.remove(), 5500);
+    }
+});
+</script>
+
+<style>
+
+    .custom-toast .toast-body {
+        background-color: #ffffff !important; /* White background */
+        color: #212529 !important; /* Dark text (Bootstrap's --bs-body-color) */
+    }
+    .toast-header.bg-success {
+        background-color: #198754 !important; /* Ensure green header */
+        color: #ffffff !important;
+    }
+    .toast-header.bg-danger {
+        background-color: #dc3545 !important; /* Ensure red header */
+        color: #ffffff !important;
+    }
+
+    .ts-wrapper.form-select {
+    width: 100%;
+    padding: 0;
+    position: relative;
+}
+.ts-control {
+    min-height: calc(1.5em + 0.75rem + 2px);
+    padding: 0.375rem 0.75rem;
+    font-size: 1rem;
+    border: 1px solid #ced4da;
+    border-radius: 0.25rem;
+    background-color: #fff;
+    cursor: pointer;
+}
+.ts-dropdown {
+    z-index: 1070 !important; /* Above Select2 (1060) and modal (1050) */
+    max-height: 200px;
+    overflow-y: auto;
+    border: 1px solid #ced4da;
+    border-radius: 0.25rem;
+    background-color: #fff;
+    display: none; /* Tom Select toggles */
+    visibility: visible !important;
+    opacity: 1 !important;
+    position: absolute;
+    width: 100%;
+    top: 100%;
+    left: 0;
+}
+.ts-dropdown.active {
+    display: block !important;
+}
+.ts-dropdown .option {
+    padding: 0.375rem 0.75rem;
+    cursor: pointer;
+}
+.ts-dropdown .option:hover {
+    background-color: #f8f9fa;
+}
+[data-theme="dark"] .ts-wrapper.form-select {
+    background-color: #2a2a2a;
+}
+[data-theme="dark"] .ts-control {
+    background-color: #333333 !important;
+    border-color: #666 !important;
+    color: #e0e0e0 !important;
+}
+[data-theme="dark"] .ts-dropdown {
+    background-color: #2a2a2a !important;
+    border-color: #666 !important;
+    color: #e0e0e0 !important;
+}
+[data-theme="dark"] .ts-dropdown .option {
+    color: #e0e0e0 !important;
+}
+[data-theme="dark"] .ts-dropdown .option:hover {
+    background-color: #3a3a3a !important;
+}
+
+    .table .description-row {
+        background-color: #f8f9fa; /* Light background for description row */
+    }
+    .table .description-row td {
+        padding: 10px;
+    }
+    .table .description {
+        resize: vertical;
+        min-height: 60px;
+        max-height: 100px;
+        width: 100%;
+    }
+    .table th:nth-child(1), .table td:nth-child(1) { /* Product column */
+        max-width: 200px;
+    }
+    .btn-link {
+        text-decoration: none;
+    }
+    .nav-tabs {
+        margin-bottom: 15px;
+    }
+    .tab-content {
+        min-height: 200px; /* Ensure tab content has enough space */
+    }
+
+.drag-handle {
+    cursor: move;
+    width: 30px;
+    text-align: center;
+    vertical-align: middle;
+}
+
+.drag-handle .bi-grip-vertical {
+    font-size: 1.2rem;
+    color: #6c757d;
+}
+
+#orderItemsTable tbody tr:hover .drag-handle .bi-grip-vertical {
+    color: #007bff;
+}
+
+#orderItemsTable .placeholder {
+    background-color: #f8f9fa;
+    border: 2px dashed #007bff;
+    height: 50px;
+}
+
+
+
+[data-theme="dark"] .partner-card {
+        background-color: #2a2a2a;
+        border: 1px solid #444;
+    }
+
+
+/* Badge styling */
+.badge-draft { background-color: #6c757d; }
+.badge-sent { background-color: #007bff; }
+.badge-accepted { background-color: #28a745; }
+.badge-rejected { background-color: #dc3545; }
+
+    /* Ensure textarea in Leírás column is wider and readable */
+    #orderItemsTable .itemDescription {
+        width: 100%;
+        min-width: 200px;
+        height: 60px;
+        resize: vertical;
+    }
+    /* Adjust table column widths */
+    #orderItemsTable th:nth-child(2), #orderItemsTable td:nth-child(2) {
+        width: 30%;
+    }
+
+        /* Card-based layout matching Leads page */
+        .card-grid-header {
+            padding: 0 15px 2px 15px;
+            margin-top: 0px;
+            background-color: #F1EFEC;
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        .card-grid-row {
+            display: grid;
+            grid-template-columns: 1fr 2fr 1fr 1fr 1fr auto;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .card-grid-column {
+            font-weight: 600;
+            color: #495057;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+        }
+
+        .card-grid-cell {
+            padding: 0 10px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+/* Column widths */
+.communication-type-col { flex: 1 1 15%; min-width: 120px; }
+.communication-partner-col { flex: 1 1 25%; min-width: 150px; }
+.communication-date-col { flex: 1 1 15%; min-width: 100px; }
+.communication-subject-col { flex: 1 1 15%; min-width: 100px; }
+.communication-status-col { flex: 1 1 15%; min-width: 120px; }
+.actions-column, .actions-cell { flex: 0 0 auto; width: auto; text-align: right; padding-right: 10px; }
+
+        /* Button group styling */
+        .btn-group-sm .btn {
+            padding: 0.2rem 0.5rem;
+            font-size: 0.875rem;
+        }
+
+        /* Badge styling */
+        .badge-draft { background-color: #6c757d; }
+        .badge-sent { background-color: #007bff; }
+        .badge-accepted { background-color: #28a745; }
+        .badge-rejected { background-color: #dc3545; }
+
+        /* Ensure pagination is centered */
+        .fixed-footer .pagination {
+            display: flex;
+            justify-content: center;
+            width: 100%;
+            margin-bottom: 0;
+        }
+
+        .fixed-footer nav {
+            flex-grow: 1;
+            text-align: center;
+        }
+
+        /* Modal Sizing */
+        .modal-lg { max-width: 1000px !important; }
+
+        /* Consistent Tab Content Styling */
+        #newOrderModal .tab-content,
+        #newOrderItemModal .tab-content,
+        [id^="editOrderModal_"] .tab-content,
+        [id^="newOrderItemModal_"] .tab-content,
+        [id^="viewOrderModal_"] .tab-content {
+            min-width: 0;
+            width: 100%;
+            min-height: 450px;
+            max-height: 65vh;
+            overflow-y: auto;
+            overflow-x: hidden;
+            padding: 1rem;
+            background-color: #fff;
+        }
+
+        /* Consistent Tab Pane Styling */
+        #newOrderModal .tab-pane,
+        #newOrderItemModal .tab-pane,
+        [id^="editOrderModal_"] .tab-pane,
+        [id^="newOrderItemModal_"] .tab-pane,
+        [id^="viewOrderModal_"] .tab-pane {
+            width: 100%;
+        }
+
+        /* Adjust Modal Body Padding */
+        #newOrderModal .modal-body,
+        #newOrderItemModal .modal-body,
+        [id^="editOrderModal_"] .modal-body,
+        [id^="newOrderItemModal_"] .modal-body,
+        [id^="viewOrderModal_"] .modal-body {
+            padding: 1rem 1rem 0 1rem;
+        }
+
+        /* Remove margin below tabs */
+        #newOrderModal .nav-tabs,
+        [id^="editOrderModal_"] .nav-tabs,
+        [id^="viewOrderModal_"] .nav-tabs {
+            margin-bottom: 0 !important;
+        }
+
+        /* General Table Cell Styling */
+        .table tbody tr td {
+            vertical-align: middle;
+        }
+
+        /* View Modal Specific Content Styling */
+        [id^="viewOrderModal_"] .table {
+            margin-bottom: 0;
+        }
+
+        [id^="viewOrderModal_"] .tab-pane > p {
+            padding: 1.5rem;
+            text-align: center;
+            color: #6c757d;
+        }
+
+        /* Select2 styling */
+.select2-container {
+            width: 100% !important;
+        }
+
+        .select2-container {
+    z-index: 1060; /* Higher than Bootstrap modal */
+}
+
+        .select2-container--bootstrap-5 .select2-selection--single {
+            height: 38px;
+            padding: 0.375rem 2.25rem 0.375rem 0.75rem;
+            font-size: 1rem;
+            line-height: 1.5;
+            border: 1px solid #ced4da;
+            border-radius: 0.25rem;
+            background-color: #fff;
+        }
+
+        .select2-container--bootstrap-5 .select2-selection--single .select2-selection__rendered {
+            line-height: 1.5;
+            padding-top: 0;
+            padding-bottom: 0;
+            color: #495057;
+        }
+
+        .select2-container--bootstrap-5 .select2-selection--single .select2-selection__arrow {
+            height: 38px;
+            right: 0.75rem;
+        }
+
+        .select2-container--bootstrap-5 .select2-dropdown {
+            border: 1px solid #ced4da;
+            border-radius: 0.25rem;
+        }
+
+        .select2-container-wrapper {
+            position: relative;
+        }
+
+        [data-theme="dark"] .select2-container--bootstrap-5 .select2-selection--single {
+            background-color: #3a3a3a;
+            border-color: #666;
+            color: #e0e0e0;
+        }
+
+        [data-theme="dark"] .select2-container--bootstrap-5 .select2-selection--single .select2-selection__rendered {
+            color: #e0e0e0;
+        }
+
+        [data-theme="dark"] .select2-container--bootstrap-5 .select2-dropdown {
+            background-color: #2a2a2a;
+            border-color: #666;
+            color: #e0e0e0;
+        }
+
+        [data-theme="dark"] .select2-container--bootstrap-5 .select2-results__option {
+            color: #e0e0e0;
+        }
+
+        [data-theme="dark"] .select2-container--bootstrap-5 .select2-results__option--highlighted {
+            background-color: #357abd;
+            color: #ffffff;
+        }
+
+        /* Dark mode overrides */
+        [data-theme="dark"] .card-grid-header {
+            background-color: #2a2a2a;
+            border-bottom: 1px solid #444;
+        }
+
+        [data-theme="dark"] .card-grid-column {
+            color: #b0b0b0;
+        }
+
+        [data-theme="dark"] .order-card {
+            background-color: #2a2a2a;
+            border: 1px solid #444;
+        }
+
+        [data-theme="dark"] .fixed-footer {
+            background-color: #2a2a2a;
+            border-top: 1px solid #444;
+        }
+
+        [data-theme="dark"] .alert-success {
+            background-color: #2e7d32;
+            border-color: #1b5e20;
+            color: #e0e0e0;
+        }
+
+        [data-theme="dark"] .alert-danger {
+            background-color: #d32f2f;
+            border-color: #b71c1c;
+            color: #e0e0e0;
+        }
+
+        [data-theme="dark"] #newOrderModal .tab-content,
+        [data-theme="dark"] #newOrderItemModal .tab-content,
+        [data-theme="dark"] [id^="editOrderModal_"] .tab-content,
+        [data-theme="dark"] [id^="newOrderItemModal_"] .tab-content,
+        [data-theme="dark"] [id^="viewOrderModal_"] .tab-content,
+        [data-theme="dark"] [id^="deleteOrderModal_"] .tab-content {
+            background-color: #2a2a2a !important;
+            color: #e0e0e0 !important;
+        }
+
+        [data-theme="dark"] #newOrderModal .tab-pane,
+        [data-theme="dark"] #newOrderItemModal .tab-pane,
+        [data-theme="dark"] [id^="editOrderModal_"] .tab-pane,
+        [data-theme="dark"] [id^="newOrderItemModal_"] .tab-pane,
+        [data-theme="dark"] [id^="viewOrderModal_"] .tab-pane,
+        [data-theme="dark"] [id^="deleteOrderModal_"] .tab-pane {
+            color: #e0e0e0 !important;
+        }
+
+        [data-theme="dark"] #newOrderModal .modal-body,
+        [data-theme="dark"] #newOrderItemModal .modal-body,
+        [data-theme="dark"] [id^="editOrderModal_"] .modal-body,
+        [data-theme="dark"] [id^="newOrderItemModal_"] .modal-body,
+        [data-theme="dark"] [id^="viewOrderModal_"] .modal-body,
+        [data-theme="dark"] [id^="deleteOrderModal_"] .modal-body {
+            background-color: #2a2a2a !important;
+            color: #e0e0e0 !important;
+        }
+
+        [data-theme="dark"] .form-control {
+            background-color: #333333 !important;
+            border-color: #666 !important;
+            color: #e0e0e0 !important;
+        }
+
+        [data-theme="dark"] .form-control:focus {
+            background-color: #333333 !important;
+            border-color: #888 !important;
+            color: #e0e0e0 !important;
+            box-shadow: 0 0 0 0.2rem rgba(100, 100, 100, 0.25) !important;
+        }
+
+        [data-theme="dark"] .form-control::placeholder {
+            color: #aaaaaa !important;
+        }
+
+        [data-theme="dark"] .form-label {
+            color: #e0e0e0 !important;
+        }
+
+        [data-theme="dark"] .modal-title {
+            color: #e0e0e0 !important;
+        }
+
+        [data-theme="dark"] #newOrderModal .nav-tabs,
+        [data-theme="dark"] [id^="editOrderModal_"] .nav-tabs,
+        [data-theme="dark"] [id^="viewOrderModal_"] .nav-tabs {
+            background-color: #2a2a2a !important;
+            border-bottom: 1px solid #444 !important;
+        }
+
+        [data-theme="dark"] #newOrderModal .nav-tabs .nav-link,
+        [data-theme="dark"] [id^="editOrderModal_"] .nav-tabs .nav-link,
+        [data-theme="dark"] [id^="viewOrderModal_"] .nav-tabs .nav-link {
+            color: #b0b0b0 !important;
+        }
+
+        [data-theme="dark"] #newOrderModal .nav-tabs .nav-link:hover,
+        [data-theme="dark"] [id^="editOrderModal_"] .nav-tabs .nav-link:hover,
+        [data-theme="dark"] [id^="viewOrderModal_"] .nav-tabs .nav-link:hover {
+            color: #e0e0e0 !important;
+            background-color: #3a3a3a !important;
+        }
+
+        [data-theme="dark"] #newOrderModal .nav-tabs .nav-link.active,
+        [data-theme="dark"] [id^="editOrderModal_"] .nav-tabs .nav-link.active,
+        [data-theme="dark"] [id^="viewOrderModal_"] .nav-tabs .nav-link.active {
+            color: #e0e0e0 !important;
+            background-color: #3a3a3a !important;
+            border-color: #444 #444 #2a2a2a !important;
+        }
+
+        [data-theme="dark"] [id^="viewOrderModal_"] .tab-pane > p {
+            color: #e0e0e0 !important;
+        }
+
+        [data-theme="dark"] [id^="viewOrderModal_"] .table {
+            color: #e0e0e0 !important;
+        }
+
+        [data-theme="dark"] [id^="viewOrderModal_"] .table th,
+        [data-theme="dark"] [id^="viewOrderModal_"] .table td {
+            border-color: #444 !important;
+            color: #e0e0e0 !important;
+        }
+    </style>

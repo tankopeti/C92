@@ -31,6 +31,21 @@
                         <i class="bi bi-telephone-inbound me-2"></i>Sales leadek
                     </a>
                 </li>
+                <li class="nav-item">
+                    <a class="nav-link px-3 py-2 @(Html.IsActive("Quotes/Index", "CRM") ? "active" : "")" asp-area="" asp-page="/CRM/Quotes/Index">
+                        <i class="bi bi-file-earmark-ruled me-2"></i>Árajánlatok
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link px-3 py-2 @(Html.IsActive("Orders/Index", "CRM") ? "active" : "")" asp-area="" asp-page="/CRM/Orders/Index">
+                        <i class="bi bi-list-ol me-2"></i>Rendelések
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link px-3 py-2 @(Html.IsActive("Customercommunication/Index", "CRM") ? "active" : "")" asp-area="" asp-page="/CRM/Customercommunication/Index">
+                        <i class="bi bi-headset me-2"></i>Ügyfélkapcsolat
+                    </a>
+                </li>
                 @* Add other sidebar links as needed *@
             </ul>
         }

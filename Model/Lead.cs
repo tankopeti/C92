@@ -46,5 +46,6 @@ namespace Cloud9_2.Models
 
         // Navigation property for history
         public ICollection<LeadHistory> LeadHistories { get; set; } = new List<LeadHistory>();
+        public ICollection<CustomerCommunication>? Communications { get; set; }
     }
 }

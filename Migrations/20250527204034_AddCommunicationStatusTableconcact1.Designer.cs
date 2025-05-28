@@ -4,6 +4,7 @@ using Cloud9_2.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Cloud9._2.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250527204034_AddCommunicationStatusTableconcact1")]
+    partial class AddCommunicationStatusTableconcact1
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -191,67 +194,6 @@ namespace Cloud9._2.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("ColumnVisibilities");
-                });
-
-            modelBuilder.Entity("Cloud9_2.Models.CommunicationPost", b =>
-                {
-                    b.Property<int>("CommunicationPostId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("CommunicationPostId"));
-
-                    b.Property<string>("Content")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTime?>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<int?>("CreatedById")
-                        .HasColumnType("int");
-
-                    b.Property<int>("CustomerCommunicationId")
-                        .HasColumnType("int");
-
-                    b.HasKey("CommunicationPostId");
-
-                    b.HasIndex("CreatedById");
-
-                    b.HasIndex("CustomerCommunicationId");
-
-                    b.ToTable("CommunicationPosts");
-                });
-
-            modelBuilder.Entity("Cloud9_2.Models.CommunicationResponsible", b =>
-                {
-                    b.Property<int>("CommunicationResponsibleId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("CommunicationResponsibleId"));
-
-                    b.Property<DateTime?>("AssignedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<int?>("AssignedById")
-                        .HasColumnType("int");
-
-                    b.Property<int>("CustomerCommunicationId")
-                        .HasColumnType("int");
-
-                    b.Property<int?>("ResponsibleId")
-                        .HasColumnType("int");
-
-                    b.HasKey("CommunicationResponsibleId");
-
-                    b.HasIndex("AssignedById");
-
-                    b.HasIndex("CustomerCommunicationId");
-
-                    b.HasIndex("ResponsibleId");
-
-                    b.ToTable("CommunicationResponsibles");
                 });
 
             modelBuilder.Entity("Cloud9_2.Models.CommunicationStatus", b =>
@@ -445,7 +387,7 @@ namespace Cloud9._2.Migrations
                     b.Property<int>("CommunicationTypeId")
                         .HasColumnType("int");
 
-                    b.Property<int?>("ContactId")
+                    b.Property<int>("ContactId")
                         .HasColumnType("int");
 
                     b.Property<DateTime>("Date")
@@ -1877,46 +1819,6 @@ namespace Cloud9._2.Migrations
                     b.Navigation("LastModifier");
                 });
 
-            modelBuilder.Entity("Cloud9_2.Models.CommunicationPost", b =>
-                {
-                    b.HasOne("Cloud9_2.Models.Contact", "CreatedBy")
-                        .WithMany()
-                        .HasForeignKey("CreatedById");
-
-                    b.HasOne("Cloud9_2.Models.CustomerCommunication", "CustomerCommunication")
-                        .WithMany("Posts")
-                        .HasForeignKey("CustomerCommunicationId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("CreatedBy");
-
-                    b.Navigation("CustomerCommunication");
-                });
-
-            modelBuilder.Entity("Cloud9_2.Models.CommunicationResponsible", b =>
-                {
-                    b.HasOne("Cloud9_2.Models.Contact", "AssignedBy")
-                        .WithMany()
-                        .HasForeignKey("AssignedById");
-
-                    b.HasOne("Cloud9_2.Models.CustomerCommunication", "CustomerCommunication")
-                        .WithMany("ResponsibleHistory")
-                        .HasForeignKey("CustomerCommunicationId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("Cloud9_2.Models.Contact", "Responsible")
-                        .WithMany()
-                        .HasForeignKey("ResponsibleId");
-
-                    b.Navigation("AssignedBy");
-
-                    b.Navigation("CustomerCommunication");
-
-                    b.Navigation("Responsible");
-                });
-
             modelBuilder.Entity("Cloud9_2.Models.Contact", b =>
                 {
                     b.HasOne("Cloud9_2.Models.Partner", "Partner")
@@ -1962,7 +1864,8 @@ namespace Cloud9._2.Migrations
                     b.HasOne("Cloud9_2.Models.Contact", "Contact")
                         .WithMany("CustomerCommunications")
                         .HasForeignKey("ContactId")
-                        .OnDelete(DeleteBehavior.Restrict);
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
 
                     b.HasOne("Cloud9_2.Models.Lead", "Lead")
                         .WithMany()
@@ -2531,13 +2434,6 @@ namespace Cloud9._2.Migrations
             modelBuilder.Entity("Cloud9_2.Models.Currency", b =>
                 {
                     b.Navigation("Orders");
-                });
-
-            modelBuilder.Entity("Cloud9_2.Models.CustomerCommunication", b =>
-                {
-                    b.Navigation("Posts");
-
-                    b.Navigation("ResponsibleHistory");
                 });
 
             modelBuilder.Entity("Cloud9_2.Models.DocumentType", b =>

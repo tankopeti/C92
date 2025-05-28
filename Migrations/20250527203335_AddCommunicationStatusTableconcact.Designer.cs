@@ -4,6 +4,7 @@ using Cloud9_2.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Cloud9._2.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250527203335_AddCommunicationStatusTableconcact")]
+    partial class AddCommunicationStatusTableconcact
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -193,118 +196,6 @@ namespace Cloud9._2.Migrations
                     b.ToTable("ColumnVisibilities");
                 });
 
-            modelBuilder.Entity("Cloud9_2.Models.CommunicationPost", b =>
-                {
-                    b.Property<int>("CommunicationPostId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("CommunicationPostId"));
-
-                    b.Property<string>("Content")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTime?>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<int?>("CreatedById")
-                        .HasColumnType("int");
-
-                    b.Property<int>("CustomerCommunicationId")
-                        .HasColumnType("int");
-
-                    b.HasKey("CommunicationPostId");
-
-                    b.HasIndex("CreatedById");
-
-                    b.HasIndex("CustomerCommunicationId");
-
-                    b.ToTable("CommunicationPosts");
-                });
-
-            modelBuilder.Entity("Cloud9_2.Models.CommunicationResponsible", b =>
-                {
-                    b.Property<int>("CommunicationResponsibleId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("CommunicationResponsibleId"));
-
-                    b.Property<DateTime?>("AssignedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<int?>("AssignedById")
-                        .HasColumnType("int");
-
-                    b.Property<int>("CustomerCommunicationId")
-                        .HasColumnType("int");
-
-                    b.Property<int?>("ResponsibleId")
-                        .HasColumnType("int");
-
-                    b.HasKey("CommunicationResponsibleId");
-
-                    b.HasIndex("AssignedById");
-
-                    b.HasIndex("CustomerCommunicationId");
-
-                    b.HasIndex("ResponsibleId");
-
-                    b.ToTable("CommunicationResponsibles");
-                });
-
-            modelBuilder.Entity("Cloud9_2.Models.CommunicationStatus", b =>
-                {
-                    b.Property<int>("StatusId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("StatusId"));
-
-                    b.Property<string>("Description")
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.HasKey("StatusId");
-
-                    b.HasIndex("Name")
-                        .IsUnique();
-
-                    b.ToTable("CommunicationStatuses");
-
-                    b.HasData(
-                        new
-                        {
-                            StatusId = 1,
-                            Description = "Issue reported",
-                            Name = "Open"
-                        },
-                        new
-                        {
-                            StatusId = 2,
-                            Description = "Being handled",
-                            Name = "InProgress"
-                        },
-                        new
-                        {
-                            StatusId = 3,
-                            Description = "Issue closed",
-                            Name = "Resolved"
-                        },
-                        new
-                        {
-                            StatusId = 4,
-                            Description = "Issue escalated to supervisor",
-                            Name = "Escalated"
-                        });
-                });
-
             modelBuilder.Entity("Cloud9_2.Models.CommunicationType", b =>
                 {
                     b.Property<int>("CommunicationTypeId")
@@ -315,32 +206,11 @@ namespace Cloud9._2.Migrations
 
                     b.Property<string>("Name")
                         .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
+                        .HasColumnType("nvarchar(max)");
 
                     b.HasKey("CommunicationTypeId");
 
-                    b.HasIndex("Name")
-                        .IsUnique();
-
                     b.ToTable("CommunicationTypes");
-
-                    b.HasData(
-                        new
-                        {
-                            CommunicationTypeId = 1,
-                            Name = "Phone"
-                        },
-                        new
-                        {
-                            CommunicationTypeId = 2,
-                            Name = "Email"
-                        },
-                        new
-                        {
-                            CommunicationTypeId = 3,
-                            Name = "Meeting"
-                        });
                 });
 
             modelBuilder.Entity("Cloud9_2.Models.Contact", b =>
@@ -359,8 +229,7 @@ namespace Cloud9._2.Migrations
 
                     b.Property<string>("FirstName")
                         .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<bool>("IsPrimary")
                         .HasColumnType("bit");
@@ -370,8 +239,7 @@ namespace Cloud9._2.Migrations
 
                     b.Property<string>("LastName")
                         .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<int>("PartnerId")
                         .HasColumnType("int");
@@ -435,13 +303,6 @@ namespace Cloud9._2.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("CustomerCommunicationId"));
 
-                    b.Property<string>("AgentId")
-                        .HasColumnType("nvarchar(450)");
-
-                    b.Property<string>("AttachmentPath")
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
-
                     b.Property<int>("CommunicationTypeId")
                         .HasColumnType("int");
 
@@ -454,44 +315,22 @@ namespace Cloud9._2.Migrations
                     b.Property<int?>("LeadId")
                         .HasColumnType("int");
 
-                    b.Property<int?>("LeadId1")
-                        .HasColumnType("int");
-
-                    b.Property<string>("Metadata")
-                        .HasMaxLength(1000)
-                        .HasColumnType("nvarchar(1000)");
-
                     b.Property<string>("Note")
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<int?>("OrderId")
                         .HasColumnType("int");
 
-                    b.Property<int?>("OrderId1")
-                        .HasColumnType("int");
-
                     b.Property<int?>("PartnerId")
-                        .HasColumnType("int");
-
-                    b.Property<int?>("PartnerId1")
                         .HasColumnType("int");
 
                     b.Property<int?>("QuoteId")
                         .HasColumnType("int");
 
-                    b.Property<int?>("QuoteId1")
-                        .HasColumnType("int");
-
-                    b.Property<int>("StatusId")
-                        .HasColumnType("int");
-
                     b.Property<string>("Subject")
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
+                        .HasColumnType("nvarchar(max)");
 
                     b.HasKey("CustomerCommunicationId");
-
-                    b.HasIndex("AgentId");
 
                     b.HasIndex("CommunicationTypeId");
 
@@ -499,21 +338,11 @@ namespace Cloud9._2.Migrations
 
                     b.HasIndex("LeadId");
 
-                    b.HasIndex("LeadId1");
-
                     b.HasIndex("OrderId");
-
-                    b.HasIndex("OrderId1");
 
                     b.HasIndex("PartnerId");
 
-                    b.HasIndex("PartnerId1");
-
                     b.HasIndex("QuoteId");
-
-                    b.HasIndex("QuoteId1");
-
-                    b.HasIndex("StatusId");
 
                     b.ToTable("CustomerCommunications");
                 });
@@ -1877,46 +1706,6 @@ namespace Cloud9._2.Migrations
                     b.Navigation("LastModifier");
                 });
 
-            modelBuilder.Entity("Cloud9_2.Models.CommunicationPost", b =>
-                {
-                    b.HasOne("Cloud9_2.Models.Contact", "CreatedBy")
-                        .WithMany()
-                        .HasForeignKey("CreatedById");
-
-                    b.HasOne("Cloud9_2.Models.CustomerCommunication", "CustomerCommunication")
-                        .WithMany("Posts")
-                        .HasForeignKey("CustomerCommunicationId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("CreatedBy");
-
-                    b.Navigation("CustomerCommunication");
-                });
-
-            modelBuilder.Entity("Cloud9_2.Models.CommunicationResponsible", b =>
-                {
-                    b.HasOne("Cloud9_2.Models.Contact", "AssignedBy")
-                        .WithMany()
-                        .HasForeignKey("AssignedById");
-
-                    b.HasOne("Cloud9_2.Models.CustomerCommunication", "CustomerCommunication")
-                        .WithMany("ResponsibleHistory")
-                        .HasForeignKey("CustomerCommunicationId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("Cloud9_2.Models.Contact", "Responsible")
-                        .WithMany()
-                        .HasForeignKey("ResponsibleId");
-
-                    b.Navigation("AssignedBy");
-
-                    b.Navigation("CustomerCommunication");
-
-                    b.Navigation("Responsible");
-                });
-
             modelBuilder.Entity("Cloud9_2.Models.Contact", b =>
                 {
                     b.HasOne("Cloud9_2.Models.Partner", "Partner")
@@ -1948,69 +1737,33 @@ namespace Cloud9._2.Migrations
 
             modelBuilder.Entity("Cloud9_2.Models.CustomerCommunication", b =>
                 {
-                    b.HasOne("Cloud9_2.Models.ApplicationUser", "Agent")
-                        .WithMany("CustomerCommunications")
-                        .HasForeignKey("AgentId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
                     b.HasOne("Cloud9_2.Models.CommunicationType", "CommunicationType")
                         .WithMany("CustomerCommunications")
                         .HasForeignKey("CommunicationTypeId")
-                        .OnDelete(DeleteBehavior.Restrict)
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("Cloud9_2.Models.Contact", "Contact")
-                        .WithMany("CustomerCommunications")
-                        .HasForeignKey("ContactId")
-                        .OnDelete(DeleteBehavior.Restrict);
+                    b.HasOne("Cloud9_2.Models.Contact", null)
+                        .WithMany("Communications")
+                        .HasForeignKey("ContactId");
 
                     b.HasOne("Cloud9_2.Models.Lead", "Lead")
-                        .WithMany()
-                        .HasForeignKey("LeadId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.HasOne("Cloud9_2.Models.Lead", null)
                         .WithMany("Communications")
-                        .HasForeignKey("LeadId1");
+                        .HasForeignKey("LeadId");
 
                     b.HasOne("Cloud9_2.Models.Order", "Order")
-                        .WithMany()
-                        .HasForeignKey("OrderId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.HasOne("Cloud9_2.Models.Order", null)
                         .WithMany("Communications")
-                        .HasForeignKey("OrderId1");
+                        .HasForeignKey("OrderId");
 
                     b.HasOne("Cloud9_2.Models.Partner", "Partner")
-                        .WithMany()
-                        .HasForeignKey("PartnerId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.HasOne("Cloud9_2.Models.Partner", null)
                         .WithMany("Communications")
-                        .HasForeignKey("PartnerId1");
+                        .HasForeignKey("PartnerId");
 
                     b.HasOne("Cloud9_2.Models.Quote", "Quote")
-                        .WithMany()
-                        .HasForeignKey("QuoteId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.HasOne("Cloud9_2.Models.Quote", null)
                         .WithMany("Communications")
-                        .HasForeignKey("QuoteId1");
-
-                    b.HasOne("Cloud9_2.Models.CommunicationStatus", "Status")
-                        .WithMany("CustomerCommunications")
-                        .HasForeignKey("StatusId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("Agent");
+                        .HasForeignKey("QuoteId");
 
                     b.Navigation("CommunicationType");
-
-                    b.Navigation("Contact");
 
                     b.Navigation("Lead");
 
@@ -2019,8 +1772,6 @@ namespace Cloud9._2.Migrations
                     b.Navigation("Partner");
 
                     b.Navigation("Quote");
-
-                    b.Navigation("Status");
                 });
 
             modelBuilder.Entity("Cloud9_2.Models.Document", b =>
@@ -2503,19 +2254,9 @@ namespace Cloud9._2.Migrations
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("Cloud9_2.Models.ApplicationUser", b =>
-                {
-                    b.Navigation("CustomerCommunications");
-                });
-
             modelBuilder.Entity("Cloud9_2.Models.Category", b =>
                 {
                     b.Navigation("Products");
-                });
-
-            modelBuilder.Entity("Cloud9_2.Models.CommunicationStatus", b =>
-                {
-                    b.Navigation("CustomerCommunications");
                 });
 
             modelBuilder.Entity("Cloud9_2.Models.CommunicationType", b =>
@@ -2525,19 +2266,12 @@ namespace Cloud9._2.Migrations
 
             modelBuilder.Entity("Cloud9_2.Models.Contact", b =>
                 {
-                    b.Navigation("CustomerCommunications");
+                    b.Navigation("Communications");
                 });
 
             modelBuilder.Entity("Cloud9_2.Models.Currency", b =>
                 {
                     b.Navigation("Orders");
-                });
-
-            modelBuilder.Entity("Cloud9_2.Models.CustomerCommunication", b =>
-                {
-                    b.Navigation("Posts");
-
-                    b.Navigation("ResponsibleHistory");
                 });
 
             modelBuilder.Entity("Cloud9_2.Models.DocumentType", b =>

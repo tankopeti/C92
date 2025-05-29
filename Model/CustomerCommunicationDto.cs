@@ -61,4 +61,14 @@ public int CustomerCommunicationId { get; set; }
         public string? AssignedByName { get; set; }
         public DateTime? AssignedAt { get; set; }
     }
+
+    public class PostDto
+    {
+        public string Content { get; set; }
+    }
+
+    public class AssignResponsibleDto
+    {
+        public int ResponsibleContactId { get; set; }
+    }
 }

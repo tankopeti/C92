@@ -1,12 +1,9 @@
 using Cloud9_2.Models;
-using Cloud9_2.Data;
 using Cloud9_2.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using System;
-using System.Linq;
 using System.Threading.Tasks;
 
 namespace Cloud9_2.Controllers
@@ -16,89 +13,17 @@ namespace Cloud9_2.Controllers
     [Authorize]
     public class CustomerCommunicationController : ControllerBase
     {
-        private readonly ApplicationDbContext _context;
         private readonly CustomerCommunicationService _service;
         private readonly UserManager<ApplicationUser> _userManager;
 
-        public CustomerCommunicationController(ApplicationDbContext context, CustomerCommunicationService service, UserManager<ApplicationUser> userManager)
+        public CustomerCommunicationController(CustomerCommunicationService service, UserManager<ApplicationUser> userManager)
         {
-            _context = context;
             _service = service;
             _userManager = userManager;
         }
 
         [HttpPost]
-        public async Task<IActionResult> SaveCommunication([FromBody] CustomerCommunicationDto model)
-        {
-            if (!ModelState.IsValid)
-            {
-                return BadRequest(ModelState);
-            }
-
-            try
-            {
-                var validTypes = await _context.CommunicationTypes
-                    .Select(t => t.Name)
-                    .ToListAsync();
-                if (!validTypes.Contains(model.CommunicationTypeName))
-                {
-                    return BadRequest(new { error = $"Invalid CommunicationTypeName. Valid values: {string.Join(", ", validTypes)}" });
-                }
-
-                var communication = new CustomerCommunication
-                {
-                    CustomerCommunicationId = model.CustomerCommunicationId,
-                    ContactId = model.PartnerId, // Use PartnerId from form
-                    CommunicationTypeId = await _context.CommunicationTypes
-                        .Where(t => t.Name == model.CommunicationTypeName)
-                        .Select(t => t.CommunicationTypeId)
-                        .FirstOrDefaultAsync(),
-                    Subject = model.Subject,
-                    Date = model.Date != default ? model.Date : DateTime.UtcNow, // Use UTC
-                    Note = model.Note,
-                    StatusId = await _context.CommunicationStatuses
-                        .Where(s => s.Name == model.StatusName)
-                        .Select(s => s.StatusId)
-                        .FirstOrDefaultAsync(),
-                    Metadata = model.Metadata,
-                    AttachmentPath = model.AttachmentPath,
-                    PartnerId = model.PartnerId,
-                    LeadId = model.LeadId,
-                    QuoteId = model.QuoteId,
-                    OrderId = model.OrderId,
-                    AgentId = _userManager.GetUserId(User) // Set AgentId
-                };
-
-                if (communication.CommunicationTypeId == 0)
-                {
-                    return BadRequest(new { error = "CommunicationType not found" });
-                }
-
-                if (communication.StatusId == 0)
-                {
-                    return BadRequest(new { error = "Status not found" });
-                }
-
-                if (model.CustomerCommunicationId == 0)
-                {
-                    _context.CustomerCommunications.Add(communication);
-                }
-                else
-                {
-                    _context.CustomerCommunications.Update(communication);
-                }
-
-                await _context.SaveChangesAsync();
-                return Ok(new { communicationId = communication.CustomerCommunicationId });
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, new { error = "Failed to save communication", details = ex.Message });
-            }
-        }
-
-        [HttpPost("initial")]
-        public async Task<IActionResult> RecordInitialCommunication([FromBody] CustomerCommunicationDto dto)
+        public async Task<IActionResult> RecordCommunication([FromBody] CustomerCommunicationDto dto, [FromQuery] string communicationPurpose = "General")
         {
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
@@ -110,9 +35,9 @@ namespace Cloud9_2.Controllers
                     return Unauthorized("User not found.");
 
                 dto.AgentId = userId;
-                dto.Date = DateTime.UtcNow;
+                dto.Date = dto.Date != default ? dto.Date : DateTime.UtcNow;
 
-                await _service.RecordInitialCommunicationAsync(dto);
+                await _service.RecordCommunicationAsync(dto, communicationPurpose);
                 return CreatedAtAction(nameof(GetCommunication), new { id = dto.CustomerCommunicationId }, dto);
             }
             catch (ArgumentException ex)
@@ -125,11 +50,14 @@ namespace Cloud9_2.Controllers
             }
         }
 
-        [HttpPost("escalation")]
-        public async Task<IActionResult> RecordEscalation([FromBody] CustomerCommunicationDto dto)
+        [HttpPut("{id}")]
+        public async Task<IActionResult> UpdateCommunication(int id, [FromBody] CustomerCommunicationDto dto)
         {
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
+
+            if (id != dto.CustomerCommunicationId)
+                return BadRequest("Communication ID mismatch.");
 
             try
             {
@@ -138,10 +66,8 @@ namespace Cloud9_2.Controllers
                     return Unauthorized("User not found.");
 
                 dto.AgentId = userId;
-                dto.Date = DateTime.UtcNow;
-
-                await _service.RecordEscalationAsync(dto);
-                return CreatedAtAction(nameof(GetCommunication), new { id = dto.CustomerCommunicationId }, dto);
+                await _service.UpdateCommunicationAsync(dto);
+                return Ok(new { communicationId = dto.CustomerCommunicationId });
             }
             catch (ArgumentException ex)
             {
@@ -149,40 +75,38 @@ namespace Cloud9_2.Controllers
             }
             catch (Exception)
             {
-                return StatusCode(500, "An error occurred while recording the escalation.");
+                return StatusCode(500, "An error occurred while updating the communication.");
             }
         }
 
-        [HttpPost("follow-up")]
-        public async Task<IActionResult> RecordFollowUp([FromBody] CustomerCommunicationDto dto)
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> DeleteCommunication(int id)
         {
-            if (!ModelState.IsValid)
-                return BadRequest(ModelState);
-
             try
             {
                 var userId = _userManager.GetUserId(User);
                 if (string.IsNullOrEmpty(userId))
                     return Unauthorized("User not found.");
 
-                dto.AgentId = userId;
-                dto.Date = DateTime.UtcNow;
-
-                await _service.RecordFollowUpAsync(dto);
-                return CreatedAtAction(nameof(GetCommunication), new { id = dto.CustomerCommunicationId }, dto);
+                await _service.DeleteCommunicationAsync(id);
+                return NoContent();
             }
             catch (ArgumentException ex)
+            {
+                return NotFound(ex.Message);
+            }
+            catch (InvalidOperationException ex)
             {
                 return BadRequest(ex.Message);
             }
             catch (Exception)
             {
-                return StatusCode(500, "An error occurred while recording the follow-up.");
+                return StatusCode(500, "An error occurred while deleting the communication.");
             }
         }
 
-        [HttpPost("resolution")]
-        public async Task<IActionResult> RecordResolution([FromBody] CustomerCommunicationDto dto)
+        [HttpPost("{id}/post")]
+        public async Task<IActionResult> AddPost(int id, [FromBody] PostDto dto)
         {
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
@@ -193,19 +117,62 @@ namespace Cloud9_2.Controllers
                 if (string.IsNullOrEmpty(userId))
                     return Unauthorized("User not found.");
 
-                dto.AgentId = userId;
-                dto.Date = DateTime.UtcNow;
-
-                await _service.RecordResolutionAsync(dto);
-                return CreatedAtAction(nameof(GetCommunication), new { id = dto.CustomerCommunicationId }, dto);
+                await _service.AddCommunicationPostAsync(id, dto.Content, userId);
+                return Ok();
             }
             catch (ArgumentException ex)
             {
-                return BadRequest(ex.Message);
+                return BadRequest(new { error = ex.Message });
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                return StatusCode(500, "An error occurred while recording the resolution.");
+                // Log exception (use ILogger in production)
+                return StatusCode(500, new { error = "An unexpected error occurred while adding the post." });
+            }
+        }
+
+        [HttpPost("{id}/assign-responsible")]
+        public async Task<IActionResult> AssignResponsible(int id, [FromBody] AssignResponsibleDto dto)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            try
+            {
+                var userId = _userManager.GetUserId(User);
+                if (string.IsNullOrEmpty(userId))
+                    return Unauthorized("User not found.");
+
+                await _service.AssignResponsibleAsync(id, dto.ResponsibleContactId, userId);
+                return Ok();
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { error = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                // Log exception
+                return StatusCode(500, new { error = "An unexpected error occurred while assigning the responsible." });
+            }
+        }
+
+        [HttpGet("{id}/history")]
+        public async Task<IActionResult> GetHistory(int id)
+        {
+            try
+            {
+                var history = await _service.GetCommunicationHistoryAsync(id);
+                return Ok(history);
+            }
+            catch (ArgumentException ex)
+            {
+                return NotFound(new { error = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                // Log exception
+                return StatusCode(500, new { error = "An unexpected error occurred while retrieving the communication history." });
             }
         }
 
@@ -251,10 +218,21 @@ namespace Cloud9_2.Controllers
                 var communications = await _service.ReviewCommunicationsAsync();
                 return Ok(communications);
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                return StatusCode(500, "An error occurred while retrieving communications.");
+                // Log exception
+                return StatusCode(500, new { error = "An error occurred while retrieving the communications." });
             }
         }
+    }
+
+    public class PostDto
+    {
+        public string Content { get; set; }
+    }
+
+    public class AssignResponsibleDto
+    {
+        public int ResponsibleContactId { get; set; }
     }
 }

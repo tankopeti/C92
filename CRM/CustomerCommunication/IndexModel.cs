@@ -1,24 +1,24 @@
+using Cloud9_2.Models;
+using Cloud9_2.Services;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Security.Claims;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.RazorPages;
-using Microsoft.EntityFrameworkCore;
-using Cloud9_2.Data;
-using Cloud9_2.Models;
-using Microsoft.Extensions.Logging;
 
 namespace Cloud9_2.Pages.CRM.CustomerCommunication
 {
     public class IndexModel : PageModel
     {
-        private readonly ApplicationDbContext _context;
+        private readonly CustomerCommunicationService _communicationService;
         private readonly ILogger<IndexModel> _logger;
 
-        public IndexModel(ApplicationDbContext context, ILogger<IndexModel> logger)
+        public IndexModel(CustomerCommunicationService communicationService, ILogger<IndexModel> logger)
         {
-            _context = context ?? throw new ArgumentNullException(nameof(context));
+            _communicationService = communicationService ?? throw new ArgumentNullException(nameof(communicationService));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
@@ -38,6 +38,15 @@ namespace Cloud9_2.Pages.CRM.CustomerCommunication
         public int TotalRecords { get; set; }
         public int DistinctCommunicationIdCount { get; set; }
 
+        [BindProperty]
+        public CustomerCommunicationDto NewCommunication { get; set; }
+        [BindProperty]
+        public CommunicationPostDto NewPost { get; set; }
+        [BindProperty]
+        public int NewResponsibleId { get; set; }
+        [BindProperty]
+        public int CommunicationId { get; set; }
+
         public async Task OnGetAsync()
         {
             try
@@ -47,85 +56,55 @@ namespace Cloud9_2.Pages.CRM.CustomerCommunication
 
                 CurrentPage = Math.Max(1, CurrentPage);
 
-                var query = _context.CustomerCommunications
-                    .Include(c => c.CommunicationType)
-                    .Include(c => c.Contact)
-                    .Include(c => c.Status)
-                    .Include(c => c.Agent)
-                    .AsQueryable();
+                // Use service to retrieve communications
+                var allCommunications = await _communicationService.ReviewCommunicationsAsync();
 
+                // Apply filtering
+                var query = allCommunications.AsQueryable();
                 if (!string.IsNullOrWhiteSpace(SearchTerm))
                 {
                     SearchTerm = SearchTerm.Trim().ToLower();
                     query = query.Where(c =>
                         (c.Subject != null && c.Subject.ToLower().Contains(SearchTerm)) ||
-                        (c.Contact != null && c.Contact.FirstName != null && c.Contact.FirstName.ToLower().Contains(SearchTerm)) ||
-                        (c.Contact != null && c.Contact.LastName != null && c.Contact.LastName.ToLower().Contains(SearchTerm)) ||
-                        (c.CommunicationType != null && c.CommunicationType.Name != null && c.CommunicationType.Name.ToLower().Contains(SearchTerm)) ||
+                        (c.FirstName != null && c.FirstName.ToLower().Contains(SearchTerm)) ||
+                        (c.LastName != null && c.LastName.ToLower().Contains(SearchTerm)) ||
+                        (c.CommunicationTypeName != null && c.CommunicationTypeName.ToLower().Contains(SearchTerm)) ||
                         (c.Note != null && c.Note.ToLower().Contains(SearchTerm)));
                 }
 
                 if (!string.IsNullOrWhiteSpace(TypeFilter) && TypeFilter != "all")
                 {
-                    query = query.Where(c => c.CommunicationType != null && c.CommunicationType.Name == TypeFilter);
+                    query = query.Where(c => c.CommunicationTypeName == TypeFilter);
                 }
 
-                TotalRecords = await query.CountAsync();
-                DistinctCommunicationIdCount = await query.Select(c => c.CustomerCommunicationId).Distinct().CountAsync();
+                TotalRecords = query.Count();
+                DistinctCommunicationIdCount = query.Select(c => c.CustomerCommunicationId).Distinct().Count();
 
                 TotalPages = (int)Math.Ceiling((double)TotalRecords / PageSize);
                 CurrentPage = Math.Min(CurrentPage, TotalPages > 0 ? TotalPages : 1);
 
+                // Apply sorting
                 query = SortBy switch
                 {
                     "CommunicationId" => query.OrderByDescending(c => c.CustomerCommunicationId),
-                    "PartnerName" => query.OrderBy(c => c.Contact != null ? c.Contact.FirstName + " " + c.Contact.LastName : ""),
+                    "PartnerName" => query.OrderBy(c => (c.FirstName ?? "") + " " + (c.LastName ?? "")),
                     "CommunicationDate" => query.OrderByDescending(c => c.Date),
                     "Subject" => query.OrderBy(c => c.Subject),
                     _ => query.OrderByDescending(c => c.Date)
                 };
 
+                // Apply pagination
                 var skip = (CurrentPage - 1) * PageSize;
-                query = query.Skip(skip).Take(PageSize);
+                Communications = query.Skip(skip).Take(PageSize).ToList();
 
-                Communications = await query
-                    .Select(c => new CustomerCommunicationDto
-                    {
-                        CustomerCommunicationId = c.CustomerCommunicationId,
-                        CommunicationTypeId = c.CommunicationTypeId,
-                        CommunicationTypeName = c.CommunicationType != null ? c.CommunicationType.Name : null,
-                        Date = c.Date,
-                        Subject = c.Subject,
-                        Note = c.Note,
-                        ContactId = c.ContactId,
-                        FirstName = c.Contact != null ? c.Contact.FirstName : null,
-                        LastName = c.Contact != null ? c.Contact.LastName : null,
-                        AgentId = c.AgentId,
-                        AgentName = c.Agent != null ? c.Agent.UserName : null, // Use UserName or other property from ApplicationUser
-                        StatusId = c.StatusId,
-                        StatusName = c.Status != null ? c.Status.Name : null,
-                        AttachmentPath = c.AttachmentPath,
-                        Metadata = c.Metadata,
-                        PartnerId = c.PartnerId,
-                        LeadId = c.LeadId,
-                        QuoteId = c.QuoteId,
-                        OrderId = c.OrderId
-                    })
-                    .ToListAsync();
-
-                    // Populate StatusDisplayNames from database
-            StatusDisplayNames = await _context.CommunicationStatuses
-                .ToDictionaryAsync(
-                    s => s.Name,
-                    s => s.Name switch
-                    {
-                        "Escalated" => "Eskalálva",
-                        "InProgress" => "Folyamatban",
-                        "Open" => "Nyitott",
-                        "Resolved" => "Megoldva",
-                        _ => s.Name
-                    }
-                );
+                // Populate status display names
+                StatusDisplayNames = new Dictionary<string, string>
+                {
+                    { "Escalated", "Eskalálva" },
+                    { "InProgress", "Folyamatban" },
+                    { "Open", "Nyitott" },
+                    { "Resolved", "Megoldva" }
+                };
 
                 _logger.LogInformation("Successfully retrieved {Count} communications for page {CurrentPage}", Communications.Count, CurrentPage);
             }
@@ -138,6 +117,193 @@ namespace Cloud9_2.Pages.CRM.CustomerCommunication
                 DistinctCommunicationIdCount = 0;
                 ModelState.AddModelError("", "Error retrieving data. Please try again later.");
             }
+        }
+
+        public async Task<IActionResult> OnPostCreateAsync()
+        {
+            if (!ModelState.IsValid)
+            {
+                await OnGetAsync();
+                return Page();
+            }
+
+            try
+            {
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (string.IsNullOrEmpty(userId))
+                {
+                    ModelState.AddModelError(string.Empty, "User not authenticated");
+                    await OnGetAsync();
+                    return Page();
+                }
+
+                NewCommunication.AgentId = userId;
+                NewCommunication.Date = NewCommunication.Date != default ? NewCommunication.Date : DateTime.UtcNow;
+
+                await _communicationService.RecordCommunicationAsync(NewCommunication, "General");
+                _logger.LogInformation("Communication created successfully with ID {CommunicationId}", NewCommunication.CustomerCommunicationId);
+            }
+            catch (ArgumentException ex)
+            {
+                ModelState.AddModelError(string.Empty, ex.Message);
+                _logger.LogWarning("Failed to create communication: {Message}", ex.Message);
+                await OnGetAsync();
+                return Page();
+            }
+            catch (Exception ex)
+            {
+                ModelState.AddModelError(string.Empty, "An error occurred while creating the communication.");
+                _logger.LogError(ex, "Error creating communication");
+                await OnGetAsync();
+                return Page();
+            }
+
+            return RedirectToPage(new { SearchTerm, TypeFilter, SortBy, CurrentPage, PageSize });
+        }
+
+        public async Task<IActionResult> OnPostUpdateAsync()
+        {
+            if (!ModelState.IsValid)
+            {
+                await OnGetAsync();
+                return Page();
+            }
+
+            try
+            {
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (string.IsNullOrEmpty(userId))
+                {
+                    ModelState.AddModelError(string.Empty, "User not authenticated");
+                    await OnGetAsync();
+                    return Page();
+                }
+
+                NewCommunication.AgentId = userId;
+                await _communicationService.UpdateCommunicationAsync(NewCommunication);
+                _logger.LogInformation("Communication updated successfully with ID {CommunicationId}", NewCommunication.CustomerCommunicationId);
+            }
+            catch (ArgumentException ex)
+            {
+                ModelState.AddModelError(string.Empty, ex.Message);
+                _logger.LogWarning("Failed to update communication: {Message}", ex.Message);
+                await OnGetAsync();
+                return Page();
+            }
+            catch (Exception ex)
+            {
+                ModelState.AddModelError(string.Empty, "An error occurred while updating the communication.");
+                _logger.LogError(ex, "Error updating communication with ID {CommunicationId}", NewCommunication.CustomerCommunicationId);
+                await OnGetAsync();
+                return Page();
+            }
+
+            return RedirectToPage(new { SearchTerm, TypeFilter, SortBy, CurrentPage, PageSize });
+        }
+
+        public async Task<IActionResult> OnPostDeleteAsync(int communicationId)
+        {
+            try
+            {
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (string.IsNullOrEmpty(userId))
+                {
+                    ModelState.AddModelError(string.Empty, "User not authenticated");
+                    await OnGetAsync();
+                    return Page();
+                }
+
+                await _communicationService.DeleteCommunicationAsync(communicationId);
+                _logger.LogInformation("Communication deleted successfully with ID {CommunicationId}", communicationId);
+            }
+            catch (ArgumentException ex)
+            {
+                ModelState.AddModelError(string.Empty, ex.Message);
+                _logger.LogWarning("Failed to delete communication: {Message}", ex.Message);
+                await OnGetAsync();
+                return Page();
+            }
+            catch (InvalidOperationException ex)
+            {
+                ModelState.AddModelError(string.Empty, ex.Message);
+                _logger.LogWarning("Failed to delete communication: {Message}", ex.Message);
+                await OnGetAsync();
+                return Page();
+            }
+            catch (Exception ex)
+            {
+                ModelState.AddModelError(string.Empty, "An error occurred while deleting the communication.");
+                _logger.LogError(ex, "Error deleting communication with ID {CommunicationId}", communicationId);
+                await OnGetAsync();
+                return Page();
+            }
+
+            return RedirectToPage(new { SearchTerm, TypeFilter, SortBy, CurrentPage, PageSize });
+        }
+
+        public async Task<IActionResult> OnPostAddPostAsync(int communicationId, string content)
+        {
+            if (string.IsNullOrWhiteSpace(content))
+                return BadRequest("Content is required");
+
+            try
+            {
+                await _communicationService.AddCommunicationPostAsync(communicationId, content, User.Identity.Name);
+                return new JsonResult(new { success = true });
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { error = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                // Log exception
+                return StatusCode(500, new { error = "An unexpected error occurred while adding the post." });
+            }
+        }
+
+        public async Task<IActionResult> OnPostChangeResponsibleAsync()
+        {
+            if (!ModelState.IsValid)
+            {
+                await OnGetAsync();
+                return Page();
+            }
+
+            try
+            {
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (string.IsNullOrEmpty(userId))
+                {
+                    ModelState.AddModelError(string.Empty, "User not authenticated");
+                    await OnGetAsync();
+                    return Page();
+                }
+
+                await _communicationService.AssignResponsibleAsync(
+                    CommunicationId,
+                    NewResponsibleId,
+                    userId
+                );
+
+                _logger.LogInformation("Responsible assigned successfully for communication ID {CommunicationId}", CommunicationId);
+            }
+            catch (ArgumentException ex)
+            {
+                ModelState.AddModelError(string.Empty, ex.Message);
+                _logger.LogWarning("Failed to assign responsible: {Message}", ex.Message);
+                await OnGetAsync();
+                return Page();
+            }
+            catch (Exception ex)
+            {
+                ModelState.AddModelError(string.Empty, "An error occurred while assigning the responsible.");
+                _logger.LogError(ex, "Error assigning responsible for communication ID {CommunicationId}", CommunicationId);
+                await OnGetAsync();
+                return Page();
+            }
+
+            return RedirectToPage(new { SearchTerm, TypeFilter, SortBy, CurrentPage, PageSize });
         }
     }
 }

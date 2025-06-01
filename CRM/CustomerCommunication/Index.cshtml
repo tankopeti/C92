@@ -343,7 +343,7 @@
                                     <form id="assignResponsibleForm_@communication.CustomerCommunicationId" class="mt-2">
                                         @Html.AntiForgeryToken()
                                         <div class="mb-3">
-                                            <select name="ResponsibleContactId" class="form-select tom-select" data-selected-id="" data-selected-text="" autocomplete="off" required>
+                                            <select name="ResponsibleId" class="form-select tom-select" data-selected-id="" data-selected-text="" autocomplete="off" required>
                                                 <option value="" disabled selected>-- Válasszon felelőst --</option>
                                             </select>
                                         </div>
@@ -537,34 +537,48 @@
 <script src="https://cdn.jsdelivr.net/npm/tom-select@2.4.3/dist/js/tom-select.complete.min.js"></script>
 
 <script>
-document.addEventListener('DOMContentLoaded', function () {
-    console.log('Main script loaded');
+(function() {
+    // Centralized API endpoints
+    const API_ENDPOINTS = {
+        partners: '/api/partners',
+        users: '/api/users',
+        orders: '/api/orders',
+        communication: '/api/customercommunication'
+    };
 
     // --- Utility Functions ---
     function showToast(message, type = 'danger') {
-        const toast = $(`
-            <div class="toast custom-toast align-items-center text-white bg-${type} border-0" role="alert" aria-live="assertive" aria-atomic="true">
-                <div class="d-flex">
-                    <div class="toast-body">${message}</div>
-                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
-                </div>
+        const toast = document.createElement('div');
+        toast.className = `toast custom-toast align-items-center text-white bg-${type} border-0`;
+        toast.setAttribute('role', 'alert');
+        toast.setAttribute('aria-live', 'assertive');
+        toast.setAttribute('aria-atomic', 'true');
+        toast.innerHTML = `
+            <div class="d-flex">
+                <div class="toast-body">${message}</div>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
             </div>
-        `);
-        $('#toastContainer').append(toast);
-        const bsToast = new bootstrap.Toast(toast[0]);
+        `;
+        const toastContainer = document.getElementById('toastContainer');
+        if (!toastContainer) {
+            console.error('Toast container not found');
+            return;
+        }
+        toastContainer.appendChild(toast);
+        const bsToast = new bootstrap.Toast(toast, { autohide: true, delay: 5000 });
         bsToast.show();
-        setTimeout(() => toast.remove(), 5500);
     }
 
     // --- Initialize TomSelect ---
     function initializeTomSelect(select, communicationId, options = {}) {
-        const { endpoint = '/api/partners', dataKey = 'contacts', placeholder = '-- Válasszon --' } = options;
-        const selectedId = select.dataset.selectedId || '';
-        const selectedText = select.dataset.selectedText || '';
-        console.log('TomSelect Init for:', communicationId, 'endpoint:', endpoint, 'dataKey:', dataKey, 'selectedId:', selectedId, 'selectedText:', selectedText);
+        const { endpoint = API_ENDPOINTS.partners, dataKey = 'contacts', placeholder = '-- Válasszon --' } = options;
+        const selectedId = select?.dataset.selectedId || '';
+        const selectedText = select?.dataset.selectedText || '';
+        console.log('TomSelect Init for:', communicationId, 'endpoint:', endpoint, 'dataKey:', dataKey, 'selectedId:', selectedId);
 
         if (!select) {
-            console.error('Select element is null for communicationId:', communicationId, 'options:', options);
+            console.error('Select element is null for communicationId:', communicationId);
+            showToast('Hiba: A kiválasztó elem nem található.', 'danger');
             return null;
         }
 
@@ -581,13 +595,13 @@ document.addEventListener('DOMContentLoaded', function () {
             maxOptions: 100,
             load: async (query, callback) => {
                 try {
-                    const url = endpoint === '/api/orders' 
+                    const url = endpoint === API_ENDPOINTS.orders 
                         ? `${endpoint}?searchTerm=${encodeURIComponent(query)}&take=50`
                         : `${endpoint}?search=${encodeURIComponent(query)}&take=50`;
                     console.log('TomSelect Query:', url);
                     const response = await fetch(url, {
                         headers: {
-                            'Authorization': 'Bearer ' + (localStorage.getItem('token') || ''),
+                            'Authorization': `Bearer ${localStorage.getItem('token') || ''}`,
                             'Accept': 'application/json'
                         }
                     });
@@ -596,45 +610,38 @@ document.addEventListener('DOMContentLoaded', function () {
                     console.log('TomSelect Response:', data);
 
                     let items = [];
-                    if (endpoint === '/api/partners') {
+                    if (endpoint === API_ENDPOINTS.partners) {
                         if (dataKey === 'partners') {
-                            items = data.map(partner => ({
-                                id: partner.id,
-                                text: partner.text
-                            }));
+                            items = data.map(partner => ({ id: partner.id, text: partner.text }));
                         } else if (dataKey === 'quotes') {
                             items = data.flatMap(partner => 
-                                partner.quotes && partner.quotes.length ? 
-                                partner.quotes.map(quote => ({
-                                    id: quote.id,
-                                    text: quote.text
-                                })) : []
+                                partner.quotes?.length ? partner.quotes.map(quote => ({ id: quote.id, text: quote.text })) : []
                             );
                         } else if (dataKey === 'contacts') {
                             items = data.flatMap(partner => 
-                                partner.contacts && partner.contacts.length ? 
-                                partner.contacts.map(contact => ({
-                                    id: contact.id,
-                                    text: contact.text
-                                })) : []
+                                partner.contacts?.length ? partner.contacts.map(contact => ({ id: contact.id, text: contact.text })) : []
                             );
                         }
-                    } else if (endpoint === '/api/orders') {
+                    } else if (endpoint === API_ENDPOINTS.orders) {
                         items = data.map(order => ({
                             id: order.orderId,
                             text: order.orderNumber || `Order ${order.orderId}` + (order.description ? ` (${order.description})` : '')
                         }));
-                    }
-
+                    }     else if (endpoint === '/api/users') {
+                            items = data.map(user => ({
+                                id: user.id,
+                                text: (user.userName + ' (' + user.email + ')')
+                            }));
+                        }
                     if (!items.length) {
                         console.warn(`No items found for ${dataKey} from ${endpoint}`);
-                        callback([{ id: 0, text: `Nincs elérhető ${dataKey === 'partners' ? 'partner' : dataKey === 'quotes' ? 'árajánlat' : dataKey === 'contacts' ? 'kapcsolat' : 'rendelés'}` }]);
+                        callback([{ id: 0, text: `Nincs elérhető ${dataKey}` }]);
                     } else {
                         callback(items);
                     }
                 } catch (error) {
                     console.error('TomSelect Error:', error, 'endpoint:', endpoint, 'dataKey:', dataKey);
-                    callback([{ id: 0, text: `Hiba: Nem sikerült betölteni a ${dataKey === 'partners' ? 'partnereket' : dataKey === 'quotes' ? 'árajánlatokat' : dataKey === 'contacts' ? 'kapcsolatokat' : 'rendeléseket'}` }]);
+                    callback([{ id: 0, text: `Hiba: Nem sikerült betölteni a ${dataKey}` }]);
                 }
             },
             shouldLoad: () => true,
@@ -655,51 +662,70 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     // --- Load Communication History ---
-    function loadCommunicationHistory(communicationId) {
-        const historyContainer = $(`#history_${communicationId}`);
-        historyContainer.html('<p class="text-muted">Előzmények betöltése...</p>');
+async function loadCommunicationHistory(communicationId) {
+    const historyContainer = document.getElementById(`history_${communicationId}`);
+    if (!historyContainer) {
+        console.error('History container not found:', communicationId);
+        showToast('Hiba: Az előzmény konténer nem található.', 'danger');
+        return;
+    }
+    historyContainer.innerHTML = '<p class="text-muted">Előzmények betöltése...</p>';
 
-        $.ajax({
-            url: `/api/customercommunication/${communicationId}/history`,
-            type: 'GET',
+    try {
+        const response = await fetch(`/api/customercommunication/${communicationId}/history`, {
             headers: {
-                'Authorization': 'Bearer ' + (localStorage.getItem('token') || '')
-            },
-            success: function (data) {
-                console.log('History loaded:', data);
-                if (!data || (!data.posts && !data.responsibleHistory)) {
-                    historyContainer.html('<p class="text-muted">Nincs előzmény.</p>');
-                    return;
-                }
-
-                let html = '<ul class="list-group">';
-                if (data.posts && data.posts.length) {
-                    data.posts.forEach(post => {
-                        html += `
-                            <li class="list-group-item">
-                                <strong>Hozzászólás</strong> (${post.createdDate}): ${post.content}<br>
-                                <small>Írta: ${post.createdBy || 'Ismeretlen'}</small>
-                            </li>`;
-                    });
-                }
-                if (data.responsibleHistory && data.responsibleHistory.length) {
-                    data.responsibleHistory.forEach(responsible => {
-                        html += `
-                            <li class="list-group-item">
-                                <strong>Felelős kijelölve</strong> (${responsible.assignedDate}): ${responsible.responsibleName}<br>
-                                <small>Kijelölte: ${responsible.assignedBy || 'Ismeretlen'}</small>
-                            </li>`;
-                    });
-                }
-                html += '</ul>';
-                historyContainer.html(html);
-            },
-            error: function (xhr) {
-                console.error('History load error:', xhr.responseText);
-                historyContainer.html('<p class="text-danger">Hiba az előzmények betöltésekor.</p>');
+                'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
             }
         });
+        if (!response.ok) {
+            if (response.status === 404) {
+                historyContainer.innerHTML = '<p class="text-muted">Nincs előzmény.</p>';
+                return;
+            }
+            const errorText = await response.text();
+            let errorMessage = `HTTP error: ${response.status}`;
+            try {
+                errorMessage = JSON.parse(errorText).error || errorText;
+            } catch {
+                errorMessage = errorText;
+            }
+            throw new Error(errorMessage);
+        }
+        const data = await response.json();
+        console.log('History loaded:', data);
+
+        if (!data || (!data.posts?.length && !data.responsibleHistory?.length)) {
+            historyContainer.innerHTML = '<p class="text-muted">Nincs előzmény.</p>';
+            return;
+        }
+
+        let html = '<ul class="list-group">';
+        if (data.posts?.length) {
+            data.posts.forEach(post => {
+                html += `
+                    <li class="list-group-item">
+                        <strong>Hozzászólás</strong> (${post.createdAt ? new Date(post.createdAt).toLocaleString() : 'N/A'}): ${post.content || ''}<br>
+                        <small>Írta: ${post.createdByName || 'Ismeretlen'}</small>
+                    </li>`;
+            });
+        }
+        if (data.responsibleHistory?.length) {
+            data.responsibleHistory.forEach(responsible => {
+                html += `
+                    <li class="list-group-item">
+                        <strong>Felelős kijelölve</strong> (${responsible.assignedAt ? new Date(responsible.assignedAt).toLocaleString() : 'N/A'}): ${responsible.responsibleName || 'Ismeretlen'}<br>
+                        <small>Kijelölte: ${responsible.assignedByName || 'Ismeretlen'}</small>
+                    </li>`;
+            });
+        }
+        html += '</ul>';
+        historyContainer.innerHTML = html;
+    } catch (error) {
+        console.error('History load error:', error);
+        historyContainer.innerHTML = '<p class="text-danger">Hiba az előzmények betöltésekor.</p>';
+        showToast(`Hiba: ${error.message}`, 'danger');
     }
+}
 
     // --- Save Communication ---
     async function saveCommunication(communicationId) {
@@ -726,8 +752,13 @@ document.addEventListener('DOMContentLoaded', function () {
         const formData = new FormData(form);
         const contactText = contactSelect.selectedOptions[0]?.text || 'Unknown';
         const responsibleText = responsibleSelect.selectedOptions[0]?.text || 'Unknown';
-        const username = localStorage.getItem('username') || 'System'; // Use localStorage for username
-        console.log('Username for save:', username);
+        const username = localStorage.getItem('username') || 'System';
+        const token = form.querySelector('input[name="__RequestVerificationToken"]')?.value;
+        if (!token) {
+            console.error('Anti-forgery token not found');
+            showToast('Hiba: Biztonsági token hiányzik.', 'danger');
+            return;
+        }
 
         const data = {
             CustomerCommunicationId: communicationId === 'new' ? 0 : parseInt(communicationId),
@@ -743,7 +774,7 @@ document.addEventListener('DOMContentLoaded', function () {
             OrderId: parseInt(formData.get('OrderId')) || null,
             Metadata: formData.get('Metadata')?.trim() || '',
             Posts: formData.get('InitialPost')?.trim() ? [{
-                Content: formData.get('InitialPost')?.trim(),
+                Content: formData.get('InitialPost').trim(),
                 CreatedBy: username,
                 CreatedDate: new Date().toISOString()
             }] : [],
@@ -761,41 +792,33 @@ document.addEventListener('DOMContentLoaded', function () {
             }]
         };
 
-        console.log('Processed data:', data);
-
-        // Validate required fields
         if (!data.CommunicationTypeId || !data.ContactId || !data.Subject || !data.Date || !data.StatusId || !data.CurrentResponsible.ContactId) {
             console.error('Validation failed:', data);
-            showToast('Kérjük, töltse ki az összes kötelező mezőt (Típus, Partner, Tárgy, Dátum, Státusz, Felelős).', 'danger');
+            showToast('Kérjük, töltse ki az összes kötelező mezőt.', 'danger');
             return;
         }
 
         try {
-            const url = communicationId === 'new' ? '/api/customercommunication' : `/api/customercommunication/${communicationId}`;
+            const url = communicationId === 'new' ? API_ENDPOINTS.communication : `${API_ENDPOINTS.communication}/${communicationId}`;
             const method = communicationId === 'new' ? 'POST' : 'PUT';
             const response = await fetch(url, {
-                method: method,
+                method,
                 headers: {
                     'Content-Type': 'application/json',
-                    'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]').value,
-                    'Authorization': 'Bearer ' + (localStorage.getItem('token') || '')
+                    'RequestVerificationToken': token,
+                    'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
                 },
                 body: JSON.stringify(data)
             });
 
             if (!response.ok) {
                 const errorText = await response.text();
-                let errorMessage = `Hiba: ${response.status} ${response.statusText}.`;
+                let errorMessage = `Hiba: ${response.status} ${response.statusText}`;
                 try {
                     const errorJson = JSON.parse(errorText);
-                    if (errorJson.errors) {
-                        const errorMessages = Object.entries(errorJson.errors)
-                            .map(([field, messages]) => `${field}: ${messages.join(', ')}`)
-                            .join('; ');
-                        errorMessage = `Érvényesítési hibák: ${errorMessages}`;
-                    } else {
-                        errorMessage += ` ${errorJson.title || errorText}`;
-                    }
+                    errorMessage = errorJson.errors 
+                        ? `Érvényesítési hibák: ${Object.entries(errorJson.errors).map(([field, messages]) => `${field}: ${messages.join(', ')}`).join('; ')}`
+                        : errorJson.title || errorText;
                 } catch {
                     errorMessage += ` Szerver hiba: ${errorText}`;
                 }
@@ -812,7 +835,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     // --- Add Post ---
-    function addPost(communicationId) {
+    async function addPost(communicationId) {
         const form = document.getElementById(`addPostForm_${communicationId}`);
         if (!form) {
             console.error('Post form not found for communicationId:', communicationId);
@@ -821,37 +844,47 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         const formData = new FormData(form);
-        const data = { Content: formData.get('Content')?.trim() || '' };
+        const token = form.querySelector('input[name="__RequestVerificationToken"]')?.value;
+        if (!token) {
+            console.error('Anti-forgery token not found');
+            showToast('Hiba: Biztonsági token hiányzik.', 'danger');
+            return;
+        }
 
+        const data = { Content: formData.get('Content')?.trim() || '' };
         if (!data.Content) {
             showToast('Kérjük, adja meg a hozzászólás tartalmát.', 'danger');
             return;
         }
 
-        $.ajax({
-            url: `/api/customercommunication/${communicationId}/post`,
-            type: 'POST',
-            headers: {
-                'RequestVerificationToken': form.querySelector('input[name="__RequestVerificationToken"]').value,
-                'Authorization': 'Bearer ' + (localStorage.getItem('token') || '')
-            },
-            contentType: 'application/json',
-            data: JSON.stringify(data),
-            success: function () {
-                console.log('Post added successfully');
-                showToast('Hozzászólás sikeresen hozzáadva!', 'success');
-                form.reset();
-                loadCommunicationHistory(communicationId);
-            },
-            error: function (xhr) {
-                console.error('Post add error:', xhr.responseText);
-                showToast(`Hozzászólás hozzáadása sikertelen: ${xhr.responseText}`, 'danger');
+        try {
+            const response = await fetch(`${API_ENDPOINTS.communication}/${communicationId}/post`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'RequestVerificationToken': token,
+                    'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
+                },
+                body: JSON.stringify(data)
+            });
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(errorText || `Hiba: ${response.status}`);
             }
-        });
+
+            console.log('Post added successfully');
+            showToast('Hozzászólás sikeresen hozzáadva!', 'success');
+            form.reset();
+            await loadCommunicationHistory(communicationId);
+        } catch (error) {
+            console.error('Post add error:', error);
+            showToast(`Hozzászólás hozzáadása sikertelen: ${error.message}`, 'danger');
+        }
     }
 
     // --- Assign Responsible ---
-    function assignResponsible(communicationId) {
+    async function assignResponsible(communicationId) {
         const form = document.getElementById(`assignResponsibleForm_${communicationId}`);
         if (!form) {
             console.error('Responsible form not found for communicationId:', communicationId);
@@ -860,271 +893,277 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         const formData = new FormData(form);
-        const data = { ResponsibleContactId: parseInt(formData.get('ResponsibleContactId')) || null };
+        const token = form.querySelector('input[name="__RequestVerificationToken"]')?.value;
+        if (!token) {
+            console.error('Anti-forgery token not found');
+            showToast('Hiba: Biztonsági token hiányzik.', 'danger');
+            return;
+        }
 
-        if (!data.ResponsibleContactId) {
+        const data = { ResponsibleUserId: formData.get('ResponsibleId') };
+        if (!data.ResponsibleUserId) {
             showToast('Kérjük, válasszon ki egy felelőst.', 'danger');
             return;
         }
 
-        $.ajax({
-            url: `/api/customercommunication/${communicationId}/assign-responsible`,
-            type: 'POST',
-            headers: {
-                'RequestVerificationToken': form.querySelector('input[name="__RequestVerificationToken"]').value,
-                'Authorization': 'Bearer ' + (localStorage.getItem('token') || '')
-            },
-            contentType: 'application/json',
-            data: JSON.stringify(data),
-            success: function () {
-                console.log('Responsible assigned successfully');
-                showToast('Felelős sikeresen kijelölve!', 'success');
-                form.reset();
-                loadCommunicationHistory(communicationId);
-            },
-            error: function (xhr) {
-                console.error('Responsible assignment error:', xhr.responseText);
-                showToast(`Felelős kijelölése sikertelen: ${xhr.responseText}`, 'danger');
-            }
-        });
-    }
-
-    // --- Initialize Modals ---
-    const newCommunicationModal = document.getElementById('newCommunicationModal');
-    if (newCommunicationModal) {
-        newCommunicationModal.addEventListener('shown.bs.modal', function() {
-            console.log('New Communication modal shown');
-            const contactSelect = document.querySelector('#communicationForm_new select[name="ContactId"]');
-            if (contactSelect) {
-                initializeTomSelect(contactSelect, 'new', { endpoint: '/api/partners', dataKey: 'contacts', placeholder: '-- Válasszon partnert --' });
-            } else {
-                console.error('ContactId select not found');
-            }
-            const responsibleSelect = document.querySelector('#communicationForm_new select[name="ResponsibleContactId"]');
-            if (responsibleSelect) {
-                initializeTomSelect(responsibleSelect, 'new', { endpoint: '/api/partners', dataKey: 'contacts', placeholder: '-- Válasszon felelőst --' });
-            } else {
-                console.error('ResponsibleContactId select not found');
-            }
-            const partnerSelect = document.querySelector('#communicationForm_new select[name="PartnerId"]');
-            if (partnerSelect) {
-                initializeTomSelect(partnerSelect, 'new', { endpoint: '/api/partners', dataKey: 'partners', placeholder: '-- Válasszon partnert --' });
-            } else {
-                console.error('PartnerId select not found');
-            }
-            const quoteSelect = document.querySelector('#communicationForm_new select[name="QuoteId"]');
-            if (quoteSelect) {
-                initializeTomSelect(quoteSelect, 'new', { endpoint: '/api/partners', dataKey: 'quotes', placeholder: '-- Válasszon árajánlatot --' });
-            } else {
-                console.error('QuoteId select not found');
-            }
-            const orderSelect = document.querySelector('#communicationForm_new select[name="OrderId"]');
-            if (orderSelect) {
-                initializeTomSelect(orderSelect, 'new', { endpoint: '/api/orders', dataKey: 'orders', placeholder: '-- Válasszon rendelést --' });
-            } else {
-                console.error('OrderId select not found');
-            }
-        });
-        newCommunicationModal.addEventListener('hidden.bs.modal', function () {
-            console.log('New Communication modal hidden');
-            document.querySelector('#communicationForm_new').reset();
-            document.querySelectorAll('#communicationForm_new .tom-select').forEach(select => {
-                if (select.tomselect) {
-                    select.tomselect.destroy();
-                }
+        try {
+            const response = await fetch(`${API_ENDPOINTS.communication}/${communicationId}/assign-responsible`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'RequestVerificationToken': token,
+                    'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
+                },
+                body: JSON.stringify(data)
             });
-        });
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(errorText || `Hiba: ${response.status}`);
+            }
+
+            console.log('Responsible assigned successfully');
+            showToast('Felelős sikeresen kijelölve!', 'success');
+            form.reset();
+            await loadCommunicationHistory(communicationId);
+        } catch (error) {
+            console.error('Responsible assignment error:', error);
+            showToast(`Felelős kijelölése sikertelen: ${error.message}`, 'danger');
+        }
     }
-
-    document.querySelectorAll('.view-communication-btn').forEach(button => {
-        button.addEventListener('click', () => {
-            const communicationId = button.closest('.partner-card').dataset.communicationId;
-            const contactSelect = document.querySelector(`#editCommunicationModal_${communicationId} select[name="ContactId"]`);
-            if (contactSelect) {
-                initializeTomSelect(contactSelect, communicationId, { endpoint: '/api/partners', dataKey: 'contacts' });
-            }
-            const responsibleSelect = document.querySelector(`#assignResponsibleForm_${communicationId} select[name="ResponsibleContactId"]`);
-            if (responsibleSelect) {
-                initializeTomSelect(responsibleSelect, communicationId, { endpoint: '/api/partners', dataKey: 'contacts' });
-            }
-            loadCommunicationHistory(communicationId);
-        });
-    });
-
-    document.querySelectorAll('.save-communication').forEach(button => {
-        button.addEventListener('click', () => {
-            const communicationId = button.dataset.communicationId;
-            saveCommunication(communicationId);
-        });
-    });
-
-    document.querySelectorAll('.add-post').forEach(button => {
-        button.addEventListener('click', () => {
-            const communicationId = button.dataset.communicationId;
-            addPost(communicationId);
-        });
-    });
-
-    document.querySelectorAll('.assign-responsible').forEach(button => {
-        button.addEventListener('click', () => {
-            const communicationId = button.dataset.communicationId;
-            assignResponsible(communicationId);
-        });
-    });
 
     // --- Delete Communication ---
-    $(document).on('click', '.confirm-delete-communication', function (e) {
-        e.preventDefault();
-        const $button = $(this);
-        const communicationId = $button.data('communication-id');
-        console.log('Delete button clicked for communicationId:', communicationId);
-
-        if (!communicationId) {
-            console.error('communicationId is missing');
-            showToast('Hiba: Kommunikáció azonosító hiányzik.', 'danger');
-            return;
-        }
-
-        const $form = $(`#deleteCommunicationForm_${communicationId}`);
-        if ($form.length) {
-            const token = $form.find('input[name="__RequestVerificationToken"]').val();
-            if (!token) {
-                console.error('Anti-forgery token not found');
-                showToast('Hiba: Biztonsági token hiányzik.', 'danger');
-                return;
-            }
-
-            $button.prop('disabled', true);
-
-            $.ajax({
-                url: `/api/customercommunication/${communicationId}`,
-                type: 'DELETE',
-                headers: { 
-                    'RequestVerificationToken': token,
-                    'Authorization': 'Bearer ' + (localStorage.getItem('token') || '')
-                },
-                success: function (data, status, xhr) {
-                    console.log('Delete response:', { status: xhr.status, data });
-                    if (xhr.status === 204) {
-                        $(`#deleteCommunicationModal_${communicationId}`).modal('hide');
-                        showToast(`Kommunikáció azonosító: ${communicationId} sikeresen törölve!`, 'success');
-                        $(`div[data-communication-id="${communicationId}"]`).fadeOut(500, function () {
-                            $(this).remove();
-                        });
-                    } else {
-                        showToast(`Sikeres törlés, de váratlan válasz: ${xhr.status}`, 'warning');
-                    }
-                },
-                error: function (xhr, status, error) {
-                    console.error('Delete error:', { status: xhr.status, response: xhr.responseText });
-                    let message = 'Hiba történt a törlés során.';
-                    if (xhr.status === 404) {
-                        message = xhr.responseJSON?.error || 'A kommunikáció nem található.';
-                    } else if (xhr.status === 500) {
-                        message = xhr.responseJSON?.error || 'Szerver hiba történt.';
-                    }
-                    showToast(message, 'danger');
-                },
-                complete: function () {
-                    $button.prop('disabled', false);
-                }
-            });
-        } else {
+    async function deleteCommunication(communicationId) {
+        const form = document.getElementById(`deleteCommunicationForm_${communicationId}`);
+        if (!form) {
             console.error('Form not found for communicationId:', communicationId);
             showToast('Hiba: Törlési űrlap nem található.', 'danger');
-        }
-    });
-
-    // --- Copy Communication ---
-    function copyCommunication(communicationId) {
-        let isCopying = false;
-        if (isCopying) {
-            console.log('Copy in progress, ignoring additional click for communication ID:', communicationId);
             return;
         }
-        isCopying = true;
 
+        const token = form.querySelector('input[name="__RequestVerificationToken"]')?.value;
+        if (!token) {
+            console.error('Anti-forgery token not found');
+            showToast('Hiba: Biztonsági token hiányzik.', 'danger');
+            return;
+        }
+
+        const button = document.querySelector(`.confirm-delete-communication[data-communication-id="${communicationId}"]`);
+        if (button) button.disabled = true;
+
+        try {
+            const response = await fetch(`${API_ENDPOINTS.communication}/${communicationId}`, {
+                method: 'DELETE',
+                headers: {
+                    'RequestVerificationToken': token,
+                    'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
+                }
+            });
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                let message = `Hiba: ${response.status}`;
+                try {
+                    const errorJson = JSON.parse(errorText);
+                    message = errorJson.error || message;
+                } catch {
+                    message = errorText || message;
+                }
+                throw new Error(message);
+            }
+
+            console.log('Delete response:', response.status);
+            showToast(`Kommunikáció azonosító: ${communicationId} sikeresen törölve!`, 'success');
+            const modal = document.getElementById(`deleteCommunicationModal_${communicationId}`);
+            if (modal) bootstrap.Modal.getInstance(modal)?.hide();
+            const card = document.querySelector(`div[data-communication-id="${communicationId}"]`);
+            if (card) card.style.display = 'none'; // Simple removal; adjust if animation is needed
+        } catch (error) {
+            console.error('Delete error:', error);
+            showToast(`Hiba történt a törlés során: ${error.message}`, 'danger');
+        } finally {
+            if (button) button.disabled = false;
+        }
+    }
+
+    // --- Copy Communication ---
+    async function copyCommunication(communicationId) {
         const dropdownItem = document.querySelector(`a[onclick="copyCommunication(${communicationId})"]`);
         if (dropdownItem) {
             dropdownItem.classList.add('disabled');
             dropdownItem.style.pointerEvents = 'none';
         }
 
-        console.log('Initiating copy for communication ID:', communicationId);
-        fetch(`/api/customercommunication/${communicationId}/copy`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]').value,
-                'Authorization': 'Bearer ' + (localStorage.getItem('token') || '')
+        const token = document.querySelector('input[name="__RequestVerificationToken"]')?.value;
+        if (!token) {
+            console.error('Anti-forgery token not found');
+            showToast('Hiba: Biztonsági token hiányzik.', 'danger');
+            if (dropdownItem) {
+                dropdownItem.classList.remove('disabled');
+                dropdownItem.style.pointerEvents = 'auto';
             }
-        })
-            .then(response => {
-                if (!response.ok) {
-                    return response.text().then(text => {
-                        let errorMessage;
-                        try {
-                            const err = JSON.parse(text);
-                            errorMessage = err.error || `HTTP error: ${response.status}`;
-                        } catch {
-                            errorMessage = text || `HTTP error: ${response.status}`;
-                        }
-                        throw new Error(errorMessage);
-                    });
-                }
-                return response.json();
-            })
-            .then(data => {
-                console.log('Communication copied successfully:', data);
-                showToast(`Kommunikáció azonosító: ${data.communicationId} sikeresen másolva!`, 'success');
-                location.reload();
-            })
-            .catch(error => {
-                console.error('Copy communication failed:', error.message);
-                showToast(`Nem sikerült másolni a kommunikációt: ${error.message}`, 'danger');
-            })
-            .finally(() => {
-                isCopying = false;
-                if (dropdownItem) {
-                    dropdownItem.classList.remove('disabled');
-                    dropdownItem.style.pointerEvents = 'auto';
+            return;
+        }
+
+        try {
+            const response = await fetch(`${API_ENDPOINTS.communication}/${communicationId}/copy`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'RequestVerificationToken': token,
+                    'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
                 }
             });
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                let errorMessage = `Hiba: ${response.status}`;
+                try {
+                    const errorJson = JSON.parse(errorText);
+                    errorMessage = errorJson.error || errorText;
+                } catch {
+                    errorMessage = errorText || errorMessage;
+                }
+                throw new Error(errorMessage);
+            }
+
+            const data = await response.json();
+            console.log('Communication copied successfully:', data);
+            showToast(`Kommunikáció azonosító: ${data.communicationId} sikeresen másolva!`, 'success');
+            window.location.reload();
+        } catch (error) {
+            console.error('Copy communication failed:', error);
+            showToast(`Nem sikerült másolni a kommunikációt: ${error.message}`, 'danger');
+        } finally {
+            if (dropdownItem) {
+                dropdownItem.classList.remove('disabled');
+                dropdownItem.style.pointerEvents = 'auto';
+            }
+        }
     }
 
-    // --- Filter/Sort Dropdown Logic ---
-    const filterItems = document.querySelectorAll('.dropdown-menu [data-filter]');
-    filterItems.forEach(item => {
-        item.addEventListener('click', function (e) {
-            e.preventDefault();
-            const filter = this.getAttribute('data-filter');
-            const sort = this.getAttribute('data-sort') || 'CommunicationDate';
-            console.log('Clicked filter/sort item:', { filter, sort });
+    // --- Initialize Event Listeners ---
+    document.addEventListener('DOMContentLoaded', () => {
+        console.log('Main script loaded');
 
-            let form = document.querySelector('form.input-group');
-            if (form) {
-                console.log('Form found, submitting:', { filter, sort });
+        // Initialize TomSelect for Responsible dropdown
+        const responsibleSelect = document.querySelector('select[name="ResponsibleId"]');
+        if (responsibleSelect) {
+            initializeTomSelect(responsibleSelect, null, {
+                endpoint: API_ENDPOINTS.users,
+                dataKey: 'users',
+                placeholder: '-- Válasszon felelőst --'
+            });
+        }
+
+        // New Communication Modal
+        const newCommunicationModal = document.getElementById('newCommunicationModal');
+        if (newCommunicationModal) {
+            newCommunicationModal.addEventListener('shown.bs.modal', () => {
+                console.log('New Communication modal shown');
+                const selects = [
+                    { selector: '#communicationForm_new select[name="ContactId"]', options: { endpoint: API_ENDPOINTS.partners, dataKey: 'contacts', placeholder: '-- Válasszon partnert --' } },
+                    { selector: '#communicationForm_new select[name="ResponsibleContactId"]', options: { endpoint: API_ENDPOINTS.users, dataKey: 'users', placeholder: '-- Válasszon felelőst --' } },
+                    { selector: '#communicationForm_new select[name="PartnerId"]', options: { endpoint: API_ENDPOINTS.partners, dataKey: 'partners', placeholder: '-- Válasszon partnert --' } },
+                    { selector: '#communicationForm_new select[name="QuoteId"]', options: { endpoint: API_ENDPOINTS.partners, dataKey: 'quotes', placeholder: '-- Válasszon árajánlatot --' } },
+                    { selector: '#communicationForm_new select[name="OrderId"]', options: { endpoint: API_ENDPOINTS.orders, dataKey: 'orders', placeholder: '-- Válasszon rendelést --' } }
+                ];
+                selects.forEach(({ selector, options }) => {
+                    const select = document.querySelector(selector);
+                    if (select) {
+                        initializeTomSelect(select, 'new', options);
+                    } else {
+                        console.error(`${selector} not found`);
+                    }
+                });
+            });
+            newCommunicationModal.addEventListener('hidden.bs.modal', () => {
+                console.log('New Communication modal hidden');
+                const form = document.querySelector('#communicationForm_new');
+                if (form) form.reset();
+                document.querySelectorAll('#communicationForm_new .tom-select').forEach(select => {
+                    if (select.tomselect) select.tomselect.destroy();
+                });
+            });
+        }
+
+        // View Communication Buttons
+        document.querySelectorAll('.view-communication-btn').forEach(button => {
+            button.addEventListener('click', () => {
+                const communicationId = button.closest('.partner-card')?.dataset.communicationId;
+                if (!communicationId) return;
+                const contactSelect = document.querySelector(`#editCommunicationModal_${communicationId} select[name="ContactId"]`);
+                if (contactSelect) {
+                    initializeTomSelect(contactSelect, communicationId, { endpoint: API_ENDPOINTS.partners, dataKey: 'contacts' });
+                }
+                const responsibleSelect = document.querySelector(`#assignResponsibleForm_${communicationId} select[name="ResponsibleContactId"]`);
+                if (responsibleSelect) {
+                    initializeTomSelect(responsibleSelect, communicationId, { endpoint: API_ENDPOINTS.users, dataKey: 'users' });
+                }
+                loadCommunicationHistory(communicationId);
+            });
+        });
+
+        // Save Communication Buttons
+        document.querySelectorAll('.save-communication').forEach(button => {
+            button.addEventListener('click', () => {
+                const communicationId = button.dataset.communicationId;
+                if (communicationId) saveCommunication(communicationId);
+            });
+        });
+
+        // Add Post Buttons
+        document.querySelectorAll('.add-post').forEach(button => {
+            button.addEventListener('click', () => {
+                const communicationId = button.dataset.communicationId;
+                if (communicationId) addPost(communicationId);
+            });
+        });
+
+        // Assign Responsible Buttons
+        document.querySelectorAll('.assign-responsible').forEach(button => {
+            button.addEventListener('click', () => {
+                const communicationId = button.dataset.communicationId;
+                if (communicationId) assignResponsible(communicationId);
+            });
+        });
+
+        // Delete Communication Buttons
+        document.querySelectorAll('.confirm-delete-communication').forEach(button => {
+            button.addEventListener('click', (e) => {
+                e.preventDefault();
+                const communicationId = button.dataset.communicationId;
+                if (communicationId) deleteCommunication(communicationId);
+            });
+        });
+
+        // Filter/Sort Dropdown Logic
+        document.querySelectorAll('.dropdown-menu [data-filter]').forEach(item => {
+            item.addEventListener('click', (e) => {
+                e.preventDefault();
+                const filter = item.getAttribute('data-filter');
+                const sort = item.getAttribute('data-sort') || 'CommunicationDate';
+                console.log('Clicked filter/sort item:', { filter, sort });
+
+                const form = document.querySelector('form.input-group');
+                if (!form) {
+                    console.error('Form not found.');
+                    return;
+                }
+
                 form.querySelectorAll('input[name="TypeFilter"], input[name="SortBy"]').forEach(input => input.remove());
-
-                const typeInput = document.createElement('input');
-                typeInput.type = 'hidden';
-                typeInput.name = 'TypeFilter';
-                typeInput.value = filter === 'all' ? '' : filter;
-                form.appendChild(typeInput);
-
-                const sortInput = document.createElement('input');
-                sortInput.type = 'hidden';
-                sortInput.name = 'SortBy';
-                sortInput.value = sort;
-                form.appendChild(sortInput);
-
+                form.insertAdjacentHTML('beforeend', `
+                    <input type="hidden" name="TypeFilter" value="${filter === 'all' ? '' : filter}">
+                    <input type="hidden" name="SortBy" value="${sort}">
+                `);
                 form.submit();
-            } else {
-                console.error('Form not found.');
-            }
+            });
         });
     });
-});
+
+    // Expose copyCommunication globally if needed (e.g., for inline onclick handlers)
+    window.copyCommunication = copyCommunication;
+})();
 </script>
 
 <style>

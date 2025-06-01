@@ -36,7 +36,7 @@ public int CustomerCommunicationId { get; set; }
     public class CommunicationStatusDto
     {
         public int StatusId { get; set; }
-        public string Name { get; set; }
+        public string Name { get; set; }= string.Empty;
         public string? Description { get; set; }
     }
 
@@ -57,7 +57,9 @@ public int CustomerCommunicationId { get; set; }
     public class CommunicationResponsibleDto
     {
         public int CommunicationResponsibleId { get; set; }
-        public string ?ResponsibleName { get; set; }
+        public string? ResponsibleId { get; set; }
+        public string? ResponsibleName { get; set; }
+        public string? AssignedById { get; set; }
         public string? AssignedByName { get; set; }
         public DateTime? AssignedAt { get; set; }
     }
@@ -69,6 +71,27 @@ public int CustomerCommunicationId { get; set; }
 
     public class AssignResponsibleDto
     {
-        public int ResponsibleContactId { get; set; }
+        public int ResponsibleUserId { get; set; }
+    }
+
+    public class AddCommunicationDto
+    {
+        [Required]
+        public int CommunicationTypeId { get; set; }
+        [Required]
+        public DateTime Date { get; set; }
+        [Required]
+        public string Subject { get; set; } = string.Empty;
+        public string? Note { get; set; }
+        [Required]
+        public int? ContactId { get; set; }
+        public string? AgentId { get; set; }
+        [Required]
+        public int StatusId { get; set; }
+        public string? ResponsibleId { get; set; }
+        public int? PartnerId { get; set; }
+        public int? LeadId { get; set; }
+        public int? QuoteId { get; set; }
+        public int? OrderId { get; set; }
     }
 }

@@ -8,6 +8,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Security.Claims;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Identity;
 
 namespace Cloud9_2.Pages.CRM.CustomerCommunication
 {
@@ -15,6 +16,7 @@ namespace Cloud9_2.Pages.CRM.CustomerCommunication
     {
         private readonly CustomerCommunicationService _communicationService;
         private readonly ILogger<IndexModel> _logger;
+        private readonly UserManager<ApplicationUser> _userManager;
 
         public IndexModel(CustomerCommunicationService communicationService, ILogger<IndexModel> logger)
         {
@@ -43,7 +45,7 @@ namespace Cloud9_2.Pages.CRM.CustomerCommunication
         [BindProperty]
         public CommunicationPostDto NewPost { get; set; }
         [BindProperty]
-        public int NewResponsibleId { get; set; }
+        public string NewResponsibleId { get; set; }
         [BindProperty]
         public int CommunicationId { get; set; }
 
@@ -304,6 +306,64 @@ namespace Cloud9_2.Pages.CRM.CustomerCommunication
             }
 
             return RedirectToPage(new { SearchTerm, TypeFilter, SortBy, CurrentPage, PageSize });
+        }
+
+        public async Task<IActionResult> OnPostAssignResponsibleAsync()
+        {
+            if (!ModelState.IsValid)
+                return Page();
+
+            try
+            {
+                var userId = _userManager.GetUserId(User);
+                if (string.IsNullOrEmpty(userId))
+                    return Unauthorized();
+
+                await _communicationService.AssignResponsibleAsync(
+                    CommunicationId,
+                    NewResponsibleId,
+                    userId
+                );
+
+                return new JsonResult(new { success = true, message = "Felelős sikeresen kijelölve!" });
+            }
+            catch (ArgumentException ex)
+            {
+                return new JsonResult(new { success = false, error = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                return new JsonResult(new { success = false, error = "Hiba történt a felelős kijelölésekor." });
+            }
+        }
+
+        public async Task<IActionResult> OnPostAssignAnotherResponsibleAsync()
+        {
+            if (!ModelState.IsValid)
+                return Page();
+
+            try
+            {
+                var userId = _userManager.GetUserId(User);
+                if (string.IsNullOrEmpty(userId))
+                    return Unauthorized();
+
+                await _communicationService.AssignResponsibleAsync(
+                    CommunicationId,
+                    NewResponsibleId,
+                    userId
+                );
+
+                return new JsonResult(new { success = true, message = "Felelős sikeresen kijelölve!" });
+            }
+            catch (ArgumentException ex)
+            {
+                return new JsonResult(new { success = false, error = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                return new JsonResult(new { success = false, error = "Hiba történt a felelős kijelölésekor." });
+            }
         }
     }
 }

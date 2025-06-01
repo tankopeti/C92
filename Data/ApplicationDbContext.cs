@@ -49,138 +49,104 @@ namespace Cloud9_2.Data
         {
             base.OnModelCreating(modelBuilder);
 
+// CustomerCommunication
+            modelBuilder.Entity<CustomerCommunication>()
+                .HasKey(c => c.CustomerCommunicationId);
+
+            modelBuilder.Entity<CustomerCommunication>()
+                .HasOne(c => c.CommunicationType)
+                .WithMany(ct => ct.CustomerCommunications)
+                .HasForeignKey(c => c.CommunicationTypeId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<CustomerCommunication>()
+                .HasOne(c => c.Status)
+                .WithMany(cs => cs.CustomerCommunications)
+                .HasForeignKey(c => c.StatusId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<CustomerCommunication>()
+                .HasOne(c => c.Contact)
+                .WithMany(c => c.CustomerCommunications)
+                .HasForeignKey(c => c.ContactId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<CustomerCommunication>()
+                .HasOne(c => c.Agent)
+                .WithMany(u => u.CustomerCommunications)
+                .HasForeignKey(c => c.AgentId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            modelBuilder.Entity<CustomerCommunication>()
+                .HasOne(c => c.Partner)
+                .WithMany(p => p.Communications)
+                .HasForeignKey(c => c.PartnerId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            modelBuilder.Entity<CustomerCommunication>()
+                .HasOne(c => c.Lead)
+                .WithMany(l => l.Communications)
+                .HasForeignKey(c => c.LeadId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            modelBuilder.Entity<CustomerCommunication>()
+                .HasOne(c => c.Quote)
+                .WithMany(q => q.Communications)
+                .HasForeignKey(c => c.QuoteId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            modelBuilder.Entity<CustomerCommunication>()
+                .HasOne(c => c.Order)
+                .WithMany(o => o.Communications)
+                .HasForeignKey(c => c.OrderId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            // CommunicationResponsible
+            modelBuilder.Entity<CommunicationResponsible>()
+                .HasKey(cr => cr.CommunicationResponsibleId);
+
+            modelBuilder.Entity<CommunicationResponsible>()
+                .HasOne(cr => cr.CustomerCommunication)
+                .WithMany(c => c.ResponsibleHistory)
+                .HasForeignKey(cr => cr.CustomerCommunicationId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<CommunicationResponsible>()
+                .HasOne(cr => cr.Responsible)
+                .WithMany()
+                .HasForeignKey(cr => cr.ResponsibleId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<CommunicationResponsible>()
+                .HasOne(cr => cr.AssignedBy)
+                .WithMany()
+                .HasForeignKey(cr => cr.AssignedById)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // CommunicationPost
+            modelBuilder.Entity<CommunicationPost>()
+                .HasKey(p => p.CommunicationPostId);
+
             modelBuilder.Entity<CommunicationPost>()
                 .HasOne(p => p.CustomerCommunication)
                 .WithMany(c => c.Posts)
-                .HasForeignKey(p => p.CustomerCommunicationId);
+                .HasForeignKey(p => p.CustomerCommunicationId)
+                .OnDelete(DeleteBehavior.Cascade);
 
-            modelBuilder.Entity<CommunicationResponsible>()
-                .HasOne(r => r.CustomerCommunication)
-                .WithMany(c => c.ResponsibleHistory)
-                .HasForeignKey(r => r.CustomerCommunicationId);
-
-            modelBuilder.Entity<CommunicationResponsible>()
-                .HasOne(r => r.Responsible)
+            modelBuilder.Entity<CommunicationPost>()
+                .HasOne(p => p.CreatedBy)
                 .WithMany()
-                .HasForeignKey(r => r.ResponsibleId);
+                .HasForeignKey(p => p.CreatedById)
+                .OnDelete(DeleteBehavior.Restrict);
 
-            modelBuilder.Entity<CommunicationResponsible>()
-                .HasOne(r => r.AssignedBy)
-                .WithMany()
-                .HasForeignKey(r => r.AssignedById);
+                // Disable auto-include
+            modelBuilder.Entity<CustomerCommunication>()
+                .Navigation(c => c.Posts)
+                .AutoInclude(false);
 
-            // CommunicationType configuration
-            modelBuilder.Entity<CommunicationType>(entity =>
-            {
-                entity.HasKey(ct => ct.CommunicationTypeId);
-                entity.Property(ct => ct.Name)
-                    .IsRequired()
-                    .HasMaxLength(50);
-                entity.HasIndex(ct => ct.Name)
-                    .IsUnique();
-            });
-
-            // CommunicationStatus configuration
-            modelBuilder.Entity<CommunicationStatus>(entity =>
-            {
-                entity.HasKey(cs => cs.StatusId);
-                entity.Property(cs => cs.Name)
-                    .IsRequired()
-                    .HasMaxLength(50);
-                entity.Property(cs => cs.Description)
-                    .HasMaxLength(200);
-                entity.HasIndex(cs => cs.Name)
-                    .IsUnique();
-            });
-
-            // Contact configuration
-            modelBuilder.Entity<Contact>(entity =>
-            {
-                entity.HasKey(c => c.ContactId);
-                entity.Property(c => c.FirstName)
-                    .IsRequired()
-                    .HasMaxLength(50);
-                entity.Property(c => c.LastName)
-                    .IsRequired()
-                    .HasMaxLength(50);
-            });
-
-            // CustomerCommunication configuration
-            modelBuilder.Entity<CustomerCommunication>(entity =>
-            {
-                entity.HasKey(cc => cc.CustomerCommunicationId);
-
-                entity.Property(cc => cc.Date)
-                    .IsRequired();
-                entity.Property(cc => cc.Subject)
-                    .HasMaxLength(100);
-                entity.Property(cc => cc.AttachmentPath)
-                    .HasMaxLength(500);
-                entity.Property(cc => cc.Metadata)
-                    .HasMaxLength(1000);
-
-                // Foreign key relationships
-                entity.HasOne(cc => cc.CommunicationType)
-                    .WithMany(ct => ct.CustomerCommunications)
-                    .HasForeignKey(cc => cc.CommunicationTypeId)
-                    .OnDelete(DeleteBehavior.Restrict);
-
-                entity.HasOne(cc => cc.Contact)
-                    .WithMany(c => c.CustomerCommunications)
-                    .HasForeignKey(cc => cc.ContactId)
-                    .OnDelete(DeleteBehavior.Restrict);
-
-                entity.HasOne(cc => cc.Agent)
-                    .WithMany(u => u.CustomerCommunications)
-                    .HasForeignKey(cc => cc.AgentId)
-                    .OnDelete(DeleteBehavior.SetNull);
-
-                entity.HasOne(cc => cc.Status)
-                    .WithMany(s => s.CustomerCommunications)
-                    .HasForeignKey(cc => cc.StatusId)
-                    .OnDelete(DeleteBehavior.Restrict);
-
-                entity.HasOne(cc => cc.Partner)
-                    .WithMany()
-                    .HasForeignKey(cc => cc.PartnerId)
-                    .OnDelete(DeleteBehavior.SetNull);
-
-                entity.HasOne(cc => cc.Lead)
-                    .WithMany()
-                    .HasForeignKey(cc => cc.LeadId)
-                    .OnDelete(DeleteBehavior.SetNull);
-
-                entity.HasOne(cc => cc.Quote)
-                    .WithMany()
-                    .HasForeignKey(cc => cc.QuoteId)
-                    .OnDelete(DeleteBehavior.SetNull);
-
-                entity.HasOne(cc => cc.Order)
-                    .WithMany()
-                    .HasForeignKey(cc => cc.OrderId)
-                    .OnDelete(DeleteBehavior.SetNull);
-
-                // Indexes
-                entity.HasIndex(cc => cc.CommunicationTypeId);
-                entity.HasIndex(cc => cc.ContactId);
-                entity.HasIndex(cc => cc.AgentId);
-                entity.HasIndex(cc => cc.StatusId);
-                entity.HasIndex(cc => cc.OrderId);
-            });
-
-            // Seed data
-            modelBuilder.Entity<CommunicationType>().HasData(
-                new CommunicationType { CommunicationTypeId = 1, Name = "Phone" },
-                new CommunicationType { CommunicationTypeId = 2, Name = "Email" },
-                new CommunicationType { CommunicationTypeId = 3, Name = "Meeting" }
-            );
-
-            modelBuilder.Entity<CommunicationStatus>().HasData(
-                new CommunicationStatus { StatusId = 1, Name = "Open", Description = "Issue reported" },
-                new CommunicationStatus { StatusId = 2, Name = "InProgress", Description = "Being handled" },
-                new CommunicationStatus { StatusId = 3, Name = "Resolved", Description = "Issue closed" },
-                new CommunicationStatus { StatusId = 4, Name = "Escalated", Description = "Issue escalated to supervisor" }
-            );
+            modelBuilder.Entity<CustomerCommunication>()
+                .Navigation(c => c.ResponsibleHistory)
+                .AutoInclude(false);
 
             // Order configuration
             modelBuilder.Entity<Order>(entity =>

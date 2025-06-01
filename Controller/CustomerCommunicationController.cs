@@ -5,6 +5,11 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using System;
 using System.Threading.Tasks;
+using Cloud9_2.Data;
+using Microsoft.EntityFrameworkCore;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
 
 namespace Cloud9_2.Controllers
 {
@@ -15,6 +20,7 @@ namespace Cloud9_2.Controllers
     {
         private readonly CustomerCommunicationService _service;
         private readonly UserManager<ApplicationUser> _userManager;
+        private readonly ApplicationDbContext _context;
 
         public CustomerCommunicationController(CustomerCommunicationService service, UserManager<ApplicationUser> userManager)
         {
@@ -143,7 +149,7 @@ namespace Cloud9_2.Controllers
                 if (string.IsNullOrEmpty(userId))
                     return Unauthorized("User not found.");
 
-                await _service.AssignResponsibleAsync(id, dto.ResponsibleContactId, userId);
+                await _service.AssignResponsibleAsync(id, dto.ResponsibleUserId, userId);
                 return Ok();
             }
             catch (ArgumentException ex)
@@ -152,18 +158,49 @@ namespace Cloud9_2.Controllers
             }
             catch (Exception ex)
             {
-                // Log exception
                 return StatusCode(500, new { error = "An unexpected error occurred while assigning the responsible." });
             }
         }
 
-        [HttpGet("{id}/history")]
-        public async Task<IActionResult> GetHistory(int id)
+        [HttpGet]
+        public async Task<IActionResult> GetUsers()
+        {
+            var licensedUsers = await _userManager.GetUsersInRoleAsync("Admin");
+            var users = licensedUsers.Select(u => new
+            {
+                id = u.Id,
+                text = u.UserName
+            });
+
+            return Ok(users);
+        }
+
+        // [HttpGet("{id}/history")]
+        // public async Task<IActionResult> GetHistory(int id)
+        // {
+        //     try
+        //     {
+        //         var history = await _service.GetCommunicationHistoryAsync(id);
+        //         return Ok(history);
+        //     }
+        //     catch (ArgumentException ex)
+        //     {
+        //         return NotFound(new { error = ex.Message });
+        //     }
+        //     catch (Exception ex)
+        //     {
+        //         // Log exception
+        //         return StatusCode(500, new { error = "An unexpected error occurred while retrieving the communication history." });
+        //     }
+        // }
+
+[HttpGet("{id}/history")]
+        public async Task<IActionResult> GetCommunicationHistory(int id)
         {
             try
             {
-                var history = await _service.GetCommunicationHistoryAsync(id);
-                return Ok(history);
+                var communication = await _service.GetCommunicationHistoryAsync(id);
+                return Ok(communication);
             }
             catch (ArgumentException ex)
             {
@@ -171,8 +208,7 @@ namespace Cloud9_2.Controllers
             }
             catch (Exception ex)
             {
-                // Log exception
-                return StatusCode(500, new { error = "An unexpected error occurred while retrieving the communication history." });
+                return StatusCode(500, new { error = "An unexpected error occurred.", details = ex.Message });
             }
         }
 
@@ -233,6 +269,6 @@ namespace Cloud9_2.Controllers
 
     public class AssignResponsibleDto
     {
-        public int ResponsibleContactId { get; set; }
+        public string ResponsibleUserId { get; set; }
     }
 }

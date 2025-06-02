@@ -18,5 +18,6 @@ namespace Cloud9_2.Services
         Task<QuoteItemResponseDto> UpdateQuoteItemAsync(int quoteId, int quoteItemId, UpdateQuoteItemDto itemDto);
         Task<bool> DeleteQuoteItemAsync(int quoteId, int quoteItemId);
         Task<QuoteDto> CopyQuoteAsync(int quoteId);
+        Task<OrderDto> ConvertQuoteToOrderAsync(int quoteId, ConvertQuoteToOrderDto convertDto, string createdBy);
     }
 }

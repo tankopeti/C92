@@ -502,5 +502,56 @@ public async Task<IActionResult> CreateQuoteItem(int quoteId, [FromBody] QuoteIt
                 return StatusCode(500, new { error = "Failed to copy quote" });
             }
         }
+
+[HttpPost("{quoteId}/convert-to-order")]
+        [ProducesResponseType(StatusCodes.Status201Created)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+        public async Task<IActionResult> ConvertQuoteToOrder(int quoteId, [FromBody] ConvertQuoteToOrderDto convertDto)
+        {
+            _logger.LogInformation("Converting quote ID: {QuoteId} to order", quoteId);
+
+            if (!ModelState.IsValid)
+            {
+                var errors = ModelState
+                    .Where(x => x.Value.Errors.Count > 0)
+                    .ToDictionary(
+                        kvp => kvp.Key,
+                        kvp => kvp.Value.Errors.Select(e => e.ErrorMessage).ToArray()
+                    );
+                _logger.LogWarning("ModelState validation failed for QuoteId: {QuoteId}, Errors: {Errors}", 
+                    quoteId, JsonSerializer.Serialize(errors));
+                return BadRequest(new { error = "Érvénytelen adatok", details = errors });
+            }
+
+            try
+            {
+                var userId = User.Identity?.Name ?? "System";
+                var order = await _quoteService.ConvertQuoteToOrderAsync(quoteId, convertDto, userId);
+                _logger.LogInformation("Converted quote ID: {QuoteId} to order ID: {OrderId}", quoteId, order.OrderId);
+                return CreatedAtAction("GetOrder", "Orders", new { orderId = order.OrderId }, order);
+            }
+            catch (KeyNotFoundException ex)
+            {
+                _logger.LogWarning("Quote not found: {QuoteId}", quoteId);
+                return NotFound(new { error = ex.Message });
+            }
+            catch (ArgumentException ex)
+            {
+                _logger.LogWarning("Invalid input for quote ID: {QuoteId}, Error: {Error}", quoteId, ex.Message);
+                return BadRequest(new { error = ex.Message });
+            }
+            catch (InvalidOperationException ex)
+            {
+                _logger.LogWarning("Invalid operation for quote ID: {QuoteId}, Error: {Error}", quoteId, ex.Message);
+                return BadRequest(new { error = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error converting quote ID: {QuoteId}", quoteId);
+                return StatusCode(500, new { error = "Nem sikerült az árajánlat rendeléssé konvertálása: " + ex.Message });
+            }
+        }
     }
 }

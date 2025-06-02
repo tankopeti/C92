@@ -118,12 +118,26 @@ namespace Cloud9_2.Services
             if (communication == null)
                 throw new ArgumentException("Communication not found");
 
-            var deletedStatus = await _context.CommunicationStatuses
-                .FirstOrDefaultAsync(s => s.Name == "Deleted");
-            if (deletedStatus == null)
-                throw new InvalidOperationException("Deleted status not configured");
+            // Delete related CommunicationPosts
+            var relatedPosts = await _context.CommunicationPosts
+                .Where(p => p.CustomerCommunicationId == communicationId)
+                .ToListAsync();
+            if (relatedPosts.Any())
+            {
+                _context.CommunicationPosts.RemoveRange(relatedPosts);
+            }
 
-            communication.StatusId = deletedStatus.StatusId;
+            // Delete related CommunicationResponsibles
+            var relatedResponsibles = await _context.CommunicationResponsibles
+                .Where(r => r.CustomerCommunicationId == communicationId)
+                .ToListAsync();
+            if (relatedResponsibles.Any())
+            {
+                _context.CommunicationResponsibles.RemoveRange(relatedResponsibles);
+            }
+
+            // Delete the CustomerCommunication
+            _context.CustomerCommunications.Remove(communication);
             await _context.SaveChangesAsync();
         }
 
@@ -134,6 +148,7 @@ namespace Cloud9_2.Services
                 .Include(c => c.Status)
                 .Include(c => c.Contact)
                 .Include(c => c.Agent)
+                .Include(c => c.Partner) // <-- Add this!
                 .Select(c => new CustomerCommunicationDto
                 {
                     CustomerCommunicationId = c.CustomerCommunicationId,
@@ -153,6 +168,7 @@ namespace Cloud9_2.Services
                     Metadata = c.Metadata,
                     OrderId = c.OrderId,
                     PartnerId = c.PartnerId,
+                    PartnerName = c.Partner != null ? c.Partner.Name : null, // <-- Add this line!
                     LeadId = c.LeadId,
                     QuoteId = c.QuoteId
                 });

@@ -175,25 +175,6 @@ namespace Cloud9_2.Controllers
             return Ok(users);
         }
 
-        // [HttpGet("{id}/history")]
-        // public async Task<IActionResult> GetHistory(int id)
-        // {
-        //     try
-        //     {
-        //         var history = await _service.GetCommunicationHistoryAsync(id);
-        //         return Ok(history);
-        //     }
-        //     catch (ArgumentException ex)
-        //     {
-        //         return NotFound(new { error = ex.Message });
-        //     }
-        //     catch (Exception ex)
-        //     {
-        //         // Log exception
-        //         return StatusCode(500, new { error = "An unexpected error occurred while retrieving the communication history." });
-        //     }
-        // }
-
 [HttpGet("{id}/history")]
         public async Task<IActionResult> GetCommunicationHistory(int id)
         {

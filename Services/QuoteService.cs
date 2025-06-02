@@ -15,11 +15,13 @@ namespace Cloud9_2.Services
     {
         private readonly ApplicationDbContext _context;
         private readonly ILogger<QuoteService> _logger;
+        private readonly IOrderService _orderService;
 
-        public QuoteService(ApplicationDbContext context, ILogger<QuoteService> logger)
+        public QuoteService(ApplicationDbContext context, ILogger<QuoteService> logger, IOrderService orderService)
         {
         _context = context ?? throw new ArgumentNullException(nameof(context));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _orderService = orderService ?? throw new ArgumentNullException(nameof(orderService));
         }
 
         public async Task<string> GetNextQuoteNumberAsync()
@@ -224,64 +226,64 @@ public async Task<QuoteDto> UpdateQuoteAsync(int quoteId, UpdateQuoteDto quoteDt
             return true;
         }
 
-public async Task<QuoteItemResponseDto> CreateQuoteItemAsync(int quoteId, CreateQuoteItemDto itemDto)
-{
-    _logger.LogInformation("CreateQuoteItemAsync called for QuoteId: {QuoteId}, ItemDto: {ItemDto}", 
-        quoteId, JsonSerializer.Serialize(itemDto));
+        public async Task<QuoteItemResponseDto> CreateQuoteItemAsync(int quoteId, CreateQuoteItemDto itemDto)
+        {
+            _logger.LogInformation("CreateQuoteItemAsync called for QuoteId: {QuoteId}, ItemDto: {ItemDto}", 
+                quoteId, JsonSerializer.Serialize(itemDto));
 
-    if (itemDto == null)
-    {
-        _logger.LogWarning("CreateQuoteItemAsync received null ItemDto for QuoteId: {QuoteId}", quoteId);
-        throw new ArgumentNullException(nameof(itemDto));
-    }
+            if (itemDto == null)
+            {
+                _logger.LogWarning("CreateQuoteItemAsync received null ItemDto for QuoteId: {QuoteId}", quoteId);
+                throw new ArgumentNullException(nameof(itemDto));
+            }
 
-    if (_context == null)
-    {
-        _logger.LogError("Database context is null for CreateQuoteItemAsync QuoteId: {QuoteId}", quoteId);
-        throw new InvalidOperationException("Adatbázis kapcsolat nem érhető el");
-    }
+            if (_context == null)
+            {
+                _logger.LogError("Database context is null for CreateQuoteItemAsync QuoteId: {QuoteId}", quoteId);
+                throw new InvalidOperationException("Adatbázis kapcsolat nem érhető el");
+            }
 
-    var quote = await _context.Quotes.FirstOrDefaultAsync(q => q.QuoteId == quoteId);
-    if (quote == null)
-    {
-        _logger.LogWarning("Quote not found for QuoteId: {QuoteId}", quoteId);
-        return null;
-    }
+            var quote = await _context.Quotes.FirstOrDefaultAsync(q => q.QuoteId == quoteId);
+            if (quote == null)
+            {
+                _logger.LogWarning("Quote not found for QuoteId: {QuoteId}", quoteId);
+                return null;
+            }
 
-    var product = await _context.Products.FirstOrDefaultAsync(p => p.ProductId == itemDto.ProductId);
-    if (product == null)
-    {
-        _logger.LogWarning("Product not found for ProductId: {ProductId}", itemDto.ProductId);
-        throw new ArgumentException($"Érvénytelen ProductId: {itemDto.ProductId}");
-    }
+            var product = await _context.Products.FirstOrDefaultAsync(p => p.ProductId == itemDto.ProductId);
+            if (product == null)
+            {
+                _logger.LogWarning("Product not found for ProductId: {ProductId}", itemDto.ProductId);
+                throw new ArgumentException($"Érvénytelen ProductId: {itemDto.ProductId}");
+            }
 
-    var quoteItem = new QuoteItem
-    {
-        QuoteId = quoteId,
-        ProductId = itemDto.ProductId,
-        Quantity = itemDto.Quantity,
-        UnitPrice = itemDto.UnitPrice,
-        ItemDescription = itemDto.ItemDescription ?? "", // Ensure empty string if null
-        DiscountPercentage = itemDto.DiscountPercentage,
-        DiscountAmount = itemDto.DiscountAmount
-    };
+            var quoteItem = new QuoteItem
+            {
+                QuoteId = quoteId,
+                ProductId = itemDto.ProductId,
+                Quantity = itemDto.Quantity,
+                UnitPrice = itemDto.UnitPrice,
+                ItemDescription = itemDto.ItemDescription ?? "", // Ensure empty string if null
+                DiscountPercentage = itemDto.DiscountPercentage,
+                DiscountAmount = itemDto.DiscountAmount
+            };
 
-    _context.QuoteItems.Add(quoteItem);
-    await _context.SaveChangesAsync();
+            _context.QuoteItems.Add(quoteItem);
+            await _context.SaveChangesAsync();
 
-    _logger.LogInformation("Created quote item ID: {QuoteItemId} for QuoteId: {QuoteId}", quoteItem.QuoteItemId, quoteId);
-    return new QuoteItemResponseDto
-    {
-        QuoteItemId = quoteItem.QuoteItemId,
-        QuoteId = quoteItem.QuoteId,
-        ProductId = quoteItem.ProductId,
-        Quantity = quoteItem.Quantity,
-        UnitPrice = quoteItem.UnitPrice,
-        ItemDescription = quoteItem.ItemDescription,
-        DiscountPercentage = quoteItem.DiscountPercentage,
-        DiscountAmount = quoteItem.DiscountAmount
-    };
-}
+            _logger.LogInformation("Created quote item ID: {QuoteItemId} for QuoteId: {QuoteId}", quoteItem.QuoteItemId, quoteId);
+            return new QuoteItemResponseDto
+            {
+                QuoteItemId = quoteItem.QuoteItemId,
+                QuoteId = quoteItem.QuoteId,
+                ProductId = quoteItem.ProductId,
+                Quantity = quoteItem.Quantity,
+                UnitPrice = quoteItem.UnitPrice,
+                ItemDescription = quoteItem.ItemDescription,
+                DiscountPercentage = quoteItem.DiscountPercentage,
+                DiscountAmount = quoteItem.DiscountAmount
+            };
+        }
 
 public async Task<QuoteItemResponseDto> UpdateQuoteItemAsync(int quoteId, int quoteItemId, UpdateQuoteItemDto itemDto)
         {
@@ -394,6 +396,88 @@ public async Task<QuoteItemResponseDto> UpdateQuoteItemAsync(int quoteId, int qu
                 Status = newQuote.Status,
                 TotalAmount = newQuote.TotalAmount
             };
+        }
+
+        public async Task<OrderDto> ConvertQuoteToOrderAsync(int quoteId, ConvertQuoteToOrderDto convertDto, string createdBy)
+        {
+            _logger.LogInformation("Converting quote ID: {QuoteId} to order", quoteId);
+
+            var quote = await _context.Quotes
+                .Include(q => q.QuoteItems)
+                .FirstOrDefaultAsync(q => q.QuoteId == quoteId);
+            if (quote == null)
+            {
+                _logger.LogWarning("Quote not found for QuoteId: {QuoteId}", quoteId);
+                throw new KeyNotFoundException($"Quote with ID {quoteId} not found");
+            }
+
+            if (!quote.QuoteItems.Any())
+            {
+                _logger.LogWarning("Quote ID: {QuoteId} has no items", quoteId);
+                throw new InvalidOperationException("Quote must have at least one item to convert to an order");
+            }
+
+            // Validate CurrencyId
+            if (!await _context.Currencies.AnyAsync(c => c.CurrencyId == convertDto.CurrencyId))
+            {
+                _logger.LogWarning("Invalid CurrencyId: {CurrencyId}", convertDto.CurrencyId);
+                throw new ArgumentException($"Invalid CurrencyId: {convertDto.CurrencyId}");
+            }
+
+            // Validate SiteId if provided
+            if (convertDto.SiteId.HasValue && !await _context.Sites.AnyAsync(s => s.SiteId == convertDto.SiteId.Value))
+            {
+                _logger.LogWarning("Invalid SiteId: {SiteId}", convertDto.SiteId);
+                throw new ArgumentException($"Invalid SiteId: {convertDto.SiteId}");
+            }
+
+            var createOrderDto = new CreateOrderDto
+            {
+                PartnerId = quote.PartnerId,
+                CurrencyId = convertDto.CurrencyId,
+                SiteId = convertDto.SiteId,
+                QuoteId = quote.QuoteId,
+                OrderDate = DateTime.UtcNow,
+                TotalAmount = quote.TotalAmount,
+                DiscountPercentage = quote.DiscountPercentage,
+                DiscountAmount = quote.DiscountAmount,
+                SalesPerson = quote.SalesPerson,
+                Subject = quote.Subject,
+                Description = quote.Description,
+                DetailedDescription = quote.DetailedDescription,
+                Status = "Draft",
+                CreatedBy = createdBy,
+                CreatedDate = DateTime.UtcNow,
+                PaymentTerms = convertDto.PaymentTerms,
+                ShippingMethod = convertDto.ShippingMethod,
+                OrderType = convertDto.OrderType,
+                OrderItems = quote.QuoteItems.Select(qi => new CreateOrderItemDto
+                {
+                    ProductId = qi.ProductId,
+                    Quantity = qi.Quantity,
+                    UnitPrice = qi.UnitPrice,
+                    Description = qi.ItemDescription,
+                    DiscountPercentage = qi.DiscountPercentage,
+                    DiscountAmount = qi.DiscountAmount
+                }).ToList()
+            };
+
+            var orderDto = await _orderService.CreateOrderAsync(createOrderDto); // Use injected service
+
+            // Update Quote status
+            quote.Status = "Converted";
+            await _context.SaveChangesAsync();
+
+            // Fetch full OrderDto since CreateOrderAsync returns minimal DTO
+            var fullOrderDto = await _orderService.GetOrderByIdAsync(orderDto.OrderId);
+            if (fullOrderDto == null)
+            {
+                _logger.LogError("Failed to retrieve created order ID: {OrderId}", orderDto.OrderId);
+                throw new InvalidOperationException("Failed to retrieve created order");
+            }
+
+            _logger.LogInformation("Converted quote ID: {QuoteId} to order ID: {OrderId}", quoteId, orderDto.OrderId);
+            return fullOrderDto;
         }
     }
 }

@@ -64,30 +64,93 @@ namespace Cloud9_2.Services
                 })
                 .ToListAsync();
         }
-
         public async Task<QuoteDto> CreateQuoteAsync(CreateQuoteDto quoteDto)
         {
+            if (string.IsNullOrEmpty(quoteDto.QuoteNumber))
+            {
+                quoteDto.QuoteNumber = await GetNextQuoteNumberAsync();
+            }
+
             var quote = new Quote
             {
-                QuoteNumber = await GetNextQuoteNumberAsync(),
+                QuoteNumber = quoteDto.QuoteNumber,
                 PartnerId = quoteDto.PartnerId,
+                CurrencyId = quoteDto.CurrencyId,
                 QuoteDate = quoteDto.QuoteDate ?? DateTime.UtcNow,
-                Status = "Draft",
-                TotalAmount = quoteDto.TotalAmount
+                Status = quoteDto.Status ?? "Draft",
+                TotalAmount = quoteDto.TotalAmount ?? 0, // Ensure non-null for decimal
+                SalesPerson = quoteDto.SalesPerson,
+                ValidityDate = quoteDto.ValidityDate,
+                Subject = quoteDto.Subject,
+                Description = quoteDto.Description,
+                DetailedDescription = quoteDto.DetailedDescription,
+                DiscountPercentage = quoteDto.DiscountPercentage,
+                DiscountAmount = quoteDto.DiscountAmount,
+                CompanyName = quoteDto.CompanyName,
+                CreatedBy = quoteDto.CreatedBy ?? "System",
+                CreatedDate = quoteDto.CreatedDate ?? DateTime.UtcNow,
+                ModifiedBy = quoteDto.ModifiedBy ?? "System",
+                ModifiedDate = quoteDto.ModifiedDate ?? DateTime.UtcNow,
+                ReferenceNumber = quoteDto.ReferenceNumber,
+                QuoteItems = quoteDto.Items.Select(item => new QuoteItem
+                {
+                    ProductId = item.ProductId,
+                    Quantity = item.Quantity,
+                    UnitPrice = item.UnitPrice,
+                    DiscountPercentage = item.DiscountPercentage,
+                    DiscountAmount = item.DiscountAmount
+                }).ToList()
             };
 
-            _context.Quotes.Add(quote);
-            await _context.SaveChangesAsync();
-
-            return new QuoteDto
+            try
             {
-                QuoteId = quote.QuoteId,
+                _context.Quotes.Add(quote);
+                await _context.SaveChangesAsync();
+                _logger.LogInformation("Quote saved with ID: {QuoteId}", quote.QuoteId); // Log the QuoteId
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error saving quote");
+                throw;
+            }
+
+            var result = new QuoteDto
+            {
+                QuoteId = quote.QuoteId, // Ensure the generated ID is included
                 QuoteNumber = quote.QuoteNumber,
                 PartnerId = quote.PartnerId,
+                CurrencyId = quote.CurrencyId,
                 QuoteDate = quote.QuoteDate,
                 Status = quote.Status,
-                TotalAmount = quote.TotalAmount
+                TotalAmount = quote.TotalAmount,
+                SalesPerson = quote.SalesPerson,
+                ValidityDate = quote.ValidityDate,
+                Subject = quote.Subject,
+                Description = quote.Description,
+                DetailedDescription = quote.DetailedDescription,
+                DiscountPercentage = quote.DiscountPercentage,
+                DiscountAmount = quote.DiscountAmount,
+                CompanyName = quote.CompanyName,
+                CreatedBy = quote.CreatedBy,
+                CreatedDate = quote.CreatedDate,
+                ModifiedBy = quote.ModifiedBy,
+                ModifiedDate = quote.ModifiedDate,
+                ReferenceNumber = quote.ReferenceNumber,
+                Items = quote.QuoteItems.Select(qi => new QuoteItemDto
+                {
+                    QuoteItemId = qi.QuoteItemId,
+                    QuoteId = qi.QuoteId,
+                    ProductId = qi.ProductId,
+                    Quantity = qi.Quantity,
+                    UnitPrice = qi.UnitPrice,
+                    DiscountPercentage = qi.DiscountPercentage,
+                    DiscountAmount = qi.DiscountAmount,
+                    TotalPrice = qi.TotalPrice
+                }).ToList()
             };
+
+            _logger.LogInformation("Returning QuoteDto with ID: {QuoteId}", result.QuoteId); // Log the returned QuoteId
+            return result;
         }
 
         public async Task<List<PartnerDto>> GetPartnersAsync()
@@ -115,13 +178,15 @@ namespace Cloud9_2.Services
         {
             var quote = await _context.Quotes
                 .Include(q => q.QuoteItems)
-                .ThenInclude(qi => qi.Product) // Include Product for QuoteItems
+                    .ThenInclude(qi => qi.Product) // Include Product for QuoteItems
+                .Include(q => q.Currency) // Ensure Currency is included
                 .Where(q => q.QuoteId == quoteId)
                 .Select(q => new QuoteDto
                 {
                     QuoteId = q.QuoteId,
                     QuoteNumber = q.QuoteNumber,
                     PartnerId = q.PartnerId,
+                    CurrencyId = q.CurrencyId, // Added CurrencyId
                     QuoteDate = q.QuoteDate,
                     Status = q.Status,
                     TotalAmount = q.TotalAmount,
@@ -132,6 +197,23 @@ namespace Cloud9_2.Services
                     DetailedDescription = q.DetailedDescription,
                     DiscountPercentage = q.DiscountPercentage,
                     DiscountAmount = q.DiscountAmount,
+                    CompanyName = q.CompanyName, // Added Company Name
+                    CreatedBy = q.CreatedBy, // Added CreatedBy
+                    CreatedDate = q.CreatedDate, // Added CreatedDate
+                    ModifiedBy = q.ModifiedBy, // Added ModifiedBy
+                    ModifiedDate = q.ModifiedDate, // Added ModifiedDate
+                    ReferenceNumber = q.ReferenceNumber, // Added ReferenceNumber
+                    Currency = new CurrencyDto // Mapping CurrencyDto
+                    {
+                        CurrencyId = q.Currency.CurrencyId,
+                        CurrencyName = q.Currency.CurrencyName,
+                        ExchangeRate = q.Currency.ExchangeRate,
+                        IsBaseCurrency = q.Currency.IsBaseCurrency,
+                        CreatedBy = q.Currency.CreatedBy,
+                        LastModifiedBy = q.Currency.LastModifiedBy,
+                        CreatedAt = q.Currency.CreatedAt,
+                        UpdatedAt = q.Currency.UpdatedAt
+                    },
                     Items = q.QuoteItems.Select(i => new QuoteItemDto
                     {
                         QuoteItemId = i.QuoteItemId,
@@ -153,7 +235,8 @@ namespace Cloud9_2.Services
             return quote;
         }
 
-public async Task<QuoteDto> UpdateQuoteAsync(int quoteId, UpdateQuoteDto quoteDto)
+
+        public async Task<QuoteDto> UpdateQuoteAsync(int quoteId, UpdateQuoteDto quoteDto)
         {
             _logger.LogInformation("UpdateQuoteAsync called for QuoteId: {QuoteId}, QuoteDto: {QuoteDto}", 
                 quoteId, JsonSerializer.Serialize(quoteDto));
@@ -180,6 +263,7 @@ public async Task<QuoteDto> UpdateQuoteAsync(int quoteId, UpdateQuoteDto quoteDt
             quote.QuoteNumber = quoteDto.QuoteNumber;
             quote.PartnerId = quoteDto.PartnerId;
             quote.QuoteDate = quoteDto.QuoteDate;
+            quote.CurrencyId = quoteDto.CurrencyId;
             quote.Status = quoteDto.Status;
             quote.TotalAmount = quoteDto.TotalAmount;
             quote.SalesPerson = quoteDto.SalesPerson;
@@ -197,6 +281,7 @@ public async Task<QuoteDto> UpdateQuoteAsync(int quoteId, UpdateQuoteDto quoteDt
             {
                 QuoteId = quote.QuoteId,
                 QuoteNumber = quote.QuoteNumber,
+                CurrencyId = quote.CurrencyId,
                 PartnerId = quote.PartnerId,
                 QuoteDate = quote.QuoteDate,
                 Status = quote.Status,
@@ -370,6 +455,7 @@ public async Task<QuoteItemResponseDto> UpdateQuoteItemAsync(int quoteId, int qu
             {
                 QuoteNumber = await GetNextQuoteNumberAsync(),
                 PartnerId = originalQuote.PartnerId,
+                CurrencyId = originalQuote.CurrencyId,
                 QuoteDate = DateTime.UtcNow,
                 Status = "Draft",
                 TotalAmount = originalQuote.TotalAmount,
@@ -392,6 +478,7 @@ public async Task<QuoteItemResponseDto> UpdateQuoteItemAsync(int quoteId, int qu
                 QuoteId = newQuote.QuoteId,
                 QuoteNumber = newQuote.QuoteNumber,
                 PartnerId = newQuote.PartnerId,
+                CurrencyId = newQuote.CurrencyId,
                 QuoteDate = newQuote.QuoteDate,
                 Status = newQuote.Status,
                 TotalAmount = newQuote.TotalAmount

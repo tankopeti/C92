@@ -296,8 +296,8 @@ namespace Cloud9_2.Controllers
 [ProducesResponseType(StatusCodes.Status500InternalServerError)]
 public async Task<IActionResult> CreateQuoteItem(int quoteId, [FromBody] QuoteItemDto itemDto)
 {
-    _logger.LogInformation("CreateQuoteItem called for QuoteId: {QuoteId}, ItemDto: {ItemDto}", 
-        quoteId, JsonSerializer.Serialize(itemDto));
+    _logger.LogInformation("CreateQuoteItem called for QuoteId: {QuoteId}, ProductId: {ProductId}, Quantity: {Quantity}", 
+        quoteId, itemDto.ProductId, itemDto.Quantity);
 
     if (itemDto == null)
     {
@@ -320,70 +320,49 @@ public async Task<IActionResult> CreateQuoteItem(int quoteId, [FromBody] QuoteIt
 
     try
     {
-        if (_context == null)
+        // Verify the quote exists
+        var quoteExists = await _context.Quotes.AnyAsync(q => q.QuoteId == quoteId);
+        if (!quoteExists)
         {
-            _logger.LogError("Database context is null for CreateQuoteItem QuoteId: {QuoteId}", quoteId);
-            return StatusCode(500, new { error = "Adatbázis kapcsolat nem érhető el" });
+            _logger.LogWarning("Quote not found for QuoteId: {QuoteId}", quoteId);
+            return NotFound(new { error = "Az árajánlat nem található" });
         }
 
-        var createDto = new CreateQuoteItemDto
+        // Map QuoteItemDto to QuoteItem entity
+        var quoteItem = new QuoteItem
         {
             QuoteId = quoteId,
             ProductId = itemDto.ProductId,
             Quantity = itemDto.Quantity,
             UnitPrice = itemDto.UnitPrice,
-            ItemDescription = itemDto.ItemDescription ?? "", // Convert null to empty string
             DiscountPercentage = itemDto.DiscountPercentage,
             DiscountAmount = itemDto.DiscountAmount
         };
 
-        // Validate createDto manually
-        if (createDto.ProductId <= 0)
-            ModelState.AddModelError("ProductId", "ProductId must be a positive number");
-        if (createDto.Quantity <= 0)
-            ModelState.AddModelError("Quantity", "Quantity must be greater than 0");
-        if (createDto.UnitPrice < 0)
-            ModelState.AddModelError("UnitPrice", "UnitPrice cannot be negative");
-        if (createDto.QuoteId <= 0)
-            ModelState.AddModelError("QuoteId", "QuoteId must be a positive number");
+        _context.QuoteItems.Add(quoteItem);
+        await _context.SaveChangesAsync();
 
-        if (!ModelState.IsValid)
+        // Map back to QuoteItemDto for response
+        var result = new QuoteItemDto
         {
-            var errors = ModelState
-                .Where(x => x.Value.Errors.Count > 0)
-                .ToDictionary(
-                    kvp => kvp.Key,
-                    kvp => kvp.Value.Errors.Select(e => e.ErrorMessage).ToArray()
-                );
-            _logger.LogWarning("Manual validation failed for QuoteId: {QuoteId}, Errors: {Errors}", 
-                quoteId, JsonSerializer.Serialize(errors));
-            return BadRequest(new { error = "Érvénytelen adatok", details = errors });
-        }
+            QuoteItemId = quoteItem.QuoteItemId,
+            QuoteId = quoteItem.QuoteId,
+            ProductId = quoteItem.ProductId,
+            Quantity = quoteItem.Quantity,
+            UnitPrice = quoteItem.UnitPrice,
+            DiscountPercentage = quoteItem.DiscountPercentage,
+            DiscountAmount = quoteItem.DiscountAmount,
+            TotalPrice = quoteItem.TotalPrice
+        };
 
-        var result = await _quoteService.CreateQuoteItemAsync(quoteId, createDto);
-        if (result == null)
-        {
-            _logger.LogWarning("Quote not found or invalid data for QuoteId: {QuoteId}", quoteId);
-            return NotFound(new { error = $"Az árajánlat nem található vagy érvénytelen adatok: Quote ID {quoteId}" });
-        }
-
-        _logger.LogInformation("Created quote item ID: {QuoteItemId} for quote ID: {QuoteId}", result.QuoteItemId, quoteId);
+        _logger.LogInformation("Created QuoteItem with ID: {QuoteItemId} for QuoteId: {QuoteId}", 
+            quoteItem.QuoteItemId, quoteId);
         return Ok(result);
-    }
-    catch (ArgumentException ex)
-    {
-        _logger.LogWarning(ex, "Validation error for quote ID: {QuoteId}", quoteId);
-        return BadRequest(new { error = ex.Message });
-    }
-    catch (DbUpdateException ex)
-    {
-        _logger.LogError(ex, "Database error creating quote item for QuoteId: {QuoteId}", quoteId);
-        return BadRequest(new { error = "Adatbázis hiba: " + (ex.InnerException?.Message ?? ex.Message) });
     }
     catch (Exception ex)
     {
-        _logger.LogError(ex, "Unexpected error creating quote item for QuoteId: {QuoteId}", quoteId);
-        return StatusCode(500, new { error = "Nem sikerült a tétel létrehozása: " + ex.Message });
+        _logger.LogError(ex, "Error creating QuoteItem for QuoteId: {QuoteId}", quoteId);
+        return StatusCode(500, new { error = "Hiba történt a tétel létrehozása közben" });
     }
 }
 
@@ -503,7 +482,7 @@ public async Task<IActionResult> CreateQuoteItem(int quoteId, [FromBody] QuoteIt
             }
         }
 
-[HttpPost("{quoteId}/convert-to-order")]
+        [HttpPost("{quoteId}/convert-to-order")]
         [ProducesResponseType(StatusCodes.Status201Created)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -552,6 +531,6 @@ public async Task<IActionResult> CreateQuoteItem(int quoteId, [FromBody] QuoteIt
                 _logger.LogError(ex, "Error converting quote ID: {QuoteId}", quoteId);
                 return StatusCode(500, new { error = "Nem sikerült az árajánlat rendeléssé konvertálása: " + ex.Message });
             }
-        }
+        }    
     }
 }

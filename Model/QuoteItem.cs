@@ -21,6 +21,13 @@ namespace Cloud9_2.Models
         [ForeignKey("ProductId")]
         public Product Product { get; set; }
 
+        [Required]
+        public int VatTypeId { get; set; }
+
+        [ForeignKey("VatTypeId")]
+        [Display(Name = "ÁFA típus")]
+        public VatType VatType { get; set; }
+
         [StringLength(200)]
         [Display(Name = "Tétel leírása")]
         public string? ItemDescription { get; set; } // Optional, so keep nullable
@@ -36,7 +43,7 @@ namespace Cloud9_2.Models
 
         [DataType(DataType.Currency)]
         [Display(Name = "Összesen")]
-        public decimal TotalPrice => Quantity * UnitPrice;
+        public decimal TotalPrice => (Quantity * UnitPrice) - (DiscountAmount ?? 0);
         public decimal? DiscountPercentage { get; set; } // New: e.g., 10.00 for 10%
         public decimal? DiscountAmount { get; set; } // New: e.g., 50.00 HUF
     }

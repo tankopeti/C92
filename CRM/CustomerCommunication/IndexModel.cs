@@ -308,7 +308,7 @@ namespace Cloud9_2.Pages.CRM.CustomerCommunication
             return RedirectToPage(new { SearchTerm, TypeFilter, SortBy, CurrentPage, PageSize });
         }
 
-        public async Task<IActionResult> OnPostAssignResponsibleAsync()
+public async Task<IActionResult> OnPostAssignResponsibleAsync()
         {
             if (!ModelState.IsValid)
                 return Page();

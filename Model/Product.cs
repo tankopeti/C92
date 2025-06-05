@@ -74,6 +74,9 @@ namespace Cloud9_2.Models
         public List<ProductFile>? Files { get; set; } = new List<ProductFile>();
         public ICollection<QuoteItem> QuoteItems { get; set; }
         public ICollection<OrderItem> OrderItems { get; set; }
+
+        [Display(Name = "Termék csoportok")]
+        public List<ProductGroupProduct> ProductGroupProducts { get; set; } = new List<ProductGroupProduct>();
     }
 }
 

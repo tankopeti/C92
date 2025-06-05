@@ -133,7 +133,6 @@
                                     }
                                     <span class="@badgeClass">@Model.StatusDisplayNames[communication.StatusName]</span>
                                 </div>
-                                <div class="card-grid-cell actions-cell">
                                     <div class="btn-group btn-group-sm" role="group">
                                         <button type="button" class="btn btn-outline-info btn-sm view-communication-btn"
                                                 data-bs-toggle="modal"
@@ -163,97 +162,107 @@
                                             </ul>
                                         </div>
                                     </div>
-                                </div>
                             </div>
                         </div>
                     </div>
 
-                    <!-- Edit Communication Modal -->
-                    <div class="modal fade" id="editCommunicationModal_@communication.CustomerCommunicationId" tabindex="-1" aria-labelledby="editCommunicationModalLabel_@communication.CustomerCommunicationId" aria-hidden="true">
-                        <div class="modal-dialog modal-lg">
-                            <div class="modal-content">
-                                <div class="modal-header">
-                                    <h5 class="modal-title" id="editCommunicationModalLabel_@communication.CustomerCommunicationId">Kommunikáció szerkesztése: @communication.Subject</h5>
-                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                                </div>
-                                <div class="modal-body">
-                                    <form id="communicationForm_@communication.CustomerCommunicationId">
-                                        @Html.AntiForgeryToken()
-                                        <input type="hidden" name="CustomerCommunicationId" value="@communication.CustomerCommunicationId" />
-                                        <table class="table table-sm mt-3">
-                                            <tbody>
-                                                <tr>
-                                                    <th>Típus</th>
-                                                    <td>
-                                                        <select class="form-select" name="CommunicationTypeId" required>
-                                                            <option value="1" selected="@(communication.CommunicationTypeName == "Email")">Email</option>
-                                                            <option value="2" selected="@(communication.CommunicationTypeName == "Phone")">Telefonhívás</option>
-                                                            <option value="3" selected="@(communication.CommunicationTypeName == "Meeting")">Találkozó</option>
-                                                        </select>
-                                                    </td>
-                                                </tr>
-                                                <tr>
-                                                    <th>Partner</th>
-                                                    <td>
-                                                        <select name="ContactId" class="form-select tom-select" data-selected-id="@communication.ContactId" data-selected-text="@(string.Join(" ", new[] { communication.FirstName, communication.LastName }.Where(s => !string.IsNullOrEmpty(s))))" autocomplete="off" required>
-                                                            <option value=""></option>
-                                                        </select>
-                                                    </td>
-                                                </tr>
-                                                <tr>
-                                                    <th>Dátum</th>
-                                                    <td><input type="date" class="form-control" name="Date" value="@(communication.Date.ToString("yyyy-MM-dd"))" required></td>
-                                                </tr>
-                                                <tr>
-                                                    <th>Tárgy</th>
-                                                    <td><input type="text" class="form-control" name="Subject" value="@communication.Subject" required maxlength="1000"></td>
-                                                </tr>
-                                                <tr>
-                                                    <th>Tartalom</th>
-                                                    <td><textarea class="form-control" name="Note" rows="6" maxlength="2000">@communication.Note</textarea></td>
-                                                </tr>
-                                                <tr>
-                                                    <th>Státusz</th>
-                                                    <td>
-                                                        <select class="form-select" name="StatusId" required>
-                                                            <option value="1" selected="@(communication.StatusName == "Open")">Nyitott</option>
-                                                            <option value="2" selected="@(communication.StatusName == "InProgress")">Folyamatban</option>
-                                                            <option value="3" selected="@(communication.StatusName == "Escalated")">Eskalálva</option>
-                                                            <option value="4" selected="@(communication.StatusName == "Resolved")">Megoldva</option>
-                                                        </select>
-                                                    </td>
-                                                </tr>
-                                                <tr>
-                                                    <th>Partner ID</th>
-                                                    <td><input type="number" class="form-control" name="PartnerId" value="@communication.PartnerId" /></td>
-                                                </tr>
-                                                <tr>
-                                                    <th>Lead ID</th>
-                                                    <td><input type="number" class="form-control" name="LeadId" value="@communication.LeadId" /></td>
-                                                </tr>
-                                                <tr>
-                                                    <th>Árajánlat ID</th>
-                                                    <td><input type="number" class="form-control" name="QuoteId" value="@communication.QuoteId" /></td>
-                                                </tr>
-                                                <tr>
-                                                    <th>Rendelés ID</th>
-                                                    <td><input type="number" class="form-control" name="OrderId" value="@communication.OrderId" /></td>
-                                                </tr>
-                                                <tr>
-                                                    <th>Megjegyzések</th>
-                                                    <td><textarea class="form-control" name="Metadata" rows="4" maxlength="1000">@communication.Metadata</textarea></td>
-                                                </tr>
-                                            </tbody>
-                                        </table>
-                                    </form>
-                                </div>
-                                <div class="modal-footer">
-                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Bezár</button>
-                                    <button type="button" class="btn btn-primary save-communication" data-communication-id="@communication.CustomerCommunicationId">Mentés</button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+<div class="modal fade" id="editCommunicationModal_@communication.CustomerCommunicationId" tabindex="-1" aria-labelledby="editCommunicationModalLabel_@communication.CustomerCommunicationId" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="editCommunicationModalLabel_@communication.CustomerCommunicationId">Kommunikáció szerkesztése: @communication.Subject</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="communicationForm_@communication.CustomerCommunicationId">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="CustomerCommunicationId" value="@communication.CustomerCommunicationId" />
+                    <table class="table table-sm mt-3">
+                        <tbody>
+                            <tr>
+                                <th>Típus</th>
+                                <td>
+                                    <select class="form-select" name="CommunicationTypeId" required>
+                                        <option value="1" selected="@(communication.CommunicationTypeName == "Email")">Email</option>
+                                        <option value="2" selected="@(communication.CommunicationTypeName == "Phone")">Telefonhívás</option>
+                                        <option value="3" selected="@(communication.CommunicationTypeName == "Meeting")">Találkozó</option>
+                                    </select>
+                                </td>
+                            </tr>
+                            <tr>
+                                <th>Partner</th>
+                                <td>
+                                    <select class="form-select" name="PartnerId" data-selected-id="@communication.PartnerId" data-selected-text="@communication.PartnerName">
+                                        <option value="@communication.PartnerId" selected>@communication.PartnerName</option>
+                                    </select>
+                                </td>
+                            </tr>
+                            <tr>
+                                <th>Kapcsolattartó</th>
+                                <td>
+                                    <select class="form-select" name="ContactId" data-selected-id="@communication.ContactId" data-selected-text="@communication.FirstName @communication.LastName" required>
+                                        <option value="@communication.ContactId" selected>@communication.FirstName @communication.LastName</option>
+                                    </select>
+                                </td>
+                            </tr>
+                            <tr>
+                                <th>Felelős</th>
+                                <td>
+                                    <select class="form-select" name="ResponsibleContactId" data-selected-id="@communication.AgentId" data-selected-text="@communication.AgentName" required>
+                                        <option value="@communication.AgentId" selected>@communication.AgentName</option>
+                                    </select>
+                                </td>
+                            </tr>
+                            <tr>
+                                <th>Dátum</th>
+                                <td><input type="date" class="form-control" name="Date" value="@(communication.Date.ToString("yyyy-MM-dd"))" required></td>
+                            </tr>
+                            <tr>
+                                <th>Tárgy</th>
+                                <td><input type="text" class="form-control" name="Subject" value="@communication.Subject" required maxlength="1000"></td>
+                            </tr>
+                            <tr>
+                                <th>Tartalom</th>
+                                <td><textarea class="form-control" name="Note" rows="6" maxlength="2000">@communication.Note</textarea></td>
+                            </tr>
+                            <tr>
+                                <th>Státusz</th>
+                                <td>
+                                    <select class="form-select" name="StatusId" required>
+                                        <option value="1" selected="@(communication.StatusName == "Open")">Nyitott</option>
+                                        <option value="2" selected="@(communication.StatusName == "InProgress")">Folyamatban</option>
+                                        <option value="3" selected="@(communication.StatusName == "Escalated")">Eskalálva</option>
+                                        <option value="4" selected="@(communication.StatusName == "Resolved")">Megoldva</option>
+                                    </select>
+                                </td>
+                            </tr>
+                            <tr>
+                                <th>Lead ID</th>
+                                <td><input type="number" class="form-control" name="LeadId" value="@communication.LeadId" /></td>
+                            </tr>
+                            <tr>
+                                <th>Árajánlat ID</th>
+                                <td><input type="number" class="form-control" name="QuoteId" value="@communication.QuoteId" /></td>
+                            </tr>
+                            <tr>
+                                <th>Rendelés ID</th>
+                                <td><input type="number" class="form-control" name="OrderId" value="@communication.OrderId" /></td>
+                            </tr>
+                            <tr>
+                                <th>Megjegyzések</th>
+                                <td><textarea class="form-control" name="Metadata" rows="4" maxlength="1000">@communication.Metadata</textarea></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Bezár</button>
+                <button type="button" class="btn btn-primary save-communication" data-communication-id="@communication.CustomerCommunicationId">Mentés</button>
+            </div>
+        </div>
+    </div>
+</div>
 
                     <!-- View Communication Modal -->
                     <div class="modal fade" id="viewCommunicationModal_@communication.CustomerCommunicationId" tabindex="-1" aria-labelledby="viewCommunicationModalLabel_@communication.CustomerCommunicationId" aria-hidden="true">
@@ -358,30 +367,27 @@
                     </div>
 
                     <!-- Delete Communication Modal -->
-                    <div class="modal fade" id="deleteCommunicationModal_@communication.CustomerCommunicationId" tabindex="-1" aria-labelledby="deleteCommunicationModalLabel_@communication.CustomerCommunicationId" aria-hidden="true">
-                        <div class="modal-dialog modal-dialog-centered">
-                            <div class="modal-content">
-                                <div class="modal-header">
-                                    <h5 class="modal-title" id="deleteCommunicationModalLabel_@communication.CustomerCommunicationId">Kommunikáció törlése</h5>
-                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Bezárás"></button>
-                                </div>
-                                <div class="modal-body">
-                                    <form id="deleteCommunicationForm_@communication.CustomerCommunicationId">
-                                        @Html.AntiForgeryToken()
-                                        <input type="hidden" name="communicationId" value="@communication.CustomerCommunicationId" />
-                                        <p>Biztosan törölni szeretné a következő kommunikációt: <strong>@communication.Subject</strong>?</p>
-                                        <div id="deleteWarning_@communication.CustomerCommunicationId" class="alert alert-warning" style="display: none;">
-                                            Ez a kommunikáció nem törölhető, mert kapcsolódó rekordok léteznek.
-                                        </div>
-                                    </form>
-                                </div>
-                                <div class="modal-footer">
-                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Mégse</button>
-                                    <button type="button" class="btn btn-danger confirm-delete-communication" data-communication-id="@communication.CustomerCommunicationId" aria-label="Kommunikáció törlése">Törlés</button>
-                                </div>
-                            </div>
-                        </div>
+
+        <div class="modal fade" id="deleteCommunicationModal_@communication.CustomerCommunicationId" tabindex="-1" aria-labelledby="deleteCommunicationModalLabel_@communication.CustomerCommunicationId" aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="deleteCommunicationModalLabel_@communication.CustomerCommunicationId">Kommunikáció törlése</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
+                    <div class="modal-body">
+                        <p>Biztosan törölni szeretné a kommunikációt: @communication.Subject?</p>
+                        <form id="deleteCommunicationForm_@communication.CustomerCommunicationId">
+                            @Html.AntiForgeryToken()
+                        </form>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Mégse</button>
+                        <button type="button" class="btn btn-danger confirm-delete-communication" data-communication-id="@communication.CustomerCommunicationId">Törlés</button>
+                    </div>
+                </div>
+            </div>
+        </div>
                 }
             }
             else
@@ -569,270 +575,276 @@
         bsToast.show();
     }
 
-    // --- Initialize TomSelect ---
-    function initializeTomSelect(select, communicationId, options = {}) {
-        const { endpoint = API_ENDPOINTS.partners, dataKey = 'contacts', placeholder = '-- Válasszon --' } = options;
-        const selectedId = select?.dataset.selectedId || '';
-        const selectedText = select?.dataset.selectedText || '';
-        console.log('TomSelect Init for:', communicationId, 'endpoint:', endpoint, 'dataKey:', dataKey, 'selectedId:', selectedId);
+// --- Initialize TomSelect ---
+function initializeTomSelect(select, communicationId, options = {}) {
+    const { endpoint = API_ENDPOINTS.partners, dataKey = 'contacts', placeholder = '-- Válasszon --' } = options;
+    const selectedId = select?.dataset.selectedId || '';
+    const selectedText = select?.dataset.selectedText || '';
+    console.log('TomSelect Init for:', communicationId, 'endpoint:', endpoint, 'dataKey:', dataKey, 'selectedId:', selectedId);
 
-        if (!select) {
-            console.error('Select element is null for communicationId:', communicationId);
-            showToast('Hiba: A kiválasztó elem nem található.', 'danger');
-            return null;
-        }
-
-        if (select.tomselect) {
-            select.tomselect.destroy();
-        }
-
-        return new TomSelect(select, {
-            valueField: 'id',
-            labelField: 'text',
-            searchField: 'text',
-            placeholder: placeholder,
-            allowEmptyOption: true,
-            maxOptions: 100,
-            load: async (query, callback) => {
-                try {
-                    const url = endpoint === API_ENDPOINTS.orders 
-                        ? `${endpoint}?searchTerm=${encodeURIComponent(query)}&take=50`
-                        : `${endpoint}?search=${encodeURIComponent(query)}&take=50`;
-                    console.log('TomSelect Query:', url);
-                    const response = await fetch(url, {
-                        headers: {
-                            'Authorization': `Bearer ${localStorage.getItem('token') || ''}`,
-                            'Accept': 'application/json'
-                        }
-                    });
-                    if (!response.ok) throw new Error(`HTTP error: ${response.status}`);
-                    const data = await response.json();
-                    console.log('TomSelect Response:', data);
-
-                    let items = [];
-                    if (endpoint === API_ENDPOINTS.partners) {
-                        if (dataKey === 'partners') {
-                            items = data.map(partner => ({ id: partner.id, text: partner.text }));
-                        } else if (dataKey === 'quotes') {
-                            items = data.flatMap(partner => 
-                                partner.quotes?.length ? partner.quotes.map(quote => ({ id: quote.id, text: quote.text })) : []
-                            );
-                        } else if (dataKey === 'contacts') {
-                            items = data.flatMap(partner => 
-                                partner.contacts?.length ? partner.contacts.map(contact => ({ id: contact.id, text: contact.text })) : []
-                            );
-                        }
-                    } else if (endpoint === API_ENDPOINTS.orders) {
-                        items = data.map(order => ({
-                            id: order.orderId,
-                            text: order.orderNumber || `Order ${order.orderId}` + (order.description ? ` (${order.description})` : '')
-                        }));
-                    }     else if (endpoint === '/api/users') {
-                            items = data.map(user => ({
-                                id: user.id,
-                                text: (user.userName + ' (' + user.email + ')')
-                            }));
-                        }
-                    if (!items.length) {
-                        console.warn(`No items found for ${dataKey} from ${endpoint}`);
-                        callback([{ id: 0, text: `Nincs elérhető ${dataKey}` }]);
-                    } else {
-                        callback(items);
-                    }
-                } catch (error) {
-                    console.error('TomSelect Error:', error, 'endpoint:', endpoint, 'dataKey:', dataKey);
-                    callback([{ id: 0, text: `Hiba: Nem sikerült betölteni a ${dataKey}` }]);
-                }
-            },
-            shouldLoad: () => true,
-            render: {
-                option: (data, escape) => `<div>${escape(data.text)}</div>`,
-                item: (data, escape) => `<div>${escape(data.text)}</div>`,
-                no_results: (data, escape) => `<div class="no-results">Nincs találat "${escape(data.input)}"</div>`
-            },
-            onInitialize: function() {
-                console.log('TomSelect Initialized for select:', select.name);
-                if (selectedId && selectedText) {
-                    this.addOption({ id: selectedId, text: selectedText });
-                    this.setValue(selectedId);
-                }
-                this.load('');
-            }
-        });
+    if (!select) {
+        console.error('Select element is null for communicationId:', communicationId);
+        showToast('Hiba: A kiválasztó elem nem található.', 'danger');
+        return null;
     }
 
-    // --- Load Communication History ---
-async function loadCommunicationHistory(communicationId) {
-    const historyContainer = document.getElementById(`history_${communicationId}`);
-    if (!historyContainer) {
-        console.error('History container not found:', communicationId);
-        showToast('Hiba: Az előzmény konténer nem található.', 'danger');
-        return;
+    if (select.tomselect) {
+        select.tomselect.destroy();
     }
-    historyContainer.innerHTML = '<p class="text-muted">Előzmények betöltése...</p>';
 
-    try {
-        const response = await fetch(`/api/customercommunication/${communicationId}/history`, {
-            headers: {
-                'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
-            }
-        });
-        if (!response.ok) {
-            if (response.status === 404) {
-                historyContainer.innerHTML = '<p class="text-muted">Nincs előzmény.</p>';
-                return;
-            }
-            const errorText = await response.text();
-            let errorMessage = `HTTP error: ${response.status}`;
+    return new TomSelect(select, {
+        valueField: 'id',
+        labelField: 'text',
+        searchField: 'text',
+        placeholder: placeholder,
+        allowEmptyOption: true,
+        maxOptions: 100,
+        load: async (query, callback) => {
             try {
-                errorMessage = JSON.parse(errorText).error || errorText;
-            } catch {
-                errorMessage = errorText;
+                const url = endpoint === API_ENDPOINTS.orders
+                    ? `${endpoint}?searchTerm=${encodeURIComponent(query)}&take=50`
+                    : `${endpoint}?search=${encodeURIComponent(query)}&take=50`;
+                console.log('TomSelect Query:', url);
+                const response = await fetch(url, {
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('token') || ''}`,
+                        'Accept': 'application/json'
+                    }
+                });
+                if (!response.ok) throw new Error(`HTTP error: ${response.status}`);
+                const data = await response.json();
+                console.log('TomSelect Response:', data);
+
+                let items = [];
+                if (endpoint === API_ENDPOINTS.partners) {
+                    if (dataKey === 'partners') {
+                        items = data.map(partner => ({ id: partner.id, text: partner.text }));
+                    } else if (dataKey === 'quotes') {
+                        items = data.flatMap(partner =>
+                            partner.quotes?.length ? partner.quotes.map(quote => ({ id: quote.id, text: quote.text })) : []
+                        );
+                    } else if (dataKey === 'contacts') {
+                        items = data.flatMap(partner =>
+                            partner.contacts?.length ? partner.contacts.map(contact => ({ id: contact.id, text: contact.text })) : []
+                        );
+                    }
+                } else if (endpoint === API_ENDPOINTS.orders) {
+                    items = data.map(order => ({
+                        id: order.orderId,
+                        text: order.orderNumber || `Order ${order.orderId}` + (order.description ? ` (${order.description})` : '')
+                    }));
+                } else if (endpoint === '/api/users') {
+                    items = data.map(user => ({
+                        id: user.id,
+                        text: (user.userName + ' (' + user.email + ')')
+                    }));
+                }
+
+                // Add the pre-selected partner if it exists and is not in the fetched items
+                if (selectedId && selectedText && !items.find(item => item.id == selectedId)) {
+                    items.unshift({ id: selectedId, text: selectedText });
+                }
+
+                if (!items.length) {
+                    console.warn(`No items found for ${dataKey} from ${endpoint}`);
+                    callback([{ id: 0, text: `Nincs elérhető ${dataKey}` }]);
+                } else {
+                    callback(items);
+                }
+            } catch (error) {
+                console.error('TomSelect Error:', error, 'endpoint:', endpoint, 'dataKey:', dataKey);
+                callback([{ id: 0, text: `Hiba: Nem sikerült betölteni a ${dataKey}` }]);
             }
-            throw new Error(errorMessage);
+        },
+        shouldLoad: () => true,
+        render: {
+            option: (data, escape) => `<div>${escape(data.text)}</div>`,
+            item: (data, escape) => `<div>${escape(data.text)}</div>`,
+            no_results: (data, escape) => `<div class="no-results">Nincs találat "${escape(data.input)}"</div>`
+        },
+        onInitialize: function() {
+            console.log('TomSelect Initialized for select:', select.name);
+            if (selectedId && selectedText) {
+                this.addOption({ id: selectedId, text: selectedText });
+                this.setValue(selectedId);
+            }
+            this.load('');
         }
-        const data = await response.json();
-        console.log('History loaded:', data);
-
-        if (!data || (!data.posts?.length && !data.responsibleHistory?.length)) {
-            historyContainer.innerHTML = '<p class="text-muted">Nincs előzmény.</p>';
-            return;
-        }
-
-        let html = '<ul class="list-group">';
-        if (data.posts?.length) {
-            data.posts.forEach(post => {
-                html += `
-                    <li class="list-group-item">
-                        <strong>Hozzászólás</strong> (${post.createdAt ? new Date(post.createdAt).toLocaleString() : 'N/A'}): ${post.content || ''}<br>
-                        <small>Írta: ${post.createdByName || 'Ismeretlen'}</small>
-                    </li>`;
-            });
-        }
-        if (data.responsibleHistory?.length) {
-            data.responsibleHistory.forEach(responsible => {
-                html += `
-                    <li class="list-group-item">
-                        <strong>Felelős kijelölve</strong> (${responsible.assignedAt ? new Date(responsible.assignedAt).toLocaleString() : 'N/A'}): ${responsible.responsibleName || 'Ismeretlen'}<br>
-                        <small>Kijelölte: ${responsible.assignedByName || 'Ismeretlen'}</small>
-                    </li>`;
-            });
-        }
-        html += '</ul>';
-        historyContainer.innerHTML = html;
-    } catch (error) {
-        console.error('History load error:', error);
-        historyContainer.innerHTML = '<p class="text-danger">Hiba az előzmények betöltésekor.</p>';
-        showToast(`Hiba: ${error.message}`, 'danger');
-    }
+    });
 }
 
-    // --- Save Communication ---
-    async function saveCommunication(communicationId) {
-        const form = document.getElementById(`communicationForm_${communicationId}`);
-        if (!form) {
-            console.error('Form not found for communicationId:', communicationId);
-            showToast('Hiba: Az űrlap nem található.', 'danger');
+    // --- Load Communication History ---
+    async function loadCommunicationHistory(communicationId) {
+        const historyContainer = document.getElementById(`history_${communicationId}`);
+        if (!historyContainer) {
+            console.error('History container not found:', communicationId);
+            showToast('Hiba: Az előzmény konténer nem található.', 'danger');
             return;
         }
-
-        const contactSelect = form.querySelector('select[name="ContactId"]');
-        const responsibleSelect = form.querySelector('select[name="ResponsibleContactId"]');
-        if (!contactSelect || !contactSelect.value) {
-            console.error('Contact selection is empty or not initialized');
-            showToast('Kérjük, válasszon ki egy partnert.', 'danger');
-            return;
-        }
-        if (!responsibleSelect || !responsibleSelect.value) {
-            console.error('Responsible selection is empty or not initialized');
-            showToast('Kérjük, válasszon ki egy felelőst.', 'danger');
-            return;
-        }
-
-        const formData = new FormData(form);
-        const contactText = contactSelect.selectedOptions[0]?.text || 'Unknown';
-        const responsibleText = responsibleSelect.selectedOptions[0]?.text || 'Unknown';
-        const username = localStorage.getItem('username') || 'System';
-        const token = form.querySelector('input[name="__RequestVerificationToken"]')?.value;
-        if (!token) {
-            console.error('Anti-forgery token not found');
-            showToast('Hiba: Biztonsági token hiányzik.', 'danger');
-            return;
-        }
-
-        const data = {
-            CustomerCommunicationId: communicationId === 'new' ? 0 : parseInt(communicationId),
-            CommunicationTypeId: parseInt(formData.get('CommunicationTypeId')) || null,
-            ContactId: parseInt(formData.get('ContactId')) || null,
-            Subject: formData.get('Subject')?.trim() || null,
-            Date: formData.get('Date')?.trim() || null,
-            Note: formData.get('Note')?.trim() || '',
-            StatusId: parseInt(formData.get('StatusId')) || null,
-            PartnerId: parseInt(formData.get('PartnerId')) || null,
-            LeadId: parseInt(formData.get('LeadId')) || null,
-            QuoteId: parseInt(formData.get('QuoteId')) || null,
-            OrderId: parseInt(formData.get('OrderId')) || null,
-            Metadata: formData.get('Metadata')?.trim() || '',
-            Posts: formData.get('InitialPost')?.trim() ? [{
-                Content: formData.get('InitialPost').trim(),
-                CreatedBy: username,
-                CreatedDate: new Date().toISOString()
-            }] : [],
-            CurrentResponsible: {
-                ContactId: parseInt(formData.get('ResponsibleContactId')) || null,
-                FirstName: responsibleText.split(' ')[0] || '',
-                LastName: responsibleText.split(' ')[1]?.split('(')[0] || '',
-                Email: responsibleText.match(/\(([^)]+)\)/)?.[1] || null
-            },
-            ResponsibleHistory: [{
-                ResponsibleContactId: parseInt(formData.get('ResponsibleContactId')) || null,
-                ResponsibleName: responsibleText.split('(')[0].trim() || 'Unknown',
-                AssignedBy: username,
-                AssignedDate: new Date().toISOString()
-            }]
-        };
-
-        if (!data.CommunicationTypeId || !data.ContactId || !data.Subject || !data.Date || !data.StatusId || !data.CurrentResponsible.ContactId) {
-            console.error('Validation failed:', data);
-            showToast('Kérjük, töltse ki az összes kötelező mezőt.', 'danger');
-            return;
-        }
+        historyContainer.innerHTML = '<p class="text-muted">Előzmények betöltése...</p>';
 
         try {
-            const url = communicationId === 'new' ? API_ENDPOINTS.communication : `${API_ENDPOINTS.communication}/${communicationId}`;
-            const method = communicationId === 'new' ? 'POST' : 'PUT';
-            const response = await fetch(url, {
-                method,
+            const response = await fetch(`/api/customercommunication/${communicationId}/history`, {
                 headers: {
-                    'Content-Type': 'application/json',
-                    'RequestVerificationToken': token,
                     'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
-                },
-                body: JSON.stringify(data)
+                }
             });
-
             if (!response.ok) {
+                if (response.status === 404) {
+                    historyContainer.innerHTML = '<p class="text-muted">Nincs előzmény.</p>';
+                    return;
+                }
                 const errorText = await response.text();
-                let errorMessage = `Hiba: ${response.status} ${response.statusText}`;
+                let errorMessage = `HTTP error: ${response.status}`;
                 try {
-                    const errorJson = JSON.parse(errorText);
-                    errorMessage = errorJson.errors 
-                        ? `Érvényesítési hibák: ${Object.entries(errorJson.errors).map(([field, messages]) => `${field}: ${messages.join(', ')}`).join('; ')}`
-                        : errorJson.title || errorText;
+                    errorMessage = JSON.parse(errorText).error || errorText;
                 } catch {
-                    errorMessage += ` Szerver hiba: ${errorText}`;
+                    errorMessage = errorText;
                 }
                 throw new Error(errorMessage);
             }
+            const data = await response.json();
+            console.log('History loaded:', data);
 
-            console.log('Save communication success:', response.status);
-            showToast('Kommunikáció sikeresen mentve!', 'success');
-            window.location.reload();
+            if (!data || (!data.posts?.length && !data.responsibleHistory?.length)) {
+                historyContainer.innerHTML = '<p class="text-muted">Nincs előzmény.</p>';
+                return;
+            }
+
+            let html = '<ul class="list-group">';
+            if (data.posts?.length) {
+                data.posts.forEach(post => {
+                    html += `
+                        <li class="list-group-item">
+                            <strong>Hozzászólás</strong> (${post.createdAt ? new Date(post.createdAt).toLocaleString() : 'N/A'}): ${post.content || ''}<br>
+                            <small>Írta: ${post.createdByName || 'Ismeretlen'}</small>
+                        </li>`;
+                });
+            }
+            if (data.responsibleHistory?.length) {
+                data.responsibleHistory.forEach(responsible => {
+                    html += `
+                        <li class="list-group-item">
+                            <strong>Felelős kijelölve</strong> (${responsible.assignedAt ? new Date(responsible.assignedAt).toLocaleString() : 'N/A'}): ${responsible.responsibleName || 'Ismeretlen'}<br>
+                            <small>Kijelölte: ${responsible.assignedByName || 'Ismeretlen'}</small>
+                        </li>`;
+                });
+            }
+            html += '</ul>';
+            historyContainer.innerHTML = html;
         } catch (error) {
-            console.error('Save communication error:', error);
-            showToast(`Kommunikáció mentése sikertelen: ${error.message}`, 'danger');
+            console.error('History load error:', error);
+            historyContainer.innerHTML = '<p class="text-danger">Hiba az előzmények betöltésekor.</p>';
+            showToast(`Hiba: ${error.message}`, 'danger');
         }
     }
+
+    // --- Save Communication ---
+async function saveCommunication(communicationId) {
+    const form = document.getElementById(`communicationForm_${communicationId}`);
+    if (!form) {
+        console.error('Form not found for communicationId:', communicationId);
+        showToast('Hiba: Az űrlap nem található.', 'danger');
+        return;
+    }
+
+    const contactSelect = form.querySelector('select[name="ContactId"]');
+    const responsibleSelect = form.querySelector('select[name="ResponsibleContactId"]');
+    if (!contactSelect || !contactSelect.value) {
+        console.error('Contact selection is empty or not initialized');
+        showToast('Kérjük, válasszon ki egy kapcsolattartót.', 'danger');
+        return;
+    }
+    if (!responsibleSelect || !responsibleSelect.value) {
+        console.error('Responsible selection is empty or not initialized');
+        showToast('Kérjük, válasszon ki egy felelőst.', 'danger');
+        return;
+    }
+
+    const formData = new FormData(form);
+    const contactText = contactSelect.selectedOptions[0]?.text || 'Unknown';
+    const responsibleText = responsibleSelect.selectedOptions[0]?.text || 'Unknown';
+    const username = localStorage.getItem('username') || 'System';
+    const token = form.querySelector('input[name="__RequestVerificationToken"]')?.value;
+    if (!token) {
+        console.error('Anti-forgery token not found');
+        showToast('Hiba: Biztonsági token hiányzik.', 'danger');
+        return;
+    }
+
+    const data = {
+        CustomerCommunicationId: communicationId === 'new' ? 0 : parseInt(communicationId),
+        CommunicationTypeId: parseInt(formData.get('CommunicationTypeId')) || null,
+        ContactId: parseInt(formData.get('ContactId')) || null,
+        Subject: formData.get('Subject')?.trim() || null,
+        Date: formData.get('Date') ? new Date(formData.get('Date')).toISOString() : null,
+        Note: formData.get('Note')?.trim() || null,
+        StatusId: parseInt(formData.get('StatusId')) || null,
+        PartnerId: parseInt(formData.get('PartnerId')) || null,
+        LeadId: parseInt(formData.get('LeadId')) || null,
+        QuoteId: parseInt(formData.get('QuoteId')) || null,
+        OrderId: parseInt(formData.get('OrderId')) || null,
+        Metadata: formData.get('Metadata')?.trim() || null,
+        Posts: formData.get('InitialPost')?.trim() ? [{
+            Content: formData.get('InitialPost').trim(),
+            CreatedByName: username,
+            CreatedAt: new Date().toISOString()
+        }] : [],
+        CurrentResponsible: {
+            ResponsibleId: formData.get('ResponsibleContactId')?.trim() || null,
+            ResponsibleName: responsibleText.split('(')[0].trim() || null,
+            AssignedByName: username,
+            AssignedAt: new Date().toISOString()
+        },
+        ResponsibleHistory: [{
+            ResponsibleId: formData.get('ResponsibleContactId')?.trim() || null,
+            ResponsibleName: responsibleText.split('(')[0].trim() || null,
+            AssignedByName: username,
+            AssignedAt: new Date().toISOString()
+        }]
+    };
+
+    if (!data.CommunicationTypeId || !data.ContactId || !data.Subject || !data.Date || !data.StatusId || !data.CurrentResponsible.ResponsibleId) {
+        console.error('Validation failed:', data);
+        showToast('Kérjük, töltse ki az összes kötelező mezőt.', 'danger');
+        return;
+    }
+
+    try {
+        const url = communicationId === 'new' ? API_ENDPOINTS.communication : `${API_ENDPOINTS.communication}/${communicationId}`;
+        const method = communicationId === 'new' ? 'POST' : 'PUT';
+        const response = await fetch(url, {
+            method,
+            headers: {
+                'Content-Type': 'application/json',
+                'RequestVerificationToken': token, // Adjust if server expects '__RequestVerificationToken'
+                'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
+            },
+            body: JSON.stringify(data)
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            let errorMessage = `Hiba: ${response.status} ${response.statusText}`;
+            try {
+                const errorJson = JSON.parse(errorText);
+                errorMessage = errorJson.errors 
+                    ? `Érvényesítési hibák: ${Object.entries(errorJson.errors).map(([field, messages]) => `${field}: ${messages.join(', ')}`).join('; ')}`
+                    : errorJson.title || errorText;
+            } catch {
+                errorMessage += ` Szerver hiba: ${errorText}`;
+            }
+            throw new Error(errorMessage);
+        }
+
+        console.log('Save communication success:', response.status);
+        showToast('Kommunikáció sikeresen mentve!', 'success');
+        window.location.reload();
+    } catch (error) {
+        console.error('Save communication error:', error);
+        showToast(`Kommunikáció mentése sikertelen: ${error.message}`, 'danger');
+    }
+}
 
     // --- Add Post ---
     async function addPost(communicationId) {
@@ -933,58 +945,61 @@ async function loadCommunicationHistory(communicationId) {
     }
 
     // --- Delete Communication ---
-    async function deleteCommunication(communicationId) {
-        const form = document.getElementById(`deleteCommunicationForm_${communicationId}`);
-        if (!form) {
-            console.error('Form not found for communicationId:', communicationId);
-            showToast('Hiba: Törlési űrlap nem található.', 'danger');
-            return;
-        }
-
-        const token = form.querySelector('input[name="__RequestVerificationToken"]')?.value;
-        if (!token) {
-            console.error('Anti-forgery token not found');
-            showToast('Hiba: Biztonsági token hiányzik.', 'danger');
-            return;
-        }
-
-        const button = document.querySelector(`.confirm-delete-communication[data-communication-id="${communicationId}"]`);
-        if (button) button.disabled = true;
-
-        try {
-            const response = await fetch(`${API_ENDPOINTS.communication}/${communicationId}`, {
-                method: 'DELETE',
-                headers: {
-                    'RequestVerificationToken': token,
-                    'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
-                }
-            });
-
-            if (!response.ok) {
-                const errorText = await response.text();
-                let message = `Hiba: ${response.status}`;
-                try {
-                    const errorJson = JSON.parse(errorText);
-                    message = errorJson.error || message;
-                } catch {
-                    message = errorText || message;
-                }
-                throw new Error(message);
-            }
-
-            console.log('Delete response:', response.status);
-            showToast(`Kommunikáció azonosító: ${communicationId} sikeresen törölve!`, 'success');
-            const modal = document.getElementById(`deleteCommunicationModal_${communicationId}`);
-            if (modal) bootstrap.Modal.getInstance(modal)?.hide();
-            const card = document.querySelector(`div[data-communication-id="${communicationId}"]`);
-            if (card) card.style.display = 'none'; // Simple removal; adjust if animation is needed
-        } catch (error) {
-            console.error('Delete error:', error);
-            showToast(`Hiba történt a törlés során: ${error.message}`, 'danger');
-        } finally {
-            if (button) button.disabled = false;
-        }
+async function deleteCommunication(communicationId) {
+    const form = document.getElementById(`deleteCommunicationForm_${communicationId}`);
+    if (!form) {
+        console.error('Form not found for communicationId:', communicationId);
+        showToast('Hiba: Törlési űrlap nem található.', 'danger');
+        return;
     }
+
+    const token = form.querySelector('input[name="__RequestVerificationToken"]')?.value;
+    if (!token) {
+        console.error('Anti-forgery token not found for communicationId:', communicationId);
+        showToast('Hiba: Biztonsági token hiányzik.', 'danger');
+        return;
+    }
+
+    const button = document.querySelector(`.confirm-delete-communication[data-communication-id="${communicationId}"]`);
+    if (button) button.disabled = true;
+
+    try {
+        const response = await fetch(`${API_ENDPOINTS.communication}/${communicationId}`, {
+            method: 'DELETE',
+            headers: {
+                '__RequestVerificationToken': token,
+                'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
+            }
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            let message = `Hiba: ${response.status}`;
+            try {
+                const errorJson = JSON.parse(errorText);
+                message = errorJson.message || errorJson.error || errorText || message;
+                if (message.includes('FK_CommunicationPosts_CustomerCommunication')) {
+                    message = 'Nem lehet törölni a kommunikációt, mert kapcsolódó bejegyzések léteznek.';
+                }
+            } catch {
+                message = errorText || message;
+            }
+            throw new Error(message);
+        }
+
+        console.log('Delete response:', response.status);
+        showToast(`Kommunikáció azonosító: ${communicationId} sikeresen törölve!`, 'success');
+        const modal = document.getElementById(`deleteCommunicationModal_${communicationId}`);
+        if (modal) bootstrap.Modal.getInstance(modal)?.hide();
+        const card = document.querySelector(`div[data-communication-id="${communicationId}"]`);
+        if (card) card.remove();
+    } catch (error) {
+        console.error('Delete error for communicationId:', communicationId, 'error:', error.message);
+        showToast(`Hiba történt a törlés során: ${error.message}`, 'danger');
+    } finally {
+        if (button) button.disabled = false;
+    }
+}
 
     // --- Copy Communication ---
     async function copyCommunication(communicationId) {
@@ -1056,6 +1071,44 @@ async function loadCommunicationHistory(communicationId) {
             });
         }
 
+// Update the modal event listener for editCommunicationModal
+document.querySelectorAll('.modal[id^="editCommunicationModal_"]').forEach(modalEl => {
+    modalEl.addEventListener('show.bs.modal', function() {
+        const commId = this.id.split('_')[1];
+        const selects = [
+            {
+                selector: `select[name="PartnerId"]`,
+                options: { endpoint: API_ENDPOINTS.partners, dataKey: 'partners', placeholder: '-- Válasszon partnert --' }
+            },
+            {
+                selector: `select[name="ContactId"]`,
+                options: { endpoint: API_ENDPOINTS.partners, dataKey: 'contacts', placeholder: '-- Válasszon kapcsolattartót --' }
+            },
+            {
+                selector: `select[name="ResponsibleContactId"]`,
+                options: { endpoint: API_ENDPOINTS.users, dataKey: 'users', placeholder: '-- Válasszon felelőst --' }
+            }
+        ];
+        selects.forEach(({ selector, options }) => {
+            const select = this.querySelector(selector);
+            if (select) {
+                initializeTomSelect(select, commId, options);
+            } else {
+                console.error(`${selector} not found in modal for communicationId: ${commId}`);
+                showToast(`Hiba: ${selector} nem található.`, 'danger');
+            }
+        });
+    });
+    modalEl.addEventListener('hidden.bs.modal', () => {
+        const commId = this.id.split('_')[1];
+        const form = this.querySelector(`#communicationForm_${commId}`);
+        if (form) form.reset();
+        this.querySelectorAll('.tom-select').forEach(select => {
+            if (select.tomselect) select.tomselect.destroy();
+        });
+    });
+});
+
         // New Communication Modal
         const newCommunicationModal = document.getElementById('newCommunicationModal');
         if (newCommunicationModal) {
@@ -1105,12 +1158,18 @@ async function loadCommunicationHistory(communicationId) {
         });
 
         // Save Communication Buttons
-        document.querySelectorAll('.save-communication').forEach(button => {
-            button.addEventListener('click', () => {
-                const communicationId = button.dataset.communicationId;
-                if (communicationId) saveCommunication(communicationId);
-            });
-        });
+document.querySelectorAll('.save-communication').forEach(button => {
+    button.addEventListener('click', () => {
+        const communicationId = button.dataset.communicationId;
+        if (communicationId) {
+            saveCommunication(communicationId);
+        } else {
+            console.error('Communication ID not found for save button');
+            showToast('Hiba: Kommunikáció azonosító nem található.', 'danger');
+        }
+    });
+});
+
 
         // Add Post Buttons
         document.querySelectorAll('.add-post').forEach(button => {

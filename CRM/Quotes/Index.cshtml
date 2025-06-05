@@ -46,10 +46,9 @@
                         <i class="bi bi-funnel me-1"></i>Rendezés/Szűrés
                     </button>
                     <ul class="dropdown-menu dropdown-menu-end">
-                        <li><a class="dropdown-item" href="#" data-filter="all" data-sort="QuoteDate">Összes árajánlat (Legújabb elöl)</a></li>
+                        <li><a class="dropdown-item active" href="#" data-filter="all" data-sort="QuoteDate">Összes árajánlat (Legújabb elöl)</a></li>
                         <li><a class="dropdown-item" href="#" data-filter="all" data-sort="QuoteId">Rendezés: Árajánlat ID (Csökkenő)</a></li>
-                        <li><a class="dropdown-item" href="#" data-filter="all" data-sort="ValidityDate">Érvényességi dátum</a></li>
-                    </ul>
+                        <li><a class="dropdown-item" href="#" data-filter="all" data-sort="ValidityDate">Érvényességi dátum</a></li>                    </ul>
                 </div>
             </div>
         </div>
@@ -133,6 +132,15 @@
                                             </a>
                                             </li>
                                             <li><a class="dropdown-item" href="#" onclick="copyQuote(@quote.QuoteId)"><i class="bi bi-copy me-2"></i>Másolás</a></li>
+                                                <li>
+                                                <a 
+                                                    class="dropdown-item" 
+                                                    href="#" 
+                                                    data-bs-toggle="modal" 
+                                                    data-bs-target="#convertQuoteModal_@quote.QuoteId">
+                                                    <i class="bi bi-arrow-right-circle me-2"></i>Átalakítás rendeléssé
+                                                </a>
+                                            </li>
                                             <li><hr class="dropdown-divider"></li>
                                             <li><a class="dropdown-item text-danger" href="#" data-bs-toggle="modal" data-bs-target="#deleteQuoteModal_@quote.QuoteId"><i class="bi bi-trash me-2"></i>Törlés</a></li>
                                         </ul>
@@ -141,6 +149,7 @@
                             </div>
                         </div>
                     </div>
+
                     <!-- edit modal -->
                     <div class="modal fade" id="editQuoteModal_@quote.QuoteId" tabindex="-1" aria-labelledby="editQuoteModalLabel_@quote.QuoteId" aria-hidden="true">
                         <div class="modal-dialog modal-xl">
@@ -184,6 +193,14 @@
                                                             </td>
                                                         </tr>
                                                         <tr>
+                                                            <th>Pénznem</th>
+                                                            <td>
+                                                                <select name="currencyId" class="form-select tom-select" data-selected-id="@quote.CurrencyId" data-selected-text="@(quote.Currency?.CurrencyName ?? "Unknown")" autocomplete="off" required>
+                                                                    <option value=""></option>
+                                                                </select>
+                                                            </td>
+                                                        </tr>
+                                                        <tr>
                                                             <th>Értékesítő</th>
                                                             <td><input type="text" class="form-control" name="salesPerson" value="@(quote.SalesPerson ?? "")"></td>
                                                         </tr>
@@ -197,11 +214,11 @@
                                                         </tr>
                                                         <tr>
                                                             <th>Leírás</th>
-                                                            <td><textarea class="form-control" name="description" >@(quote.Description ?? "")</textarea></td>
+                                                            <td><textarea class="form-control" name="description">@(quote.Description ?? "")</textarea></td>
                                                         </tr>
                                                         <tr>
                                                             <th>Részletes leírás</th>
-                                                            <td><textarea class="form-control" name="detailedDescription" >@(quote.DetailedDescription ?? "")</textarea></td>
+                                                            <td><textarea class="form-control" name="detailedDescription">@(quote.DetailedDescription ?? "")</textarea></td>
                                                         </tr>
                                                         <tr>
                                                             <th>Státusz</th>
@@ -213,7 +230,6 @@
                                                                         { "Accepted", "Elfogadva" },
                                                                         { "Rejected", "Elutasítva" },
                                                                         { "Draft", "Piszkozat" }
-                                                                        // Add more based on QuoteStatus enum
                                                                     };
                                                                 }
                                                                 <select class="form-select" name="status" required>
@@ -348,7 +364,7 @@
                         </div>
                     </div>
 
-                    <!-- New Quote Modal -->
+            <!-- New Quote Modal -->
             <div class="modal fade" id="newQuoteModal" tabindex="-1" aria-labelledby="newQuoteModalLabel" aria-hidden="true">
                 <div class="modal-dialog modal-xl">
                     <div class="modal-content">
@@ -386,7 +402,7 @@
                                                     <th>Partner</th>
                                                     <td>
                                                         <select name="partnerId" class="form-select tom-select" data-selected-id="" data-selected-text="" autocomplete="off" required>
-                                                            <option value="" disabled selected>-- Válasszon partnert --</option>
+                                                            <option value="" disabled selected> </option>
                                                         </select>
                                                     </td>
                                                 </tr>
@@ -397,6 +413,14 @@
                                                 <tr>
                                                     <th>Érvényességi dátum</th>
                                                     <td><input type="date" class="form-control" name="validityDate" value="@DateTime.Today.AddDays(30).ToString("yyyy-MM-dd")"></td>
+                                                </tr>
+                                                <tr>
+                                                <th>Pénznem</th>
+                                                <td>
+                                                    <select name="currencyId" class="form-select tom-select" id="currencySelect" required>
+                                                        <option value="" disabled selected>-- Válasszon pénznemet --</option>
+                                                    </select>
+                                                </td>
                                                 </tr>
                                                 <tr>
                                                     <th>Tárgy</th>
@@ -526,7 +550,7 @@
     <!-- Quote Items Modal -->
     @foreach (var quote in Model.Quotes)
     {
-        <!-- View Quote Modal -->
+
         <div class="modal fade" id="viewQuoteModal_@quote.QuoteId" tabindex="-1" aria-labelledby="viewQuoteModalLabel_@quote.QuoteId" aria-hidden="true">
             <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
                 <div class="modal-content">
@@ -540,17 +564,25 @@
                                 <tr><th>Árajánlat száma</th><td>@quote.QuoteNumber</td></tr>
                                 <tr><th>Dátum</th><td>@quote.QuoteDate?.ToString("yyyy-MM-dd")</td></tr>
                                 <tr><th>Partner</th><td>@quote.Partner.Name</td></tr>
+                                <tr><th>Pénznem</th><td>@quote.Currency?.CurrencyName</td></tr>
                                 <tr><th>Értékesítő</th><td>@quote.SalesPerson</td></tr>
-                                <tr><th>Érvényesség dátuma</th><td>@(quote.ValidityDate?.ToString("yyyy-MM-dd"))</td></tr>
+                                <tr><th>Érvényesség dátuma</th><td>@quote.ValidityDate?.ToString("yyyy-MM-dd")</td></tr>
                                 <tr><th>Státusz</th><td>@quote.Status</td></tr>
+                                <tr><th>Cég neve</th><td>@quote.CompanyName</td></tr>
                                 <tr><th>Tárgy</th><td>@quote.Subject</td></tr>
                                 <tr><th>Leírás</th><td>@quote.Description</td></tr>
                                 <tr><th>Részletes leírás</th><td>@quote.DetailedDescription</td></tr>
-                                <tr><th>Kedvezmény %</th><td>@(quote.DiscountPercentage.HasValue ? quote.DiscountPercentage.Value.ToString("F2", CultureInfo.GetCultureInfo("hu-HU")) : "0,00")</td></tr>
-                                <tr><th>Kedvezmény összeg</th><td>@(quote.DiscountAmount.HasValue ? quote.DiscountAmount.Value.ToString("F2", CultureInfo.GetCultureInfo("hu-HU")) : "0,00")</td></tr>
-                                <tr><th>Összesen</th><td>@(quote.TotalAmount.HasValue ? quote.TotalAmount.Value.ToString("F2", CultureInfo.GetCultureInfo("hu-HU")) : "0,00")</td></tr>
+                                <tr><th>Kedvezmény %</th><td>@(quote.DiscountPercentage?.ToString("F2", CultureInfo.GetCultureInfo("hu-HU")) ?? "0,00")</td></tr>
+                                <tr><th>Kedvezmény összeg</th><td>@(quote.DiscountAmount?.ToString("F2", CultureInfo.GetCultureInfo("hu-HU")) ?? "0,00")</td></tr>
+                                <tr><th>Összesen</th><td>@(quote.TotalAmount?.ToString("F2", CultureInfo.GetCultureInfo("hu-HU")) ?? "0,00")</td></tr>
+                                <tr><th>Létrehozta</th><td>@quote.CreatedBy</td></tr>
+                                <tr><th>Létrehozás dátuma</th><td>@quote.CreatedDate?.ToString("yyyy-MM-dd HH:mm:ss")</td></tr>
+                                <tr><th>Módosította</th><td>@quote.ModifiedBy</td></tr>
+                                <tr><th>Módosítás dátuma</th><td>@quote.ModifiedDate?.ToString("yyyy-MM-dd HH:mm:ss")</td></tr>
+                                <tr><th>Referenciaszám</th><td>@quote.ReferenceNumber</td></tr>
                             </tbody>
                         </table>
+
                         <h5 class="mt-4">Tételek</h5>
                         <table class="table table-sm">
                             <thead>
@@ -602,6 +634,54 @@
             </div>
         </div>
 
+        <!-- Convert Modal -->
+        <div class="modal fade" id="convertQuoteModal_@quote.QuoteId" tabindex="-1" aria-labelledby="convertQuoteModalLabel_@quote.QuoteId" aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="convertQuoteModalLabel_@quote.QuoteId">Árajánlat átalakítása rendeléssé</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="convertQuoteForm_@quote.QuoteId">
+                            @Html.AntiForgeryToken()
+
+                            <div class="mb-3">
+                                <label for="quoteNumber_@quote.QuoteId" class="form-label">Ajánlat száma</label>
+                                <input type="text" id="quoteNumber_@quote.QuoteId" name="quoteNumber" class="form-control" value="@quote.QuoteNumber" readonly>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="currency_@quote.QuoteId" class="form-label">Pénznem</label>
+                                <input type="text" id="currency_@quote.QuoteId" name="currency" class="form-control" value="@quote.Currency" readonly>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="totalAmount_@quote.QuoteId" class="form-label">Összeg</label>
+                                <input type="text" id="totalAmount_@quote.QuoteId" name="totalAmount" class="form-control" value="@quote.TotalAmount" readonly>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="partner_@quote.QuoteId" class="form-label">Partner</label>
+                                <input type="text" id="partner_@quote.QuoteId" name="partner" class="form-control" value="@quote.PartnerId" readonly>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="quoteDate_@quote.QuoteId" class="form-label">Létrehozási dátum</label>
+                                <input type="text" id="quoteDate_@quote.QuoteId" name="quoteDate" class="form-control" 
+                                    value="@(quote.QuoteDate.HasValue ? quote.QuoteDate.Value.ToString("yyyy-MM-dd") : "N/A")" readonly>
+                            </div>
+                        </form>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Mégse</button>
+                        <button type="button" class="btn btn-primary convert-quote" data-quote-id="@quote.QuoteId">Átalakítás</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+
         <!-- Delete Quote Modal -->
         <div class="modal fade" id="deleteQuoteModal_@quote.QuoteId" tabindex="-1" aria-labelledby="deleteQuoteModalLabel_@quote.QuoteId" aria-hidden="true">
             <div class="modal-dialog modal-dialog-centered">
@@ -630,7 +710,8 @@
     }
 
 
-    <div id="toastContainer" class="position-fixed bottom-0 end-0 p-3" style="z-index: 1055;"></div>
+<div id="toastContainer" class="position-fixed bottom-0 end-0 p-3" style="z-index: 1055;"></div>
+
 <script src="https://code.jquery.com/jquery-3.6.0.min.js" integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4=" crossorigin="anonymous"></script>
     <script>
     // Ensure jQuery is loaded
@@ -640,10 +721,10 @@
             console.log('jQuery loaded successfully');
         }
 
-    $(document).ready(function () {
-        const debug = true;
+            $(document).ready(function () {
+                const debug = true;
 
-// Use event delegation for dynamic buttons
+            // Use event delegation for dynamic buttons
             $(document).on('click', '.confirm-delete-quote', function (e) {
                 e.preventDefault();
                 const $button = $(this);
@@ -755,91 +836,7 @@
 <link href="https://cdn.jsdelivr.net/npm/tom-select@2.4.3/dist/css/tom-select.bootstrap5.css" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/tom-select@2.4.3/dist/js/tom-select.complete.min.js"></script>
 
-<!-- CSS Fix for Tom Select Placeholder and Layout -->
-<style>
 
-    .bg-success-dark {
-    background-color: #146c43 !important;
-    color: white;
-    }
-    .bg-primary-dark {
-        background-color: #0a58ca !important;
-        color: white;
-    }
-    .bg-info-dark {
-        background-color: #087990 !important;
-        color: white;
-    }
-    .ts-wrapper .ts-control > .placeholder {
-        color: #6c757d !important; /* Bootstrap secondary color */
-        opacity: 1 !important;
-    }
-    .ts-wrapper .ts-control {
-        min-height: calc(1.5em + 0.5rem + 2px); /* Smaller for clarity */
-    }
-    .table {
-        border-collapse: separate;
-    }
-    .table th, .table td {
-        padding: 12px 10px; /* More padding for breathing room */
-        vertical-align: middle;
-    }
-    .table thead th {
-        background-color: #e9ecef; /* Subtle header background */
-        font-weight: 600;
-    }
-    .quote-item-row {
-        background-color: #fff; /* White background for rows */
-        box-shadow: 0 1px 3px rgba(0,0,0,0.1); /* Subtle shadow for separation */
-    }
-    .form-control-sm, .form-select-sm {
-        font-size: 0.85rem; /* Smaller font for inputs */
-        padding: 0.25rem 0.5rem; /* Compact padding */
-    }
-    .input-group-sm .form-control, .input-group-sm .form-select {
-        height: 30px; /* Compact input group */
-    }
-    .input-group .form-control.discount-value, .input-group .form-control.quote-discount-value {
-        width: 80px; /* Smaller discount input */
-    }
-    .input-group .form-select.discount-type, .input-group .form-select.quote-discount-type {
-        width: 60px; /* Smaller discount type select */
-    }
-    .total-price, .quote-total-amount, .quote-final-total {
-        display: inline-block;
-        min-width: 80px;
-        text-align: right;
-        font-weight: 500;
-    }
-    .btn-sm {
-        padding: 0.2rem 0.4rem; /* Smaller buttons */
-        font-size: 0.8rem;
-    }
-    .edit-description, .remove-item-row {
-        margin-right: 6px;
-    }
-    .char-count {
-        font-weight: bold;
-    }
-    .description-row {
-        background-color: #f8f9fa; /* Light background for contrast */
-    }
-    .description-row .form-label {
-        font-weight: 500;
-        font-size: 0.9rem;
-    }
-    .description-row .mb-2 {
-        padding: 8px 10px; /* Reduced padding */
-    }
-    .description-row .form-control-sm {
-        font-size: 0.85rem;
-        resize: vertical; /* Allow vertical resize only */
-    }
-    .quote-total-row, .quote-discount-row {
-        font-weight: bold;
-        background-color: #f1f3f5; /* Slightly darker for totals */
-    }
-</style>
 
 
 <!-- JavaScript for Tom Select, Add Row, Total Price Calculation, and Save -->
@@ -894,6 +891,66 @@
     </script>
     <script>
         document.addEventListener('DOMContentLoaded', function () {
+            // Initialize TomSelect for currencyId (new and edit modals)
+            document.querySelectorAll('select[name="currencyId"]').forEach(select => {
+                const modalId = select.id || 'new-quote'; // Use ID or fallback for new modal
+                const selectedId = select.dataset.selectedId;
+                const selectedText = select.dataset.selectedText;
+
+                fetch('/api/currencies')
+                    .then(response => response.json())
+                    .then(data => {
+                        data.forEach(currency => {
+                            const option = new Option(currency.text, currency.id);
+                            select.appendChild(option);
+                        });
+
+                        new TomSelect(select, {
+                            create: false,
+                            searchField: ['text'],
+                            maxItems: 1,
+                            onInitialize: function () {
+                                if (selectedId && selectedText) {
+                                    this.addOption({ id: selectedId, text: selectedText });
+                                    this.addItem(selectedId);
+                                }
+                            }
+                        });
+                    })
+                    .catch(error => console.error(`Error fetching currencies for modal ${modalId}:`, error));
+            });
+
+            // Initialize TomSelect for partnerId (new and edit modals)
+            document.querySelectorAll('select[name="partnerId"]').forEach(select => {
+                const modalId = select.id || 'new-quote';
+                const selectedId = select.dataset.selectedId;
+                const selectedText = select.dataset.selectedText;
+
+                fetch('/api/partners')
+                    .then(response => response.json())
+                    .then(data => {
+                        data.forEach(partner => {
+                            const option = new Option(partner.text, partner.id);
+                            select.appendChild(option);
+                        });
+
+                        new TomSelect(select, {
+                            create: false,
+                            searchField: ['text'],
+                            maxItems: 1,
+                            onInitialize: function () {
+                                if (selectedId && selectedText) {
+                                    this.addOption({ id: selectedId, text: selectedText });
+                                    this.addItem(selectedId);
+                                }
+                            }
+                        });
+                    })
+                    .catch(error => console.error(`Error fetching partners for modal ${modalId}:`, error));
+            });
+            
+
+                
             // Status mapping
             const statusMapping = {
                 'Folyamatban': 'InProgress',
@@ -1149,168 +1206,9 @@
                 });
             }
 
-            // Initialize Tom Select for Partners
-            function initializePartnerTomSelect(select, quoteId) {
-                const selectedId = select.dataset.selectedId;
-                const selectedText = select.dataset.selectedText;
-                console.log('Tom Select Partner Init for quoteId:', quoteId, 'selectedId:', selectedId, 'selectedText:', selectedText);
 
-                const control = new TomSelect(select, {
-                    valueField: 'id',
-                    labelField: 'text',
-                    searchField: 'text',
-                    placeholder: '-- Válasszon partnert --',
-                    allowEmptyOption: true,
-                    maxOptions: 100,
-                    load: function(query, callback) {
-                        const url = `/api/partners?term=${encodeURIComponent(query)}`;
-                        console.log('Partner Search Query:', url);
-                        fetch(url)
-                            .then(response => {
-                                if (!response.ok) {
-                                    return response.text().then(text => {
-                                        throw new Error(`HTTP error! status: ${response.status}, body: ${text}`);
-                                    });
-                                }
-                                return response.json();
-                            })
-                            .then(data => {
-                                console.log('API /api/partners Response:', data);
-                                if (Array.isArray(data)) {
-                                    callback(data);
-                                } else {
-                                    console.warn('Invalid response format for partners:', data);
-                                    callback([]);
-                                }
-                            })
-                            .catch(error => {
-                                console.error('Partner Search Error:', error);
-                                callback([{ id: 0, text: 'Hiba: Nem sikerült betölteni a partnereket' }]);
-                            });
-                    },
-                    shouldLoad: function(query) {
-                        return query.length > 0;
-                    },
-                    render: {
-                        option: function(data, escape) {
-                            return `<div>${escape(data.text)}</div>`;
-                        },
-                        item: function(data, escape) {
-                            return `<div>${escape(data.text)}</div>`;
-                        },
-                        no_results: function(data, escape) {
-                            return `<div class="no-results">Nincs találat "${escape(data.input)}"</div>`;
-                        }
-                    }
-                });
 
-                if (selectedId && selectedId !== '0') {
-                    control.addOption({ id: selectedId, text: selectedText });
-                    control.setValue(selectedId);
-                    const url = `/api/partners/${selectedId}`;
-                    fetch(url)
-                        .then(response => {
-                            if (!response.ok) {
-                                return response.text().then(text => {
-                                    throw new Error(`HTTP error! status: ${response.status}, body: ${text}`);
-                                });
-                            }
-                            return response.json();
-                        })
-                        .then(data => {
-                            if (data && data.text) {
-                                control.addOption({ id: data.id, text: data.text });
-                                control.setValue(data.id);
-                            }
-                        })
-                        .catch(error => {
-                            console.error('Failed to preload partner for ID:', selectedId, 'quoteId:', quoteId, error);
-                        });
-                }
-            }
 
-            // Initialize Tom Select for Products
-            function initializeProductTomSelect(select, quoteId) {
-                const selectedId = select.dataset.selectedId;
-                const selectedText = select.dataset.selectedText;
-                console.log('Tom Select Product Init for quoteId:', quoteId, 'selectedId:', selectedId, 'selectedText:', selectedText);
-
-                const control = new TomSelect(select, {
-                    valueField: 'id',
-                    labelField: 'name',
-                    searchField: 'name',
-                    placeholder: '-- Válasszon terméket --',
-                    allowEmptyOption: true,
-                    maxOptions: 100,
-                    load: function(query, callback) {
-                        const url = `/api/Product?search=${encodeURIComponent(query)}`;
-                        console.log('Product Search Query:', url);
-                        fetch(url)
-                            .then(response => {
-                                if (!response.ok) {
-                                    return response.text().then(text => {
-                                        throw new Error(`HTTP error! status: ${response.status}, body: ${text}`);
-                                    });
-                                }
-                                return response.json();
-                            })
-                            .then(data => {
-                                console.log('API /api/Product Response:', data);
-                                if (Array.isArray(data)) {
-                                    callback(data);
-                                } else {
-                                    console.warn('Invalid response format for products:', data);
-                                    callback([]);
-                                }
-                            })
-                            .catch(error => {
-                                console.error('Product Search Error:', error);
-                                callback([{ id: 0, name: 'Hiba: Nem sikerült betölteni a termékeket' }]);
-                            });
-                    },
-                    shouldLoad: function(query) {
-                        return query.length > 0;
-                    },
-                    render: {
-                        option: function(data, escape) {
-                            return `<div>${escape(data.name)}</div>`;
-                        },
-                        item: function(data, escape) {
-                            return `<div>${escape(data.name)}</div>`;
-                        },
-                        no_results: function(data, escape) {
-                            return `<div class="no-results">Nincs találat "${escape(data.input)}"</div>`;
-                        }
-                    }
-                });
-
-                if (selectedId && selectedId !== '0' && selectedText) {
-                    control.addOption({ id: selectedId, name: selectedText });
-                    control.setValue(selectedId);
-                    console.log('Set initial product:', selectedText, 'for ID:', selectedId, 'quoteId:', quoteId);
-                    const url = `/api/Product/${selectedId}`;
-                    fetch(url)
-                        .then(response => {
-                            if (!response.ok) {
-                                return response.text().then(text => {
-                                    throw new Error(`HTTP error! status: ${response.status}, body: ${text}`);
-                                });
-                            }
-                            return response.json();
-                        })
-                        .then(data => {
-                            if (data && data.name) {
-                                control.addOption({ id: data.id, name: data.name });
-                                control.setValue(data.id);
-                            }
-                        })
-                        .catch(error => {
-                            console.error('Failed to preload product for ID:', selectedId, 'quoteId:', quoteId, error);
-                        });
-                }
-            }
-
-            // Add Row Functionality
             function addItemRow(quoteId) {
                 const tbody = document.querySelector(`#items-tbody_${quoteId}`);
                 if (!tbody) {
@@ -1377,6 +1275,35 @@
                 initializeProductTomSelect(newSelect, quoteId);
                 calculateQuoteTotals(quoteId);
                 console.log('Added new item row:', newItemId, 'Row HTML:', itemRow.outerHTML);
+            }
+
+            // Initialize TomSelect for productId dropdown
+            function initializeProductTomSelect(select, quoteId) {
+                fetch('/api/product')
+                    .then(response => response.json())
+                    .then(data => {
+                        data.forEach(product => {
+                            const option = new Option(product.name, product.id); // Use product.name
+                            select.appendChild(option);
+                        });
+
+                        new TomSelect(select, {
+                            create: false,
+                            searchField: ['name'], // Search by name
+                            maxItems: 1,
+                            valueField: 'id',
+                            labelField: 'name', // Display name
+                            onInitialize: function () {
+                                const selectedId = select.dataset.selectedId;
+                                const selectedText = select.dataset.selectedText;
+                                if (selectedId && selectedText) {
+                                    this.addOption({ id: selectedId, name: selectedText }); // Map to name
+                                    this.addItem(selectedId);
+                                }
+                            }
+                        });
+                    })
+                    .catch(error => console.error(`Failed to fetch products for QuoteId ${quoteId}:`, error));
             }
 
             // Validate Form
@@ -1446,6 +1373,7 @@
                 const quoteDto = {
                     QuoteNumber: baseData.get('quoteNumber') || '',
                     PartnerId: parseInt(baseData.get('partnerId')) || null,
+                    CurrencyId: parseInt(baseData.get('currencyId')) || null,
                     QuoteDate: baseData.get('quoteDate') || null,
                     Status: statusMapping[baseData.get('status')] || baseData.get('status'),
                     TotalAmount: totalAmount,
@@ -1705,7 +1633,8 @@
             }
         });
     </script>
-}
+
+
 
 
     <script>
@@ -1769,6 +1698,92 @@
     </script>
 
 }
+
+<!-- CSS Fix for Tom Select Placeholder and Layout -->
+<style>
+
+    .bg-success-dark {
+    background-color: #146c43 !important;
+    color: white;
+    }
+    .bg-primary-dark {
+        background-color: #0a58ca !important;
+        color: white;
+    }
+    .bg-info-dark {
+        background-color: #087990 !important;
+        color: white;
+    }
+    .ts-wrapper .ts-control > .placeholder {
+        color: #6c757d !important; /* Bootstrap secondary color */
+        opacity: 1 !important;
+    }
+    .ts-wrapper .ts-control {
+        min-height: calc(1.5em + 0.5rem + 2px); /* Smaller for clarity */
+    }
+    .table {
+        border-collapse: separate;
+    }
+    .table th, .table td {
+        padding: 12px 10px; /* More padding for breathing room */
+        vertical-align: middle;
+    }
+    .table thead th {
+        background-color: #e9ecef; /* Subtle header background */
+        font-weight: 600;
+    }
+    .quote-item-row {
+        background-color: #fff; /* White background for rows */
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1); /* Subtle shadow for separation */
+    }
+    .form-control-sm, .form-select-sm {
+        font-size: 0.85rem; /* Smaller font for inputs */
+        padding: 0.25rem 0.5rem; /* Compact padding */
+    }
+    .input-group-sm .form-control, .input-group-sm .form-select {
+        height: 30px; /* Compact input group */
+    }
+    .input-group .form-control.discount-value, .input-group .form-control.quote-discount-value {
+        width: 80px; /* Smaller discount input */
+    }
+    .input-group .form-select.discount-type, .input-group .form-select.quote-discount-type {
+        width: 60px; /* Smaller discount type select */
+    }
+    .total-price, .quote-total-amount, .quote-final-total {
+        display: inline-block;
+        min-width: 80px;
+        text-align: right;
+        font-weight: 500;
+    }
+    .btn-sm {
+        padding: 0.2rem 0.4rem; /* Smaller buttons */
+        font-size: 0.8rem;
+    }
+    .edit-description, .remove-item-row {
+        margin-right: 6px;
+    }
+    .char-count {
+        font-weight: bold;
+    }
+    .description-row {
+        background-color: #f8f9fa; /* Light background for contrast */
+    }
+    .description-row .form-label {
+        font-weight: 500;
+        font-size: 0.9rem;
+    }
+    .description-row .mb-2 {
+        padding: 8px 10px; /* Reduced padding */
+    }
+    .description-row .form-control-sm {
+        font-size: 0.85rem;
+        resize: vertical; /* Allow vertical resize only */
+    }
+    .quote-total-row, .quote-discount-row {
+        font-weight: bold;
+        background-color: #f1f3f5; /* Slightly darker for totals */
+    }
+</style>
 
 <style>
 

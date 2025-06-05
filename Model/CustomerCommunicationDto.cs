@@ -24,6 +24,7 @@ public int CustomerCommunicationId { get; set; }
         public string? StatusName { get; set; }
         public string? AttachmentPath { get; set; }
         public string? Metadata { get; set; }
+        public string? PartnerName { get; set; } 
         public int? PartnerId { get; set; }
         public int? LeadId { get; set; }
         public int? QuoteId { get; set; }

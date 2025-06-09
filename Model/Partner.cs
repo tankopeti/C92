@@ -1,6 +1,8 @@
 using System;
 using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Mvc;
+using System.ComponentModel.DataAnnotations.Schema;
+using System.Collections.Generic;
 
 namespace Cloud9_2.Models
 {
@@ -93,6 +95,12 @@ namespace Cloud9_2.Models
 
         [Display(Name = "Adómentes")]
         public bool? IsTaxExempt { get; set; }           // Flag for tax exemption status
+
+        [Display(Name = "Partnercsoport")]
+        public int? PartnerGroupId { get; set; } // Foreign key (nullable for optional group)
+
+        [ForeignKey("PartnerGroupId")]
+        public PartnerGroup? PartnerGroup { get; set; } // Navigation property
 
         // Audit Fields
 

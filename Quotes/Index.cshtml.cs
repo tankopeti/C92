@@ -65,12 +65,12 @@ namespace Cloud9_2.Pages.CRM.Quotes
                 quotesQuery = quotesQuery.Where(q => q.Status == StatusFilter);
             }
 
-            // Apply sorting
             quotesQuery = SortBy switch
             {
                 "QuoteId" => quotesQuery.OrderByDescending(q => q.QuoteId),
-                "ValidityDate" => quotesQuery.OrderBy(q => q.ValidityDate),
-                _ => quotesQuery.OrderByDescending(q => q.QuoteDate) // Default: newest first
+                "ValidityDate" => quotesQuery.OrderBy(q => q.ValidityDate).ThenByDescending(q => q.QuoteId),
+                "QuoteDate" => quotesQuery.OrderByDescending(q => q.QuoteDate).ThenByDescending(q => q.QuoteId),
+                _ => quotesQuery.OrderByDescending(q => q.QuoteDate).ThenByDescending(q => q.QuoteId) // Default
             };
 
             TotalRecords = await quotesQuery.CountAsync();

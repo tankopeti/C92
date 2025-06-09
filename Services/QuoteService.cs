@@ -50,6 +50,7 @@ namespace Cloud9_2.Services
         {
             return await _context.QuoteItems
                 .Where(qi => qi.QuoteId == quoteId)
+                .Include(qi => qi.VatType)
                 .Select(qi => new QuoteItemDto
                 {
                     QuoteItemId = qi.QuoteItemId,
@@ -60,7 +61,10 @@ namespace Cloud9_2.Services
                     ItemDescription = qi.ItemDescription,
                     DiscountPercentage = qi.DiscountPercentage,
                     DiscountAmount = qi.DiscountAmount,
-                    TotalPrice = qi.Quantity * qi.UnitPrice
+                    TotalPrice = qi.Quantity * qi.UnitPrice,
+                    VatTypeId = qi.VatTypeId,
+                    VatTypeName = qi.VatType != null ? qi.VatType.TypeName : null,
+                    VatRate = qi.VatType != null ? qi.VatType.Rate : 0
                 })
                 .ToListAsync();
         }

@@ -47,14 +47,27 @@ namespace Cloud9_2.Data
         public DbSet<VatType> VatTypes { get; set; }
         public DbSet<VolumeDiscount> VolumeDiscounts { get; set; }
         public DbSet<PartnerGroup> PartnerGroups { get; set; }
-        public DbSet<CustomerProductPrice> CustomerProductPrices { get; set; }
+        public DbSet<PartnerProductPrice> PartnerProductPrice { get; set; }
         public DbSet<ProductGroup> ProductGroups { get; set; }
         public DbSet<ProductGroupProduct> ProductGroupProducts { get; set; }
-        public DbSet<CustomerProductGroupPrice> CustomerProductGroupPrices { get; set; }
+        public DbSet<PartnerProductGroupPrice> PartnerProductGroupPrices { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
+
+            // Configure PartnerProductPrice
+            modelBuilder.Entity<PartnerProductPrice>().ToTable("PartnerProductPrice");
+            modelBuilder.Entity<PartnerProductPrice>()
+                .HasIndex(p => new { p.PartnerId, p.ProductId })
+                .IsUnique();
+
+            // Configure PartnerGroup relationship
+            modelBuilder.Entity<Partner>()
+                .HasOne(p => p.PartnerGroup)
+                .WithMany(pg => pg.Partners)
+                .HasForeignKey(p => p.PartnerGroupId)
+                .OnDelete(DeleteBehavior.SetNull); // Optional: Set PartnerGroupId to null if group is deleted
 
             // Configure composite key for ProductGroupProduct
             modelBuilder.Entity<ProductGroupProduct>()
@@ -77,11 +90,11 @@ namespace Cloud9_2.Data
                 .HasIndex(v => v.TypeName)
                 .IsUnique();
 
-            modelBuilder.Entity<CustomerProductPrice>()
+            modelBuilder.Entity<PartnerProductPrice>()
                 .HasIndex(cpp => new { cpp.PartnerId, cpp.ProductId })
                 .IsUnique();
 
-            modelBuilder.Entity<CustomerProductGroupPrice>()
+            modelBuilder.Entity<PartnerProductGroupPrice>()
                 .HasIndex(cpgp => new { cpgp.PartnerId, cpgp.ProductGroupId })
                 .IsUnique();
 
@@ -91,16 +104,12 @@ namespace Cloud9_2.Data
             );
 
             modelBuilder.Entity<PartnerGroup>().HasData(
-                new PartnerGroup { PartnerGroupId = 1, Name = "VIP Customers", DiscountPercentage = 5.00m }
+                new PartnerGroup { PartnerGroupId = 1, PartnerGroupName = "VIP Customers", DiscountPercentage = 5.00m }
             );
 
             modelBuilder.Entity<VolumeDiscount>().HasData(
                 new VolumeDiscount { VolumeDiscountId = 1, ProductId = 1, MinQuantity = 10, DiscountPercentage = 10.00m }
             );
-
-            modelBuilder.Entity<CustomerProductPrice>()
-                .HasIndex(cpp => new { cpp.PartnerId, cpp.ProductId })
-                .IsUnique();
 
             // CustomerCommunication
             modelBuilder.Entity<CustomerCommunication>()

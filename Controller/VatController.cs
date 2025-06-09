@@ -17,6 +17,7 @@ using Microsoft.Extensions.Logging;
 
 namespace Cloud9_2.Controllers
 {
+    [Route("api/vat")]
     public class VatController : Controller
     {
         private readonly ApplicationDbContext _context;
@@ -26,41 +27,25 @@ namespace Cloud9_2.Controllers
             _context = context;
         }
 
-        // GET: Vat/Index
-        [HttpGet]
-        public async Task<IActionResult> Index()
+        [HttpGet("types")]
+        public async Task<IActionResult> GetVatTypes()
         {
-            var vatTypes = await _context.VatTypes.ToListAsync();
-            return View(vatTypes);
-        }
+            var vatTypes = await _context.VatTypes
+                .Select(v => new VatTypeDto
+                {
+                    VatTypeId = v.VatTypeId,
+                    TypeName = v.TypeName,
+                    Rate = v.Rate,
+                    FormattedRate = $"{v.Rate}%"
+                })
+                .ToListAsync();
 
-        // GET: Vat/Create
-        [HttpGet]
-        public IActionResult Create()
-        {
-            var model = new VatType(); // Defaults to TypeName = "27%", Rate = 27.00m
-            return View(model);
-        }
-
-        // POST: Vat/Create
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Create(VatType vatType)
-        {
-            // Normalize input
-            if (!string.IsNullOrEmpty(vatType.TypeName))
+            if (!vatTypes.Any())
             {
-                vatType.TypeName = vatType.TypeName.Trim();
+                return NotFound("No VAT types found.");
             }
 
-            if (ModelState.IsValid)
-            {
-                _context.VatTypes.Add(vatType);
-                await _context.SaveChangesAsync();
-                return RedirectToAction(nameof(Index));
-            }
-
-            return View(vatType);
+            return Json(vatTypes);
         }
     }
 }

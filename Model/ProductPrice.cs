@@ -26,6 +26,25 @@ namespace Cloud9_2.Models
         [Range(0, 100)]
         public decimal DiscountPercentage { get; set; }
 
+        [Range(0, double.MaxValue)]
+        public int Volume1 { get; set; }  // First volume threshold
+
+        [Range(0, double.MaxValue)]
+        public decimal Volume1Price { get; set; }  // Price for Volume1
+
+        [Range(0, double.MaxValue)]
+        public int Volume2 { get; set; }  // Second volume threshold
+
+        [Range(0, double.MaxValue)]
+        public decimal Volume2Price { get; set; }  // Price for Volume2
+
+        [Range(0, double.MaxValue)]
+        public int Volume3 { get; set; }  // Third volume threshold
+
+        [Range(0, double.MaxValue)]
+        public decimal Volume3Price { get; set; }  // Price for Volume3
+
+
         [Required]
         public DateTime StartDate { get; set; }
 

@@ -12,10 +12,11 @@ namespace Cloud9_2.Models
         [Required]
         [StringLength(100, ErrorMessage = "Csoport neve maximum 100 karakter lehet")]
         [Display(Name = "Csoport neve")]
-        public string Name { get; set; }
+        public string PartnerGroupName { get; set; }
 
         [Range(0, 100, ErrorMessage = "Kedvezmény százaléka 0 és 100 között kell legyen")]
         [Display(Name = "Kedvezmény (%)")]
         public decimal? DiscountPercentage { get; set; } // e.g., 5.00 for 5%
+        public List<Partner> Partners { get; set; } = new List<Partner>();
     }
 }

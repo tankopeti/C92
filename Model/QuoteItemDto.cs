@@ -7,29 +7,32 @@ using System.ComponentModel.DataAnnotations.Schema;
 namespace Cloud9_2.Models
 {
 
-public class QuoteItemDto
-{
-    public int QuoteItemId { get; set; }
-    public int QuoteId { get; set; }
-    [Required]
-    [Range(1, int.MaxValue, ErrorMessage = "ProductId must be a positive number")]
-    public int ProductId { get; set; }
-    [Required]
-    [Range(0.01, double.MaxValue, ErrorMessage = "A mennyiség nem lehet negatív")]
-    public decimal Quantity { get; set; }
-    [Required]
-    [Range(0, double.MaxValue, ErrorMessage = "Az ár nem lehet negatív")]
-    public decimal UnitPrice { get; set; }
+    public class QuoteItemDto
+    {
+        public int QuoteItemId { get; set; }
+        public int QuoteId { get; set; }
+        [Required]
+        [Range(1, int.MaxValue, ErrorMessage = "ProductId must be a positive number")]
+        public int ProductId { get; set; }
+        [Required]
+        [Range(0.01, double.MaxValue, ErrorMessage = "A mennyiség nem lehet negatív")]
+        public decimal Quantity { get; set; }
+        [Required]
+        [Range(0, double.MaxValue, ErrorMessage = "Az ár nem lehet negatív")]
+        public decimal UnitPrice { get; set; }
 
-    [StringLength(200)]
-    public string? ItemDescription { get; set; }
+        [StringLength(200)]
+        public string? ItemDescription { get; set; }
 
-    [Range(0, 100, ErrorMessage = "A százaléknak 0 és 100 közé kell esnie")]
-    public decimal? DiscountPercentage { get; set; }
-    
-    [Range(0, double.MaxValue, ErrorMessage = "Az összeg nem lehet negatív")]
-    public decimal? DiscountAmount { get; set; }
-    public decimal TotalPrice { get; set; }
+        [Range(0, 100, ErrorMessage = "A százaléknak 0 és 100 közé kell esnie")]
+        public decimal? DiscountPercentage { get; set; }
+
+        [Range(0, double.MaxValue, ErrorMessage = "Az összeg nem lehet negatív")]
+        public decimal? DiscountAmount { get; set; }
+        public decimal TotalPrice { get; set; }
+        public int? VatTypeId { get; set; }
+        public string VatTypeName { get; set; }
+        public decimal VatRate { get; set; }
 }
 
     public class CreateQuoteItemDto

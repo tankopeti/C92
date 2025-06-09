@@ -38,4 +38,13 @@ namespace Cloud9_2.Models
             return ValidationResult.Success;
         }
     }
+
+    public class VatTypeDto
+    {
+        public int VatTypeId { get; set; }
+        public string TypeName { get; set; }
+        public decimal Rate { get; set; }
+        public string FormattedRate { get; set; }
+    }
+    
 }

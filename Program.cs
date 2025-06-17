@@ -15,12 +15,21 @@ builder.Services.AddRazorPages();
 builder.Services.AddControllersWithViews(); // Often added alongside Razor Pages if using both
 builder.Services.AddControllers();
 
+builder.Services.AddScoped<IQuoteService, QuoteService>();
+builder.Services.AddScoped<IOrderService, OrderService>();
+builder.Services.AddScoped<CustomerCommunicationService>();
+
 
 builder.Services.AddMemoryCache(); // Faster page load
 
 builder.Services.AddScoped<QuoteService>();
 
 builder.Services.AddResponseCaching();
+
+// Register AutoMapper;
+builder.Services.AddAutoMapper(typeof(OrderProfile));
+
+builder.Services.AddHttpContextAccessor();
 
 // Configure Hungarian localization
 builder.Services.Configure<RequestLocalizationOptions>(options =>

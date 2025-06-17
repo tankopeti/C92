@@ -27,6 +27,7 @@ namespace Cloud9_2.Models
         public ApplicationUser Creator { get; set; }
         public ApplicationUser LastModifier { get; set; }
         public ICollection<Order> Orders { get; set; }
+
     }
 }
 

@@ -37,12 +37,9 @@ namespace Cloud9_2.Models
         public decimal Quantity { get; set; }
 
         [Required]
-        [DataType(DataType.Currency)]
         [Display(Name = "Egységár")]
         public decimal UnitPrice { get; set; }
 
-        [DataType(DataType.Currency)]
-        [Display(Name = "Összesen")]
         public decimal TotalPrice => (Quantity * UnitPrice) - (DiscountAmount ?? 0);
         public decimal? DiscountPercentage { get; set; } // New: e.g., 10.00 for 10%
         public decimal? DiscountAmount { get; set; } // New: e.g., 50.00 HUF

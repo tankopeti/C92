@@ -12,10 +12,9 @@ namespace Cloud9_2.Models
         public int QuoteId { get; set; }
 
         [ForeignKey("QuoteId")]
-        public Quote? Quote { get; set; }
+        public Quote Quote { get; set; }
 
         [Required]
-        [Display(Name = "Termék")]
         public int ProductId { get; set; }
 
         [ForeignKey("ProductId")]
@@ -25,23 +24,20 @@ namespace Cloud9_2.Models
         public int VatTypeId { get; set; }
 
         [ForeignKey("VatTypeId")]
-        [Display(Name = "ÁFA típus")]
         public VatType VatType { get; set; }
 
         [StringLength(200)]
-        [Display(Name = "Tétel leírása")]
-        public string? ItemDescription { get; set; } // Optional, so keep nullable
+        public string? ItemDescription { get; set; }
 
-        [Required]
-        [Display(Name = "Mennyiség")]
+        [Required, Column(TypeName = "decimal(18,2)")]
         public decimal Quantity { get; set; }
 
-        [Required]
-        [Display(Name = "Egységár")]
+        [Required, Column(TypeName = "decimal(18,2)")]
         public decimal UnitPrice { get; set; }
 
-        public decimal TotalPrice => (Quantity * UnitPrice) - (DiscountAmount ?? 0);
-        public decimal? DiscountPercentage { get; set; } // New: e.g., 10.00 for 10%
-        public decimal? DiscountAmount { get; set; } // New: e.g., 50.00 HUF
+        [Column(TypeName = "decimal(18,2)")]
+        public decimal TotalPrice { get; set; } // Stored total
+
+        public QuoteItemDiscount Discount { get; set; } // 1-to-1
     }
 }

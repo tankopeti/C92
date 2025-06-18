@@ -51,10 +51,18 @@ namespace Cloud9_2.Data
         public DbSet<ProductGroup> ProductGroups { get; set; }
         public DbSet<ProductGroupProduct> ProductGroupProducts { get; set; }
         public DbSet<PartnerProductGroupPrice> PartnerProductGroupPrices { get; set; }
+        public DbSet<QuoteItemDiscount> QuoteItemDiscounts { get; set; }
+        public DbSet<ChatMessage> ChatMessages { get; set; }
+
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
+
+            // Configure QuoteItemDiscount
+            modelBuilder.Entity<QuoteItemDiscount>()
+            .Property(d => d.DiscountType)
+            .HasConversion<string>();
 
             // Configure PartnerProductPrice
             modelBuilder.Entity<PartnerProductPrice>().ToTable("PartnerProductPrice");
@@ -202,7 +210,7 @@ namespace Cloud9_2.Data
                 .HasForeignKey(p => p.CreatedById)
                 .OnDelete(DeleteBehavior.Restrict);
 
-                // Disable auto-include
+            // Disable auto-include
             modelBuilder.Entity<CustomerCommunication>()
                 .Navigation(c => c.Posts)
                 .AutoInclude(false);

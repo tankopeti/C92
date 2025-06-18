@@ -3,11 +3,10 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="api-base-url" content="/api" />
     <title>@ViewData["Title"] - Cloud9.2</title>
     <!-- Bootstrap CSS -->
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
-    <!-- Bootstrap Icons -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" />
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -18,6 +17,18 @@
     <link href="https://cdn.jsdelivr.net/npm/@@ttskch/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" rel="stylesheet" />
     <!-- Custom CSS -->
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+
+    @RenderSection("Styles", required: false)
+
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css" rel="stylesheet" />
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <!-- jQuery UI for sortable -->
+    <script src="https://code.jquery.com/ui/1.13.1/jquery-ui.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/choices.js/public/assets/styles/choices.min.css" />
+
+        <link rel="stylesheet" href="~/Pages/CRM/Quotes/Quotes.css" />
+
 </head>
 <body>
     <header>
@@ -42,15 +53,48 @@
                                         <li><a class="dropdown-item" asp-area="" asp-page="/CRM/Sites/Index">Telephelyek</a></li>
                                         <li><a class="dropdown-item" asp-area="" asp-page="/CRM/Leads/Index">Lead-ek</a></li>
                                         <li><a class="dropdown-item" asp-area="" asp-page="/CRM/Quotes/Index">Árajánlatok</a></li>
-                                        <li><a class="dropdown-item" href="/CRM">Megrendelések</a></li>
-                                        <li><a class="dropdown-item" href="/CRM">Ügyfélkapcsolat</a></li>
+                                        <li><a class="dropdown-item" asp-area="" asp-page="/CRM/Orders/Index">Megrendelések</a></li>
+                                        <li><a class="dropdown-item" asp-area="" asp-page="/CRM/Customercommunication/Index">Ügyfélkapcsolat</a></li>
                                     </ul>
                                 </li>
                             }
+                            @* Logisztika menü *@
                             <li class="nav-item dropdown">
                                 <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown" aria-expanded="false">Logisztika</a>
                                 <ul class="dropdown-menu">
                                     <li><a class="dropdown-item" asp-area="" asp-page="/Logistics/Products/Index">Termékek</a></li>
+                                </ul>
+                            </li>
+                            @* Iratkezelés menü *@
+                            <li class="nav-item dropdown">
+                                <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown" aria-expanded="false">Iratkezelés</a>
+                                <ul class="dropdown-menu">
+                                    <li><a class="dropdown-item" asp-area="" asp-page="/Logistics/Products/Index">Bejövő iktatás</a></li>
+                                    <li><a class="dropdown-item" asp-area="" asp-page="/Logistics/Products/Index">Kimenő iktatás</a></li>
+                                    <li><a class="dropdown-item" asp-area="" asp-page="/Logistics/Products/Index">Szerződések</a></li>
+                                    <li><a class="dropdown-item" asp-area="" asp-page="/Logistics/Products/Index">Határidők</a></li>
+                                </ul>
+                            </li>
+                            @* HR/munkaügy menü *@
+                            <li class="nav-item dropdown">
+                                <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown" aria-expanded="false">HR</a>
+                                <ul class="dropdown-menu">
+                                    <li><a class="dropdown-item" asp-area="" asp-page="/Logistics/Products/Index">Dolgozók</a></li>
+                                    <li><a class="dropdown-item" asp-area="" asp-page="/Logistics/Products/Index">Munkakörök</a></li>
+                                    <li><a class="dropdown-item" asp-area="" asp-page="/Logistics/Products/Index">Cafeteria</a></li>
+                                    <li><a class="dropdown-item" asp-area="" asp-page="/Logistics/Products/Index">Önéletrajzok</a></li>
+                                    <li><a class="dropdown-item" asp-area="" asp-page="/Logistics/Products/Index">Kpi célok</a></li>
+                                    <li><a class="dropdown-item" asp-area="" asp-page="/Logistics/Products/Index">Munkaidő nyilvántartás</a></li>
+                                    <li><a class="dropdown-item" asp-area="" asp-page="/Logistics/Products/Index">Szabadságok</a></li>
+                                </ul>
+                            </li>
+                            @* Táv és csoportmunka menü *@
+                            <li class="nav-item dropdown">
+                                <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown" aria-expanded="false">Táv és csoportmunka</a>
+                                <ul class="dropdown-menu">
+                                    <li><a class="dropdown-item" asp-area="" asp-page="/Logistics/Products/Index">Video meeting</a></li>
+                                    <li><a class="dropdown-item" asp-area="" asp-page="/Logistics/Products/Index">Feladatok</a></li>
+                                    <li><a class="dropdown-item" asp-area="" asp-page="/GroupRemote/Chat/Index">Chat</a></li>
                                 </ul>
                             </li>
                         </ul>
@@ -85,7 +129,6 @@
             </div>
         </nav>
     </header>
-
     <!-- Modals -->
     @await Html.PartialAsync("_AuthModal")
     @await Html.PartialAsync("_UserSettingsModal")
@@ -102,8 +145,20 @@
         </div>
     </footer>
 
-    <!-- jQuery -->
-    <script src="~/lib/jquery/dist/jquery.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="~/lib/microsoft/signalr/dist/browser/signalr.js"></script>
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+    <script src="https://code.jquery.com/ui/1.13.2/jquery-ui.min.js"></script>
+
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js"></script>
+
+
+    <script src="https://cdn.jsdelivr.net/npm/choices.js/public/assets/scripts/choices.min.js"></script>
+
     <!-- Bootstrap JS -->
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
     <!-- Select2 JS -->

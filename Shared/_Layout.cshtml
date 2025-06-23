@@ -1,4 +1,16 @@
-﻿<!DOCTYPE html>
+﻿
+@using Microsoft.AspNetCore.Identity
+@using Cloud9_2.Models
+@inject SignInManager<ApplicationUser> SignInManager
+@inject UserManager<ApplicationUser> UserManager
+
+@{
+    var currentUser = await UserManager.GetUserAsync(User);
+    var allUsers = UserManager.Users.ToList();
+    var otherUsers = allUsers.Where(u => u.Id != currentUser.Id).ToList();
+}
+
+<!DOCTYPE html>
 <html lang="en" data-theme="light">
 <head>
     <meta charset="utf-8" />
@@ -30,6 +42,336 @@
         <link rel="stylesheet" href="~/Pages/CRM/Quotes/Quotes.css" />
 
 </head>
+<!-- Add this before </body> -->
+<div id="persistent-chat-container" style="position: fixed; bottom: 20px; right: 20px; z-index: 1000;">
+    <!-- Chat will be rendered here -->
+</div>
+
+<style>
+    .chat-card {
+        width: 300px;
+        background-color: #fff;
+        border-radius: 5px;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        max-height: 500px;
+    }
+
+    .chat-header {
+        padding: 10px;
+        background-color: #f2f2f2;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        cursor: pointer;
+    }
+
+    .chat-header .h2 {
+        font-size: 16px;
+        color: #333;
+        margin: 0;
+    }
+
+    .chat-body {
+        padding: 20px;
+        overflow-y: auto;
+        flex-grow: 1;
+        background-color: #fff;
+    }
+
+    .message {
+        margin-bottom: 10px;
+        padding: 10px;
+        border-radius: 5px;
+        animation: chatAnimation 0.3s ease-in-out;
+        animation-fill-mode: both;
+    }
+
+    .incoming {
+        background-color: #e1e1e1;
+    }
+
+    .outgoing {
+        background-color: #f2f2f2;
+        text-align: right;
+    }
+
+    .message p {
+        font-size: 14px;
+        color: #333;
+        margin: 0;
+    }
+
+    .message .sender {
+        font-size: 12px;
+        color: #666;
+        margin-bottom: 5px;
+    }
+
+    .chat-footer {
+        padding: 10px;
+        background-color: #f2f2f2;
+        display: flex;
+        gap: 5px;
+    }
+
+    .chat-footer select {
+        width: 100%;
+        padding: 5px;
+        border: 1px solid #ddd;
+        border-radius: 3px;
+        margin-bottom: 5px;
+    }
+
+    .chat-footer input[type="text"] {
+        flex-grow: 1;
+        padding: 5px;
+        border: 1px solid #ddd;
+        border-radius: 3px;
+    }
+
+    .chat-footer button {
+        padding: 5px 10px;
+        border: none;
+        background-color: #4285f4;
+        color: #fff;
+        font-weight: bold;
+        cursor: pointer;
+        border-radius: 3px;
+        transition: background-color 0.3s;
+    }
+
+    .chat-footer button:hover {
+        background-color: #0f9d58;
+    }
+
+    .minimized .chat-body,
+    .minimized .chat-footer {
+        display: none;
+    }
+
+    .toggle-btn {
+        background: none;
+        border: none;
+        cursor: pointer;
+        padding: 0 5px;
+    }
+    .chat-recipient {
+        font-size: 12px;
+        color: #666;
+        margin-top: 3px;
+    }
+</style>
+
+<script>
+    // Chat state management
+    document.addEventListener('DOMContentLoaded', function() {
+        const chatState = JSON.parse(sessionStorage.getItem('chatState')) || {
+            isOpen: false,
+            isMinimized: false,
+            currentRecipient: 'all',
+            messages: []
+        };
+        
+        if (chatState.isOpen) {
+            renderChatWindow(chatState);
+            initializeSignalR(chatState);
+        }
+    });
+
+function renderChatWindow(state) {
+    const container = document.getElementById('persistent-chat-container');
+    
+    if (state.isOpen) {
+        container.innerHTML = `
+            <div class="chat-card ${state.isMinimized ? 'minimized' : ''}">
+                <div class="chat-header" onclick="toggleMinimize()">
+                    <div>
+                        <div class="h2">Chat</div>
+                        <div class="chat-recipient">
+                            ${state.currentRecipient === 'all' ? 'Group Chat' : 'To: ' + state.currentRecipient}
+                        </div>
+                    </div>
+                    <div>
+                        <button class="toggle-btn" onclick="toggleMinimize(event)">
+                            <i class="bi ${state.isMinimized ? 'bi-chevron-up' : 'bi-chevron-down'}"></i>
+                        </button>
+                        <button class="toggle-btn" onclick="toggleChat(event)">
+                            <i class="bi bi-x"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                ${state.isMinimized ? '' : `
+                <div class="chat-body" id="messagesList">
+                    ${state.messages
+                        .filter(m => state.currentRecipient === 'all' 
+                            ? m.isGroup 
+                            : (m.sender === state.currentRecipient || m.recipient === state.currentRecipient))
+                        .map((m, index) => `
+                        <div class="message ${m.isSent ? 'outgoing' : 'incoming'}" 
+                             style="animation-delay: ${index * 0.1}s">
+                            ${!m.isSent ? `<div class="sender">${m.sender}</div>` : 
+                              m.isGroup ? `<div class="sender">To Group</div>` : 
+                              `<div class="sender">To: ${m.recipient}</div>`}
+                            <p>${m.text}</p>
+                            <div class="message-time">
+                                ${new Date(m.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+                
+                <div class="chat-footer">
+                    <select id="recipientSelect" onchange="updateRecipient(this.value)">
+                        <option value="all">🗣️ Group Chat</option>
+                        @foreach (var user in otherUsers)
+                        {
+                            <option value="@user.UserName">@user.UserName</option>
+                        }
+                    </select>
+                    <input type="text" id="messageInput" placeholder="Type your message">
+                    <button onclick="sendMessage()">Send</button>
+                </div>
+                `}
+            </div>
+        `;
+        
+        // Set the selected recipient
+        if (state.currentRecipient) {
+            const select = document.getElementById('recipientSelect');
+            if (select) select.value = state.currentRecipient;
+        }
+        
+        // Scroll to bottom
+        if (!state.isMinimized) {
+            const messagesList = document.getElementById('messagesList');
+            if (messagesList) messagesList.scrollTop = messagesList.scrollHeight;
+        }
+    } else {
+        container.innerHTML = '';
+    }
+}
+
+    function toggleChat(e) {
+        if (e) e.stopPropagation();
+        const chatState = JSON.parse(sessionStorage.getItem('chatState')) || {
+            isOpen: false,
+            isMinimized: false,
+            currentRecipient: 'all',
+            messages: []
+        };
+        
+        chatState.isOpen = !chatState.isOpen;
+        if (chatState.isOpen) chatState.isMinimized = false;
+        sessionStorage.setItem('chatState', JSON.stringify(chatState));
+        renderChatWindow(chatState);
+        
+        if (chatState.isOpen && !window.chatConnection) {
+            initializeSignalR(chatState);
+        }
+    }
+
+    function toggleMinimize(e) {
+        if (e) e.stopPropagation();
+        const chatState = JSON.parse(sessionStorage.getItem('chatState'));
+        if (!chatState) return;
+        
+        chatState.isMinimized = !chatState.isMinimized;
+        sessionStorage.setItem('chatState', JSON.stringify(chatState));
+        renderChatWindow(chatState);
+    }
+
+    function updateRecipient(recipient) {
+        const chatState = JSON.parse(sessionStorage.getItem('chatState'));
+        if (!chatState) return;
+        
+        chatState.currentRecipient = recipient;
+        sessionStorage.setItem('chatState', JSON.stringify(chatState));
+        renderChatWindow(chatState);
+    }
+
+    function sendMessage() {
+    const input = document.getElementById('messageInput');
+    const message = input.value.trim();
+    const recipientSelect = document.getElementById('recipientSelect');
+    if (!recipientSelect) return;
+    
+    const recipient = recipientSelect.value;
+    
+    if (message && window.chatConnection) {
+        const chatState = JSON.parse(sessionStorage.getItem('chatState'));
+        const isGroup = recipient === "all";
+        
+        // Create the message object with all required fields
+        const newMessage = {
+            sender: "@currentUser.UserName",
+            recipient: isGroup ? "all" : recipient,
+            text: message,
+            isGroup: isGroup,
+            isSent: true,
+            timestamp: new Date().toISOString()
+        };
+
+        if (isGroup) {
+            window.chatConnection.invoke("SendGroupMessage", message)
+                .then(() => {
+                    chatState.messages.push(newMessage);
+                    sessionStorage.setItem('chatState', JSON.stringify(chatState));
+                    renderChatWindow(chatState);
+                })
+                .catch(err => console.error(err));
+        } else {
+            window.chatConnection.invoke("SendPrivateMessage", recipient, message)
+                .then(() => {
+                    chatState.messages.push(newMessage);
+                    sessionStorage.setItem('chatState', JSON.stringify(chatState));
+                    renderChatWindow(chatState);
+                })
+                .catch(err => console.error(err));
+        }
+        
+        input.value = '';
+        input.focus();
+    }
+}
+
+    function initializeSignalR(state) {
+        if (!window.chatConnection) {
+            window.chatConnection = new signalR.HubConnectionBuilder()
+                .withUrl("/chatHub")
+                .configureLogging(signalR.LogLevel.Information)
+                .build();
+
+            window.chatConnection.on("ReceivePrivateMessage", (sender, message, isGroup) => {
+                const chatState = JSON.parse(sessionStorage.getItem('chatState')) || {};
+                if (!chatState.messages) chatState.messages = [];
+                
+                chatState.messages.push({
+                    sender: sender,
+                    text: message,
+                    isGroup: isGroup,
+                    isSent: sender === "@currentUser.UserName",
+                    timestamp: new Date().toISOString()
+                });
+                
+                sessionStorage.setItem('chatState', JSON.stringify(chatState));
+                renderChatWindow(chatState);
+            });
+
+            window.chatConnection.start().catch(err => console.error(err));
+        }
+    }
+
+    // Handle Enter key in message input
+    document.addEventListener('keypress', function(e) {
+        if (e.target.id === 'messageInput' && e.key === 'Enter') {
+            sendMessage();
+        }
+    });
+</script>
 <body>
     <header>
         <nav class="navbar navbar-expand-lg navbar-dark fixed-top shadow-sm">
@@ -95,6 +437,12 @@
                                     <li><a class="dropdown-item" asp-area="" asp-page="/Logistics/Products/Index">Video meeting</a></li>
                                     <li><a class="dropdown-item" asp-area="" asp-page="/Logistics/Products/Index">Feladatok</a></li>
                                     <li><a class="dropdown-item" asp-area="" asp-page="/GroupRemote/Chat/Index">Chat</a></li>
+                                    <!-- Add this to your navbar -->
+<li class="dropdown-item">
+    <button class="btn btn-outline-light ms-2" onclick="toggleChat()">
+        <i class="bi bi-chat-left-text"></i> Chat
+    </button>
+</li>
                                 </ul>
                             </li>
                         </ul>

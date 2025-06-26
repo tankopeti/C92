@@ -8,6 +8,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using AutoMapper;
 
 namespace Cloud9_2.Services
 {
@@ -16,12 +17,15 @@ namespace Cloud9_2.Services
         private readonly ApplicationDbContext _context;
         private readonly ILogger<QuoteService> _logger;
         private readonly IOrderService _orderService;
+        private readonly IMapper _mapper;
 
-        public QuoteService(ApplicationDbContext context, ILogger<QuoteService> logger, IOrderService orderService)
+        public QuoteService(ApplicationDbContext context, IMapper mapper, ILogger<QuoteService> logger, IOrderService orderService)
         {
             _context = context ?? throw new ArgumentNullException(nameof(context));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             _orderService = orderService ?? throw new ArgumentNullException(nameof(orderService));
+            _mapper = mapper;
+
         }
 
         public async Task<string> GetNextQuoteNumberAsync()
@@ -94,14 +98,14 @@ namespace Cloud9_2.Services
                 CurrencyId = quoteDto.CurrencyId,
                 QuoteDate = quoteDto.QuoteDate ?? DateTime.UtcNow,
                 Status = quoteDto.Status ?? "Draft",
-                TotalAmount = 0, // Will be updated after items are added
+                TotalAmount = 0,
                 SalesPerson = quoteDto.SalesPerson,
                 ValidityDate = quoteDto.ValidityDate,
                 Subject = quoteDto.Subject,
                 Description = quoteDto.Description,
                 DetailedDescription = quoteDto.DetailedDescription,
-                DiscountPercentage = quoteDto.DiscountPercentage, // Quote-level discount
-                DiscountAmount = quoteDto.DiscountAmount, // Quote-level discount
+                DiscountPercentage = quoteDto.DiscountPercentage,
+                DiscountAmount = quoteDto.DiscountAmount,
                 CompanyName = quoteDto.CompanyName,
                 CreatedBy = quoteDto.CreatedBy ?? "System",
                 CreatedDate = quoteDto.CreatedDate ?? DateTime.UtcNow,
@@ -111,9 +115,33 @@ namespace Cloud9_2.Services
                 QuoteItems = new List<QuoteItem>()
             };
 
+            // Add validation for non-empty items
+            if (quoteDto.Items == null || !quoteDto.Items.Any())
+            {
+                _logger.LogWarning("No items provided for quote creation");
+                throw new ArgumentException("A quote must contain at least one item");
+            }
+
             decimal totalAmount = 0;
             foreach (var itemDto in quoteDto.Items)
             {
+                // Validate ProductId and VatTypeId
+                var product = await _context.Products
+                    .FirstOrDefaultAsync(p => p.ProductId == itemDto.ProductId);
+                if (product == null)
+                {
+                    _logger.LogWarning("Invalid ProductId: {ProductId} for QuoteItem", itemDto.ProductId);
+                    throw new ArgumentException($"Érvénytelen ProductId: {itemDto.ProductId}");
+                }
+
+                var vatType = await _context.VatTypes
+                    .FirstOrDefaultAsync(v => v.VatTypeId == itemDto.VatTypeId);
+                if (vatType == null)
+                {
+                    _logger.LogWarning("Invalid VatTypeId: {VatTypeId} for QuoteItem", itemDto.VatTypeId);
+                    throw new ArgumentException($"Érvénytelen VatTypeId: {itemDto.VatTypeId}");
+                }
+
                 var productPrice = await _context.ProductPrices
                     .Where(pp => pp.ProductId == itemDto.ProductId && pp.IsActive)
                     .FirstOrDefaultAsync();
@@ -121,12 +149,13 @@ namespace Cloud9_2.Services
                     .Where(pp => pp.ProductId == itemDto.ProductId && pp.PartnerId == quoteDto.PartnerId)
                     .FirstOrDefaultAsync();
 
-                decimal basePrice = productPrice?.SalesPrice ?? 0;
-                decimal unitPrice = basePrice;
+                decimal basePrice = productPrice?.SalesPrice ?? throw new InvalidOperationException($"No active price found for ProductId: {itemDto.ProductId}");
+                decimal unitPrice = itemDto.UnitPrice > 0 ? itemDto.UnitPrice : basePrice; // Prefer frontend UnitPrice if provided
 
                 QuoteItemDiscount discount = null;
                 if (itemDto.Discount != null && itemDto.Discount.DiscountType != DiscountType.NoDiscount)
                 {
+                    _logger.LogInformation("Processing discount for item {ProductId}: {@Discount}", itemDto.ProductId, itemDto.Discount);
                     discount = new QuoteItemDiscount
                     {
                         DiscountType = itemDto.Discount.DiscountType,
@@ -137,59 +166,50 @@ namespace Cloud9_2.Services
                         VolumePrice = itemDto.Discount.VolumePrice
                     };
 
+                    // Apply item-level discount
                     switch (itemDto.Discount.DiscountType)
                     {
                         case DiscountType.CustomDiscountPercentage:
-                            discount.DiscountPercentage = discount.DiscountPercentage ?? 0;
-                            unitPrice = basePrice * (1 - discount.DiscountPercentage.Value / 100);
-                            discount.DiscountAmount = null;
-                            discount.PartnerPrice = null;
-                            discount.VolumeThreshold = null;
-                            discount.VolumePrice = null;
+                            if (itemDto.Discount.DiscountPercentage < 0 || itemDto.Discount.DiscountPercentage > 100)
+                            {
+                                _logger.LogWarning("Invalid DiscountPercentage: {DiscountPercentage} for ProductId: {ProductId}", itemDto.Discount.DiscountPercentage, itemDto.ProductId);
+                                throw new ArgumentException($"DiscountPercentage must be between 0 and 100 for ProductId: {itemDto.ProductId}");
+                            }
+                            unitPrice *= (1 - itemDto.Discount.DiscountPercentage.Value / 100);
                             break;
                         case DiscountType.CustomDiscountAmount:
-                            discount.DiscountAmount = discount.DiscountAmount ?? 0;
-                            unitPrice = (basePrice * itemDto.Quantity - discount.DiscountAmount.Value) / itemDto.Quantity;
-                            discount.DiscountPercentage = null;
-                            discount.PartnerPrice = null;
-                            discount.VolumeThreshold = null;
-                            discount.VolumePrice = null;
+                            if (itemDto.Discount.DiscountAmount < 0)
+                            {
+                                _logger.LogWarning("Invalid DiscountAmount: {DiscountAmount} for ProductId: {ProductId}", itemDto.Discount.DiscountAmount, itemDto.ProductId);
+                                throw new ArgumentException($"DiscountAmount must be non-negative for ProductId: {itemDto.ProductId}");
+                            }
+                            unitPrice -= itemDto.Discount.DiscountAmount.Value / itemDto.Quantity;
                             break;
                         case DiscountType.PartnerPrice:
-                            basePrice = partnerPrice?.PartnerUnitPrice ?? basePrice;
-                            unitPrice = basePrice;
-                            discount.PartnerPrice = basePrice;
-                            discount.DiscountPercentage = null;
-                            discount.DiscountAmount = null;
-                            discount.VolumeThreshold = null;
-                            discount.VolumePrice = null;
+                            if (itemDto.Discount.PartnerPrice <= 0)
+                            {
+                                _logger.LogWarning("Invalid PartnerPrice: {PartnerPrice} for ProductId: {ProductId}", itemDto.Discount.PartnerPrice, itemDto.ProductId);
+                                throw new ArgumentException($"PartnerPrice must be positive for ProductId: {itemDto.ProductId}");
+                            }
+                            unitPrice = itemDto.Discount.PartnerPrice.Value;
                             break;
                         case DiscountType.VolumeDiscount:
-                            if (itemDto.Quantity >= productPrice?.Volume3 && productPrice?.Volume3Price > 0)
+                            if (itemDto.Discount.VolumeThreshold <= 0 || itemDto.Discount.VolumePrice <= 0)
                             {
-                                basePrice = productPrice.Volume3Price;
-                                discount.VolumeThreshold = productPrice.Volume3;
-                                discount.VolumePrice = productPrice.Volume3Price;
+                                _logger.LogWarning("Invalid VolumeDiscount: Threshold={VolumeThreshold}, Price={VolumePrice} for ProductId: {ProductId}", 
+                                    itemDto.Discount.VolumeThreshold, itemDto.Discount.VolumePrice, itemDto.ProductId);
+                                throw new ArgumentException($"VolumeThreshold and VolumePrice must be positive for ProductId: {itemDto.ProductId}");
                             }
-                            else if (itemDto.Quantity >= productPrice?.Volume2 && productPrice?.Volume2Price > 0)
+                            if (itemDto.Quantity >= itemDto.Discount.VolumeThreshold.Value)
                             {
-                                basePrice = productPrice.Volume2Price;
-                                discount.VolumeThreshold = productPrice.Volume2;
-                                discount.VolumePrice = productPrice.Volume2Price;
+                                unitPrice = itemDto.Discount.VolumePrice.Value;
                             }
-                            else if (itemDto.Quantity >= productPrice?.Volume1 && productPrice?.Volume1Price > 0)
-                            {
-                                basePrice = productPrice.Volume1Price;
-                                discount.VolumeThreshold = productPrice.Volume1;
-                                discount.VolumePrice = productPrice.Volume1Price;
-                            }
-                            unitPrice = basePrice;
-                            discount.DiscountPercentage = null;
-                            discount.DiscountAmount = null;
-                            discount.PartnerPrice = null;
                             break;
+                        default:
+                            _logger.LogWarning("Unknown DiscountType: {DiscountType} for ProductId: {ProductId}", itemDto.Discount.DiscountType, itemDto.ProductId);
+                            throw new ArgumentException($"Unknown DiscountType: {itemDto.Discount.DiscountType}");
                     }
-                    discount.BasePrice = basePrice;
+                    unitPrice = Math.Max(0, unitPrice); // Ensure non-negative
                 }
 
                 var quoteItem = new QuoteItem
@@ -208,15 +228,35 @@ namespace Cloud9_2.Services
                 totalAmount += quoteItem.TotalPrice;
             }
 
+            // Apply quote-level discount
+            if (quote.DiscountPercentage.HasValue && quote.DiscountAmount.HasValue)
+            {
+                _logger.LogWarning("Both DiscountPercentage and DiscountAmount provided for quote; using DiscountPercentage");
+            }
             if (quote.DiscountPercentage.HasValue)
             {
+                if (quote.DiscountPercentage.Value < 0 || quote.DiscountPercentage.Value > 100)
+                {
+                    _logger.LogWarning("Invalid DiscountPercentage: {DiscountPercentage}", quote.DiscountPercentage.Value);
+                    throw new ArgumentException("DiscountPercentage must be between 0 and 100");
+                }
                 totalAmount *= (1 - quote.DiscountPercentage.Value / 100);
             }
             else if (quote.DiscountAmount.HasValue)
             {
+                if (quote.DiscountAmount.Value < 0)
+                {
+                    _logger.LogWarning("Invalid DiscountAmount: {DiscountAmount}", quote.DiscountAmount.Value);
+                    throw new ArgumentException("DiscountAmount must be non-negative");
+                }
+                if (quote.DiscountAmount.Value > totalAmount)
+                {
+                    _logger.LogWarning("DiscountAmount: {DiscountAmount} exceeds TotalAmount: {TotalAmount}", quote.DiscountAmount.Value, totalAmount);
+                    throw new ArgumentException("DiscountAmount cannot exceed total amount");
+                }
                 totalAmount -= quote.DiscountAmount.Value;
             }
-            quote.TotalAmount = totalAmount;
+            quote.TotalAmount = Math.Max(0, totalAmount);
 
             try
             {
@@ -424,7 +464,7 @@ namespace Cloud9_2.Services
                 .Where(pp => pp.ProductId == itemDto.ProductId && pp.PartnerId == quote.PartnerId)
                 .FirstOrDefaultAsync();
 
-            decimal basePrice = productPrice?.SalesPrice ?? 0;
+            decimal basePrice = productPrice?.SalesPrice ?? throw new InvalidOperationException($"No active price found for ProductId: {itemDto.ProductId}");
             decimal unitPrice = basePrice;
 
             QuoteItemDiscount discount = null;
@@ -579,7 +619,7 @@ namespace Cloud9_2.Services
                 .Where(pp => pp.ProductId == itemDto.ProductId && pp.PartnerId == itemDto.QuoteId) // Assuming QuoteId links to Partner
                 .FirstOrDefaultAsync();
 
-            decimal basePrice = productPrice?.SalesPrice ?? 0;
+            decimal basePrice = productPrice?.SalesPrice ?? throw new InvalidOperationException($"No active price found for ProductId: {itemDto.ProductId}");
             decimal unitPrice = basePrice;
 
             if (quoteItem.Discount != null)

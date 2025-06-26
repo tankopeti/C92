@@ -4,11 +4,6 @@ using Cloud9_2.Models;
 using Cloud9_2.Services;
 using Cloud9_2.Data;
 using System.Text.Json;
-using Cloud9_2.Data;
-using Cloud9_2.Models;
-using Cloud9_2.Controllers;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
@@ -24,12 +19,11 @@ namespace Cloud9_2.Controllers
     {
         private readonly IQuoteService _quoteService;
         private readonly ILogger<QuotesController> _logger;
-
         private readonly ApplicationDbContext _context;
 
         public QuotesController(ApplicationDbContext context, IQuoteService quoteService, ILogger<QuotesController> logger)
         {
-            _context = context;
+            _context = context ?? throw new ArgumentNullException(nameof(context));
             _quoteService = quoteService ?? throw new ArgumentNullException(nameof(quoteService));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             _logger.LogInformation("QuotesController instantiated, Context: {Context}, QuoteService: {QuoteService}", 
@@ -82,31 +76,102 @@ namespace Cloud9_2.Controllers
             }
         }
 
-        [HttpPost]
-        [ProducesResponseType(StatusCodes.Status201Created)]
-        [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-        public async Task<IActionResult> CreateQuote([FromBody] CreateQuoteDto quoteDto)
-        {
-            if (!ModelState.IsValid)
-            {
-                _logger.LogWarning("Invalid quote data submitted: {@QuoteDto}", quoteDto);
-                return BadRequest(ModelState);
-            }
+[HttpPost]
+[ProducesResponseType(StatusCodes.Status201Created)]
+[ProducesResponseType(StatusCodes.Status400BadRequest)]
+[ProducesResponseType(StatusCodes.Status500InternalServerError)]
+public async Task<IActionResult> CreateQuote([FromBody] CreateQuoteDto quoteDto)
+{
+    if (quoteDto == null)
+    {
+        _logger.LogWarning("Received null CreateQuoteDto");
+        return BadRequest(new { error = "Invalid quote data: DTO is null" });
+    }
 
-            try
+    if (!ModelState.IsValid)
+    {
+        var errors = ModelState
+            .Where(x => x.Value.Errors.Count > 0)
+            .ToDictionary(kvp => kvp.Key, kvp => kvp.Value.Errors.Select(e => e.ErrorMessage).ToArray());
+        _logger.LogWarning("Invalid quote data submitted: {Errors}, QuoteDTO: {@QuoteDTO}", JsonSerializer.Serialize(errors), quoteDto);
+        return BadRequest(new { error = "Invalid quote data", details = errors });
+    }
+
+    try
+    {
+        _logger.LogInformation("Creating new quote for partner ID: {PartnerId}, QuoteDTO: {@QuoteDTO}", quoteDto.PartnerId, quoteDto);
+
+        // Validate foreign keys
+        if (!await _context.Partners.AnyAsync(p => p.PartnerId == quoteDto.PartnerId))
+        {
+            _logger.LogWarning("Invalid PartnerId: {PartnerId}", quoteDto.PartnerId);
+            return BadRequest(new { error = $"Invalid PartnerId: {quoteDto.PartnerId}" });
+        }
+        if (!await _context.Currencies.AnyAsync(c => c.CurrencyId == quoteDto.CurrencyId))
+        {
+            _logger.LogWarning("Invalid CurrencyId: {CurrencyId}", quoteDto.CurrencyId);
+            return BadRequest(new { error = $"Invalid CurrencyId: {quoteDto.CurrencyId}" });
+        }
+
+        if (quoteDto.Items == null || !quoteDto.Items.Any())
+        {
+            _logger.LogWarning("No items provided for quote creation");
+            return BadRequest(new { error = "A quote must contain at least one item" });
+        }
+
+        foreach (var item in quoteDto.Items)
+        {
+            if (!await _context.Products.AnyAsync(p => p.ProductId == item.ProductId))
             {
-                _logger.LogInformation("Creating new quote for partner ID: {PartnerId}", quoteDto.PartnerId);
-                var quote = await _quoteService.CreateQuoteAsync(quoteDto);
-                _logger.LogInformation("Created quote with ID: {QuoteId}", quote.QuoteId);
-                return CreatedAtAction(nameof(GetQuote), new { quoteId = quote.QuoteId }, quote);
+                _logger.LogWarning("Invalid ProductId: {ProductId}", item.ProductId);
+                return BadRequest(new { error = $"Invalid product ID: {item.ProductId}" });
             }
-            catch (Exception ex)
+            if (!await _context.VatTypes.AnyAsync(v => v.VatTypeId == item.VatTypeId))
             {
-                _logger.LogError(ex, "Error creating quote");
-                return StatusCode(500, new { error = "Failed to create quote" });
+                _logger.LogWarning("Invalid VatTypeId: {VatTypeId}", item.VatTypeId);
+                return BadRequest(new { error = $"Invalid VatTypeId: {item.VatTypeId}" });
+            }
+            if (item.Quantity <= 0)
+            {
+                _logger.LogWarning("Invalid Quantity for ProductId: {ProductId}", item.ProductId);
+                return BadRequest(new { error = $"Quantity must be positive for product ID: {item.ProductId}" });
+            }
+            if (item.Discount != null && item.Discount.DiscountType != DiscountType.NoDiscount)
+            {
+                if (item.Discount.DiscountType == DiscountType.CustomDiscountPercentage &&
+                    (item.Discount.DiscountPercentage < 0 || item.Discount.DiscountPercentage > 100))
+                {
+                    _logger.LogWarning("Invalid DiscountPercentage for ProductId: {ProductId}", item.ProductId);
+                    return BadRequest(new { error = $"DiscountPercentage must be between 0 and 100 for product ID: {item.ProductId}" });
+                }
+                if (item.Discount.DiscountType == DiscountType.CustomDiscountAmount && item.Discount.DiscountAmount < 0)
+                {
+                    _logger.LogWarning("Invalid DiscountAmount for ProductId: {ProductId}", item.ProductId);
+                    return BadRequest(new { error = $"DiscountAmount must be non-negative for product ID: {item.ProductId}" });
+                }
             }
         }
+
+        var quote = await _quoteService.CreateQuoteAsync(quoteDto);
+        _logger.LogInformation("Created quote with ID: {QuoteId}", quote.QuoteId);
+        return CreatedAtAction(nameof(GetQuote), new { quoteId = quote.QuoteId }, quote);
+    }
+    catch (ArgumentException ex)
+    {
+        _logger.LogWarning(ex, "Validation error creating quote for PartnerId: {PartnerId}", quoteDto.PartnerId);
+        return BadRequest(new { error = ex.Message });
+    }
+    catch (DbUpdateException ex)
+    {
+        _logger.LogError(ex, "Database error creating quote for PartnerId: {PartnerId}", quoteDto.PartnerId);
+        return StatusCode(500, new { error = "Database error creating quote", errorDetails = ex.InnerException?.Message ?? ex.Message });
+    }
+    catch (Exception ex)
+    {
+        _logger.LogError(ex, "Unexpected error creating quote for PartnerId: {PartnerId}, QuoteDTO: {@QuoteDTO}", quoteDto.PartnerId, quoteDto);
+        return StatusCode(500, new { error = "Failed to create quote", errorDetails = ex.Message, stackTrace = ex.StackTrace });
+    }
+}
 
         [HttpGet("{quoteId}")]
         [ProducesResponseType(StatusCodes.Status200OK)]
@@ -124,7 +189,6 @@ namespace Cloud9_2.Controllers
             try
             {
                 _logger.LogInformation("Fetching quote ID: {QuoteId}", quoteId);
-
                 var quote = await _quoteService.GetQuoteByIdAsync(quoteId);
                 if (quote == null)
                 {
@@ -150,7 +214,6 @@ namespace Cloud9_2.Controllers
             try
             {
                 _logger.LogInformation("Fetching all partners.");
-
                 var partners = await _quoteService.GetPartnersAsync();
                 if (partners == null || !partners.Any())
                 {
@@ -202,233 +265,197 @@ namespace Cloud9_2.Controllers
             }
         }
 
-[HttpPut("{quoteId}")]
-    [ProducesResponseType(StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
-    [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-    public async Task<IActionResult> UpdateQuote(int quoteId, [FromBody] UpdateQuoteDto quoteDto)
-    {
-        _logger.LogInformation("UpdateQuote called for QuoteId: {QuoteId}, QuoteDto: {QuoteDto}", 
-            quoteId, JsonSerializer.Serialize(quoteDto));
-
-        if (quoteDto == null)
+        [HttpPut("{quoteId}")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+        public async Task<IActionResult> UpdateQuote(int quoteId, [FromBody] UpdateQuoteDto quoteDto)
         {
-            _logger.LogWarning("UpdateQuote received null QuoteDto for QuoteId: {QuoteId}", quoteId);
-            return BadRequest(new { error = "Érvénytelen árajánlat adatok" });
-        }
+            _logger.LogInformation("UpdateQuote called for QuoteId: {QuoteId}, QuoteDto: {QuoteDto}", 
+                quoteId, JsonSerializer.Serialize(quoteDto));
 
-        if (!ModelState.IsValid)
-        {
-            var errors = ModelState
-                .Where(x => x.Value.Errors.Count > 0)
-                .ToDictionary(
-                    kvp => kvp.Key,
-                    kvp => kvp.Value.Errors.Select(e => e.ErrorMessage).ToArray()
-                );
-            _logger.LogWarning("ModelState validation failed for QuoteId: {QuoteId}, Errors: {Errors}", 
-                quoteId, JsonSerializer.Serialize(errors));
-            return BadRequest(new { error = "Érvénytelen adatok", details = errors });
-        }
-
-        try
-        {
-            if (_context == null)
+            if (quoteDto == null)
             {
-                _logger.LogError("Database context is null for UpdateQuote QuoteId: {QuoteId}", quoteId);
-                return StatusCode(500, new { error = "Adatbázis kapcsolat nem érhető el" });
+                _logger.LogWarning("UpdateQuote received null QuoteDto for QuoteId: {QuoteId}", quoteId);
+                return BadRequest(new { error = "Érvénytelen árajánlat adatok" });
             }
 
-            if (!await _context.Partners.AnyAsync(p => p.PartnerId == quoteDto.PartnerId))
+            if (!ModelState.IsValid)
             {
-                _logger.LogWarning("Partner not found for PartnerId: {PartnerId}", quoteDto.PartnerId);
-                return BadRequest(new { error = $"Érvénytelen PartnerId: {quoteDto.PartnerId}" });
+                var errors = ModelState
+                    .Where(x => x.Value.Errors.Count > 0)
+                    .ToDictionary(
+                        kvp => kvp.Key,
+                        kvp => kvp.Value.Errors.Select(e => e.ErrorMessage).ToArray()
+                    );
+                _logger.LogWarning("ModelState validation failed for QuoteId: {QuoteId}, Errors: {Errors}", 
+                    quoteId, JsonSerializer.Serialize(errors));
+                return BadRequest(new { error = "Érvénytelen adatok", details = errors });
             }
 
-            var result = await _quoteService.UpdateQuoteAsync(quoteId, quoteDto);
-            if (result == null)
+            try
             {
-                _logger.LogWarning("Quote not found: Quote ID {QuoteId}", quoteId);
-                return NotFound(new { error = $"Az árajánlat nem található: Quote ID {quoteId}" });
+                if (!await _context.Partners.AnyAsync(p => p.PartnerId == quoteDto.PartnerId))
+                {
+                    _logger.LogWarning("Partner not found for PartnerId: {PartnerId}", quoteDto.PartnerId);
+                    return BadRequest(new { error = $"Érvénytelen PartnerId: {quoteDto.PartnerId}" });
+                }
+
+                var result = await _quoteService.UpdateQuoteAsync(quoteId, quoteDto);
+                if (result == null)
+                {
+                    _logger.LogWarning("Quote not found: Quote ID {QuoteId}", quoteId);
+                    return NotFound(new { error = $"Az árajánlat nem található: Quote ID {quoteId}" });
+                }
+
+                _logger.LogInformation("Updated quote ID: {QuoteId}", quoteId);
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Unexpected error updating quote ID: {QuoteId}", quoteId);
+                return StatusCode(500, new { error = "Nem sikerült az árajánlat frissítése: " + ex.Message });
+            }
+        }
+
+        [HttpDelete("{quoteId}")]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+        public async Task<IActionResult> DeleteQuote(int quoteId)
+        {
+            try
+            {
+                _logger.LogInformation("Deleting quote ID: {QuoteId}", quoteId);
+                var success = await _quoteService.DeleteQuoteAsync(quoteId);
+                if (!success)
+                {
+                    _logger.LogWarning("Quote not found: {QuoteId}", quoteId);
+                    return NotFound(new { error = "Az árajánlat nem található." });
+                }
+                _logger.LogInformation("Deleted quote ID: {QuoteId}", quoteId);
+                return NoContent();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error deleting quote ID: {QuoteId}", quoteId);
+                return StatusCode(500, new { error = "Hiba történt az árajánlat törlése során." });
+            }
+        }
+
+        [HttpPost("{quoteId}/Items")]
+        [ProducesResponseType(StatusCodes.Status201Created)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+        public async Task<IActionResult> CreateQuoteItem(int quoteId, [FromBody] CreateQuoteItemDto itemDto)
+        {
+            _logger.LogInformation("CreateQuoteItem called for QuoteId: {QuoteId}, ProductId: {ProductId}, Quantity: {Quantity}", 
+                quoteId, itemDto.ProductId, itemDto.Quantity);
+
+            if (itemDto == null)
+            {
+                _logger.LogWarning("CreateQuoteItem received null ItemDto for QuoteId: {QuoteId}", quoteId);
+                return BadRequest(new { error = "Érvénytelen tétel adatok" });
             }
 
-            _logger.LogInformation("Updated quote ID: {QuoteId}", quoteId);
-            return Ok(result);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Unexpected error updating quote ID: {QuoteId}", quoteId);
-            return StatusCode(500, new { error = "Nem sikerült az árajánlat frissítése: " + ex.Message });
-        }
-    }
-    
-
-[HttpDelete("{quoteId}")]
-    [ProducesResponseType(StatusCodes.Status204NoContent)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
-    [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-    public async Task<IActionResult> DeleteQuote(int quoteId)
-    {
-        try
-        {
-            _logger.LogInformation("Deleting quote ID: {QuoteId}", quoteId);
-            var success = await _quoteService.DeleteQuoteAsync(quoteId);
-            if (!success)
+            if (!ModelState.IsValid)
             {
-                _logger.LogWarning("Quote not found: {QuoteId}", quoteId);
-                return NotFound(new { error = "Az árajánlat nem található." });
-            }
-            _logger.LogInformation("Deleted quote ID: {QuoteId}", quoteId);
-            return NoContent();
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error deleting quote ID: {QuoteId}", quoteId);
-            return StatusCode(500, new { error = "Hiba történt az árajánlat törlése során." });
-        }
-    }
-
-
-[HttpPost("{quoteId}/Items")]
-[ProducesResponseType(StatusCodes.Status200OK)]
-[ProducesResponseType(StatusCodes.Status400BadRequest)]
-[ProducesResponseType(StatusCodes.Status404NotFound)]
-[ProducesResponseType(StatusCodes.Status500InternalServerError)]
-public async Task<IActionResult> CreateQuoteItem(int quoteId, [FromBody] QuoteItemDto itemDto)
-{
-    _logger.LogInformation("CreateQuoteItem called for QuoteId: {QuoteId}, ProductId: {ProductId}, Quantity: {Quantity}", 
-        quoteId, itemDto.ProductId, itemDto.Quantity);
-
-    if (itemDto == null)
-    {
-        _logger.LogWarning("CreateQuoteItem received null ItemDto for QuoteId: {QuoteId}", quoteId);
-        return BadRequest(new { error = "Érvénytelen tétel adatok" });
-    }
-
-    if (!ModelState.IsValid)
-    {
-        var errors = ModelState
-            .Where(x => x.Value.Errors.Count > 0)
-            .ToDictionary(
-                kvp => kvp.Key,
-                kvp => kvp.Value.Errors.Select(e => e.ErrorMessage).ToArray()
-            );
-        _logger.LogWarning("ModelState validation failed for QuoteId: {QuoteId}, Errors: {Errors}", 
-            quoteId, JsonSerializer.Serialize(errors));
-        return BadRequest(new { error = "Érvénytelen adatok", details = errors });
-    }
-
-    try
-    {
-        // Verify the quote exists
-        var quoteExists = await _context.Quotes.AnyAsync(q => q.QuoteId == quoteId);
-        if (!quoteExists)
-        {
-            _logger.LogWarning("Quote not found for QuoteId: {QuoteId}", quoteId);
-            return NotFound(new { error = "Az árajánlat nem található" });
-        }
-
-        // Map QuoteItemDto to QuoteItem entity
-        var quoteItem = new QuoteItem
-        {
-            QuoteId = quoteId,
-            ProductId = itemDto.ProductId,
-            Quantity = itemDto.Quantity,
-            UnitPrice = itemDto.UnitPrice,
-            DiscountPercentage = itemDto.DiscountPercentage,
-            DiscountAmount = itemDto.DiscountAmount
-        };
-
-        _context.QuoteItems.Add(quoteItem);
-        await _context.SaveChangesAsync();
-
-        // Map back to QuoteItemDto for response
-        var result = new QuoteItemDto
-        {
-            QuoteItemId = quoteItem.QuoteItemId,
-            QuoteId = quoteItem.QuoteId,
-            ProductId = quoteItem.ProductId,
-            Quantity = quoteItem.Quantity,
-            UnitPrice = quoteItem.UnitPrice,
-            DiscountPercentage = quoteItem.DiscountPercentage,
-            DiscountAmount = quoteItem.DiscountAmount,
-            TotalPrice = quoteItem.TotalPrice
-        };
-
-        _logger.LogInformation("Created QuoteItem with ID: {QuoteItemId} for QuoteId: {QuoteId}", 
-            quoteItem.QuoteItemId, quoteId);
-        return Ok(result);
-    }
-    catch (Exception ex)
-    {
-        _logger.LogError(ex, "Error creating QuoteItem for QuoteId: {QuoteId}", quoteId);
-        return StatusCode(500, new { error = "Hiba történt a tétel létrehozása közben" });
-    }
-}
-
-[HttpPut("{quoteId}/Items/{quoteItemId}")]
-    [ProducesResponseType(StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
-    [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-    public async Task<IActionResult> UpdateQuoteItem(int quoteId, int quoteItemId, [FromBody] UpdateQuoteItemDto itemDto)
-    {
-        _logger.LogInformation("UpdateQuoteItem called for QuoteId: {QuoteId}, QuoteItemId: {QuoteItemId}, ItemDto: {ItemDto}", 
-            quoteId, quoteItemId, JsonSerializer.Serialize(itemDto));
-
-        if (itemDto == null)
-        {
-            _logger.LogWarning("UpdateQuoteItem received null ItemDto for QuoteId: {QuoteId}", quoteId);
-            return BadRequest(new { error = "Érvénytelen tétel adatok" });
-        }
-
-        if (!ModelState.IsValid)
-        {
-            var errors = ModelState
-                .Where(x => x.Value.Errors.Count > 0)
-                .ToDictionary(
-                    kvp => kvp.Key,
-                    kvp => kvp.Value.Errors.Select(e => e.ErrorMessage).ToArray()
-                );
-            _logger.LogWarning("ModelState validation failed for QuoteId: {QuoteId}, Errors: {Errors}", 
-                quoteId, JsonSerializer.Serialize(errors));
-            return BadRequest(new { error = "Érvénytelen adatok", details = errors });
-        }
-
-        try
-        {
-            if (_context == null)
-            {
-                _logger.LogError("Database context is null for UpdateQuoteItem QuoteId: {QuoteId}", quoteId);
-                return StatusCode(500, new { error = "Adatbázis kapcsolat nem érhető el" });
+                var errors = ModelState
+                    .Where(x => x.Value.Errors.Count > 0)
+                    .ToDictionary(
+                        kvp => kvp.Key,
+                        kvp => kvp.Value.Errors.Select(e => e.ErrorMessage).ToArray()
+                    );
+                _logger.LogWarning("ModelState validation failed for QuoteId: {QuoteId}, Errors: {Errors}", 
+                    quoteId, JsonSerializer.Serialize(errors));
+                return BadRequest(new { error = "Érvénytelen adatok", details = errors });
             }
 
-            var result = await _quoteService.UpdateQuoteItemAsync(quoteId, quoteItemId, itemDto);
-            if (result == null)
+            try
             {
-                _logger.LogWarning("Quote item not found for QuoteId: {QuoteId}, QuoteItemId: {QuoteItemId}", quoteId, quoteItemId);
-                return NotFound(new { error = $"A tétel nem található: Quote ID {quoteId}, Item ID {quoteItemId}" });
+                var quoteExists = await _quoteService.QuoteExistsAsync(quoteId);
+                if (!quoteExists)
+                {
+                    _logger.LogWarning("Quote not found for QuoteId: {QuoteId}", quoteId);
+                    return NotFound(new { error = "Az árajánlat nem található" });
+                }
+
+                var result = await _quoteService.CreateQuoteItemAsync(quoteId, itemDto);
+                _logger.LogInformation("Created QuoteItem with ID: {QuoteItemId} for QuoteId: {QuoteId}", 
+                    result.QuoteItemId, quoteId);
+                return CreatedAtAction(nameof(GetQuoteItems), new { quoteId = quoteId }, result);
+            }
+            catch (ArgumentException ex)
+            {
+                _logger.LogWarning(ex, "Validation error for QuoteId: {QuoteId}", quoteId);
+                return BadRequest(new { error = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error creating QuoteItem for QuoteId: {QuoteId}", quoteId);
+                return StatusCode(500, new { error = "Hiba történt a tétel létrehozása közben: " + ex.Message });
+            }
+        }
+
+        [HttpPut("{quoteId}/Items/{quoteItemId}")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+        public async Task<IActionResult> UpdateQuoteItem(int quoteId, int quoteItemId, [FromBody] UpdateQuoteItemDto itemDto)
+        {
+            _logger.LogInformation("UpdateQuoteItem called for QuoteId: {QuoteId}, QuoteItemId: {QuoteItemId}, ItemDto: {ItemDto}", 
+                quoteId, quoteItemId, JsonSerializer.Serialize(itemDto));
+
+            if (itemDto == null)
+            {
+                _logger.LogWarning("UpdateQuoteItem received null ItemDto for QuoteId: {QuoteId}", quoteId);
+                return BadRequest(new { error = "Érvénytelen tétel adatok" });
             }
 
-            _logger.LogInformation("Updated quote item ID: {QuoteItemId} for quote ID: {QuoteId}", quoteItemId, quoteId);
-            return Ok(result);
+            if (!ModelState.IsValid)
+            {
+                var errors = ModelState
+                    .Where(x => x.Value.Errors.Count > 0)
+                    .ToDictionary(
+                        kvp => kvp.Key,
+                        kvp => kvp.Value.Errors.Select(e => e.ErrorMessage).ToArray()
+                    );
+                _logger.LogWarning("ModelState validation failed for QuoteId: {QuoteId}, Errors: {Errors}", 
+                    quoteId, JsonSerializer.Serialize(errors));
+                return BadRequest(new { error = "Érvénytelen adatok", details = errors });
+            }
+
+            try
+            {
+                var result = await _quoteService.UpdateQuoteItemAsync(quoteId, quoteItemId, itemDto);
+                if (result == null)
+                {
+                    _logger.LogWarning("Quote item not found for QuoteId: {QuoteId}, QuoteItemId: {QuoteItemId}", quoteId, quoteItemId);
+                    return NotFound(new { error = $"A tétel nem található: Quote ID {quoteId}, Item ID {quoteItemId}" });
+                }
+
+                _logger.LogInformation("Updated quote item ID: {QuoteItemId} for quote ID: {QuoteId}", quoteItemId, quoteId);
+                return Ok(result);
+            }
+            catch (ArgumentException ex)
+            {
+                _logger.LogWarning(ex, "Validation error for quote ID: {QuoteId}", quoteId);
+                return BadRequest(new { error = ex.Message });
+            }
+            catch (DbUpdateException ex)
+            {
+                _logger.LogError(ex, "Database error updating quote item for QuoteId: {QuoteId}", quoteId);
+                return BadRequest(new { error = "Adatbázis hiba: " + (ex.InnerException?.Message ?? ex.Message) });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Unexpected error updating quote item for QuoteId: {QuoteId}", quoteId);
+                return StatusCode(500, new { error = "Nem sikerült a tétel frissítése: " + ex.Message });
+            }
         }
-        catch (ArgumentException ex)
-        {
-            _logger.LogWarning(ex, "Validation error for quote ID: {QuoteId}", quoteId);
-            return BadRequest(new { error = ex.Message });
-        }
-        catch (DbUpdateException ex)
-        {
-            _logger.LogError(ex, "Database error updating quote item for QuoteId: {QuoteId}", quoteId);
-            return BadRequest(new { error = "Adatbázis hiba: " + (ex.InnerException?.Message ?? ex.Message) });
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Unexpected error updating quote item for QuoteId: {QuoteId}", quoteId);
-            return StatusCode(500, new { error = "Nem sikerült a tétel frissítése: " + ex.Message });
-        }
-    }
 
         [HttpDelete("{quoteId}/items/{quoteItemId}")]
         [ProducesResponseType(StatusCodes.Status204NoContent)]
@@ -531,6 +558,6 @@ public async Task<IActionResult> CreateQuoteItem(int quoteId, [FromBody] QuoteIt
                 _logger.LogError(ex, "Error converting quote ID: {QuoteId}", quoteId);
                 return StatusCode(500, new { error = "Nem sikerült az árajánlat rendeléssé konvertálása: " + ex.Message });
             }
-        }    
+        }
     }
 }

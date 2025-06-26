@@ -166,13 +166,21 @@
 </style>
 
 <script>
+    // WebRTC variables
+    let localStream;
+    let remoteStream;
+    let peerConnection;
+    let isCaller = false;
+    let currentCallRecipient = null;
+
     // Chat state management
     document.addEventListener('DOMContentLoaded', function() {
         const chatState = JSON.parse(sessionStorage.getItem('chatState')) || {
             isOpen: false,
             isMinimized: false,
             currentRecipient: 'all',
-            messages: []
+            messages: [],
+            inVideoCall: false
         };
         
         if (chatState.isOpen) {
@@ -181,79 +189,277 @@
         }
     });
 
-function renderChatWindow(state) {
-    const container = document.getElementById('persistent-chat-container');
-    
-    if (state.isOpen) {
-        container.innerHTML = `
-            <div class="chat-card ${state.isMinimized ? 'minimized' : ''}">
-                <div class="chat-header" onclick="toggleMinimize()">
-                    <div>
-                        <div class="h2">Chat</div>
-                        <div class="chat-recipient">
-                            ${state.currentRecipient === 'all' ? 'Group Chat' : 'To: ' + state.currentRecipient}
-                        </div>
-                    </div>
-                    <div>
-                        <button class="toggle-btn" onclick="toggleMinimize(event)">
-                            <i class="bi ${state.isMinimized ? 'bi-chevron-up' : 'bi-chevron-down'}"></i>
-                        </button>
-                        <button class="toggle-btn" onclick="toggleChat(event)">
-                            <i class="bi bi-x"></i>
-                        </button>
-                    </div>
-                </div>
-                
-                ${state.isMinimized ? '' : `
-                <div class="chat-body" id="messagesList">
-                    ${state.messages
-                        .filter(m => state.currentRecipient === 'all' 
-                            ? m.isGroup 
-                            : (m.sender === state.currentRecipient || m.recipient === state.currentRecipient))
-                        .map((m, index) => `
-                        <div class="message ${m.isSent ? 'outgoing' : 'incoming'}" 
-                             style="animation-delay: ${index * 0.1}s">
-                            ${!m.isSent ? `<div class="sender">${m.sender}</div>` : 
-                              m.isGroup ? `<div class="sender">To Group</div>` : 
-                              `<div class="sender">To: ${m.recipient}</div>`}
-                            <p>${m.text}</p>
-                            <div class="message-time">
-                                ${new Date(m.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+    function renderChatWindow(state) {
+        const container = document.getElementById('persistent-chat-container');
+        
+        if (state.isOpen) {
+            // Generate recipient options HTML
+            let recipientOptions = '<option value="all">🗣️ Group Chat</option>';
+            @foreach (var user in otherUsers)
+            {
+                @:recipientOptions += `<option value="@user.UserName" ${state.currentRecipient === '@user.UserName' ? 'selected' : ''}>@user.UserName</option>`;
+            }
+
+            container.innerHTML = `
+                <div class="chat-card ${state.isMinimized ? 'minimized' : ''}">
+                    <div class="chat-header" onclick="toggleMinimize()">
+                        <div>
+                            <div class="h2">Chat</div>
+                            <div class="chat-recipient">
+                                ${state.currentRecipient === 'all' ? 'Group Chat' : 'To: ' + state.currentRecipient}
+                                ${state.inVideoCall ? ' (In Call)' : ''}
                             </div>
                         </div>
-                    `).join('')}
+                        <div>
+                            ${state.currentRecipient !== 'all' ? `
+                                <button class="toggle-btn" onclick="handleVideoCall(event, ${state.inVideoCall})">
+                                    <i class="bi ${state.inVideoCall ? 'bi-camera-video-off' : 'bi-camera-video'}"></i>
+                                </button>
+                            ` : ''}
+                            <button class="toggle-btn" onclick="toggleMinimize(event)">
+                                <i class="bi ${state.isMinimized ? 'bi-chevron-up' : 'bi-chevron-down'}"></i>
+                            </button>
+                            <button class="toggle-btn" onclick="toggleChat(event)">
+                                <i class="bi bi-x"></i>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    ${state.isMinimized ? '' : `
+                    ${state.inVideoCall ? `
+                        <div id="video-container">
+                            <div style="display: flex; gap: 10px; background: #000; padding: 10px;">
+                                <video id="local-video" autoplay muted style="width: 120px; height: 90px; border: 2px solid #4285f4;"></video>
+                                <video id="remote-video" autoplay style="flex-grow: 1; max-height: 300px;"></video>
+                            </div>
+                            <div style="text-align: center; margin-top: 10px;">
+                                <button class="btn btn-danger" onclick="endVideoCall()">
+                                    <i class="bi bi-telephone-x"></i> End Call
+                                </button>
+                            </div>
+                        </div>
+                    ` : `
+                        <div class="chat-body" id="messagesList">
+                            ${state.messages
+                                .filter(m => state.currentRecipient === 'all' 
+                                    ? m.isGroup 
+                                    : (m.sender === state.currentRecipient || m.recipient === state.currentRecipient))
+                                .map((m, index) => `
+                                <div class="message ${m.isSent ? 'outgoing' : 'incoming'}" 
+                                     style="animation-delay: ${index * 0.1}s">
+                                    ${!m.isSent ? `<div class="sender">${m.sender}</div>` : 
+                                      m.isGroup ? `<div class="sender">To Group</div>` : 
+                                      `<div class="sender">To: ${m.recipient}</div>`}
+                                    <p>${m.text}</p>
+                                    <div class="message-time">
+                                        ${new Date(m.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                        
+                        <div class="chat-footer">
+                            <select id="recipientSelect" onchange="updateRecipient(this.value)">
+                                ${recipientOptions}
+                            </select>
+                            <input type="text" id="messageInput" placeholder="Type your message">
+                            <button onclick="sendMessage()">Send</button>
+                        </div>
+                    `}
+                    `}
                 </div>
-                
-                <div class="chat-footer">
-                    <select id="recipientSelect" onchange="updateRecipient(this.value)">
-                        <option value="all">🗣️ Group Chat</option>
-                        @foreach (var user in otherUsers)
-                        {
-                            <option value="@user.UserName">@user.UserName</option>
-                        }
-                    </select>
-                    <input type="text" id="messageInput" placeholder="Type your message">
-                    <button onclick="sendMessage()">Send</button>
-                </div>
-                `}
-            </div>
-        `;
-        
-        // Set the selected recipient
-        if (state.currentRecipient) {
-            const select = document.getElementById('recipientSelect');
-            if (select) select.value = state.currentRecipient;
+            `;
+            
+            // Set the selected recipient
+            if (state.currentRecipient) {
+                const select = document.getElementById('recipientSelect');
+                if (select) select.value = state.currentRecipient;
+            }
+            
+            // Scroll to bottom if not in video call
+            if (!state.isMinimized && !state.inVideoCall) {
+                const messagesList = document.getElementById('messagesList');
+                if (messagesList) messagesList.scrollTop = messagesList.scrollHeight;
+            }
+        } else {
+            container.innerHTML = '';
         }
-        
-        // Scroll to bottom
-        if (!state.isMinimized) {
-            const messagesList = document.getElementById('messagesList');
-            if (messagesList) messagesList.scrollTop = messagesList.scrollHeight;
-        }
-    } else {
-        container.innerHTML = '';
     }
-}
+
+    // Video call functions
+    async function handleVideoCall(e, isInCall) {
+        e.stopPropagation();
+        if (isInCall) {
+            endVideoCall();
+        } else {
+            await startVideoCall();
+        }
+    }
+
+    async function startVideoCall() {
+        const recipient = document.getElementById('recipientSelect').value;
+        if (recipient === "all") {
+            alert("Video calls are only available for private chats");
+            return;
+        }
+
+        try {
+            // Get local media
+            localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+            
+            // Update chat state
+            const chatState = JSON.parse(sessionStorage.getItem('chatState')) || {};
+            chatState.inVideoCall = true;
+            currentCallRecipient = recipient;
+            sessionStorage.setItem('chatState', JSON.stringify(chatState));
+            
+            // Initialize WebRTC
+            await initializePeerConnection();
+            
+            // Notify recipient via SignalR
+            isCaller = true;
+            await window.chatConnection.invoke("InitiateVideoCall", recipient);
+            
+            renderChatWindow(chatState);
+            
+        } catch (err) {
+            console.error("Error starting video call:", err);
+            alert("Could not access camera/microphone");
+        }
+    }
+
+    async function initializePeerConnection() {
+        const configuration = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+        peerConnection = new RTCPeerConnection(configuration);
+        
+        // Add local stream to connection
+        localStream.getTracks().forEach(track => {
+            peerConnection.addTrack(track, localStream);
+        });
+        
+        // Handle remote stream
+        peerConnection.ontrack = (event) => {
+            remoteStream = event.streams[0];
+            document.getElementById('remote-video').srcObject = remoteStream;
+        };
+        
+        // ICE candidate handling
+        peerConnection.onicecandidate = (event) => {
+            if (event.candidate && currentCallRecipient) {
+                window.chatConnection.invoke("SendIceCandidate", currentCallRecipient, JSON.stringify(event.candidate));
+            }
+        };
+    }
+
+    function endVideoCall() {
+        // Close connections
+        if (peerConnection) {
+            peerConnection.close();
+            peerConnection = null;
+        }
+        
+        // Stop media streams
+        if (localStream) {
+            localStream.getTracks().forEach(track => track.stop());
+            localStream = null;
+        }
+        
+        // Update chat state
+        const chatState = JSON.parse(sessionStorage.getItem('chatState')) || {};
+        chatState.inVideoCall = false;
+        sessionStorage.setItem('chatState', JSON.stringify(chatState));
+        
+        // Notify other participant if we initiated the call
+        if (isCaller && currentCallRecipient) {
+            window.chatConnection.invoke("EndVideoCall", currentCallRecipient);
+        }
+        
+        currentCallRecipient = null;
+        isCaller = false;
+        renderChatWindow(chatState);
+    }
+
+    // SignalR initialization with video call handlers
+    function initializeSignalR(state) {
+        if (!window.chatConnection) {
+            window.chatConnection = new signalR.HubConnectionBuilder()
+                .withUrl("/chatHub")
+                .configureLogging(signalR.LogLevel.Information)
+                .build();
+
+            // Existing message handler
+            window.chatConnection.on("ReceivePrivateMessage", (sender, message, isGroup) => {
+                const chatState = JSON.parse(sessionStorage.getItem('chatState')) || {};
+                if (!chatState.messages) chatState.messages = [];
+                
+                chatState.messages.push({
+                    sender: sender,
+                    recipient: isGroup ? "all" : "@currentUser.UserName",
+                    text: message,
+                    isGroup: isGroup,
+                    isSent: sender === "@currentUser.UserName",
+                    timestamp: new Date().toISOString()
+                });
+                
+                sessionStorage.setItem('chatState', JSON.stringify(chatState));
+                renderChatWindow(chatState);
+            });
+
+            // Video call handlers
+            window.chatConnection.on("ReceiveVideoCall", async (caller) => {
+                if (confirm(`${caller} is calling you. Accept?`)) {
+                    try {
+                        localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+                        
+                        // Update chat state
+                        const chatState = JSON.parse(sessionStorage.getItem('chatState')) || {};
+                        chatState.inVideoCall = true;
+                        currentCallRecipient = caller;
+                        sessionStorage.setItem('chatState', JSON.stringify(chatState));
+                        
+                        await initializePeerConnection();
+                        await window.chatConnection.invoke("AcceptVideoCall", caller);
+                        
+                        renderChatWindow(chatState);
+                    } catch (err) {
+                        console.error("Error accepting call:", err);
+                        await window.chatConnection.invoke("RejectVideoCall", caller);
+                    }
+                } else {
+                    await window.chatConnection.invoke("RejectVideoCall", caller);
+                }
+            });
+
+            window.chatConnection.on("ReceiveAnswer", async (answer) => {
+                if (peerConnection && answer !== "rejected") {
+                    await peerConnection.setRemoteDescription(JSON.parse(answer));
+                    
+                    if (isCaller) {
+                        // Create answer if we're the caller
+                        const answer = await peerConnection.createAnswer();
+                        await peerConnection.setLocalDescription(answer);
+                        await window.chatConnection.invoke("SendAnswer", currentCallRecipient, JSON.stringify(answer));
+                    }
+                } else if (answer === "rejected") {
+                    alert("Call was rejected");
+                    endVideoCall();
+                }
+            });
+
+            window.chatConnection.on("ReceiveIceCandidate", async (candidate) => {
+                if (peerConnection) {
+                    await peerConnection.addIceCandidate(JSON.parse(candidate));
+                }
+            });
+
+            window.chatConnection.on("CallEnded", () => {
+                alert("The other participant has ended the call");
+                endVideoCall();
+            });
+
+            window.chatConnection.start().catch(err => console.error(err));
+        }
+    }
 
     function toggleChat(e) {
         if (e) e.stopPropagation();
@@ -434,15 +640,12 @@ function renderChatWindow(state) {
                             <li class="nav-item dropdown">
                                 <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown" aria-expanded="false">Táv és csoportmunka</a>
                                 <ul class="dropdown-menu">
-                                    <li><a class="dropdown-item" asp-area="" asp-page="/Logistics/Products/Index">Video meeting</a></li>
-                                    <li><a class="dropdown-item" asp-area="" asp-page="/Logistics/Products/Index">Feladatok</a></li>
-                                    <li><a class="dropdown-item" asp-area="" asp-page="/GroupRemote/Chat/Index">Chat</a></li>
-                                    <!-- Add this to your navbar -->
-<li class="dropdown-item">
-    <button class="btn btn-outline-light ms-2" onclick="toggleChat()">
-        <i class="bi bi-chat-left-text"></i> Chat
-    </button>
-</li>
+                                    <li><a class="dropdown-item" asp-area="" asp-page="/GroupRemote/Index">Feladatok</a></li>
+                                    <li class="dropdown-item">
+                                        <button class="dropdown-item" onclick="toggleChat()">
+                                            <i class="bi bi-chat-left-text"></i> Chat
+                                        </button>
+                                    </li>
                                 </ul>
                             </li>
                         </ul>

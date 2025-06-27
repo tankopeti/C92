@@ -40,7 +40,11 @@ namespace Cloud9_2.Models
 
         [DataType(DataType.Currency)]
         [Display(Name = "Kedvezmény összeg")]
-        public decimal? DiscountAmount { get; set; }
+        public decimal? QuoteDiscountAmount { get; set; }
+
+        [DataType(DataType.Currency)]
+        [Display(Name = "Tételek kedvezménye")]
+        public decimal? TotalItemDiscounts { get; set; }
 
         [StringLength(100)]
         [Display(Name = "Cég neve")]
@@ -78,12 +82,17 @@ namespace Cloud9_2.Models
         [Display(Name = "Partner")]
         public int PartnerId { get; set; }
 
-        [ForeignKey("PartnerId")]
-        public Partner? Partner { get; set; }
-
         [Required]
         [Display(Name = "Pénznem")]
-        public int CurrencyId { get; set; } // Changed to int
+        public int CurrencyId { get; set; }
+
+        [StringLength(100)]
+        [Display(Name = "Referenciaszám")]
+        public string? ReferenceNumber { get; set; }
+
+        // Navigation properties
+        [ForeignKey("PartnerId")]
+        public Partner? Partner { get; set; }
 
         [ForeignKey("CurrencyId")]
         public Currency? Currency { get; set; }
@@ -91,15 +100,10 @@ namespace Cloud9_2.Models
         [Display(Name = "Tételek")]
         public List<QuoteItem>? QuoteItems { get; set; } = new List<QuoteItem>();
 
-        [StringLength(100)]
-        [Display(Name = "Referenciaszám")]
-        public string? ReferenceNumber { get; set; }
-
-        // Navigation property for history
         public List<QuoteHistory>? QuoteHistories { get; set; }
 
-        // Navigation property for Orders (one-to-many)
-        public ICollection<Order> Orders { get; set; } = new List<Order>();
+        public ICollection<Order>? Orders { get; set; } = new List<Order>();
+
         public ICollection<CustomerCommunication>? Communications { get; set; }
     }
 }

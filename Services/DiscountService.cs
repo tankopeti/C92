@@ -83,6 +83,7 @@ namespace Cloud9_2.Services
                     case "quote":
                         var quoteItem = await _context.QuoteItems
                             .Include(qi => qi.Quote)
+                            .Include(qi => qi.Discount)
                             .FirstOrDefaultAsync(qi => qi.QuoteItemId == discountDto.ItemId);
                         if (quoteItem == null)
                             throw new ArgumentException($"QuoteItem with ID {discountDto.ItemId} not found");
@@ -91,7 +92,7 @@ namespace Cloud9_2.Services
                         productId = quoteItem.ProductId;
                         partnerId = quoteItem.Quote.PartnerId;
                         quantity = quoteItem.Quantity;
-                        basePrice = quoteItem.UnitPrice; // Use QuoteItem.ListPrice
+                        basePrice = quoteItem.NetDiscountedPrice; // Use QuoteItem.ListPrice
                         break;
                     case "order":
                         var orderItem = await _context.OrderItems
@@ -204,7 +205,7 @@ namespace Cloud9_2.Services
                 {
                     case "quote":
                         var quoteItem = await _context.QuoteItems.FindAsync(discountDto.ItemId);
-                        quoteItem.UnitPrice = unitPrice;
+                        quoteItem.NetDiscountedPrice = unitPrice;
                         quoteItem.TotalPrice = unitPrice * quantity;
                         break;
                 }
@@ -249,7 +250,7 @@ namespace Cloud9_2.Services
                         productId = quoteItem.ProductId;
                         partnerId = quoteItem.Quote.PartnerId;
                         quantity = quoteItem.Quantity;
-                        basePrice = quoteItem.UnitPrice;
+                        basePrice = quoteItem.NetDiscountedPrice;
                         break;
                     default:
                         throw new ArgumentException($"Invalid entity type: {entityType}");
@@ -340,7 +341,7 @@ namespace Cloud9_2.Services
                         quoteDiscount.VolumeThreshold = discountDto.VolumeThreshold;
                         quoteDiscount.VolumePrice = discountDto.VolumePrice;
                         var quoteItemUpdate = await _context.QuoteItems.FindAsync(itemId);
-                        quoteItemUpdate.UnitPrice = unitPrice;
+                        quoteItemUpdate.NetDiscountedPrice = unitPrice;
                         quoteItemUpdate.TotalPrice = unitPrice * quantity;
                         break;
                 }
@@ -393,8 +394,8 @@ namespace Cloud9_2.Services
                         var productPrice = await _context.ProductPrices
                             .Where(pp => pp.ProductId == quoteItem.ProductId && pp.IsActive)
                             .FirstOrDefaultAsync();
-                        decimal basePrice = productPrice?.SalesPrice ?? quoteItem.UnitPrice;
-                        quoteItem.UnitPrice = basePrice;
+                        decimal basePrice = productPrice?.SalesPrice ?? quoteItem.NetDiscountedPrice;
+                        quoteItem.NetDiscountedPrice = basePrice;
                         quoteItem.TotalPrice = basePrice * quoteItem.Quantity;
                     }
                 }

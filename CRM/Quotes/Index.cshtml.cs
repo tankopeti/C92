@@ -180,8 +180,8 @@ namespace Cloud9_2.Pages.CRM.Quotes
             if (oldQuote.DiscountPercentage != newQuote.DiscountPercentage)
                 changes.Add(("DiscountPercentage", oldQuote.DiscountPercentage?.ToString("F2"), newQuote.DiscountPercentage?.ToString("F2")));
 
-            if (oldQuote.DiscountAmount != newQuote.DiscountAmount)
-                changes.Add(("DiscountAmount", oldQuote.DiscountAmount?.ToString("F2"), newQuote.DiscountAmount?.ToString("F2")));
+            // if (oldQuote.DiscountAmount != newQuote.DiscountAmount)
+            //     changes.Add(("DiscountAmount", oldQuote.DiscountAmount?.ToString("F2"), newQuote.DiscountAmount?.ToString("F2")));
 
             if (oldQuote.CompanyName != newQuote.CompanyName)
                 changes.Add(("CompanyName", oldQuote.CompanyName, newQuote.CompanyName));

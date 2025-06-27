@@ -1,8 +1,5 @@
 using System;
-using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
-using Microsoft.AspNetCore.Mvc;
-using System.ComponentModel.DataAnnotations.Schema;
 
 namespace Cloud9_2.Models
 {
@@ -63,7 +60,7 @@ public class OrderDto
         public decimal? DiscountPercentage { get; set; }
         [DataType(DataType.Currency)]
         public decimal? DiscountAmount { get; set; }
-        [NotMapped]
+        // [NotMapped]
         public decimal TotalPrice => Quantity * UnitPrice - (DiscountAmount ?? (DiscountPercentage.HasValue ? (Quantity * UnitPrice * DiscountPercentage.Value / 100) : 0));
     }
 

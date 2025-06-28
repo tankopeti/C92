@@ -68,6 +68,13 @@ namespace Cloud9_2.Services
 
         public async Task<TaskPMDto> CreateTaskAsync(TaskPMCreateDto createDto, string userId)
         {
+            // var userId = _userService.GetCurrentUserId();
+
+            if (string.IsNullOrEmpty(userId))
+            {
+                throw new UnauthorizedAccessException("User not authenticated");
+            }
+
             var task = new TaskPM
             {
                 Title = createDto.Title,

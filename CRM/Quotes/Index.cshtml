@@ -991,129 +991,6 @@
                 .catch(error => console.error('Failed to fetch VAT types:', error));
         }
 
-        // Modal initialization
-        function initializeModals() {
-            const newQuoteModal = document.getElementById('newQuoteModal');
-            if (newQuoteModal) {
-                newQuoteModal.addEventListener('shown.bs.modal', function () {
-                    console.log('New quote modal shown for quoteId: new');
-                    initializeEventListeners('new');
-                    calculateQuoteTotals('new');
-                });
-                newQuoteModal.addEventListener('hidden.bs.modal', function () {
-                    console.log('New Quote Modal closed, resetting forms');
-                    const baseInfoForm = document.getElementById('quoteBaseInfoForm_new');
-                    if (baseInfoForm) {
-                        baseInfoForm.reset();
-                        baseInfoForm.querySelector('[name="quoteDate"]').value = new Date().toISOString().split('T')[0];
-                        baseInfoForm.querySelector('[name="validityDate"]').value = new Date(new Date().setDate(new Date().getDate() + 30)).toISOString().split('T')[0];
-                        baseInfoForm.querySelector('[name="status"]').value = 'Draft';
-                        const partnerSelect = baseInfoForm.querySelector('[name="partnerId"]');
-                        const currencySelect = baseInfoForm.querySelector('[name="currencyId"]');
-                        if (partnerSelect?.tomselect) partnerSelect.tomselect.destroy();
-                        if (currencySelect?.tomselect) currencySelect.tomselect.destroy();
-                    }
-                    const itemsForm = document.getElementById('quoteItemsForm_new');
-                    if (itemsForm) {
-                        const tbody = document.getElementById('items-tbody_new');
-                        if (tbody) {
-                            tbody.querySelectorAll('.quote-item-row, .description-row').forEach(row => {
-                                const productSelect = row.querySelector('.tom-select-product');
-                                const vatSelect = row.querySelector('.tom-select-vat');
-                                if (productSelect?.tomselect) productSelect.tomselect.destroy();
-                                if (vatSelect?.tomselect) vatSelect.tomselect.destroy();
-                                row.remove();
-                            });
-                            const totalAmount = tbody.querySelector('.quote-total-amount');
-                            const finalTotal = tbody.querySelector('.quote-final-total');
-                            if (totalAmount) totalAmount.textContent = '0.00';
-                            if (finalTotal) finalTotal.textContent = '0.00';
-                            const discountValue = itemsForm.querySelector('.quote-discount-value');
-                            const discountType = itemsForm.querySelector('.quote-discount-type');
-                            if (discountValue) discountValue.value = '';
-                            if (discountType) discountType.value = 'Percentage';
-                            addItemRow('new');
-                        }
-                    }
-                });
-            }
-
-            // Initialize all TomSelect elements when modal is shown
-            document.querySelectorAll('[id^="editQuoteModal_"]').forEach(modal => {
-                modal.addEventListener('shown.bs.modal', function() {
-                    const quoteId = this.id.split('_')[1];
-                    
-                    // Initialize partner select
-                    const partnerSelect = this.querySelector('select[name="partnerId"]');
-                    if (partnerSelect && !partnerSelect.tomselect) {
-                        initializePartnerTomSelect(partnerSelect, quoteId);
-                    }
-
-                    // Initialize currency select
-                    const currencySelect = this.querySelector('select[name="currencyId"]');
-                    if (currencySelect && !currencySelect.tomselect) {
-                        initializeCurrencyTomSelect(currencySelect);
-                    }
-
-                    // Initialize all VAT selects
-                    this.querySelectorAll('.tom-select-vat').forEach(vatSelect => {
-                        if (!vatSelect.tomselect) {
-                            initializeVatTomSelect(vatSelect);
-                        }
-                    });
-
-                    // Initialize product selects for existing items
-                    this.querySelectorAll('.tom-select-product').forEach(productSelect => {
-                        if (!productSelect.tomselect) {
-                            initializeProductTomSelect(productSelect, quoteId);
-                        }
-                    });
-                });
-            });
-        }
-
-        // Copy quote functionality
-        function initializeCopyQuote() {
-            function showToast(type, message) {
-                const toast = $(`<div class="toast align-items-center text-white bg-${type} border-0" role="alert" aria-live="assertive" aria-atomic="true">
-                    <div class="d-flex">
-                        <div class="toast-body">${message}</div>
-                        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
-                    </div>
-                </div>`);
-                $('#toastContainer').append(toast);
-                const bsToast = new bootstrap.Toast(toast[0]);
-                bsToast.show();
-                setTimeout(() => toast.remove(), 5500);
-            }
-
-            document.querySelectorAll('.copy-quote-btn').forEach(button => {
-                button.addEventListener('click', function (e) {
-                    e.preventDefault();
-                    const quoteId = this.getAttribute('data-quote-id');
-                    fetch(`/api/Quotes/${quoteId}/copy`, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]').value
-                        }
-                    })
-                    .then(response => {
-                        if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
-                        return response.json();
-                    })
-                    .then(result => {
-                        showToast('success', `Árajánlat sikeresen másolva! Új szám: ${result.quoteNumber}`);
-                        setTimeout(() => location.reload(), 3000);
-                    })
-                    .catch(error => {
-                        showToast('error', 'Hiba történt a másolás során: ' + error.message);
-                        console.error('[Error] Copy quote error:', error);
-                    });
-                });
-            });
-        }
-
         // Product TomSelect initialization
         function initializeProductTomSelect(select, quoteId) {
             if (typeof TomSelect === 'undefined') {
@@ -1232,6 +1109,131 @@
             }
 
             fetchProducts(quantityInput.value);
+        }
+
+
+        // Modal initialization
+        function initializeModals() {
+            const newQuoteModal = document.getElementById('newQuoteModal');
+            if (newQuoteModal) {
+                newQuoteModal.addEventListener('shown.bs.modal', function () {
+                    console.log('New quote modal shown for quoteId: new');
+                    initializeEventListeners('new');
+                    calculateQuoteTotals('new');
+                });
+                newQuoteModal.addEventListener('hidden.bs.modal', function () {
+                    console.log('New Quote Modal closed, resetting forms');
+                    const baseInfoForm = document.getElementById('quoteBaseInfoForm_new');
+                    if (baseInfoForm) {
+                        baseInfoForm.reset();
+                        baseInfoForm.querySelector('[name="quoteDate"]').value = new Date().toISOString().split('T')[0];
+                        baseInfoForm.querySelector('[name="validityDate"]').value = new Date(new Date().setDate(new Date().getDate() + 30)).toISOString().split('T')[0];
+                        baseInfoForm.querySelector('[name="status"]').value = 'Draft';
+                        const partnerSelect = baseInfoForm.querySelector('[name="partnerId"]');
+                        const currencySelect = baseInfoForm.querySelector('[name="currencyId"]');
+                        if (partnerSelect?.tomselect) partnerSelect.tomselect.destroy();
+                        if (currencySelect?.tomselect) currencySelect.tomselect.destroy();
+                    }
+                    const itemsForm = document.getElementById('quoteItemsForm_new');
+                    if (itemsForm) {
+                        const tbody = document.getElementById('items-tbody_new');
+                        if (tbody) {
+                            tbody.querySelectorAll('.quote-item-row, .description-row').forEach(row => {
+                                const productSelect = row.querySelector('.tom-select-product');
+                                const vatSelect = row.querySelector('.tom-select-vat');
+                                if (productSelect?.tomselect) productSelect.tomselect.destroy();
+                                if (vatSelect?.tomselect) vatSelect.tomselect.destroy();
+                                row.remove();
+                            });
+                            const totalAmount = tbody.querySelector('.quote-total-amount');
+                            const finalTotal = tbody.querySelector('.quote-final-total');
+                            if (totalAmount) totalAmount.textContent = 0.00;
+                            if (finalTotal) finalTotal.textContent = '0.00';
+                            const discountValue = itemsForm.querySelector('.quote-discount-value');
+                            const discountType = itemsForm.querySelector('.quote-discount-type');
+                            if (discountValue) discountValue.value = '';
+                            if (discountType) discountType.value = 'Percentage';
+                            addItemRow('new');
+                        }
+                    }
+                });
+            }
+
+
+            // Initialize all TomSelect elements when modal is shown
+            document.querySelectorAll('[id^="editQuoteModal_"]').forEach(modal => {
+                modal.addEventListener('shown.bs.modal', function() {
+                    const quoteId = this.id.split('_')[1];
+                    
+                    // Initialize partner select
+                    const partnerSelect = this.querySelector('select[name="partnerId"]');
+                    if (partnerSelect && !partnerSelect.tomselect) {
+                        initializePartnerTomSelect(partnerSelect, quoteId);
+                    }
+
+                    // Initialize currency select
+                    const currencySelect = this.querySelector('select[name="currencyId"]');
+                    if (currencySelect && !currencySelect.tomselect) {
+                        initializeCurrencyTomSelect(currencySelect);
+                    }
+
+                    // Initialize all VAT selects
+                    this.querySelectorAll('.tom-select-vat').forEach(vatSelect => {
+                        if (!vatSelect.tomselect) {
+                            initializeVatTomSelect(vatSelect);
+                        }
+                    });
+
+                    // Initialize product selects for existing items
+                    this.querySelectorAll('.tom-select-product').forEach(productSelect => {
+                        if (!productSelect.tomselect) {
+                            initializeProductTomSelect(productSelect, quoteId);
+                        }
+                    });
+                });
+            });
+        }
+
+        // Copy quote functionality
+        function initializeCopyQuote() {
+            function showToast(type, message) {
+                const toast = $(`<div class="toast align-items-center text-white bg-${type} border-0" role="alert" aria-live="assertive" aria-atomic="true">
+                    <div class="d-flex">
+                        <div class="toast-body">${message}</div>
+                        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+                    </div>
+                </div>`);
+                $('#toastContainer').append(toast);
+                const bsToast = new bootstrap.Toast(toast[0]);
+                bsToast.show();
+                setTimeout(() => toast.remove(), 5500);
+            }
+
+            document.querySelectorAll('.copy-quote-btn').forEach(button => {
+                button.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    const quoteId = this.getAttribute('data-quote-id');
+                    fetch(`/api/Quotes/${quoteId}/copy`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]').value
+                        }
+                    })
+                    .then(response => {
+                        if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
+                        return response.json();
+                    })
+                    .then(result => {
+                        showToast('success', `Árajánlat sikeresen másolva! Új szám: ${result.quoteNumber}`);
+                        setTimeout(() => location.reload(), 3000);
+                    })
+                    .catch(error => {
+                        showToast('error', 'Hiba történt a másolás során: ' + error.message);
+                        console.error('[Error] Copy quote error:', error);
+                    });
+                });
+            });
         }
 
         // Update price fields
@@ -2186,7 +2188,7 @@ function saveQuote(quoteId) {
         CurrencyId: parseInt(currencyId),
         QuoteDate: baseData.get('quoteDate') || null,
         Status: statusMapping[baseData.get('status')] || baseData.get('status'),
-        TotalAmount: totalAmount || 0,
+        TotalAmount: calculateQuoteTotals(quoteId).totalNet || 0,
         SalesPerson: baseData.get('salesPerson') || '',
         ValidityDate: baseData.get('validityDate') || null,
         Subject: baseData.get('subject') || '',
@@ -2236,20 +2238,20 @@ function saveQuote(quoteId) {
             itemsData.get(`QuoteItems[${itemId}].DiscountPercentage`) ||
             itemsData.get(`QuoteItems[${itemId}].DiscountAmount`)
         ) || 0;
+
+        const dataset = row.dataset;
+
+        const netPrice = parseFloat(dataset.netDiscountedPrice) || 0;
+        const totalPrice = parseFloat(dataset.totalPrice) || 0;
+
         const item = {
             ProductId: parseInt(productId),
             Quantity: quantity,
             UnitPrice: unitPrice,
+            NetDiscountedPrice: netPrice,
             ItemDescription: itemsData.get(`items[${index}][itemDescription]`) || itemsData.get(`QuoteItems[${itemId}].ItemDescription`) || '',
             VatTypeId: vatTypeId,
-            Discount: discountType !== 'NoDiscount' ? {
-                DiscountType: discountType,
-                DiscountPercentage: discountType === 'CustomDiscountPercentage' ? discountValue : null,
-                DiscountAmount: discountType === 'CustomDiscountAmount' ? discountValue : null,
-                PartnerPrice: discountType === 'PartnerPrice' ? discountValue : null,
-                VolumeThreshold: parseInt(itemsData.get(`items[${index}][discount][volumeThreshold]`) || itemsData.get(`QuoteItems[${itemId}].VolumeThreshold`)) || null,
-                VolumePrice: discountType === 'VolumeDiscount' ? discountValue : null
-            } : null
+            Discount: null
         };
         quoteItems.push({ item, isNew: quoteId === 'new' });
         quoteDto.Items.push(item);

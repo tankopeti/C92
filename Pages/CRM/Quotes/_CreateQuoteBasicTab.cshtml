@@ -1,0 +1,63 @@
+@using Cloud9_2.Models 
+@model Quote
+
+<div class="row g-3">
+    <div class="col-md-6">
+        <label asp-for="QuoteNumber" class="form-label"></label>
+        <input asp-for="QuoteNumber" class="form-control">
+    </div>
+    <div class="col-md-6">
+        <label asp-for="QuoteDate" class="form-label"></label>
+        <input asp-for="QuoteDate" class="form-control">
+    </div>
+    <div class="col-md-6">
+        <label asp-for="PartnerId" class="form-label"></label>
+        <select asp-for="PartnerId" class="form-select" required>
+            <option value="">-- Válasszon Partnert --</option>
+            @foreach (var partner in ViewData["Partners"] as List<Partner>)
+            {
+                <option value="@partner.PartnerId">@partner.Name</option>
+            }
+        </select>
+    </div>
+    <div class="col-12">
+        <label asp-for="Description" class="form-label"></label>
+        <select asp-for="Description" class="form-select">
+            <option value="Draft">Piszkozat</option>
+            <option value="Sent">Elküldve</option>
+            <option value="Accepted">Elfogadva</option>
+        </select>
+    </div>
+    <div class="col-md-6">
+        <label asp-for="TotalAmount" class="form-label"></label>
+        <input asp-for="TotalAmount" type="number" step="0.01" class="form-control">
+    </div>
+    <div class="col-md-6">
+        <label asp-for="SalesPerson" class="form-label"></label>
+        <input asp-for="SalesPerson" class="form-control">
+    </div>
+    <div class="col-md-6">
+        <label asp-for="ValidityDate" class="form-label"></label>
+        <input asp-for="ValidityDate" class="form-control">
+    </div>
+    <div class="col-md-4">
+        <label asp-for="DiscountPercentage" class="form-label"></label>
+        <input asp-for="DiscountPercentage" type="number" step="0.01" min="0" max="100" class="form-control">
+    </div>
+    <div class="col-md-4">
+        @* <label asp-for="DiscountAmount" class="form-label"></label>
+        <input asp-for="DiscountAmount" type="number" step="0.01" class="form-control"> *@
+    </div>
+    <div class="col-md-4">
+        <label asp-for="CompanyName" class="form-label"></label>
+        <input asp-for="CompanyName" class="form-control">
+    </div>
+    <div class="col-12">
+        <label asp-for="Subject" class="form-label"></label>
+        <input asp-for="Subject" class="form-control">
+    </div>
+    <div class="col-12">
+        <label asp-for="DetailedDescription" class="form-label"></label>
+        <textarea asp-for="DetailedDescription" class="form-control" rows="4"></textarea>
+    </div>
+</div>

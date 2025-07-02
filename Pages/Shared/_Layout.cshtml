@@ -1,77 +1,1013 @@
-﻿<!DOCTYPE html>
-<html lang="en">
+﻿
+@using Microsoft.AspNetCore.Identity
+@using Cloud9_2.Models
+@inject SignInManager<ApplicationUser> SignInManager
+@inject UserManager<ApplicationUser> UserManager
+
+@{
+    var currentUser = await UserManager.GetUserAsync(User);
+    var allUsers = UserManager.Users.ToList();
+    var otherUsers = allUsers.Where(u => u.Id != currentUser.Id).ToList();
+}
+
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>@ViewData["Title"] - Cloud9._2</title>
+    <meta name="api-base-url" content="/api" />
+    <title>@ViewData["Title"] - Cloud9.2</title>
+    <!-- Bootstrap CSS -->
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&display=swap" rel="stylesheet">
+    <!-- Select2 CSS -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/css/select2.min.css" rel="stylesheet" />
+    <!-- Select2 Bootstrap 5 Theme -->
+    <link href="https://cdn.jsdelivr.net/npm/@@ttskch/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" rel="stylesheet" />
+    <!-- Custom CSS -->
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
-    <link rel="stylesheet" href="~/Cloud9._2.styles.css" asp-append-version="true" />
+
+    @RenderSection("Styles", required: false)
+
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css" rel="stylesheet" />
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <!-- jQuery UI for sortable -->
+    <script src="https://code.jquery.com/ui/1.13.1/jquery-ui.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/choices.js/public/assets/styles/choices.min.css" />
+
+        <link rel="stylesheet" href="~/Pages/CRM/Quotes/Quotes.css" />
+
 </head>
-<body>
+<!-- Add this before </body> -->
+<div id="persistent-chat-container" style="position: fixed; bottom: 20px; right: 20px; z-index: 1000;">
+    <!-- Chat will be rendered here -->
+</div>
 
-        <main role="main" class="pb-3"> 
-            @RenderBody()
-         </main>
+<style>
+    .chat-card {
+        width: 300px;
+        background-color: #fff;
+        border-radius: 5px;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        max-height: 500px;
+    }
 
+    .chat-header {
+        padding: 10px;
+        background-color: #f2f2f2;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        cursor: pointer;
+    }
 
-    <script src="~/lib/jquery/dist/jquery.min.js"></script>
-    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="~/js/site.js" asp-append-version="true"></script>
-    <script src="~/js/packery.pkgd.min.js"></script>
-    <script src="~/js/draggabilly.pkgd.min.js"></script>
-    <script src="~/js/imagesloaded.pkgd.min.js"></script>
-    <script>
-        document.addEventListener('DOMContentLoaded', function () {
-            var grid = document.querySelector('.grid');
-            var pckry = new Packery(grid, {
-                itemSelector: '.grid-item',
-                gutter: 10,
-                columnWidth: 200,
-                percentPosition: true,
-            });
+    .chat-header .h2 {
+        font-size: 16px;
+        color: #333;
+        margin: 0;
+    }
 
-            imagesLoaded(grid, function () {
-                pckry.layout();
-            });
+    .chat-body {
+        padding: 20px;
+        overflow-y: auto;
+        flex-grow: 1;
+        background-color: #fff;
+    }
 
-            pckry.getItemElements().forEach(function (itemElem) {
-                var draggie = new Draggabilly(itemElem);
-                pckry.bindDraggabillyEvents(draggie);
-            });
+    .message {
+        margin-bottom: 10px;
+        padding: 10px;
+        border-radius: 5px;
+        animation: chatAnimation 0.3s ease-in-out;
+        animation-fill-mode: both;
+    }
+
+    .incoming {
+        background-color: #e1e1e1;
+    }
+
+    .outgoing {
+        background-color: #f2f2f2;
+        text-align: right;
+    }
+
+    .message p {
+        font-size: 14px;
+        color: #333;
+        margin: 0;
+    }
+
+    .message .sender {
+        font-size: 12px;
+        color: #666;
+        margin-bottom: 5px;
+    }
+
+    .chat-footer {
+        padding: 10px;
+        background-color: #f2f2f2;
+        display: flex;
+        gap: 5px;
+    }
+
+    .chat-footer select {
+        width: 100%;
+        padding: 5px;
+        border: 1px solid #ddd;
+        border-radius: 3px;
+        margin-bottom: 5px;
+    }
+
+    .chat-footer input[type="text"] {
+        flex-grow: 1;
+        padding: 5px;
+        border: 1px solid #ddd;
+        border-radius: 3px;
+    }
+
+    .chat-footer button {
+        padding: 5px 10px;
+        border: none;
+        background-color: #4285f4;
+        color: #fff;
+        font-weight: bold;
+        cursor: pointer;
+        border-radius: 3px;
+        transition: background-color 0.3s;
+    }
+
+    .chat-footer button:hover {
+        background-color: #0f9d58;
+    }
+
+    .minimized .chat-body,
+    .minimized .chat-footer {
+        display: none;
+    }
+
+    .toggle-btn {
+        background: none;
+        border: none;
+        cursor: pointer;
+        padding: 0 5px;
+    }
+    .chat-recipient {
+        font-size: 12px;
+        color: #666;
+        margin-top: 3px;
+    }
+</style>
+
+<script>
+    // WebRTC variables
+    let localStream;
+    let remoteStream;
+    let peerConnection;
+    let isCaller = false;
+    let currentCallRecipient = null;
+
+    // Chat state management
+    document.addEventListener('DOMContentLoaded', function() {
+        const chatState = JSON.parse(sessionStorage.getItem('chatState')) || {
+            isOpen: false,
+            isMinimized: false,
+            currentRecipient: 'all',
+            messages: [],
+            inVideoCall: false
+        };
+        
+        if (chatState.isOpen) {
+            renderChatWindow(chatState);
+            initializeSignalR(chatState);
+        }
+    });
+
+    function renderChatWindow(state) {
+        const container = document.getElementById('persistent-chat-container');
+        
+        if (state.isOpen) {
+            // Generate recipient options HTML
+            let recipientOptions = '<option value="all">🗣️ Group Chat</option>';
+            @foreach (var user in otherUsers)
+            {
+                @:recipientOptions += `<option value="@user.UserName" ${state.currentRecipient === '@user.UserName' ? 'selected' : ''}>@user.UserName</option>`;
+            }
+
+            container.innerHTML = `
+                <div class="chat-card ${state.isMinimized ? 'minimized' : ''}">
+                    <div class="chat-header" onclick="toggleMinimize()">
+                        <div>
+                            <div class="h2">Chat</div>
+                            <div class="chat-recipient">
+                                ${state.currentRecipient === 'all' ? 'Group Chat' : 'To: ' + state.currentRecipient}
+                                ${state.inVideoCall ? ' (In Call)' : ''}
+                            </div>
+                        </div>
+                        <div>
+                            ${state.currentRecipient !== 'all' ? `
+                                <button class="toggle-btn" onclick="handleVideoCall(event, ${state.inVideoCall})">
+                                    <i class="bi ${state.inVideoCall ? 'bi-camera-video-off' : 'bi-camera-video'}"></i>
+                                </button>
+                            ` : ''}
+                            <button class="toggle-btn" onclick="toggleMinimize(event)">
+                                <i class="bi ${state.isMinimized ? 'bi-chevron-up' : 'bi-chevron-down'}"></i>
+                            </button>
+                            <button class="toggle-btn" onclick="toggleChat(event)">
+                                <i class="bi bi-x"></i>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    ${state.isMinimized ? '' : `
+                    ${state.inVideoCall ? `
+                        <div id="video-container">
+                            <div style="display: flex; gap: 10px; background: #000; padding: 10px;">
+                                <video id="local-video" autoplay muted style="width: 120px; height: 90px; border: 2px solid #4285f4;"></video>
+                                <video id="remote-video" autoplay style="flex-grow: 1; max-height: 300px;"></video>
+                            </div>
+                            <div style="text-align: center; margin-top: 10px;">
+                                <button class="btn btn-danger" onclick="endVideoCall()">
+                                    <i class="bi bi-telephone-x"></i> End Call
+                                </button>
+                            </div>
+                        </div>
+                    ` : `
+                        <div class="chat-body" id="messagesList">
+                            ${state.messages
+                                .filter(m => state.currentRecipient === 'all' 
+                                    ? m.isGroup 
+                                    : (m.sender === state.currentRecipient || m.recipient === state.currentRecipient))
+                                .map((m, index) => `
+                                <div class="message ${m.isSent ? 'outgoing' : 'incoming'}" 
+                                     style="animation-delay: ${index * 0.1}s">
+                                    ${!m.isSent ? `<div class="sender">${m.sender}</div>` : 
+                                      m.isGroup ? `<div class="sender">To Group</div>` : 
+                                      `<div class="sender">To: ${m.recipient}</div>`}
+                                    <p>${m.text}</p>
+                                    <div class="message-time">
+                                        ${new Date(m.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                        
+                        <div class="chat-footer">
+                            <select id="recipientSelect" onchange="updateRecipient(this.value)">
+                                ${recipientOptions}
+                            </select>
+                            <input type="text" id="messageInput" placeholder="Type your message">
+                            <button onclick="sendMessage()">Send</button>
+                        </div>
+                    `}
+                    `}
+                </div>
+            `;
+            
+            // Set the selected recipient
+            if (state.currentRecipient) {
+                const select = document.getElementById('recipientSelect');
+                if (select) select.value = state.currentRecipient;
+            }
+            
+            // Scroll to bottom if not in video call
+            if (!state.isMinimized && !state.inVideoCall) {
+                const messagesList = document.getElementById('messagesList');
+                if (messagesList) messagesList.scrollTop = messagesList.scrollHeight;
+            }
+        } else {
+            container.innerHTML = '';
+        }
+    }
+
+    // Video call functions
+    async function handleVideoCall(e, isInCall) {
+        e.stopPropagation();
+        if (isInCall) {
+            endVideoCall();
+        } else {
+            await startVideoCall();
+        }
+    }
+
+    async function startVideoCall() {
+        const recipient = document.getElementById('recipientSelect').value;
+        if (recipient === "all") {
+            alert("Video calls are only available for private chats");
+            return;
+        }
+
+        try {
+            // Get local media
+            localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+            
+            // Update chat state
+            const chatState = JSON.parse(sessionStorage.getItem('chatState')) || {};
+            chatState.inVideoCall = true;
+            currentCallRecipient = recipient;
+            sessionStorage.setItem('chatState', JSON.stringify(chatState));
+            
+            // Initialize WebRTC
+            await initializePeerConnection();
+            
+            // Notify recipient via SignalR
+            isCaller = true;
+            await window.chatConnection.invoke("InitiateVideoCall", recipient);
+            
+            renderChatWindow(chatState);
+            
+        } catch (err) {
+            console.error("Error starting video call:", err);
+            alert("Could not access camera/microphone");
+        }
+    }
+
+    async function initializePeerConnection() {
+        const configuration = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+        peerConnection = new RTCPeerConnection(configuration);
+        
+        // Add local stream to connection
+        localStream.getTracks().forEach(track => {
+            peerConnection.addTrack(track, localStream);
         });
-    </script>
+        
+        // Handle remote stream
+        peerConnection.ontrack = (event) => {
+            remoteStream = event.streams[0];
+            document.getElementById('remote-video').srcObject = remoteStream;
+        };
+        
+        // ICE candidate handling
+        peerConnection.onicecandidate = (event) => {
+            if (event.candidate && currentCallRecipient) {
+                window.chatConnection.invoke("SendIceCandidate", currentCallRecipient, JSON.stringify(event.candidate));
+            }
+        };
+    }
 
-    <script src="~/js/signalr.min.js"></script>
-    <script>
-        document.addEventListener('DOMContentLoaded', function () {
-            const connection = new signalR.HubConnectionBuilder()
-                .withUrl("/reportHub")
+    function endVideoCall() {
+        // Close connections
+        if (peerConnection) {
+            peerConnection.close();
+            peerConnection = null;
+        }
+        
+        // Stop media streams
+        if (localStream) {
+            localStream.getTracks().forEach(track => track.stop());
+            localStream = null;
+        }
+        
+        // Update chat state
+        const chatState = JSON.parse(sessionStorage.getItem('chatState')) || {};
+        chatState.inVideoCall = false;
+        sessionStorage.setItem('chatState', JSON.stringify(chatState));
+        
+        // Notify other participant if we initiated the call
+        if (isCaller && currentCallRecipient) {
+            window.chatConnection.invoke("EndVideoCall", currentCallRecipient);
+        }
+        
+        currentCallRecipient = null;
+        isCaller = false;
+        renderChatWindow(chatState);
+    }
+
+    // SignalR initialization with video call handlers
+    function initializeSignalR(state) {
+        if (!window.chatConnection) {
+            window.chatConnection = new signalR.HubConnectionBuilder()
+                .withUrl("/chatHub")
+                .configureLogging(signalR.LogLevel.Information)
                 .build();
 
-            connection.start().then(function () {
-                console.log("SignalR connected.");
-            }).catch(function (err) {
-                console.error("SignalR connection error: ", err);
-            });
-
-            document.querySelectorAll('#reportList a').forEach(function (link) {
-                link.addEventListener('click', function (e) {
-                    e.preventDefault();
-                    const reportName = this.getAttribute('data-report');
-                    connection.invoke("SwitchReport", reportName);
+            // Existing message handler
+            window.chatConnection.on("ReceivePrivateMessage", (sender, message, isGroup) => {
+                const chatState = JSON.parse(sessionStorage.getItem('chatState')) || {};
+                if (!chatState.messages) chatState.messages = [];
+                
+                chatState.messages.push({
+                    sender: sender,
+                    recipient: isGroup ? "all" : "@currentUser.UserName",
+                    text: message,
+                    isGroup: isGroup,
+                    isSent: sender === "@currentUser.UserName",
+                    timestamp: new Date().toISOString()
                 });
+                
+                sessionStorage.setItem('chatState', JSON.stringify(chatState));
+                renderChatWindow(chatState);
             });
 
-            connection.on("ReceiveReport", function (reportName) {
-                document.getElementById('reportTitle').textContent = reportName;
-                document.getElementById('reportContent').innerHTML = `<p>Loading ${reportName}...</p>`;
-                setTimeout(function () {
-                    document.getElementById('reportContent').innerHTML = `<p>This is the content of the ${reportName}.</p>`;
-                }, 1000);
+            // Video call handlers
+            window.chatConnection.on("ReceiveVideoCall", async (caller) => {
+                if (confirm(`${caller} is calling you. Accept?`)) {
+                    try {
+                        localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+                        
+                        // Update chat state
+                        const chatState = JSON.parse(sessionStorage.getItem('chatState')) || {};
+                        chatState.inVideoCall = true;
+                        currentCallRecipient = caller;
+                        sessionStorage.setItem('chatState', JSON.stringify(chatState));
+                        
+                        await initializePeerConnection();
+                        await window.chatConnection.invoke("AcceptVideoCall", caller);
+                        
+                        renderChatWindow(chatState);
+                    } catch (err) {
+                        console.error("Error accepting call:", err);
+                        await window.chatConnection.invoke("RejectVideoCall", caller);
+                    }
+                } else {
+                    await window.chatConnection.invoke("RejectVideoCall", caller);
+                }
             });
+
+            window.chatConnection.on("ReceiveAnswer", async (answer) => {
+                if (peerConnection && answer !== "rejected") {
+                    await peerConnection.setRemoteDescription(JSON.parse(answer));
+                    
+                    if (isCaller) {
+                        // Create answer if we're the caller
+                        const answer = await peerConnection.createAnswer();
+                        await peerConnection.setLocalDescription(answer);
+                        await window.chatConnection.invoke("SendAnswer", currentCallRecipient, JSON.stringify(answer));
+                    }
+                } else if (answer === "rejected") {
+                    alert("Call was rejected");
+                    endVideoCall();
+                }
+            });
+
+            window.chatConnection.on("ReceiveIceCandidate", async (candidate) => {
+                if (peerConnection) {
+                    await peerConnection.addIceCandidate(JSON.parse(candidate));
+                }
+            });
+
+            window.chatConnection.on("CallEnded", () => {
+                alert("The other participant has ended the call");
+                endVideoCall();
+            });
+
+            window.chatConnection.start().catch(err => console.error(err));
+        }
+    }
+
+    function toggleChat(e) {
+        if (e) e.stopPropagation();
+        const chatState = JSON.parse(sessionStorage.getItem('chatState')) || {
+            isOpen: false,
+            isMinimized: false,
+            currentRecipient: 'all',
+            messages: []
+        };
+        
+        chatState.isOpen = !chatState.isOpen;
+        if (chatState.isOpen) chatState.isMinimized = false;
+        sessionStorage.setItem('chatState', JSON.stringify(chatState));
+        renderChatWindow(chatState);
+        
+        if (chatState.isOpen && !window.chatConnection) {
+            initializeSignalR(chatState);
+        }
+    }
+
+    function toggleMinimize(e) {
+        if (e) e.stopPropagation();
+        const chatState = JSON.parse(sessionStorage.getItem('chatState'));
+        if (!chatState) return;
+        
+        chatState.isMinimized = !chatState.isMinimized;
+        sessionStorage.setItem('chatState', JSON.stringify(chatState));
+        renderChatWindow(chatState);
+    }
+
+    function updateRecipient(recipient) {
+        const chatState = JSON.parse(sessionStorage.getItem('chatState'));
+        if (!chatState) return;
+        
+        chatState.currentRecipient = recipient;
+        sessionStorage.setItem('chatState', JSON.stringify(chatState));
+        renderChatWindow(chatState);
+    }
+
+    function sendMessage() {
+    const input = document.getElementById('messageInput');
+    const message = input.value.trim();
+    const recipientSelect = document.getElementById('recipientSelect');
+    if (!recipientSelect) return;
+    
+    const recipient = recipientSelect.value;
+    
+    if (message && window.chatConnection) {
+        const chatState = JSON.parse(sessionStorage.getItem('chatState'));
+        const isGroup = recipient === "all";
+        
+        // Create the message object with all required fields
+        const newMessage = {
+            sender: "@currentUser.UserName",
+            recipient: isGroup ? "all" : recipient,
+            text: message,
+            isGroup: isGroup,
+            isSent: true,
+            timestamp: new Date().toISOString()
+        };
+
+        if (isGroup) {
+            window.chatConnection.invoke("SendGroupMessage", message)
+                .then(() => {
+                    chatState.messages.push(newMessage);
+                    sessionStorage.setItem('chatState', JSON.stringify(chatState));
+                    renderChatWindow(chatState);
+                })
+                .catch(err => console.error(err));
+        } else {
+            window.chatConnection.invoke("SendPrivateMessage", recipient, message)
+                .then(() => {
+                    chatState.messages.push(newMessage);
+                    sessionStorage.setItem('chatState', JSON.stringify(chatState));
+                    renderChatWindow(chatState);
+                })
+                .catch(err => console.error(err));
+        }
+        
+        input.value = '';
+        input.focus();
+    }
+}
+
+    function initializeSignalR(state) {
+        if (!window.chatConnection) {
+            window.chatConnection = new signalR.HubConnectionBuilder()
+                .withUrl("/chatHub")
+                .configureLogging(signalR.LogLevel.Information)
+                .build();
+
+            window.chatConnection.on("ReceivePrivateMessage", (sender, message, isGroup) => {
+                const chatState = JSON.parse(sessionStorage.getItem('chatState')) || {};
+                if (!chatState.messages) chatState.messages = [];
+                
+                chatState.messages.push({
+                    sender: sender,
+                    text: message,
+                    isGroup: isGroup,
+                    isSent: sender === "@currentUser.UserName",
+                    timestamp: new Date().toISOString()
+                });
+                
+                sessionStorage.setItem('chatState', JSON.stringify(chatState));
+                renderChatWindow(chatState);
+            });
+
+            window.chatConnection.start().catch(err => console.error(err));
+        }
+    }
+
+    // Handle Enter key in message input
+    document.addEventListener('keypress', function(e) {
+        if (e.target.id === 'messageInput' && e.key === 'Enter') {
+            sendMessage();
+        }
+    });
+</script>
+<body>
+    <header>
+        <nav class="navbar navbar-expand-lg navbar-dark fixed-top shadow-sm">
+            <div class="container-fluid navbar-container">
+                <div class="navbar-left">
+                    <a class="navbar-brand" href="/">Cloud9.2</a>
+                </div>
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarContent" aria-controls="navbarContent" aria-expanded="false" aria-label="Toggle navigation">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+                <div class="navbar-center">
+                    <div class="collapse navbar-collapse" id="navbarContent">
+                        <ul class="navbar-nav">
+                            @if (User.IsInRole("SuperAdmin") || User.IsInRole("Admin") || User.IsInRole("CRMUser"))
+                            {
+                                <li class="nav-item dropdown">
+                                    <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown" aria-expanded="false">CRM</a>
+                                    <ul class="dropdown-menu">
+                                        <li><a class="dropdown-item" asp-area="" asp-page="/CRM/Partners/Index">Partnerek</a></li>
+                                        <li><a class="dropdown-item" asp-area="" asp-page="/CRM/Contacts/Index">Kontaktok</a></li>
+                                        <li><a class="dropdown-item" asp-area="" asp-page="/CRM/Sites/Index">Telephelyek</a></li>
+                                        <li><a class="dropdown-item" asp-area="" asp-page="/CRM/Leads/Index">Lead-ek</a></li>
+                                        <li><a class="dropdown-item" asp-area="" asp-page="/CRM/Quotes/Index">Árajánlatok</a></li>
+                                        <li><a class="dropdown-item" asp-area="" asp-page="/CRM/Orders/Index">Megrendelések</a></li>
+                                        <li><a class="dropdown-item" asp-area="" asp-page="/CRM/Customercommunication/Index">Ügyfélkapcsolat</a></li>
+                                    </ul>
+                                </li>
+                            }
+                            @* Logisztika menü *@
+                            <li class="nav-item dropdown">
+                                <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown" aria-expanded="false">Logisztika</a>
+                                <ul class="dropdown-menu">
+                                    <li><a class="dropdown-item" asp-area="" asp-page="/Logistics/Products/Index">Termékek</a></li>
+                                </ul>
+                            </li>
+                            @* Iratkezelés menü *@
+                            <li class="nav-item dropdown">
+                                <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown" aria-expanded="false">Iratkezelés</a>
+                                <ul class="dropdown-menu">
+                                    <li><a class="dropdown-item" asp-area="" asp-page="/Logistics/Products/Index">Bejövő iktatás</a></li>
+                                    <li><a class="dropdown-item" asp-area="" asp-page="/Logistics/Products/Index">Kimenő iktatás</a></li>
+                                    <li><a class="dropdown-item" asp-area="" asp-page="/Logistics/Products/Index">Szerződések</a></li>
+                                    <li><a class="dropdown-item" asp-area="" asp-page="/Logistics/Products/Index">Határidők</a></li>
+                                </ul>
+                            </li>
+                            @* HR/munkaügy menü *@
+                            <li class="nav-item dropdown">
+                                <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown" aria-expanded="false">HR</a>
+                                <ul class="dropdown-menu">
+                                    <li><a class="dropdown-item" asp-area="" asp-page="/Logistics/Products/Index">Dolgozók</a></li>
+                                    <li><a class="dropdown-item" asp-area="" asp-page="/Logistics/Products/Index">Munkakörök</a></li>
+                                    <li><a class="dropdown-item" asp-area="" asp-page="/Logistics/Products/Index">Cafeteria</a></li>
+                                    <li><a class="dropdown-item" asp-area="" asp-page="/Logistics/Products/Index">Önéletrajzok</a></li>
+                                    <li><a class="dropdown-item" asp-area="" asp-page="/Logistics/Products/Index">Kpi célok</a></li>
+                                    <li><a class="dropdown-item" asp-area="" asp-page="/Logistics/Products/Index">Munkaidő nyilvántartás</a></li>
+                                    <li><a class="dropdown-item" asp-area="" asp-page="/Logistics/Products/Index">Szabadságok</a></li>
+                                </ul>
+                            </li>
+                            @* Táv és csoportmunka menü *@
+                            <li class="nav-item dropdown">
+                                <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown" aria-expanded="false">Táv és csoportmunka</a>
+                                <ul class="dropdown-menu">
+                                    <li><a class="dropdown-item" asp-area="" asp-page="/GroupRemote/Tasks/Index">Feladatok</a></li>
+                                    <li class="dropdown-item">
+                                        <button class="dropdown-item" onclick="toggleChat()">
+                                            <i class="bi bi-chat-left-text"></i> Chat
+                                        </button>
+                                    </li>
+                                </ul>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="navbar-user">
+                    <ul class="navbar-nav">
+                        <li class="nav-item">
+                            <div class="form-check form-switch ms-3">
+                                <input class="form-check-input" type="checkbox" id="themeToggle" onchange="toggleTheme()">
+                                <label class="form-check-label" for="themeToggle">
+                                    <i class="bi bi-moon-stars-fill"></i>
+                                </label>
+                            </div>
+                        </li>
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle d-flex align-items-center" href="#" data-bs-toggle="dropdown" aria-expanded="false">
+                                <img src="/Images/person-fill-gear.svg" alt="User settings" style="width: 24px; height: 24px;">
+                            </a>
+                            <ul class="dropdown-menu dropdown-menu-end">
+                                @if (User.IsInRole("SuperAdmin") || User.IsInRole("Admin"))
+                                {
+                                    <li><a class="dropdown-item" asp-page="/Admin/Index">Admin</a></li>
+                                }
+                                <li><a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#userSettingsModal">Beállítások</a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#authModal">Kilépés</a></li>
+                            </ul>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </nav>
+    </header>
+    <!-- Modals -->
+    @await Html.PartialAsync("_AuthModal")
+    @await Html.PartialAsync("_UserSettingsModal")
+
+    <main role="main" class="pb-3">
+        <div class="container-fluid p-0">
+            @RenderBody()
+        </div>
+    </main>
+
+    <footer class="border-top footer text-muted">
+        <div class="container">
+            © 2025 - Cloud9.2 - <a asp-area="" asp-page="/Privacy">Privacy</a>
+        </div>
+    </footer>
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="~/lib/microsoft/signalr/dist/browser/signalr.js"></script>
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+    <script src="https://code.jquery.com/ui/1.13.2/jquery-ui.min.js"></script>
+
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js"></script>
+
+
+    <script src="https://cdn.jsdelivr.net/npm/choices.js/public/assets/scripts/choices.min.js"></script>
+
+    <!-- Bootstrap JS -->
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Select2 JS -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/js/select2.min.js"></script>
+    <!-- Custom JS -->
+    <script src="~/js/site.js" asp-append-version="true"></script>
+    <script src="~/js/signalr.min.js"></script>
+    <script>
+        // Theme toggle functionality
+        function toggleTheme() {
+            const html = document.documentElement;
+            const theme = html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+            html.setAttribute('data-theme', theme);
+            localStorage.setItem('theme', theme);
+            document.getElementById('themeToggle').checked = theme === 'dark';
+        }
+
+        // Load saved theme on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            const savedTheme = localStorage.getItem('theme') || 'light';
+            document.documentElement.setAttribute('data-theme', savedTheme);
+            document.getElementById('themeToggle').checked = savedTheme === 'dark';
         });
     </script>
     @await RenderSectionAsync("Scripts", required: false)
+
+    <style>
+        /* Base styles from original layout */
+        body {
+            padding-top: 40px;
+        }
+        .table th, .table td {
+            padding: 0.5rem 0.75rem;
+            vertical-align: middle;
+        }
+        .modal-lg {
+            max-width: 1000px;
+        }
+
+        /* Night mode styles */
+        [data-theme="dark"] {
+            /* Body and main content */
+            background-color: #1a1a1a;
+            color: #e0e0e0;
+        }
+
+        [data-theme="dark"] body {
+            background-color: #1a1a1a;
+        }
+
+        [data-theme="dark"] .right-content {
+            background-color: #1a1a1a;
+        }
+
+        [data-theme="dark"] .page-header-fixed-top {
+            background-color: #2a2a2a;
+            border-bottom: 1px solid #444;
+        }
+
+        [data-theme="dark"] .scrollable-card-container {
+            background-color: #1a1a1a;
+        }
+
+        [data-theme="dark"] .card-grid-header {
+            background-color: #2a2a2a;
+            border-bottom: 1px solid #444;
+        }
+
+        [data-theme="dark"] .card-grid-column {
+            color: #b0b0b0;
+        }
+
+        [data-theme="dark"] .partner-card {
+            background-color: #2a2a2a;
+            border: 1px solid #444;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+        }
+
+        [data-theme="dark"] .partner-card:hover {
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.5);
+        }
+
+        [data-theme="dark"] .fw-bold {
+            color: #e0e0e0;
+        }
+
+        [data-theme="dark"] .text-muted {
+            color: #888 !important;
+        }
+
+        [data-theme="dark"] .fixed-footer {
+            background-color: #2a2a2a;
+            border-top: 1px solid #444;
+        }
+
+        [data-theme="dark"] .navbar {
+            background: linear-gradient(to right, #1c2526, #2a4d69);
+        }
+
+        [data-theme="dark"] .navbar-brand,
+        [data-theme="dark"] .nav-link {
+            color: #d0d0d0 !important;
+        }
+
+        [data-theme="dark"] .nav-link:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+            color: #ffffff !important;
+        }
+
+        [data-theme="dark"] .dropdown-menu {
+            background-color: #2a2a2a;
+            border: 1px solid #444;
+        }
+
+        [data-theme="dark"] .dropdown-item {
+            color: #e0e0e0;
+        }
+
+        [data-theme="dark"] .dropdown-item:hover {
+            background-color: #3a3a3a;
+            color: #ffffff;
+        }
+
+        [data-theme="dark"] .left-sidebar {
+            background-color: #2a2a2a;
+            border-right: 1px solid #444;
+        }
+
+        [data-theme="dark"] .nav.flex-column .nav-link {
+            color: #d0d0d0;
+        }
+
+        [data-theme="dark"] .nav.flex-column .nav-link:hover {
+            background-color: #3a3a3a;
+        }
+
+        [data-theme="dark"] .btn-new {
+            background-color: #2a4d69 !important;
+            border-color: #2a4d69 !important;
+            color: #e0e0e0 !important;
+        }
+
+        [data-theme="dark"] .btn-new:hover {
+            background-color: #1c2526 !important;
+            border-color: #1c2526 !important;
+        }
+
+        [data-theme="dark"] .btn-outline-secondary {
+            border-color: #666;
+            color: #e0e0e0;
+        }
+
+        [data-theme="dark"] .btn-outline-secondary:hover {
+            background-color: #3a3a3a;
+            border-color: #888;
+        }
+
+        [data-theme="dark"] .btn-outline-info {
+            border-color: #4a90e2;
+            color: #4a90e2;
+        }
+
+        [data-theme="dark"] .btn-outline-info:hover {
+            background-color: #4a90e2;
+            color: #ffffff;
+        }
+
+        [data-theme="dark"] .btn-outline-primary {
+            border-color: #357abd;
+            color: #357abd;
+        }
+
+        [data-theme="dark"] .btn-outline-primary:hover {
+            background-color: #357abd;
+            color: #ffffff;
+        }
+
+        [data-theme="dark"] .btn-outline-danger {
+            border-color: #d9534f;
+            color: #d9534f;
+        }
+
+        [data-theme="dark"] .btn-outline-danger:hover {
+            background-color: #d9534f;
+            color: #ffffff;
+        }
+
+        [data-theme="dark"] .form-control {
+            background-color: #3a3a3a;
+            border-color: #666;
+            color: #e0e0e0;
+        }
+
+        [data-theme="dark"] .form-control:focus {
+            background-color: #3a3a3a;
+            border-color: #888;
+            color: #e0e0e0;
+            box-shadow: 0 0 0 0.2rem rgba(100, 100, 100, 0.25);
+        }
+
+        [data-theme="dark"] .modal-content {
+            background-color: #2a2a2a;
+            border: 1px solid #444;
+            color: #e0e0e0;
+        }
+
+        [data-theme="dark"] .modal-header {
+            border-bottom: 1px solid #444;
+        }
+
+        [data-theme="dark"] .modal-footer {
+            border-top: 1px solid #444;
+        }
+
+        [data-theme="dark"] .btn-secondary {
+            background-color: #666;
+            border-color: #666;
+            color: #e0e0e0;
+        }
+
+        [data-theme="dark"] .btn-secondary:hover {
+            background-color: #777;
+            border-color: #777;
+        }
+
+        [data-theme="dark"] .btn-primary {
+            background-color: #357abd !important;
+            border-color: #357abd !important;
+        }
+
+        [data-theme="dark"] .btn-primary:hover {
+            background-color: #2a6099 !important;
+            border-color: #2a6099 !important;
+        }
+
+        [data-theme="dark"] .alert-success {
+            background-color: #2e7d32;
+            border-color: #1b5e20;
+            color: #e0e0e0;
+        }
+
+        [data-theme="dark"] .alert-danger {
+            background-color: #d32f2f;
+            border-color: #b71c1c;
+            color: #e0e0e0;
+        }
+
+        [data-theme="dark"] .alert-warning {
+            background-color: #ff8f00;
+            border-color: #e65100;
+            color: #1a1a1a;
+        }
+
+        [data-theme="dark"] .pagination .page-link {
+            background-color: #2a2a2a;
+            border-color: #444;
+            color: #e0e0e0;
+        }
+
+        [data-theme="dark"] .pagination .page-item.active .page-link {
+            background-color: #357abd;
+            border-color: #357abd;
+            color: #ffffff;
+        }
+
+        [data-theme="dark"] .pagination .page-link:hover {
+            background-color: #3a3a3a;
+            color: #ffffff;
+        }
+
+        [data-theme="dark"] .form-select {
+            background-color: #3a3a3a;
+            border-color: #666;
+            color: #e0e0e0;
+        }
+
+        [data-theme="dark"] .footer {
+            background-color: #2a2a2a;
+            border-top: 1px solid #444;
+            color: #888;
+        }
+
+        [data-theme="dark"] .footer a {
+            color: #4a90e2;
+        }
+
+        [data-theme="dark"] .breadcrumb-item a {
+            color: #4a90e2;
+        }
+
+        [data-theme="dark"] .breadcrumb-item.active {
+            color: #e0e0e0;
+        }
+
+        /* Theme toggle icon */
+        [data-theme="dark"] .form-check-label .bi-moon-stars-fill {
+            color: #e0e0e0;
+        }
+    </style>
 </body>
 </html>

@@ -1,0 +1,300 @@
+@model Cloud9_2.Pages.CRM.Leads.IndexModel
+
+<div class="modal fade" id="newPartnerModal" tabindex="-1" aria-labelledby="newPartnerModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="newPartnerModalLabel">Új Partner</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="newPartnerForm" method="post" asp-page-handler="CreatePartner" class="needs-validation" novalidate>
+                    <ul class="nav nav-tabs" id="newPartnerTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="basic-tab" data-bs-toggle="tab" data-bs-target="#basic" type="button" role="tab" aria-controls="basic" aria-selected="true">Basic Info</button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="address-tab" data-bs-toggle="tab" data-bs-target="#address" type="button" role="tab" aria-controls="address" aria-selected="false">Address</button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="crm-tab" data-bs-toggle="tab" data-bs-target="#crm" type="button" role="tab" aria-controls="crm" aria-selected="false">CRM</button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="invoicing-tab" data-bs-toggle="tab" data-bs-target="#invoicing" type="button" role="tab" aria-controls="invoicing" aria-selected="false">Invoicing</button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="audit-tab" data-bs-toggle="tab" data-bs-target="#audit" type="button" role="tab" aria-controls="audit" aria-selected="false">Audit</button>
+                        </li>
+                    </ul>
+                    <div class="tab-content mt-3">
+                        <!-- Basic Info Tab -->
+                        <div class="tab-pane fade show active" id="basic" role="tabpanel" aria-labelledby="basic-tab">
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label for="partnerName" class="form-label">Név <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control" id="partnerName" name="name" required>
+                                    <div class="invalid-feedback">Név megadása kötelező.</div>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="partnerEmail" class="form-label">Email</label>
+                                    <input type="email" class="form-control" id="partnerEmail" name="email">
+                                    <div class="invalid-feedback">Érvényes email cím szükséges.</div>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="partnerPhoneNumber" class="form-label">Telefonszám</label>
+                                    <input type="tel" class="form-control" id="partnerPhoneNumber" name="phoneNumber">
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="partnerAlternatePhone" class="form-label">Alternatív telefonszám</label>
+                                    <input type="tel" class="form-control" id="partnerAlternatePhone" name="alternatePhone">
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="partnerWebsite" class="form-label">Weboldal</label>
+                                    <input type="url" class="form-control" id="partnerWebsite" name="website">
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="partnerCompanyName" class="form-label">Cégnév</label>
+                                    <input type="text" class="form-control" id="partnerCompanyName" name="companyName">
+                                </div>
+                            </div>
+                        </div>
+                        <!-- Address Tab -->
+                        <div class="tab-pane fade" id="address" role="tabpanel" aria-labelledby="address-tab">
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label for="partnerAddressLine1" class="form-label">Cím 1</label>
+                                    <input type="text" class="form-control" id="partnerAddressLine1" name="addressLine1">
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="partnerAddressLine2" class="form-label">Cím 2</label>
+                                    <input type="text" class="form-control" id="partnerAddressLine2" name="addressLine2">
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="partnerCity" class="form-label">Város</label>
+                                    <input type="text" class="form-control" id="partnerCity" name="city">
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="partnerState" class="form-label">Állam/Megye</label>
+                                    <input type="text" class="form-control" id="partnerState" name="state">
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="partnerPostalCode" class="form-label">Irányítószám</label>
+                                    <input type="text" class="form-control" id="partnerPostalCode" name="postalCode">
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="partnerCountry" class="form-label">Ország</label>
+                                    <input type="text" class="form-control" id="partnerCountry" name="country">
+                                </div>
+                            </div>
+                        </div>
+                        <!-- CRM Tab -->
+                        <div class="tab-pane fade" id="crm" role="tabpanel" aria-labelledby="crm-tab">
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label for="partnerIndustry" class="form-label">Iparág</label>
+                                    <input type="text" class="form-control" id="partnerIndustry" name="industry">
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="partnerStatus" class="form-label">Státusz</label>
+                                    <select class="form-select" id="partnerStatus" name="status">
+                                        <option value="Prospect">Potenciális</option>
+                                        <option value="Active">Aktív</option>
+                                        <option value="Inactive">Inaktív</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="partnerLastContacted" class="form-label">Utolsó kapcsolatfelvétel</label>
+                                    <input type="datetime-local" class="form-control" id="partnerLastContacted" name="lastContacted">
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="partnerAssignedTo" class="form-label">Felelős</label>
+                                    <input type="text" class="form-control" id="partnerAssignedTo" name="assignedTo">
+                                </div>
+                                <div class="col-12">
+                                    <label for="partnerNotes" class="form-label">Jegyzetek</label>
+                                    <textarea class="form-control" id="partnerNotes" name="notes" rows="4"></textarea>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- Invoicing Tab -->
+                        <div class="tab-pane fade" id="invoicing" role="tabpanel" aria-labelledby="invoicing-tab">
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label for="partnerTaxId" class="form-label">Adószám</label>
+                                    <input type="text" class="form-control" id="partnerTaxId" name="taxId">
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="partnerIntTaxId" class="form-label">Nemzetközi adószám</label>
+                                    <input type="text" class="form-control" id="partnerIntTaxId" name="intTaxId">
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="partnerBillingContactName" class="form-label">Számlázási kapcsolattartó neve</label>
+                                    <input type="text" class="form-control" id="partnerBillingContactName" name="billingContactName">
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="partnerBillingEmail" class="form-label">Számlázási email</label>
+                                    <input type="email" class="form-control" id="partnerBillingEmail" name="billingEmail">
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="partnerPaymentTerms" class="form-label">Fizetési feltételek</label>
+                                    <input type="text" class="form-control" id="partnerPaymentTerms" name="paymentTerms">
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="partnerCreditLimit" class="form-label">Hitelkeret</label>
+                                    <input type="number" step="0.01" class="form-control" id="partnerCreditLimit" name="creditLimit">
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="partnerPreferredCurrency" class="form-label">Előnyben részesített pénznem</label>
+                                    <input type="text" class="form-control" id="partnerPreferredCurrency" name="preferredCurrency">
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="partnerIsTaxExempt" class="form-label">Adómentes</label>
+                                    <input type="checkbox" class="form-check-input" id="partnerIsTaxExempt" name="isTaxExempt">
+                                </div>
+                            </div>
+                        </div>
+                        <!-- Audit Tab -->
+                        <div class="tab-pane fade" id="audit" role="tabpanel" aria-labelledby="audit-tab">
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label for="partnerCreatedDate" class="form-label">Létrehozás dátuma</label>
+                                    <input type="datetime-local" class="form-control" id="partnerCreatedDate" name="createdDate">
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="partnerCreatedBy" class="form-label">Létrehozó</label>
+                                    <input type="text" class="form-control" id="partnerCreatedBy" name="createdBy">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <input type="hidden" id="partnerLeadId" name="leadId" value="">
+                    <div class="mt-3">
+                        <button type="submit" class="btn btn-primary">Partner mentése</button>
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Mégse</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Client-side validation for partner form
+    document.querySelector('#newPartnerModal form').addEventListener('submit', function(e) {
+        const form = e.target;
+        const nameInput = form.querySelector('#partnerName');
+        
+        if (!nameInput.value.trim()) {
+            e.preventDefault();
+            nameInput.focus();
+            nameInput.classList.add('is-invalid');
+            const feedback = nameInput.nextElementSibling;
+            if (feedback && feedback.classList.contains('invalid-feedback')) {
+                feedback.textContent = 'Név megadása kötelező';
+            }
+            return false;
+        }
+        form.classList.add('was-validated');
+        return true;
+    });
+
+    // Reset validation when modal is shown
+    $('#newPartnerModal').on('show.bs.modal', function() {
+        $(this).find('.is-invalid').removeClass('is-invalid');
+        $(this).find('form').removeClass('was-validated');
+    });
+</script>
+
+<style>
+    /* Modal Sizing */
+    .modal-lg {
+        max-width: 1000px !important;
+    }
+
+    /* Consistent Tab Content Styling */
+    #newPartnerModal .tab-content {
+        min-width: 0;
+        width: 100%;
+        min-height: 450px;
+        max-height: 65vh;
+        overflow-y: auto;
+        overflow-x: hidden;
+        padding: 1rem;
+        background-color: #fff;
+    }
+
+    /* Consistent Tab Pane Styling */
+    #newPartnerModal .tab-pane {
+        width: 100%;
+    }
+
+    /* Adjust Modal Body Padding */
+    #newPartnerModal .modal-body {
+        padding: 1rem 1rem 0 1rem;
+    }
+
+    /* Remove margin below tabs */
+    #newPartnerModal .nav-tabs {
+        margin-bottom: 0 !important;
+    }
+
+    /* Dark mode overrides */
+    [data-theme="dark"] #newPartnerModal .tab-content {
+        background-color: #2a2a2a !important;
+        color: #e0e0e0 !important;
+    }
+
+    [data-theme="dark"] #newPartnerModal .tab-pane {
+        color: #e0e0e0 !important;
+    }
+
+    [data-theme="dark"] #newPartnerModal .modal-body {
+        background-color: #2a2a2a !important;
+        color: #e0e0e0 !important;
+    }
+
+    [data-theme="dark"] .form-control {
+        background-color: #333333 !important;
+        border-color: #666 !important;
+        color: #e0e0e0 !important;
+    }
+
+    [data-theme="dark"] .form-control:focus {
+        background-color: #333333 !important;
+        border-color: #888 !important;
+        color: #e0e0e0 !important;
+        box-shadow: 0 0 0 0.2rem rgba(100, 100, 100, 0.25) !important;
+    }
+
+    [data-theme="dark"] .form-control::placeholder {
+        color: #aaaaaa !important;
+    }
+
+    [data-theme="dark"] .form-label {
+        color: #e0e0e0 !important;
+    }
+
+    [data-theme="dark"] .modal-title {
+        color: #e0e0e0 !important;
+    }
+
+    [data-theme="dark"] #newPartnerModal .nav-tabs {
+        background-color: #2a2a2a !important;
+        border-bottom: 1px solid #444 !important;
+    }
+
+    [data-theme="dark"] #newPartnerModal .nav-tabs .nav-link {
+        color: #b0b0b0 !important;
+    }
+
+    [data-theme="dark"] #newPartnerModal .nav-tabs .nav-link:hover {
+        color: #e0e0e0 !important;
+        background-color: #3a3a3a !important;
+    }
+
+    [data-theme="dark"] #newPartnerModal .nav-tabs .nav-link.active {
+        color: #e0e0e0 !important;
+        background-color: #3a3a3a !important;
+        border-color: #444 #444 #2a2a2a !important;
+    }
+</style>

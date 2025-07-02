@@ -1,0 +1,53 @@
+@* File: _CRMSidebar.cshtml *@
+@using Cloud9_2.Helpers
+@inject Microsoft.AspNetCore.Mvc.Rendering.IHtmlHelper<dynamic> Html
+
+@* --- MODIFICATION --- *@
+@* Add class="left-sidebar" and remove inline style="width: 200px;" *@
+<div class="left-sidebar d-flex flex-column flex-shrink-0"> @* Keep border-end or remove if handled by CSS *@
+@* --- END MODIFICATION --- *@
+
+    <div class="pt-3">
+        @if (User.IsInRole("SuperAdmin") || User.IsInRole("Admin") || User.IsInRole("CRMUser"))
+        {
+            <ul class="nav flex-column">
+                <li class="nav-item">
+                    <a class="nav-link px-3 py-2 @(Html.IsActive("Partners/Index", "CRM") ? "active" : "")" asp-area="" asp-page="/CRM/Partners/Index">
+                        <i class="bi bi-people-fill me-2"></i>Partners
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link px-3 py-2 @(Html.IsActive("Contacts/Index", "CRM") ? "active" : "")" asp-area="" asp-page="/CRM/Contacts/Index">
+                        <i class="bi bi-person-lines-fill me-2"></i>Contacts
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link px-3 py-2 @(Html.IsActive("Sites/Index", "CRM") ? "active" : "")" asp-area="" asp-page="/CRM/Sites/Index">
+                        <i class="bi bi-geo-alt me-2"></i>Telephelyek
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link px-3 py-2 @(Html.IsActive("Leads/Index", "CRM") ? "active" : "")" asp-area="" asp-page="/CRM/Leads/Index">
+                        <i class="bi bi-telephone-inbound me-2"></i>Sales leadek
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link px-3 py-2 @(Html.IsActive("Quotes/Index", "CRM") ? "active" : "")" asp-area="" asp-page="/CRM/Quotes/Index">
+                        <i class="bi bi-file-earmark-ruled me-2"></i>Árajánlatok
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link px-3 py-2 @(Html.IsActive("Orders/Index", "CRM") ? "active" : "")" asp-area="" asp-page="/CRM/Orders/Index">
+                        <i class="bi bi-list-ol me-2"></i>Rendelések
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link px-3 py-2 @(Html.IsActive("Customercommunication/Index", "CRM") ? "active" : "")" asp-area="" asp-page="/CRM/Customercommunication/Index">
+                        <i class="bi bi-headset me-2"></i>Ügyfélkapcsolat
+                    </a>
+                </li>
+                @* Add other sidebar links as needed *@
+            </ul>
+        }
+    </div>
+</div>

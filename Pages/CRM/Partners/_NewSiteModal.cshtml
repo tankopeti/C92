@@ -1,0 +1,35 @@
+@model Cloud9_2.Models.Site
+
+<div class="modal-header">
+    <h5 class="modal-title" id="newSiteModalLabel_@Model.PartnerId">Új Hely</h5>
+    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+</div>
+<form method="post" asp-page-handler="CreateSite">
+    <div class="modal-body">
+        <input type="hidden" asp-for="PartnerId" />
+        <div class="mb-3">
+            <label asp-for="SiteName" class="form-label">Helyszín neve</label>
+            <input asp-for="SiteName" class="form-control" />
+            <span asp-validation-for="SiteName" class="text-danger"></span>
+        </div>
+        <div class="mb-3">
+            <label asp-for="AddressLine1" class="form-label">Cím 1</label>
+            <input asp-for="AddressLine1" class="form-control" />
+            <span asp-validation-for="AddressLine1" class="text-danger"></span>
+        </div>
+        <div class="mb-3">
+            <label asp-for="City" class="form-label">Város</label>
+            <input asp-for="City" class="form-control" />
+            <span asp-validation-for="City" class="text-danger"></span>
+        </div>
+        <div class="mb-3">
+            <label asp-for="IsPrimary" class="form-label">Elsődleges</label>
+            <input asp-for="IsPrimary" type="checkbox" class="form-check-input" />
+            <span asp-validation-for="IsPrimary" class="text-danger"></span>
+        </div>
+    </div>
+    <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Mégse</button>
+        <button type="submit" class="btn btn-primary">Létrehozás</button>
+    </div>
+</form>

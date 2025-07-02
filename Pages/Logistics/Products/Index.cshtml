@@ -1,0 +1,171 @@
+@page
+@using Cloud9_2.Models
+@model Cloud9_2.Pages.Logistics.Products.IndexModel
+@{
+    Layout = "_Layout";
+    ViewData["Title"] = "Termékek";
+}
+
+<style>
+    .card-grid-header {
+        padding: 0 15px 2px 15px;
+        margin-top: 0px;
+        background-color: #F1EFEC;
+        border-bottom: 1px solid #dee2e6;
+    }
+
+    .card-grid-column {
+        font-weight: 600;
+        color: #495057;
+        font-size: 0.9rem;
+        text-transform: uppercase;
+    }
+
+    .product-sku-col {
+        flex: 1 1 15%;
+        min-width: 100px;
+    }
+
+    .product-name-col {
+        flex: 1 1 25%;
+        min-width: 150px;
+    }
+
+    .product-category-col {
+        flex: 1 1 20%;
+        min-width: 120px;
+    }
+
+    .product-stock-col {
+        flex: 1 1 15%;
+        min-width: 100px;
+    }
+
+    .product-active-col {
+        flex: 1 1 10%;
+        min-width: 80px;
+    }
+
+    .fixed-footer .pagination {
+        display: flex;
+        justify-content: center;
+        width: 100%;
+        margin-bottom: 0;
+    }
+
+    .fixed-footer nav {
+        flex-grow: 1;
+        text-align: center;
+    }
+
+    .card-grid-header .card-grid-row,
+    .product-card .card-grid-row {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        padding: 0 10px;
+    }
+</style>
+
+<div class="right-content">
+    <div class="page-header-fixed-top">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb bg-body-tertiary rounded-3 p-2 mb-0">
+                    <li class="breadcrumb-item"><a href="../../">Főoldal</a></li>
+                    <li class="breadcrumb-item"><a href="../">Logisztika Dashboard</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">Termékek</li>
+                    <li class="breadcrumb-item active" aria-current="page">@Model.Products.Count of @Model.TotalRecords product@(Model.TotalRecords != 1 ? "s" : "") (Page @Model.CurrentPage of @Model.TotalPages)</li>
+                </ol>
+            </nav>
+        </div>
+        <div class="d-flex justify-content-end align-items-center mb-3">
+            <form method="get" asp-page="./Index" class="input-group input-group-sm" style="width: 250px;">
+                <input type="text" class="form-control" placeholder="Search products..." id="searchInput" name="SearchTerm" value="@Model.SearchTerm">
+                <input type="hidden" name="PageSize" value="@Model.PageSize" />
+                <button class="btn btn-outline-secondary" type="submit">
+                    <i class="bi bi-search"></i>
+                </button>
+                @if (!string.IsNullOrEmpty(Model.SearchTerm))
+                {
+                    <a href="@Url.Page("./Index")" class="btn btn-outline-danger btn-sm">
+                        <i class="bi bi-x"></i>
+                    </a>
+                }
+            </form>
+        </div>
+
+        <div class="card-grid-header">
+            <div class="card-grid-row">
+                <div class="card-grid-column product-sku-col">SKU</div>
+                <div class="card-grid-column product-name-col">Name</div>
+                <div class="card-grid-column product-category-col">Category</div>
+                <div class="card-grid-column product-stock-col">Stock</div>
+                <div class="card-grid-column product-active-col">Active</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="scrollable-card-container">
+        <div class="card-grid-body">
+            @if (Model.Products.Any())
+            {
+                @foreach (var product in Model.Products)
+                {
+                    <div class="card product-card mb-3" data-product-id="@product.ProductId">
+                        <div class="card-body p-2">
+                            <div class="card-grid-row align-items-center">
+                                <div class="card-grid-cell product-sku-col">
+                                    <div class="product-sku fw-bold">@product.SKU</div>
+                                </div>
+                                <div class="card-grid-cell product-name-col">
+                                    <div class="product-name">@product.Name</div>
+                                </div>
+                                <div class="card-grid-cell product-category-col">
+                                    <div class="product-category text-muted small">
+                                        @(product.Category?.Name ?? "No Category")
+                                    </div>
+                                </div>
+                                <div class="card-grid-cell product-stock-col">
+                                    <div class="product-stock text-muted small">
+                                        @product.StockQuantity
+                                    </div>
+                                </div>
+                                <div class="card-grid-cell product-active-col">
+                                    <div class="product-active">
+                                        <i class="bi @(product.IsActive ? "bi-check-circle text-success" : "bi-x-circle text-danger")"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                }
+            }
+            else
+            {
+                <div class="alert alert-warning text-center mt-3" role="alert">
+                    @if (!string.IsNullOrEmpty(Model.SearchTerm))
+                    {
+                        <text>No products found matching "@Model.SearchTerm".</text>
+                    }
+                    else
+                    {
+                        <text>No products found.</text>
+                    }
+                </div>
+            }
+        </div>
+    </div>
+
+        <!-- Pagination Footer -->
+        @await Html.PartialAsync("_PaginationFooter", new PaginationViewModel
+        {
+            CurrentPage = Model.CurrentPage,
+            TotalPages = Model.TotalPages,
+            PageSize = Model.PageSize,
+            SearchTerm = Model.SearchTerm,
+            PageRoute = "./Index",
+            EntityName = "Products"
+        })
+        </div>
+</div>

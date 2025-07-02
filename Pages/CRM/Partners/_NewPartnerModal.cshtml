@@ -1,0 +1,191 @@
+<!-- _NewPartnerModal.cshtml -->
+<div class="modal fade" id="newPartnerModal" tabindex="-1" aria-labelledby="newPartnerModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="newPartnerModalLabel">New Partner</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="newPartnerForm" method="post" asp-page-handler="CreatePartner" class="needs-validation" novalidate>
+                    @Html.AntiForgeryToken()
+                    <ul class="nav nav-tabs" id="partnerTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="basic-tab" data-bs-toggle="tab" data-bs-target="#basic" type="button" role="tab" aria-controls="basic" aria-selected="true">Basic Info</button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="address-tab" data-bs-toggle="tab" data-bs-target="#address" type="button" role="tab" aria-controls="address" aria-selected="false">Address</button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="crm-tab" data-bs-toggle="tab" data-bs-target="#crm" type="button" role="tab" aria-controls="crm" aria-selected="false">CRM</button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="invoicing-tab" data-bs-toggle="tab" data-bs-target="#invoicing" type="button" role="tab" aria-controls="invoicing" aria-selected="false">Invoicing</button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="audit-tab" data-bs-toggle="tab" data-bs-target="#audit" type="button" role="tab" aria-controls="audit" aria-selected="false">Audit</button>
+                        </li>
+                    </ul>
+                    <div class="tab-content mt-3" id="partnerTabContent">
+                        <!-- Basic Info Tab -->
+                        <div class="tab-pane fade show active" id="basic" role="tabpanel" aria-labelledby="basic-tab">
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label for="partnerName" class="form-label">Name <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control" id="partnerName" name="Name" required />
+                                    <div class="invalid-feedback">Name is required.</div>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="partnerEmail" class="form-label">Email</label>
+                                    <input type="email" class="form-control" id="partnerEmail" name="Email" />
+                                    <div class="invalid-feedback">Please enter a valid email.</div>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="partnerPhoneNumber" class="form-label">Phone Number</label>
+                                    <input type="text" class="form-control" id="partnerPhoneNumber" name="PhoneNumber" />
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="partnerAlternatePhone" class="form-label">Alternate Phone</label>
+                                    <input type="text" class="form-control" id="partnerAlternatePhone" name="AlternatePhone" />
+                                </div>
+                                <div class="col-12">
+                                    <label for="partnerWebsite" class="form-label">Website</label>
+                                    <input type="url" class="form-control" id="partnerWebsite" name="Website" />
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="partnerCompanyName" class="form-label">Company Name</label>
+                                    <input type="text" class="form-control" id="partnerCompanyName" name="CompanyName" />
+                                </div>
+                                <div class="col-md-3">
+                                    <label for="partnerTaxId" class="form-label">Tax ID</label>
+                                    <input type="text" class="form-control" id="partnerTaxId" name="TaxId" />
+                                </div>
+                                <div class="col-md-3">
+                                    <label for="partnerIntTaxId" class="form-label">International Tax ID</label>
+                                    <input type="text" class="form-control" id="partnerIntTaxId" name="IntTaxId" />
+                                </div>
+                                <div class="col-12">
+                                    <label for="partnerIndustry" class="form-label">Industry</label>
+                                    <input type="text" class="form-control" id="partnerIndustry" name="Industry" />
+                                </div>
+                            </div>
+                        </div>
+                        <!-- Address Tab -->
+                        <div class="tab-pane fade" id="address" role="tabpanel" aria-labelledby="address-tab">
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label for="partnerAddressLine1" class="form-label">Address Line 1</label>
+                                    <input type="text" class="form-control" id="partnerAddressLine1" name="AddressLine1" />
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="partnerAddressLine2" class="form-label">Address Line 2</label>
+                                    <input type="text" class="form-control" id="partnerAddressLine2" name="AddressLine2" />
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="partnerCity" class="form-label">City</label>
+                                    <input type="text" class="form-control" id="partnerCity" name="City" />
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="partnerState" class="form-label">State/Province</label>
+                                    <input type="text" class="form-control" id="partnerState" name="State" />
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="partnerPostalCode" class="form-label">Postal Code</label>
+                                    <input type="text" class="form-control" id="partnerPostalCode" name="PostalCode" />
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="partnerCountry" class="form-label">Country</label>
+                                    <input type="text" class="form-control" id="partnerCountry" name="Country" />
+                                </div>
+                            </div>
+                        </div>
+                        <!-- CRM Tab -->
+                        <div class="tab-pane fade" id="crm" role="tabpanel" aria-labelledby="crm-tab">
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label for="partnerStatus" class="form-label">Status</label>
+                                    <select class="form-select" id="partnerStatus" name="Status">
+                                        <option value="Prospect" selected>Prospect</option>
+                                        <option value="Active">Active</option>
+                                        <option value="Inactive">Inactive</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="partnerLastContacted" class="form-label">Last Contacted</label>
+                                    <input type="date" class="form-control" id="partnerLastContacted" name="LastContacted" />
+                                </div>
+                                <div class="col-12">
+                                    <label for="partnerNotes" class="form-label">Notes</label>
+                                    <textarea class="form-control" id="partnerNotes" name="Notes" rows="3"></textarea>
+                                </div>
+                                <div class="col-12">
+                                    <label for="partnerAssignedTo" class="form-label">Assigned To</label>
+                                    <input type="text" class="form-control" id="partnerAssignedTo" name="AssignedTo" />
+                                </div>
+                            </div>
+                        </div>
+                        <!-- Invoicing Tab -->
+                        <div class="tab-pane fade" id="invoicing" role="tabpanel" aria-labelledby="invoicing-tab">
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label for="partnerBillingContactName" class="form-label">Billing Contact Name</label>
+                                    <input type="text" class="form-control" id="partnerBillingContactName" name="BillingContactName" />
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="partnerBillingEmail" class="form-label">Billing Email</label>
+                                    <input type="email" class="form-control" id="partnerBillingEmail" name="BillingEmail" />
+                                    <div class="invalid-feedback">Please enter a valid email.</div>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="partnerPaymentTerms" class="form-label">Payment Terms</label>
+                                    <input type="text" class="form-control" id="partnerPaymentTerms" name="PaymentTerms" placeholder="e.g., Net 30" />
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="partnerCreditLimit" class="form-label">Credit Limit</label>
+                                    <input type="number" class="form-control" id="partnerCreditLimit" name="CreditLimit" step="1" />
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="partnerPreferredCurrency" class="form-label">Preferred Currency</label>
+                                    <input type="text" class="form-control" id="partnerPreferredCurrency" name="PreferredCurrency" placeholder="e.g., USD" />
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="partnerIsTaxExempt" class="form-label">Tax Exempt</label>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="partnerIsTaxExempt" name="IsTaxExempt" value="true" />
+                                        <input type="hidden" name="IsTaxExempt" value="false" />
+                                        <label class="form-check-label" for="partnerIsTaxExempt">Yes</label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- Audit Tab -->
+                        <div class="tab-pane fade" id="audit" role="tabpanel" aria-labelledby="audit-tab">
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label for="partnerCreatedDate" class="form-label">Created Date</label>
+                                    <input type="datetime-local" class="form-control" id="partnerCreatedDate" name="CreatedDate" value="@DateTime.Now.ToString("yyyy-MM-ddTHH:mm")" readonly />
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="partnerCreatedBy" class="form-label">Created By</label>
+                                    <input type="text" class="form-control" id="partnerCreatedBy" name="CreatedBy" value="@User.Identity?.Name" readonly />
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="partnerUpdatedDate" class="form-label">Updated Date</label>
+                                    <input type="datetime-local" class="form-control" id="partnerUpdatedDate" name="UpdatedDate" readonly />
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="partnerUpdatedBy" class="form-label">Updated By</label>
+                                    <input type="text" class="form-control" id="partnerUpdatedBy" name="UpdatedBy" readonly />
+                                </div>
+                            </div>
+                        </div>
+                    <div class="mt-3">
+                        <button type="submit" class="btn btn-primary" form="newPartnerForm">Save</button>
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>

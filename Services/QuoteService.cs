@@ -53,7 +53,6 @@ namespace Cloud9_2.Services
             return await _context.QuoteItems
                 .Where(qi => qi.QuoteId == quoteId)
                 .Include(qi => qi.VatType)
-                .Include(qi => qi.Discount)
                 .Select(qi => new QuoteItemDto
                 {
                     QuoteItemId = qi.QuoteItemId,
@@ -64,14 +63,8 @@ namespace Cloud9_2.Services
                     ItemDescription = qi.ItemDescription,
                     TotalPrice = qi.TotalPrice,
                     VatTypeId = qi.VatTypeId,
-                    DiscountType = qi.Discount != null ? qi.Discount.DiscountType : null,
-                    DiscountPercentage = qi.Discount != null ? qi.Discount.DiscountPercentage : null,
-                    DiscountAmount = qi.Discount != null ? qi.Discount.DiscountAmount : null,
-                    BasePrice = qi.Discount != null ? qi.Discount.BasePrice : null,
-                    PartnerPrice = qi.Discount != null ? qi.Discount.PartnerPrice : null,
-                    VolumeThreshold = qi.Discount != null ? qi.Discount.VolumeThreshold : null,
-                    VolumePrice = qi.Discount != null ? qi.Discount.VolumePrice : null,
-                    ListPrice = qi.Discount != null ? qi.Discount.ListPrice : null
+                    DiscountTypeId = qi.DiscountTypeId,
+                    DiscountAmount = qi.DiscountAmount
                 })
                 .ToListAsync();
         }
@@ -144,68 +137,52 @@ namespace Cloud9_2.Services
 
                 decimal basePrice = productPrice?.SalesPrice ?? throw new InvalidOperationException($"No active price found for ProductId: {itemDto.ProductId}");
                 decimal netDiscountedPrice = itemDto.NetDiscountedPrice > 0 ? itemDto.NetDiscountedPrice : basePrice;
+                decimal itemDiscount = 0;
 
-                QuoteItemDiscount discount = null;
-                if (itemDto.DiscountType.HasValue && itemDto.DiscountType != DiscountType.NoDiscount)
+                if (itemDto.DiscountTypeId.HasValue && itemDto.DiscountTypeId != (int)DiscountType.NoDiscount)
                 {
-                    _logger.LogInformation("Processing discount for item {ProductId}: Type={DiscountType}", itemDto.ProductId, itemDto.DiscountType);
-                    discount = new QuoteItemDiscount
+                    _logger.LogInformation("Processing discount for item {ProductId}: Type={DiscountTypeId}", itemDto.ProductId, itemDto.DiscountTypeId);
+                    switch (itemDto.DiscountTypeId)
                     {
-                        DiscountType = itemDto.DiscountType.Value,
-                        DiscountPercentage = itemDto.DiscountPercentage,
-                        DiscountAmount = itemDto.DiscountAmount,
-                        PartnerPrice = itemDto.PartnerPrice,
-                        VolumeThreshold = itemDto.VolumeThreshold,
-                        VolumePrice = itemDto.VolumePrice,
-                        ListPrice = itemDto.ListPrice,
-                        BasePrice = basePrice
-                    };
-
-                    switch (itemDto.DiscountType)
-                    {
-                        case DiscountType.CustomDiscountPercentage:
-                            if (itemDto.DiscountPercentage < 0 || itemDto.DiscountPercentage > 100)
-                            {
-                                _logger.LogWarning("Invalid DiscountPercentage: {DiscountPercentage} for ProductId: {ProductId}", itemDto.DiscountPercentage, itemDto.ProductId);
-                                throw new ArgumentException($"DiscountPercentage must be between 0 and 100 for ProductId: {itemDto.ProductId}");
-                            }
-                            totalItemDiscounts += (basePrice * itemDto.Quantity * itemDto.DiscountPercentage.Value / 100);
-                            netDiscountedPrice = basePrice * (1 - itemDto.DiscountPercentage.Value / 100);
-                            break;
-                        case DiscountType.CustomDiscountAmount:
+                        case (int)DiscountType.CustomDiscountPercentage:
                             if (itemDto.DiscountAmount < 0)
                             {
                                 _logger.LogWarning("Invalid DiscountAmount: {DiscountAmount} for ProductId: {ProductId}", itemDto.DiscountAmount, itemDto.ProductId);
                                 throw new ArgumentException($"DiscountAmount must be non-negative for ProductId: {itemDto.ProductId}");
                             }
-                            totalItemDiscounts += itemDto.DiscountAmount.Value;
-                            netDiscountedPrice = (basePrice * itemDto.Quantity - itemDto.DiscountAmount.Value) / itemDto.Quantity;
+                            itemDiscount = itemDto.DiscountAmount.Value * itemDto.Quantity;
+                            netDiscountedPrice = basePrice - itemDto.DiscountAmount.Value;
                             break;
-                        case DiscountType.PartnerPrice:
-                            if (itemDto.PartnerPrice <= 0)
+                        case (int)DiscountType.CustomDiscountAmount:
+                            if (itemDto.DiscountAmount < 0)
                             {
-                                _logger.LogWarning("Invalid PartnerPrice: {PartnerPrice} for ProductId: {ProductId}", itemDto.PartnerPrice, itemDto.ProductId);
-                                throw new ArgumentException($"PartnerPrice must be positive for ProductId: {itemDto.ProductId}");
+                                _logger.LogWarning("Invalid DiscountAmount: {DiscountAmount} for ProductId: {ProductId}", itemDto.DiscountAmount, itemDto.ProductId);
+                                throw new ArgumentException($"DiscountAmount must be non-negative for ProductId: {itemDto.ProductId}");
                             }
-                            totalItemDiscounts += (basePrice - itemDto.PartnerPrice.Value) * itemDto.Quantity;
-                            netDiscountedPrice = itemDto.PartnerPrice.Value;
+                            itemDiscount = itemDto.DiscountAmount.Value * itemDto.Quantity;
+                            netDiscountedPrice = basePrice - itemDto.DiscountAmount.Value;
                             break;
-                        case DiscountType.VolumeDiscount:
-                            if (itemDto.VolumeThreshold <= 0 || itemDto.VolumePrice <= 0)
+                        case (int)DiscountType.PartnerPrice:
+                            if (itemDto.DiscountAmount < 0)
                             {
-                                _logger.LogWarning("Invalid VolumeDiscount: Threshold={VolumeThreshold}, Price={VolumePrice} for ProductId: {ProductId}", 
-                                    itemDto.VolumeThreshold, itemDto.VolumePrice, itemDto.ProductId);
-                                throw new ArgumentException($"VolumeThreshold and VolumePrice must be positive for ProductId: {itemDto.ProductId}");
+                                _logger.LogWarning("Invalid DiscountAmount: {DiscountAmount} for ProductId: {ProductId}", itemDto.DiscountAmount, itemDto.ProductId);
+                                throw new ArgumentException($"DiscountAmount must be non-negative for ProductId: {itemDto.ProductId}");
                             }
-                            if (itemDto.Quantity >= itemDto.VolumeThreshold.Value)
+                            itemDiscount = itemDto.DiscountAmount.Value * itemDto.Quantity;
+                            netDiscountedPrice = basePrice - itemDto.DiscountAmount.Value;
+                            break;
+                        case (int)DiscountType.VolumeDiscount:
+                            if (itemDto.DiscountAmount < 0)
                             {
-                                totalItemDiscounts += (basePrice - itemDto.VolumePrice.Value) * itemDto.Quantity;
-                                netDiscountedPrice = itemDto.VolumePrice.Value;
+                                _logger.LogWarning("Invalid DiscountAmount: {DiscountAmount} for ProductId: {ProductId}", itemDto.DiscountAmount, itemDto.ProductId);
+                                throw new ArgumentException($"DiscountAmount must be non-negative for ProductId: {itemDto.ProductId}");
                             }
+                            itemDiscount = itemDto.DiscountAmount.Value * itemDto.Quantity;
+                            netDiscountedPrice = basePrice - itemDto.DiscountAmount.Value;
                             break;
                         default:
-                            _logger.LogWarning("Unknown DiscountType: {DiscountType} for ProductId: {ProductId}", itemDto.DiscountType, itemDto.ProductId);
-                            throw new ArgumentException($"Unknown DiscountType: {itemDto.DiscountType}");
+                            _logger.LogWarning("Unknown DiscountTypeId: {DiscountTypeId} for ProductId: {ProductId}", itemDto.DiscountTypeId, itemDto.ProductId);
+                            throw new ArgumentException($"Unknown DiscountTypeId: {itemDto.DiscountTypeId}");
                     }
                     netDiscountedPrice = Math.Max(0, netDiscountedPrice);
                 }
@@ -219,10 +196,12 @@ namespace Cloud9_2.Services
                     ItemDescription = itemDto.ItemDescription,
                     VatTypeId = itemDto.VatTypeId,
                     TotalPrice = itemDto.Quantity * netDiscountedPrice,
-                    Discount = discount
+                    DiscountTypeId = itemDto.DiscountTypeId,
+                    DiscountAmount = itemDto.DiscountAmount
                 };
 
                 quote.QuoteItems.Add(quoteItem);
+                totalItemDiscounts += itemDiscount;
                 totalAmount += quoteItem.TotalPrice;
             }
 
@@ -298,8 +277,6 @@ namespace Cloud9_2.Services
             var quote = await _context.Quotes
                 .Include(q => q.QuoteItems)
                     .ThenInclude(qi => qi.Product)
-                .Include(q => q.QuoteItems)
-                    .ThenInclude(qi => qi.Discount)
                 .Include(q => q.Currency)
                 .Include(q => q.Partner)
                 .Where(q => q.QuoteId == quoteId)
@@ -346,14 +323,8 @@ namespace Cloud9_2.Services
                         ItemDescription = i.ItemDescription,
                         TotalPrice = i.TotalPrice,
                         VatTypeId = i.VatTypeId,
-                        DiscountType = i.Discount != null ? i.Discount.DiscountType : null,
-                        DiscountPercentage = i.Discount != null ? i.Discount.DiscountPercentage : null,
-                        DiscountAmount = i.Discount != null ? i.Discount.DiscountAmount : null,
-                        BasePrice = i.Discount != null ? i.Discount.BasePrice : null,
-                        PartnerPrice = i.Discount != null ? i.Discount.PartnerPrice : null,
-                        VolumeThreshold = i.Discount != null ? i.Discount.VolumeThreshold : null,
-                        VolumePrice = i.Discount != null ? i.Discount.VolumePrice : null,
-                        ListPrice = i.Discount != null ? i.Discount.ListPrice : null
+                        DiscountTypeId = i.DiscountTypeId,
+                        DiscountAmount = i.DiscountAmount
                     }).ToList()
                 })
                 .FirstOrDefaultAsync();
@@ -467,82 +438,19 @@ namespace Cloud9_2.Services
                 .FirstOrDefaultAsync();
 
             decimal basePrice = productPrice?.SalesPrice ?? throw new InvalidOperationException($"No active price found for ProductId: {itemDto.ProductId}");
-            decimal netDiscountedPrice = basePrice;
-
-            QuoteItemDiscount discount = null;
+            decimal netDiscountedPrice = itemDto.NetDiscountedPrice > 0 ? itemDto.NetDiscountedPrice : basePrice;
             decimal itemDiscount = 0;
 
-            if (itemDto.DiscountType.HasValue && itemDto.DiscountType != DiscountType.NoDiscount)
+            if (itemDto.DiscountTypeId.HasValue && itemDto.DiscountTypeId != (int)DiscountType.NoDiscount)
             {
-                discount = new QuoteItemDiscount
+                if (itemDto.DiscountAmount < 0)
                 {
-                    DiscountType = itemDto.DiscountType.Value,
-                    DiscountPercentage = itemDto.DiscountPercentage,
-                    DiscountAmount = itemDto.DiscountAmount,
-                    PartnerPrice = itemDto.PartnerPrice,
-                    VolumeThreshold = itemDto.VolumeThreshold,
-                    VolumePrice = itemDto.VolumePrice,
-                    ListPrice = itemDto.ListPrice ,
-                    BasePrice = basePrice
-                };
-
-                switch (itemDto.DiscountType)
-                {
-                    case DiscountType.CustomDiscountPercentage:
-                        discount.DiscountPercentage = discount.DiscountPercentage ?? 0;
-                        itemDiscount = basePrice * itemDto.Quantity * discount.DiscountPercentage.Value / 100;
-                        netDiscountedPrice = basePrice * (1 - discount.DiscountPercentage.Value / 100);
-                        discount.DiscountAmount = null;
-                        discount.PartnerPrice = null;
-                        discount.VolumeThreshold = null;
-                        discount.VolumePrice = null;
-                        break;
-                    case DiscountType.CustomDiscountAmount:
-                        discount.DiscountAmount = discount.DiscountAmount ?? 0;
-                        itemDiscount = discount.DiscountAmount.Value;
-                        netDiscountedPrice = (basePrice * itemDto.Quantity - discount.DiscountAmount.Value) / itemDto.Quantity;
-                        discount.DiscountPercentage = null;
-                        discount.PartnerPrice = null;
-                        discount.VolumeThreshold = null;
-                        discount.VolumePrice = null;
-                        break;
-                    case DiscountType.PartnerPrice:
-                        basePrice = partnerPrice?.PartnerUnitPrice ?? basePrice;
-                        itemDiscount = (productPrice.SalesPrice - basePrice) * itemDto.Quantity;
-                        netDiscountedPrice = basePrice;
-                        discount.PartnerPrice = basePrice;
-                        discount.DiscountPercentage = null;
-                        discount.DiscountAmount = null;
-                        discount.VolumeThreshold = null;
-                        discount.VolumePrice = null;
-                        break;
-                    case DiscountType.VolumeDiscount:
-                        if (itemDto.Quantity >= productPrice?.Volume3 && productPrice?.Volume3Price > 0)
-                        {
-                            basePrice = productPrice.Volume3Price;
-                            discount.VolumeThreshold = productPrice.Volume3;
-                            discount.VolumePrice = productPrice.Volume3Price;
-                        }
-                        else if (itemDto.Quantity >= productPrice?.Volume2 && productPrice?.Volume2Price > 0)
-                        {
-                            basePrice = productPrice.Volume2Price;
-                            discount.VolumeThreshold = productPrice.Volume2;
-                            discount.VolumePrice = productPrice.Volume2Price;
-                        }
-                        else if (itemDto.Quantity >= productPrice?.Volume1 && productPrice?.Volume1Price > 0)
-                        {
-                            basePrice = productPrice.Volume1Price;
-                            discount.VolumeThreshold = productPrice.Volume1;
-                            discount.VolumePrice = productPrice.Volume1Price;
-                        }
-                        itemDiscount = (productPrice.SalesPrice - basePrice) * itemDto.Quantity;
-                        netDiscountedPrice = basePrice;
-                        discount.DiscountPercentage = null;
-                        discount.DiscountAmount = null;
-                        discount.PartnerPrice = null;
-                        break;
+                    _logger.LogWarning("Invalid DiscountAmount: {DiscountAmount} for ProductId: {ProductId}", itemDto.DiscountAmount, itemDto.ProductId);
+                    throw new ArgumentException($"DiscountAmount must be non-negative for ProductId: {itemDto.ProductId}");
                 }
-                discount.BasePrice = basePrice;
+                itemDiscount = itemDto.DiscountAmount.Value * itemDto.Quantity;
+                netDiscountedPrice = basePrice - itemDto.DiscountAmount.Value;
+                netDiscountedPrice = Math.Max(0, netDiscountedPrice);
             }
 
             var quoteItem = new QuoteItem
@@ -554,7 +462,8 @@ namespace Cloud9_2.Services
                 ItemDescription = itemDto.ItemDescription ?? "",
                 VatTypeId = itemDto.VatTypeId,
                 TotalPrice = itemDto.Quantity * netDiscountedPrice,
-                Discount = discount
+                DiscountTypeId = itemDto.DiscountTypeId,
+                DiscountAmount = itemDto.DiscountAmount
             };
 
             _context.QuoteItems.Add(quoteItem);
@@ -577,14 +486,8 @@ namespace Cloud9_2.Services
                 ItemDescription = quoteItem.ItemDescription,
                 TotalPrice = quoteItem.TotalPrice,
                 VatTypeId = quoteItem.VatTypeId,
-                DiscountType = discount?.DiscountType,
-                DiscountPercentage = discount?.DiscountPercentage,
-                DiscountAmount = discount?.DiscountAmount,
-                BasePrice = discount?.BasePrice,
-                PartnerPrice = discount?.PartnerPrice,
-                VolumeThreshold = discount?.VolumeThreshold,
-                VolumePrice = discount?.VolumePrice,
-                ListPrice = discount?.ListPrice
+                DiscountTypeId = quoteItem.DiscountTypeId,
+                DiscountAmount = quoteItem.DiscountAmount
             };
         }
 
@@ -609,7 +512,6 @@ namespace Cloud9_2.Services
             }
 
             var quoteItem = await _context.QuoteItems
-                .Include(qi => qi.Discount)
                 .FirstOrDefaultAsync(q => q.QuoteId == quoteId && q.QuoteItemId == quoteItemId);
             if (quoteItem == null)
             {
@@ -639,88 +541,20 @@ namespace Cloud9_2.Services
                 .FirstOrDefaultAsync();
 
             decimal basePrice = productPrice?.SalesPrice ?? throw new InvalidOperationException($"No active price found for ProductId: {itemDto.ProductId}");
-            decimal netDiscountedPrice = basePrice;
-            decimal oldItemDiscount = quoteItem.Discount != null ? CalculateItemDiscount(quoteItem, productPrice.SalesPrice) : 0;
+            decimal netDiscountedPrice = itemDto.NetDiscountedPrice > 0 ? itemDto.NetDiscountedPrice : basePrice;
+            decimal oldItemDiscount = quoteItem.DiscountTypeId.HasValue ? (quoteItem.DiscountAmount ?? 0) * quoteItem.Quantity : 0;
             decimal newItemDiscount = 0;
 
-            if (quoteItem.Discount != null)
+            if (itemDto.DiscountTypeId.HasValue && itemDto.DiscountTypeId != (int)DiscountType.NoDiscount)
             {
-                _context.QuoteItemDiscounts.Remove(quoteItem.Discount);
-            }
-
-            QuoteItemDiscount discount = null;
-            if (itemDto.DiscountType.HasValue && itemDto.DiscountType != DiscountType.NoDiscount)
-            {
-                discount = new QuoteItemDiscount
+                if (itemDto.DiscountAmount < 0)
                 {
-                    QuoteItemId = quoteItem.QuoteItemId,
-                    DiscountType = itemDto.DiscountType.Value,
-                    DiscountPercentage = itemDto.DiscountPercentage,
-                    DiscountAmount = itemDto.DiscountAmount,
-                    PartnerPrice = itemDto.PartnerPrice,
-                    VolumeThreshold = itemDto.VolumeThreshold,
-                    VolumePrice = itemDto.VolumePrice,
-                    ListPrice = itemDto.ListPrice,
-                    BasePrice = basePrice
-                };
-
-                switch (itemDto.DiscountType)
-                {
-                    case DiscountType.CustomDiscountPercentage:
-                        discount.DiscountPercentage = discount.DiscountPercentage ?? 0;
-                        newItemDiscount = basePrice * itemDto.Quantity * discount.DiscountPercentage.Value / 100;
-                        netDiscountedPrice = basePrice * (1 - discount.DiscountPercentage.Value / 100);
-                        discount.DiscountAmount = null;
-                        discount.PartnerPrice = null;
-                        discount.VolumeThreshold = null;
-                        discount.VolumePrice = null;
-                        break;
-                    case DiscountType.CustomDiscountAmount:
-                        discount.DiscountAmount = discount.DiscountAmount ?? 0;
-                        newItemDiscount = discount.DiscountAmount.Value;
-                        netDiscountedPrice = (basePrice * itemDto.Quantity - discount.DiscountAmount.Value) / itemDto.Quantity;
-                        discount.DiscountPercentage = null;
-                        discount.PartnerPrice = null;
-                        discount.VolumeThreshold = null;
-                        discount.VolumePrice = null;
-                        break;
-                    case DiscountType.PartnerPrice:
-                        basePrice = partnerPrice?.PartnerUnitPrice ?? basePrice;
-                        newItemDiscount = (productPrice.SalesPrice - basePrice) * itemDto.Quantity;
-                        netDiscountedPrice = basePrice;
-                        discount.PartnerPrice = basePrice;
-                        discount.DiscountPercentage = null;
-                        discount.DiscountAmount = null;
-                        discount.VolumeThreshold = null;
-                        discount.VolumePrice = null;
-                        break;
-                    case DiscountType.VolumeDiscount:
-                        if (itemDto.Quantity >= productPrice?.Volume3 && productPrice?.Volume3Price > 0)
-                        {
-                            basePrice = productPrice.Volume3Price;
-                            discount.VolumeThreshold = productPrice.Volume3;
-                            discount.VolumePrice = productPrice.Volume3Price;
-                        }
-                        else if (itemDto.Quantity >= productPrice?.Volume2 && productPrice?.Volume2Price > 0)
-                        {
-                            basePrice = productPrice.Volume2Price;
-                            discount.VolumeThreshold = productPrice.Volume2;
-                            discount.VolumePrice = productPrice.Volume2Price;
-                        }
-                        else if (itemDto.Quantity >= productPrice?.Volume1 && productPrice?.Volume1Price > 0)
-                        {
-                            basePrice = productPrice.Volume1Price;
-                            discount.VolumeThreshold = productPrice.Volume1;
-                            discount.VolumePrice = productPrice.Volume1Price;
-                        }
-                        newItemDiscount = (productPrice.SalesPrice - basePrice) * itemDto.Quantity;
-                        netDiscountedPrice = basePrice;
-                        discount.DiscountPercentage = null;
-                        discount.DiscountAmount = null;
-                        discount.PartnerPrice = null;
-                        break;
+                    _logger.LogWarning("Invalid DiscountAmount: {DiscountAmount} for ProductId: {ProductId}", itemDto.DiscountAmount, itemDto.ProductId);
+                    throw new ArgumentException($"DiscountAmount must be non-negative for ProductId: {itemDto.ProductId}");
                 }
-                discount.BasePrice = basePrice;
+                newItemDiscount = itemDto.DiscountAmount.Value * itemDto.Quantity;
+                netDiscountedPrice = basePrice - itemDto.DiscountAmount.Value;
+                netDiscountedPrice = Math.Max(0, netDiscountedPrice);
             }
 
             quoteItem.ProductId = itemDto.ProductId;
@@ -729,7 +563,8 @@ namespace Cloud9_2.Services
             quoteItem.ItemDescription = itemDto.ItemDescription;
             quoteItem.VatTypeId = itemDto.VatTypeId;
             quoteItem.TotalPrice = itemDto.Quantity * netDiscountedPrice;
-            quoteItem.Discount = discount;
+            quoteItem.DiscountTypeId = itemDto.DiscountTypeId;
+            quoteItem.DiscountAmount = itemDto.DiscountAmount;
 
             quote.TotalItemDiscounts = quote.TotalItemDiscounts - oldItemDiscount + newItemDiscount;
             quote.TotalAmount = quote.QuoteItems.Sum(qi => qi.TotalPrice) - quote.TotalItemDiscounts - (quote.QuoteDiscountAmount ?? 0);
@@ -747,14 +582,8 @@ namespace Cloud9_2.Services
                 ItemDescription = quoteItem.ItemDescription,
                 TotalPrice = quoteItem.TotalPrice,
                 VatTypeId = quoteItem.VatTypeId,
-                DiscountType = discount?.DiscountType,
-                DiscountPercentage = discount?.DiscountPercentage,
-                DiscountAmount = discount?.DiscountAmount,
-                BasePrice = discount?.BasePrice,
-                PartnerPrice = discount?.PartnerPrice,
-                VolumeThreshold = discount?.VolumeThreshold,
-                VolumePrice = discount?.VolumePrice,
-                ListPrice = discount?.ListPrice
+                DiscountTypeId = quoteItem.DiscountTypeId,
+                DiscountAmount = quoteItem.DiscountAmount
             };
         }
 
@@ -775,7 +604,7 @@ namespace Cloud9_2.Services
                 return false;
             }
 
-            decimal itemDiscount = item.Discount != null ? CalculateItemDiscount(item, item.NetDiscountedPrice) : 0;
+            decimal itemDiscount = item.DiscountTypeId.HasValue ? (item.DiscountAmount ?? 0) * item.Quantity : 0;
 
             _context.QuoteItems.Remove(item);
             quote.TotalItemDiscounts -= itemDiscount;
@@ -789,7 +618,6 @@ namespace Cloud9_2.Services
         {
             var originalQuote = await _context.Quotes
                 .Include(q => q.QuoteItems)
-                    .ThenInclude(qi => qi.Discount)
                 .FirstOrDefaultAsync(q => q.QuoteId == quoteId);
 
             if (originalQuote == null)
@@ -827,17 +655,8 @@ namespace Cloud9_2.Services
                     ItemDescription = qi.ItemDescription,
                     VatTypeId = qi.VatTypeId,
                     TotalPrice = qi.TotalPrice,
-                    Discount = qi.Discount != null ? new QuoteItemDiscount
-                    {
-                        DiscountType = qi.Discount.DiscountType,
-                        DiscountPercentage = qi.Discount.DiscountPercentage,
-                        DiscountAmount = qi.Discount.DiscountAmount,
-                        BasePrice = qi.Discount.BasePrice,
-                        PartnerPrice = qi.Discount.PartnerPrice,
-                        VolumeThreshold = qi.Discount.VolumeThreshold,
-                        VolumePrice = qi.Discount.VolumePrice,
-                        ListPrice = qi.Discount.ListPrice
-                    } : null
+                    DiscountTypeId = qi.DiscountTypeId,
+                    DiscountAmount = qi.DiscountAmount
                 }).ToList()
             };
 
@@ -853,7 +672,6 @@ namespace Cloud9_2.Services
 
             var quote = await _context.Quotes
                 .Include(q => q.QuoteItems)
-                    .ThenInclude(qi => qi.Discount)
                 .FirstOrDefaultAsync(q => q.QuoteId == quoteId);
             if (quote == null)
             {
@@ -926,21 +744,12 @@ namespace Cloud9_2.Services
 
         private decimal CalculateItemDiscount(QuoteItem item, decimal originalPrice)
         {
-            if (item.Discount == null) return 0;
-
-            switch (item.Discount.DiscountType)
+            if (!item.DiscountTypeId.HasValue || item.DiscountTypeId == (int)DiscountType.NoDiscount)
             {
-                case DiscountType.CustomDiscountPercentage:
-                    return item.Discount.DiscountPercentage.HasValue ? originalPrice * item.Quantity * item.Discount.DiscountPercentage.Value / 100 : 0;
-                case DiscountType.CustomDiscountAmount:
-                    return item.Discount.DiscountAmount ?? 0;
-                case DiscountType.PartnerPrice:
-                    return (originalPrice - (item.Discount.PartnerPrice ?? originalPrice)) * item.Quantity;
-                case DiscountType.VolumeDiscount:
-                    return (originalPrice - (item.Discount.VolumePrice ?? originalPrice)) * item.Quantity;
-                default:
-                    return 0;
+                return 0;
             }
+
+            return (item.DiscountAmount ?? 0) * item.Quantity;
         }
     }
 }

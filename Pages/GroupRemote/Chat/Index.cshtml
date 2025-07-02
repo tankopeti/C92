@@ -1,0 +1,177 @@
+@page
+@using Microsoft.AspNetCore.Identity
+@using Cloud9_2.Models
+@inject SignInManager<ApplicationUser> SignInManager
+@inject UserManager<ApplicationUser> UserManager
+
+@{
+    var currentUser = await UserManager.GetUserAsync(User);
+    var allUsers = UserManager.Users.ToList();
+    var otherUsers = allUsers.Where(u => u.Id != currentUser.Id).ToList();
+}
+
+<style>
+    .chat-container {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        width: 320px;
+        background-color: #fff;
+        border-radius: 12px;
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+        overflow: hidden;
+        font-family: 'Segoe UI', sans-serif;
+        z-index: 1000;
+    }
+
+    .chat-header {
+        background: linear-gradient(to right, #6b73ff, #000dff);
+        color: white;
+        padding: 12px 16px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .chat-title {
+        font-weight: bold;
+        font-size: 16px;
+    }
+
+    .chat-body {
+        padding: 10px;
+        max-height: 300px;
+        overflow-y: auto;
+        background-color: #f4f4f4;
+    }
+
+    .message {
+        margin-bottom: 10px;
+        padding: 8px 12px;
+        border-radius: 12px;
+        font-size: 14px;
+        max-width: 85%;
+        word-wrap: break-word;
+    }
+
+    .sent {
+        background-color: #6b73ff;
+        color: white;
+        align-self: flex-end;
+        margin-left: auto;
+    }
+
+    .received {
+        background-color: #eaeaea;
+        color: black;
+        align-self: flex-start;
+        margin-right: auto;
+    }
+
+    .chat-footer {
+        display: flex;
+        gap: 8px;
+        padding: 10px;
+        background-color: #fff;
+        border-top: 1px solid #ccc;
+    }
+
+    .chat-footer select,
+    .chat-footer input {
+        flex: 1;
+        padding: 6px 8px;
+        border: 1px solid #ccc;
+        border-radius: 6px;
+    }
+
+    .chat-footer button {
+        background-color: #6b73ff;
+        color: white;
+        border: none;
+        padding: 6px 10px;
+        border-radius: 6px;
+        cursor: pointer;
+    }
+
+    .chat-footer button:hover {
+        background-color: #4a54e1;
+    }
+
+    .chat-messages {
+        display: flex;
+        flex-direction: column;
+    }
+</style>
+
+<div class="chat-container">
+    <div class="chat-header">
+        <span class="chat-title">Chat</span>
+    </div>
+
+    <div class="chat-body" id="messagesList" class="chat-messages">
+        <!-- Messages appear here -->
+    </div>
+
+    <div class="chat-footer">
+        <select id="recipientSelect">
+            <option value="all">🗣️ Közös csoport</option>
+            @foreach (var user in otherUsers)
+            {
+                <option value="@user.UserName">@user.UserName</option>
+            }
+        </select>
+    </div>
+
+    <div class="chat-footer">
+        <input type="text" id="messageInput" placeholder="Type a message..." />
+        <button id="sendButton">Send</button>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="~/lib/microsoft/signalr/dist/browser/signalr.js"></script>
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            const currentUsername = "@currentUser.UserName";
+            const connection = new signalR.HubConnectionBuilder()
+                .withUrl("/chatHub")
+                .build();
+
+            connection.on("ReceivePrivateMessage", function (sender, message, isGroup) {
+                const messageClass = sender === currentUsername ? "sent" : "received";
+                const label = isGroup ? `<div style='font-size: 0.75em; color: gray;'>${sender} to everyone</div>` : `<div style='font-size: 0.75em; color: gray;'>${sender}</div>`;
+                const html = `
+                    <div class="message ${messageClass}">
+                        ${label}
+                        ${message}
+                    </div>`;
+                document.getElementById("messagesList").insertAdjacentHTML("beforeend", html);
+                document.getElementById("messagesList").scrollTop = document.getElementById("messagesList").scrollHeight;
+            });
+
+            connection.start().catch(err => console.error(err.toString()));
+
+            document.getElementById("sendButton").addEventListener("click", function () {
+                const message = document.getElementById("messageInput").value.trim();
+                const recipient = document.getElementById("recipientSelect").value;
+
+                if (!message) return;
+
+                if (recipient === "all") {
+                    connection.invoke("SendGroupMessage", message);
+                } else {
+                    connection.invoke("SendPrivateMessage", recipient, message);
+                }
+
+                document.getElementById("messageInput").value = "";
+            });
+
+            document.getElementById("messageInput").addEventListener("keypress", function (e) {
+                if (e.key === "Enter") {
+                    document.getElementById("sendButton").click();
+                }
+            });
+        });
+    </script>
+}

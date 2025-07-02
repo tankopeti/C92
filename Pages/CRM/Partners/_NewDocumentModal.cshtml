@@ -1,0 +1,32 @@
+@model Cloud9_2.Models.Document
+@using Microsoft.AspNetCore.Mvc.TagHelpers
+
+<div class="modal-header">
+    <h5 class="modal-title" id="newDocumentModalLabel_@Model.PartnerId">Új Dokumentum</h5>
+    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+</div>
+<form method="post" asp-page-handler="CreateDocument" enctype="multipart/form-data">
+    <div class="modal-body">
+        <input type="hidden" asp-for="PartnerId" />
+        <div class="mb-3">
+            <label asp-for="FileName" class="form-label">Fájl neve</label>
+            <input asp-for="FileName" class="form-control" />
+            <span asp-validation-for="FileName" class="text-danger"></span>
+        </div>
+        <div class="mb-3">
+            <label asp-for="DocumentTypeId" class="form-label">Dokumentum típusa</label>
+            <select asp-for="DocumentTypeId" class="form-control" asp-items="@(new SelectList(ViewBag.DocumentTypes, "DocumentTypeId", "TypeName"))">
+                <option value="">-- Válassz típust --</option>
+            </select>
+            <span asp-validation-for="DocumentTypeId" class="text-danger"></span>
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Fájl feltöltése</label>
+            <input type="file" name="file" class="form-control" />
+        </div>
+    </div>
+    <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Mégse</button>
+        <button type="submit" class="btn btn-primary">Feltöltés</button>
+    </div>
+</form>

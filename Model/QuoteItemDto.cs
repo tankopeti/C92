@@ -12,76 +12,50 @@ namespace Cloud9_2.Models
         public int QuoteItemId { get; set; }
 
         [Required]
-        [Display(Name = "Árajánlat azonosító")]
         public int QuoteId { get; set; }
 
         [Required]
-        [Display(Name = "Termék azonosító")]
         public int ProductId { get; set; }
 
         [Required]
-        [Display(Name = "ÁFA típus")]
         public int VatTypeId { get; set; }
 
         [StringLength(200)]
-        [Display(Name = "Tétel leírása")]
         public string? ItemDescription { get; set; }
 
         [Required]
-        [Range(0.01, double.MaxValue, ErrorMessage = "A mennyiség pozitív kell legyen")]
-        [Display(Name = "Mennyiség")]
+        [Range(0.01, double.MaxValue)]
         public decimal Quantity { get; set; }
 
         [Required]
-        [Range(0, double.MaxValue, ErrorMessage = "Az ár nem lehet negatív")]
-        [Display(Name = "Nettó kedvezményes ár")]
         public decimal NetDiscountedPrice { get; set; }
 
         [Required]
-        [Range(0, double.MaxValue, ErrorMessage = "Az összesen nem lehet negatív")]
-        [Display(Name = "Összesen")]
         public decimal TotalPrice { get; set; }
 
-        [Range(1, 6, ErrorMessage = "A kedvezmény típusa 1 és 6 között kell legyen")]
-        [Display(Name = "Kedvezmény típusa")]
-        public DiscountType? DiscountType { get; set; }
+        public int? DiscountTypeId { get; set; }
+        public DiscountType? DiscountType { get; set; } 
 
-        [Range(0, 100, ErrorMessage = "A kedvezmény százaléka 0 és 100 között kell legyen")]
-        [Display(Name = "Kedvezmény %")]
         public decimal? DiscountPercentage { get; set; }
-
-        [Range(0, double.MaxValue, ErrorMessage = "A kedvezmény összege nem lehet negatív")]
-        [Display(Name = "Kedvezmény összeg")]
         public decimal? DiscountAmount { get; set; }
-
-        [Range(0, double.MaxValue, ErrorMessage = "Az alapár nem lehet negatív")]
-        [Display(Name = "Alapár")]
         public decimal? BasePrice { get; set; }
-
-        [Range(0, double.MaxValue, ErrorMessage = "A partner ár nem lehet negatív")]
-        [Display(Name = "Partner ár")]
         public decimal? PartnerPrice { get; set; }
-
-        [Range(0, int.MaxValue, ErrorMessage = "A mennyiségi küszöb nem lehet negatív")]
-        [Display(Name = "Mennyiségi küszöb")]
-        public int? VolumeThreshold { get; set; }
-
-        [Range(0, double.MaxValue, ErrorMessage = "A mennyiségi ár nem lehet negatív")]
-        [Display(Name = "Mennyiségi ár")]
         public decimal? VolumePrice { get; set; }
-
-        [Range(0, double.MaxValue, ErrorMessage = "A listaár nem lehet negatív")]
-        [Display(Name = "Listaár")]
         public decimal? ListPrice { get; set; }
+        public VatTypeDto? VatType { get; set; }
+        public int? VolumeThreshold { get; set; }
+    
     }
     public class CreateQuoteItemDto
     {
         public int ProductId { get; set; }
         public int VatTypeId { get; set; }
+        public VatTypeDto? VatType { get; set; }
         public string? ItemDescription { get; set; }
         public decimal Quantity { get; set; }
         public decimal NetDiscountedPrice { get; set; }
         public decimal TotalPrice { get; set; }
+        public int? DiscountTypeId { get; set; }
         public DiscountType? DiscountType { get; set; }
         public decimal? DiscountPercentage { get; set; }
         public decimal? DiscountAmount { get; set; }
@@ -90,12 +64,14 @@ namespace Cloud9_2.Models
         public int? VolumeThreshold { get; set; }
         public decimal? VolumePrice { get; set; }
         public decimal? ListPrice { get; set; }
+        public QuoteItemDiscountDto Discount { get; set; }
     }
 
     public class UpdateQuoteItemDto
     {
         public int ProductId { get; set; }
         public int VatTypeId { get; set; }
+        public VatTypeDto? VatType { get; set; }
         public string? ItemDescription { get; set; }
         public decimal Quantity { get; set; }
         public decimal NetDiscountedPrice { get; set; }
@@ -108,6 +84,7 @@ namespace Cloud9_2.Models
         public int? VolumeThreshold { get; set; }
         public decimal? VolumePrice { get; set; }
         public decimal? ListPrice { get; set; }
+        public int? DiscountTypeId { get; set; }
     }
 
     public class QuoteItemResponseDto
@@ -120,6 +97,7 @@ namespace Cloud9_2.Models
         public string? ItemDescription { get; set; }
         public decimal TotalPrice { get; set; }
         public int VatTypeId { get; set; }
+        public VatTypeDto? VatType { get; set; }
         public decimal? DiscountPercentage { get; set; }
         public decimal? DiscountAmount { get; set; }
         public decimal? BasePrice { get; set; }
@@ -127,7 +105,17 @@ namespace Cloud9_2.Models
         public int? VolumeThreshold { get; set; }
         public decimal? VolumePrice { get; set; }
         public decimal? ListPrice { get; set; }
+        public int? DiscountTypeId { get; set; }
         public DiscountType? DiscountType { get; set; }
         }
 
+        public enum DiscountType
+        {
+            NoDiscount = 1,
+            ListPrice = 2,
+            PartnerPrice = 3,
+            VolumeDiscount = 4,
+            CustomDiscountPercentage = 5,
+            CustomDiscountAmount = 6
+        }
 }

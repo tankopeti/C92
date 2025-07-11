@@ -69,7 +69,7 @@ namespace Cloud9_2.Services
                 .ToListAsync();
         }
 
-        public async Task<QuoteDto> CreateQuoteAsync(CreateQuoteDto quoteDto)
+public async Task<QuoteDto> CreateQuoteAsync(CreateQuoteDto quoteDto)
         {
             if (string.IsNullOrEmpty(quoteDto.QuoteNumber))
             {
@@ -112,6 +112,22 @@ namespace Cloud9_2.Services
 
             foreach (var itemDto in quoteDto.Items)
             {
+                // Validate and normalize DiscountAmount for NoDiscount
+                if (itemDto.DiscountTypeId == (int)DiscountType.NoDiscount)
+                {
+                    if (itemDto.DiscountAmount != null)
+                    {
+                        _logger.LogWarning("DiscountAmount {DiscountAmount} provided for NoDiscount (DiscountTypeId: {DiscountTypeId}) for ProductId: {ProductId}. Setting to null.",
+                            itemDto.DiscountAmount, itemDto.DiscountTypeId, itemDto.ProductId);
+                        itemDto.DiscountAmount = null;
+                    }
+                }
+                else if (itemDto.DiscountAmount == null)
+                {
+                    _logger.LogWarning("DiscountAmount is null for DiscountTypeId: {DiscountTypeId} for ProductId: {ProductId}", itemDto.DiscountTypeId, itemDto.ProductId);
+                    throw new ArgumentException($"DiscountAmount must be provided for DiscountTypeId: {itemDto.DiscountTypeId} for ProductId: {itemDto.ProductId}");
+                }
+
                 var product = await _context.Products
                     .FirstOrDefaultAsync(p => p.ProductId == itemDto.ProductId);
                 if (product == null)
@@ -151,7 +167,7 @@ namespace Cloud9_2.Services
                                 throw new ArgumentException($"DiscountAmount must be non-negative for ProductId: {itemDto.ProductId}");
                             }
                             itemDiscount = itemDto.DiscountAmount.Value * itemDto.Quantity;
-                            netDiscountedPrice = basePrice - itemDto.DiscountAmount.Value;
+                            netDiscountedPrice = basePrice * (1 - itemDto.DiscountAmount.Value / 100);
                             break;
                         case (int)DiscountType.CustomDiscountAmount:
                             if (itemDto.DiscountAmount < 0)
@@ -197,7 +213,10 @@ namespace Cloud9_2.Services
                     VatTypeId = itemDto.VatTypeId,
                     TotalPrice = itemDto.Quantity * netDiscountedPrice,
                     DiscountTypeId = itemDto.DiscountTypeId,
-                    DiscountAmount = itemDto.DiscountAmount
+                    DiscountAmount = itemDto.DiscountAmount,
+                    ListPrice = itemDto.ListPrice ?? basePrice,
+                    PartnerPrice = itemDto.PartnerPrice ?? partnerPrice?.PartnerUnitPrice,
+                    VolumePrice = itemDto.VolumePrice
                 };
 
                 quote.QuoteItems.Add(quoteItem);
@@ -277,6 +296,8 @@ namespace Cloud9_2.Services
             var quote = await _context.Quotes
                 .Include(q => q.QuoteItems)
                     .ThenInclude(qi => qi.Product)
+                .Include(q => q.QuoteItems)
+                    .ThenInclude(qi => qi.VatType)
                 .Include(q => q.Currency)
                 .Include(q => q.Partner)
                 .Where(q => q.QuoteId == quoteId)
@@ -323,6 +344,14 @@ namespace Cloud9_2.Services
                         ItemDescription = i.ItemDescription,
                         TotalPrice = i.TotalPrice,
                         VatTypeId = i.VatTypeId,
+                        VatType = new VatTypeDto {
+                            VatTypeId = i.VatTypeId,
+                            Rate = i.VatType.Rate,
+                            TypeName = i.VatType.TypeName
+                        },
+                        ListPrice = i.ListPrice,
+                        PartnerPrice = i.PartnerPrice,
+                        VolumePrice = i.VolumePrice,
                         DiscountTypeId = i.DiscountTypeId,
                         DiscountAmount = i.DiscountAmount
                     }).ToList()
@@ -582,6 +611,11 @@ namespace Cloud9_2.Services
                 ItemDescription = quoteItem.ItemDescription,
                 TotalPrice = quoteItem.TotalPrice,
                 VatTypeId = quoteItem.VatTypeId,
+                VatType = new VatTypeDto {
+                    VatTypeId = vatType.VatTypeId,
+                    Rate = vatType.Rate,
+                    TypeName = vatType.TypeName
+                },
                 DiscountTypeId = quoteItem.DiscountTypeId,
                 DiscountAmount = quoteItem.DiscountAmount
             };

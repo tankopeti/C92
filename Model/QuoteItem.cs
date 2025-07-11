@@ -19,6 +19,9 @@ namespace Cloud9_2.Models
         [Required]
         [Display(Name = "ÁFA típus")]
         public int VatTypeId { get; set; }
+        
+        [ForeignKey(nameof(VatTypeId))]
+        public VatType VatType { get; set; }
 
         [StringLength(200)]
         [Display(Name = "Tétel leírása")]
@@ -47,9 +50,27 @@ namespace Cloud9_2.Models
         public Product? Product { get; set; }
 
         [ForeignKey("VatTypeId")]
-        public VatType? VatType { get; set; }
+
+        public int? DiscountTypeId { get; set; }
+
+        [NotMapped]
+        public DiscountType? DiscountType { get; set; }
+        public decimal? DiscountAmount { get; set; }
+
+        [Column(TypeName = "decimal(18,2)")]
+        [Display(Name = "Listaár")]
+        public decimal? ListPrice { get; set; }
+
+        [Column(TypeName = "decimal(18,2)")]
+        [Display(Name = "Partnerár")]
+        public decimal? PartnerPrice { get; set; }
+
+        [Column(TypeName = "decimal(18,2)")]
+        [Display(Name = "Mennyiségi ár")]
+        public decimal? VolumePrice { get; set; }
+
 
         [ForeignKey("QuoteItemId")]
-        public QuoteItemDiscount? Discount { get; set; } // 1-to-1
+        public QuoteItemDiscount? Discount { get; set; } // discountok tárolására lett létrehozva, de el lett engedve, mert túlbonyolította a kódot.
     }
 }

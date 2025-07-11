@@ -159,7 +159,7 @@
                     </div>
 
 
-@*                 <!-- Edit Quote Modal -->
+                <!-- Edit Quote Modal -->
                 <div class="modal fade" id="editQuoteModal_@quote.QuoteId" tabindex="-1" aria-labelledby="editQuoteModalLabel_@quote.QuoteId" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false" data-partner-id="@quote.PartnerId" data-quote-date="@(quote.QuoteDate?.ToString("yyyy-MM-dd") ?? DateTime.Now.ToString("yyyy-MM-dd"))">
                     <div class="modal-dialog" style="max-width: 95%;">
                         <div class="modal-content">
@@ -283,13 +283,20 @@
                                                         </tr>
                                                     </thead>
                                                     <tbody id="items-tbody_@quote.QuoteId">
-                                                        @foreach (var item in quote.Items)
+                                                        @foreach (var item in quote.QuoteItems)
                                                         {
                                                             <script>console.log('Server-side item ID:', '@item.QuoteItemId', 'ProductId:', '@item.ProductId', 'VatTypeId:', '@item.VatTypeId');</script>
                                                             <tr class="quote-item-row" data-item-id="@item.QuoteItemId">
                                                                 <td>
-                                                                    <select name="quoteItems[@item.QuoteItemId].ProductId" class="form-select tom-select-product" data-selected-id="@item.ProductId" data-selected-text="@(item.ItemDescription ?? "Unknown")" autocomplete="off" required>
-                                                                        <option value="" disabled selected>-- Válasszon terméket --</option>
+                                                                    <select name="quoteItems[@item.QuoteItemId].ProductId"
+                                                                            class="form-select tom-select-product"
+                                                                            data-selected-id="@item.ProductId"
+                                                                            data-selected-text="@item.Product?.Name ?? "Ismeretlen termék""
+                                                                            autocomplete="off"
+                                                                            required>
+                                                                        <option value="@item.ProductId" selected>@item.Product?.Name</option>
+                                                                        <option value="" disabled>-- Válasszon terméket --</option>
+                                                                        <!-- Optional: preload others if needed -->
                                                                     </select>
                                                                 </td>
                                                                 <td>
@@ -308,13 +315,15 @@
                                                                     <input type="number" name="quoteItems[@item.QuoteItemId].DiscountAmount" class="form-control form-control-sm discount-value" value="@(item.DiscountAmount?.ToString(CultureInfo.InvariantCulture) ?? "0")" min="0" step="0.01">
                                                                 </td>
                                                                 <td>
-                                                                    <select name="quoteItems[@item.QuoteItemId].DiscountType" class="form-select form-select-sm discount-type" data-discount-name-prefix="quoteItems[@item.QuoteItemId]">
-                                                                        <option value="NoDiscount" selected="@(item.DiscountType == null)">Nincs Kedvezmény</option>
-                                                                        <option value="ListPrice" selected="@(item.DiscountType == DiscountType.ListPrice)">Listaár</option>
-                                                                        <option value="PartnerPrice" selected="@(item.DiscountType == DiscountType.PartnerPrice)">Ügyfélár</option>
-                                                                        <option value="VolumeDiscount" selected="@(item.DiscountType == DiscountType.VolumeDiscount)">Mennyiségi kedvezmény</option>
-                                                                        <option value="CustomDiscountPercentage" selected="@(item.DiscountType == DiscountType.CustomDiscountPercentage)">Egyedi kedvezmény %</option>
-                                                                        <option value="CustomDiscountAmount" selected="@(item.DiscountType == DiscountType.CustomDiscountAmount)">Egyedi kedvezmény Összeg</option>
+                                                                    <select name="quoteItems[@item.QuoteItemId].DiscountTypeId"
+                                                                            class="form-select form-select-sm discount-type-id"
+                                                                            data-discount-name-prefix="quoteItems[@item.QuoteItemId]">
+                                                                        <option value="1" selected="@(item.DiscountTypeId == null || item.DiscountTypeId == 1)">Nincs Kedvezmény</option>
+                                                                        <option value="2" selected="@(item.DiscountTypeId == 2)">Listaár</option>
+                                                                        <option value="3" selected="@(item.DiscountTypeId == 3)">Ügyfélár</option>
+                                                                        <option value="4" selected="@(item.DiscountTypeId == 4)">Mennyiségi kedvezmény</option>
+                                                                        <option value="5" selected="@(item.DiscountTypeId == 5)">Egyedi kedvezmény %</option>
+                                                                        <option value="6" selected="@(item.DiscountTypeId == 6)">Egyedi kedvezmény Összeg</option>
                                                                     </select>
                                                                 </td>
                                                                 <td>
@@ -323,9 +332,18 @@
                                                                 <td>
                                                                     <span class="item-net-discounted-price">@item.NetDiscountedPrice.ToString("F2", CultureInfo.InvariantCulture)</span>
                                                                 </td>
-                                                                <td>
-                                                                    <input type="text" name="quoteItems[@item.QuoteItemId].VatTypeId" class="form-control form-control-sm tom-select-vat item-vat" data-selected-id="@(item.VatTypeId > 0 ? item.VatTypeId.ToString() : "1")" data-selected-text="@(item.VatType != null && item.VatTypeId > 0 ? $"{item.VatType.Rate:F2}%" : "27,00%")" placeholder="Válasszon ÁFA-t" autocomplete="off" required>
-                                                                </td>
+<td>
+    <select name="quoteItems[@item.QuoteItemId].VatTypeId"
+            class="form-select tom-select-vat"
+            data-selected-id="@item.VatTypeId"
+            data-selected-text="@item.VatType?.TypeName ?? "Ismeretlen ÁFA""
+            autocomplete="off"
+            required>
+        <option value="@item.VatTypeId" selected>@item.VatType?.TypeName ?? "Ismeretlen ÁFA"</option>
+        <option value="" disabled>-- Válasszon ÁFA típust --</option>
+        <!-- Optional: preload VAT types here if needed -->
+    </select>
+</td>
                                                                 <td>
                                                                     <span class="item-vat-amount">0.00</span>
                                                                 </td>
@@ -382,7 +400,7 @@
                             </div>
                         </div>
                     </div>
-                </div> *@
+                </div>
 
 
                 <!-- New Quote Modal -->
@@ -626,9 +644,9 @@
                                 <tr><th>Tárgy</th><td>@quote.Subject</td></tr>
                                 <tr><th>Leírás</th><td>@quote.Description</td></tr>
                                 <tr><th>Részletes leírás</th><td>@quote.DetailedDescription</td></tr>
-                                <tr><th>Kedvezmény %</th><td>@(quote.DiscountPercentage?.ToString("F2", CultureInfo.GetCultureInfo("hu-HU")) ?? "0,00")</td></tr>
+                                @* <tr><th>Kedvezmény %</th><td>@(quote.DiscountPercentage?.ToString("F2", CultureInfo.GetCultureInfo("hu-HU")) ?? "0,00")</td></tr> *@
                                 @* <tr><th>Kedvezmény összeg</th><td>@(quote.QuoteDiscountAmount?.ToString("F2", CultureInfo.GetCultureInfo("hu-HU")) ?? "0,00")</td></tr> *@
-                                <tr><th>Összesen</th><td>@(quote.TotalAmount?.ToString("F2", CultureInfo.GetCultureInfo("hu-HU")) ?? "0,00")</td></tr>
+                                @* <tr><th>Összesen</th><td>@(quote.TotalAmount?.ToString("F2", CultureInfo.GetCultureInfo("hu-HU")) ?? "0,00")</td></tr> *@
                                 <tr><th>Létrehozta</th><td>@quote.CreatedBy</td></tr>
                                 <tr><th>Létrehozás dátuma</th><td>@quote.CreatedDate?.ToString("yyyy-MM-dd HH:mm:ss")</td></tr>
                                 <tr><th>Módosította</th><td>@quote.ModifiedBy</td></tr>
@@ -652,25 +670,24 @@
                             <tbody>
                                 @if (quote.QuoteItems != null && quote.QuoteItems.Any())
                                 {
-                                    @* @foreach (var quoteItem in quote.QuoteItems)
+                                    @foreach (var quoteItem in quote.QuoteItems)
                                     {
                                         <tr data-item-id="@quoteItem.QuoteItemId">
                                             <td>@(quoteItem.Product?.Name ?? "N/A")</td>
                                             <td>@quoteItem.ItemDescription</td>
                                             <td>@quoteItem.Quantity</td>
-                                            <td>@quoteItem.UnitPrice.ToString("F2", CultureInfo.GetCultureInfo("hu-HU"))</td>
+                                            <td>@(quoteItem.NetDiscountedPrice.ToString("F2", CultureInfo.GetCultureInfo("hu-HU")))</td>
                                             <td>
-                                                @(quoteItem.DiscountPercentage.HasValue && quoteItem.DiscountPercentage.Value > 0
-                                                    ? $"{quoteItem.DiscountPercentage.Value:F2}%"
-                                                    : quoteItem.DiscountAmount.HasValue && quoteItem.DiscountAmount.Value > 0
-                                                        ? $"{quoteItem.DiscountAmount.Value:F2}"
-                                                        : "0,00")
+                                                @(quoteItem.DiscountAmount.HasValue && quoteItem.DiscountAmount.Value > 0
+                                                    ? $"{quoteItem.DiscountAmount.Value:F2}"
+                                                    : "0,00")
                                             </td>
+
                                             <td>
-                                                @((quoteItem.Quantity * quoteItem.UnitPrice - (quoteItem.DiscountAmount ?? (quoteItem.DiscountPercentage.HasValue ? (quoteItem.Quantity * quoteItem.UnitPrice * quoteItem.DiscountPercentage.Value / 100) : 0))).ToString("F2", CultureInfo.GetCultureInfo("hu-HU")))
+                                            @((quoteItem.NetDiscountedPrice * quoteItem.Quantity).ToString("F2", CultureInfo.GetCultureInfo("hu-HU")))
                                             </td>
                                         </tr>
-                                    } *@
+                                    }
                                 }
                                 else
                                 {
@@ -1031,224 +1048,226 @@ function initializeVatTomSelect(input, quoteId) {
     if (typeof TomSelect === 'undefined') {
         console.error('TomSelect library not loaded');
         showToast('error', 'TomSelect library missing.');
-        return Promise.reject('TomSelect library missing');
+        return Promise.reject('TomSelect missing');
     }
-    const modal = document.querySelector(`#${quoteId === 'new' ? 'newQuoteModal' : 'editQuoteModal_' + quoteId}`);
-    if (!modal) {
-        console.error(`Modal not found for quoteId: ${quoteId}`);
-        showToast('error', 'Modal not found.');
-        return Promise.reject('Modal not found');
-    }
+
     let hiddenInput = input.nextElementSibling;
     if (!hiddenInput || hiddenInput.type !== 'hidden') {
-        console.warn('Hidden input not found or invalid for VAT select:', input);
         hiddenInput = document.createElement('input');
         hiddenInput.type = 'hidden';
         hiddenInput.name = input.name;
         input.parentNode.insertBefore(hiddenInput, input.nextSibling);
-        console.log('Created hidden input for VAT select:', hiddenInput);
     }
-    if (input.tomselect) {
-        input.tomselect.destroy();
-    }
+
+    if (input.tomselect) input.tomselect.destroy();
     input.dataset.tomSelectInitialized = 'true';
-    const fallbackData = [
-        { vatTypeId: 1, typeName: '27%', rate: 27 },
-        { vatTypeId: 2, typeName: '0%', rate: 0 },
-        { vatTypeId: 3, typeName: '5%', rate: 5 }
-    ];
-    return new Promise((resolve, reject) => {
-        fetch('/api/vat/types') // Updated endpoint
-            .then(response => {
-                if (!response.ok) throw new Error(`Failed to fetch VAT types: ${response.status}`);
-                return response.json();
-            })
-            .then(data => {
-                if (!Array.isArray(data) || data.length === 0) {
-                    console.warn('No VAT types returned for quoteId:', quoteId);
-                    showToast('warning', 'No VAT types available, using defaults.');
-                    data = fallbackData;
-                }
-                console.log('VAT types loaded:', data);
-                input.innerHTML = '<option value="">Válasszon ÁFA típust</option>';
-                data.forEach(vat => {
-                    const option = new Option(vat.typeName, vat.vatTypeId);
-                    option.dataset.rate = vat.rate;
-                    input.appendChild(option);
-                });
-                const tomSelect = new TomSelect(input, {
-                    create: false,
-                    searchField: ['typeName'],
-                    maxItems: 1,
-                    valueField: 'vatTypeId',
-                    labelField: 'typeName',
-                    options: data.map(vat => ({ vatTypeId: vat.vatTypeId, typeName: vat.typeName })),
-                    onInitialize: function () {
-                        const selectedId = input.dataset.selectedId || '2';
-                        this.addItem(selectedId);
-                        hiddenInput.value = selectedId;
-                        console.log('VAT default set:', selectedId);
-                        resolve();
-                    },
-                    onChange: function (value) {
-                        hiddenInput.value = value || '2';
-                        console.log('VAT changed, hidden input value:', hiddenInput.value);
-                        const row = input.closest('tr.quote-item-row');
-                        if (row && row.closest('tbody')) {
-                            const productSelect = row.querySelector('.tom-select-product');
-                            if (productSelect && productSelect.tomselect) {
-                                const productId = productSelect.value || productSelect.dataset.selectedId;
-                                const products = Object.values(productSelect.tomselect.options);
-                                console.log('VAT onChange: calling updatePriceFields with productId:', productId, 'products:', products);
-                                updatePriceFields(productSelect, productId, products);
-                                calculateQuoteTotals(row.closest('table').dataset.quoteId);
-                            } else {
-                                console.warn('Product select not found or not initialized for VAT change:', productSelect);
-                            }
-                        } else {
-                            console.warn('Row or tbody not found for VAT change:', row);
-                        }
+
+    return fetch('/api/vat/types')
+        .then(res => res.ok ? res.json() : Promise.reject('Fetch error'))
+        .catch(() => [
+            { vatTypeId: 1, typeName: '27%', rate: 27 },
+            { vatTypeId: 2, typeName: '0%', rate: 0 },
+            { vatTypeId: 3, typeName: '5%', rate: 5 }
+        ])
+        .then(data => {
+            input.innerHTML = '<option value="">Válasszon ÁFA típust</option>';
+            data.forEach(vat => {
+                const option = new Option(vat.typeName, vat.vatTypeId);
+                option.dataset.rate = vat.rate;
+                input.appendChild(option);
+            });
+
+            const selectedId = input.dataset.selectedId;
+            const selectedText = input.dataset.selectedText;
+
+            const tomSelect = new TomSelect(input, {
+                create: false,
+                maxItems: 1,
+                valueField: 'vatTypeId',
+                labelField: 'typeName',
+                searchField: ['typeName'],
+                options: data.map(v => ({
+                    vatTypeId: v.vatTypeId,
+                    typeName: v.typeName,
+                    rate: v.rate
+                })),
+                onInitialize() {
+                    const exists = data.some(v => String(v.vatTypeId) === selectedId);
+                    if (!exists && selectedId && selectedText) {
+                        this.addOption({ vatTypeId: selectedId, typeName: selectedText, rate: 0 });
                     }
-                });
-                tomSelect.refreshOptions();
-                console.log('VAT TomSelect initialized, options:', tomSelect.options, 'value:', tomSelect.getValue());
-                if (!tomSelect) {
-                    console.error('Failed to initialize TomSelect for VAT select:', input);
-                    showToast('error', 'Failed to initialize VAT dropdown.');
-                }
-            })
-            .catch(error => {
-                console.error(`Error fetching VAT types for quoteId ${quoteId}:`, error);
-                showToast('error', 'Failed to load VAT types: ' + error.message);
-                input.innerHTML = '<option value="">Válasszon ÁFA típust</option>';
-                fallbackData.forEach(vat => {
-                    const option = new Option(vat.typeName, vat.vatTypeId);
-                    option.dataset.rate = vat.rate;
-                    input.appendChild(option);
-                });
-                const tomSelect = new TomSelect(input, {
-                    create: false,
-                    searchField: ['typeName'],
-                    maxItems: 1,
-                    valueField: 'vatTypeId',
-                    labelField: 'typeName',
-                    options: fallbackData,
-                    onInitialize: function () {
-                        const selectedId = input.dataset.selectedId || '2';
-                        this.addItem(selectedId);
+                    if (selectedId) {
+                        this.setValue(selectedId);
                         hiddenInput.value = selectedId;
-                        console.log('VAT default set with fallback:', selectedId);
-                        resolve();
-                    },
-                    onChange: function (value) {
-                        hiddenInput.value = value || '2';
-                        console.log('VAT changed, hidden input value:', hiddenInput.value);
-                        const row = input.closest('tr.quote-item-row');
-                        if (row && row.closest('tbody')) {
-                            const productSelect = row.querySelector('.tom-select-product');
-                            if (productSelect && productSelect.tomselect) {
-                                const productId = productSelect.value || productSelect.dataset.selectedId;
-                                const products = Object.values(productSelect.tomselect.options);
-                                updatePriceFields(productSelect, productId, products);
-                                calculateQuoteTotals(row.closest('table').dataset.quoteId);
-                            }
-                        }
+                    } else if (data[0]) {
+                        this.setValue(data[0].vatTypeId);
+                        hiddenInput.value = data[0].vatTypeId;
                     }
-                });
-                tomSelect.refreshOptions();
-                console.log('VAT TomSelect initialized with fallback, options:', tomSelect.options, 'value:', tomSelect.getValue());
-                if (!tomSelect) {
-                    console.error('Failed to initialize TomSelect with fallback for VAT select:', input);
-                    showToast('error', 'Failed to initialize VAT dropdown with fallback.');
+                },
+                onChange(value) {
+                    hiddenInput.value = value || '';
+                    const row = input.closest('tr.quote-item-row');
+                    if (!row) return;
+
+                    const productSelect = row.querySelector('.tom-select-product');
+                    if (productSelect?.tomselect) {
+                        const productId = productSelect.value || productSelect.dataset.selectedId;
+                        const products = Object.values(productSelect.tomselect.options);
+                        updatePriceFields(productSelect, productId, products);
+                        calculateQuoteTotals(row.closest('table').dataset.quoteId);
+                    }
                 }
             });
-    });
+
+            tomSelect.refreshOptions();
+        });
 }
 
+
 // Calculate prices for a row
-function calculateAllPrices(row, unitPrice, discountTypeId, discountAmount, quantity, vatSelect, product) {
+async function calculateAllPrices(row, unitPrice, discountTypeId, discountAmount, quantity, vatSelect, product) {
+    const itemId = row.dataset.itemId;
     const netDiscountedPriceSpan = row.querySelector('.item-net-discounted-price');
     const totalSpan = row.querySelector('.item-total');
+    const unitPriceInput = row.querySelector('.item-unit-price');
     const discountAmountInput = row.querySelector('.discount-amount');
-
-    if (!netDiscountedPriceSpan || !totalSpan || !discountAmountInput) {
-        console.error('Missing DOM elements in row:', row);
-        showToast('error', 'Missing price fields.');
-        return { netPrice: 0, vatAmount: 0, totalPrice: 0, parsedDiscountTypeId: 1, vatPercentage: 0 };
+    if (!netDiscountedPriceSpan || !totalSpan || !unitPriceInput || !discountAmountInput) {
+        console.error('Missing price fields in row:', row);
+        showToast('error', 'Hiányzó ár mezők a sorban.');
+        return;
     }
-
-    const parsedUnitPrice = parseFloat(unitPrice) || 0;
-    const parsedQuantity = parseInt(quantity, 10) || 1;
-    const parsedDiscountTypeId = parseInt(discountTypeId, 10) || 1;
-    let parsedDiscountAmount = parsedDiscountTypeId === 1 ? 0 : parseFloat(discountAmount) || 0;
-    let volumeThreshold = null;
-    let volumePrice = null;
-
-    if (parsedDiscountAmount < 0) {
-        showToast('error', 'A kedvezmény összege nem lehet negatív.');
-        discountAmountInput.value = '';
+    const vatTypeId = vatSelect.tomselect?.getValue() || vatSelect.dataset.selectedId || '2';
+    const vatRate = vatSelect.tomselect?.options?.[vatTypeId]?.rate ?? 0;
+    let effectiveUnitPrice = parseFloat(unitPrice) || parseFloat(product?.listPrice) || 0;
+    if (!effectiveUnitPrice) {
+        console.warn(`Érvénytelen egységár a termékhez (ProductId: ${product?.productId}), 0 használata`);
+        showToast('warning', `Érvénytelen egységár a termékhez (ID: ${product?.productId}), 0 használata`);
+        effectiveUnitPrice = 0;
+    }
+    let netPrice = effectiveUnitPrice;
+    let parsedDiscountAmount = discountAmountInput.value ? parseFloat(discountAmountInput.value.replace(',', '.')) : (parseFloat(discountAmount) || 0);
+    if (isNaN(parsedDiscountAmount)) {
+        console.warn(`Érvénytelen kedvezmény összeg a tételhez ${itemId}: ${discountAmountInput.value}, 0 használata`);
+        showToast('warning', `Érvénytelen kedvezmény összeg a tételhez ${itemId}, 0 használata`);
         parsedDiscountAmount = 0;
     }
-
-    let netPricePerUnit = parsedUnitPrice;
-    if (parsedDiscountTypeId === 3) {
-        const productId = row.querySelector('.tom-select-product').value;
-        const partnerId = row.closest('.modal').dataset.partnerId || '5004';
-        // Simulate API call (replace with actual fetch)
-        const partnerPrice = 900; // From your example
-        parsedDiscountAmount = parsedUnitPrice - partnerPrice; // e.g., 980 - 900 = 80
-        netPricePerUnit = partnerPrice;
-        discountAmountInput.value = parsedDiscountAmount.toFixed(2);
-    } else if (parsedDiscountTypeId === 4) {
-        // Volume discount based on thresholds
-        const volume1 = product?.volume1 || 50;
-        const volume1Price = product?.volume1Price || 900;
-        const volume2 = product?.volume2 || 100;
-        const volume2Price = product?.volume2Price || 800;
-
-        if (parsedQuantity >= volume2) {
-            netPricePerUnit = volume2Price;
-            parsedDiscountAmount = parsedUnitPrice - volume2Price; // e.g., 980 - 800 = 180
-            volumeThreshold = volume2;
-            volumePrice = volume2Price;
-        } else if (parsedQuantity >= volume1) {
-            netPricePerUnit = volume1Price;
-            parsedDiscountAmount = parsedUnitPrice - volume1Price; // e.g., 980 - 900 = 80
-            volumeThreshold = volume1;
-            volumePrice = volume1Price;
-        } else {
-            parsedDiscountAmount = 0;
-            volumeThreshold = null;
-            volumePrice = null;
+    let partnerPrice = null;
+    const validDiscountTypeIds = [1, 2, 3, 4, 5, 6]; // Updated to match DiscountType enum
+    if (!validDiscountTypeIds.includes(discountTypeId)) {
+        console.warn(`Érvénytelen kedvezmény típus: ${discountTypeId} a tételhez ${itemId}, NoDiscount (1) használata`);
+        showToast('error', `Érvénytelen kedvezmény típus: ${discountTypeId} a tételhez ${itemId}, nincs kedvezmény alkalmazva`);
+        discountTypeId = 1;
+        row.dataset.discountTypeId = '1';
+        const discountTypeSelect = row.querySelector('.discount-type-select');
+        if (discountTypeSelect?.tomselect) {
+            discountTypeSelect.tomselect.setValue('1');
         }
-        discountAmountInput.value = parsedDiscountAmount.toFixed(2);
-    } else if (parsedDiscountTypeId === 5) {
-        parsedDiscountAmount = parsedUnitPrice * (parsedDiscountAmount / 100);
-        netPricePerUnit = parsedUnitPrice - parsedDiscountAmount;
-        discountAmountInput.value = parsedDiscountAmount.toFixed(2);
-    } else if (parsedDiscountTypeId === 6) {
-        netPricePerUnit = parsedUnitPrice - parsedDiscountAmount;
-        discountAmountInput.value = parsedDiscountAmount.toFixed(2);
-    } else {
-        parsedDiscountAmount = 0;
-        discountAmountInput.value = '';
     }
+    if (discountTypeId === 3) { // PartnerPrice
+        try {
+            const partnerId = document.querySelector(`#quoteBaseInfoForm_${row.dataset.quoteId}`)?.querySelector('[name="partnerId"]')?.value || '5004';
+            const productId = product?.productId || row.querySelector('.tom-select-product')?.tomselect?.getValue();
+            if (!productId || !partnerId) {
+                console.warn(`Missing productId or partnerId for PartnerPrice, item ${itemId}`);
+                showToast('warning', `Hiányzó termék vagy partner azonosító a partner ár kiszámításához, tétel ${itemId}`);
+                discountTypeId = 1;
+                row.dataset.discountTypeId = '1';
+                const discountTypeSelect = row.querySelector('.discount-type-select');
+                if (discountTypeSelect?.tomselect) {
+                    discountTypeSelect.tomselect.setValue('1');
+                }
+            } else {
+                const response = await fetch(`/api/product/partner-price?partnerId=${partnerId}&productId=${productId}`);
 
-    netPricePerUnit = Math.max(netPricePerUnit, 0);
-    const netPrice = netPricePerUnit * parsedQuantity;
+                if (!response.ok) {
+                    console.warn(`Failed to fetch partner price for product ${productId}, partner ${partnerId}: ${response.status}`);
+                    showToast('warning', `Nem sikerült lekérni a partner árat a termékhez ${productId} (tétel ${itemId}), alapár használata`);
+                    discountTypeId = 1;
+                    row.dataset.discountTypeId = '1';
+                    const discountTypeSelect = row.querySelector('.discount-type-select');
+                    if (discountTypeSelect?.tomselect) {
+                        discountTypeSelect.tomselect.setValue('1');
+                    }
+                } else {
+                    const productData = await response.json(); // ✅ Only once
+                    partnerPrice = productData?.partnerPrice ? parseFloat(productData.partnerPrice) : null;
 
-    const vatPercentage = getCurrentVatPercentage(vatSelect);
-    const vatAmount = netPrice * (vatPercentage / 100);
-    const totalPrice = netPrice + vatAmount;
-
+                    if (!productData?.partnerPrice || productData.partnerPrice === 0) {
+                        console.warn(`No valid partner price found for product ${productId}, partner ${partnerId}, using base price`);
+                        showToast('warning', `Nincs érvényes partner ár a termékhez ${productId} (tétel ${itemId}), alapár használata`);
+                        discountTypeId = 1;
+                        row.dataset.discountTypeId = '1';
+                        const discountTypeSelect = row.querySelector('.discount-type-select');
+                        if (discountTypeSelect?.tomselect) {
+                            discountTypeSelect.tomselect.setValue('1');
+                        }
+                    }
+                }
+            }
+        } catch (error) {
+            console.error(`Error fetching partner price for item ${itemId}:`, error);
+            showToast('error', `Hiba a partner ár lekérése közben a tételhez ${itemId}: ${error.message}`);
+            discountTypeId = 1;
+            row.dataset.discountTypeId = '1';
+            const discountTypeSelect = row.querySelector('.discount-type-select');
+            if (discountTypeSelect?.tomselect) {
+                discountTypeSelect.tomselect.setValue('1');
+            }
+        }
+    }
+    if (discountTypeId === 1 || discountTypeId === 2) { // NoDiscount or ListPrice
+        parsedDiscountAmount = null;
+        discountAmountInput.value = '';
+        netPrice = effectiveUnitPrice;
+    } else if (discountTypeId === 5) { // CustomDiscountPercentage
+        if (parsedDiscountAmount < 0 || parsedDiscountAmount > 100) {
+            console.warn(`Érvénytelen kedvezmény százalék: ${parsedDiscountAmount} a tételhez ${itemId}, 0 használata`);
+            showToast('error', `A kedvezmény százaléknak 0 és 100 között kell lennie a tételhez ${itemId}`);
+            parsedDiscountAmount = 0;
+        }
+        netPrice = effectiveUnitPrice * (1 - parsedDiscountAmount / 100);
+    } else if (discountTypeId === 6) { // CustomDiscountAmount
+        if (parsedDiscountAmount < 0) {
+            console.warn(`Érvénytelen kedvezmény összeg: ${parsedDiscountAmount} a tételhez ${itemId}, 0 használata`);
+            showToast('error', `A kedvezmény összeg nem lehet negatív a tételhez ${itemId}`);
+            parsedDiscountAmount = 0;
+        }
+        netPrice = effectiveUnitPrice - parsedDiscountAmount;
+    } else if (discountTypeId === 3) { // PartnerPrice
+        if (partnerPrice !== null && partnerPrice !== 0) {
+            netPrice = partnerPrice;
+            parsedDiscountAmount = effectiveUnitPrice - partnerPrice;
+            if (parsedDiscountAmount < 0) {
+                console.warn(`Negative discount amount for PartnerPrice: ${parsedDiscountAmount}, item ${itemId}`);
+                showToast('warning', `Negatív kedvezmény összeg a partner árnál, tétel ${itemId}`);
+                parsedDiscountAmount = 0;
+            }
+        } else {
+            netPrice = effectiveUnitPrice;
+            parsedDiscountAmount = 0;
+        }
+    } else if (discountTypeId === 4) { // VolumeDiscount
+        if (parsedDiscountAmount < 0) {
+            console.warn(`Érvénytelen kedvezmény összeg: ${parsedDiscountAmount} a tételhez ${itemId}, 0 használata`);
+            showToast('error', `A kedvezmény összeg nem lehet negatív a tételhez ${itemId}`);
+            parsedDiscountAmount = 0;
+        }
+        netPrice = effectiveUnitPrice - parsedDiscountAmount;
+    }
+    if (netPrice < 0) {
+        console.warn(`Negatív nettó ár: ${netPrice} a tételhez ${itemId}, 0-ra állítva`);
+        showToast('warning', `Negatív nettó ár a tételhez ${itemId}, 0-ra állítva`);
+        netPrice = 0;
+    }
+    const grossPrice = netPrice * (1 + vatRate / 100);
+    const totalGrossPrice = grossPrice * quantity;
+    unitPriceInput.value = effectiveUnitPrice.toFixed(2);
     netDiscountedPriceSpan.textContent = netPrice.toFixed(2);
-    totalSpan.textContent = totalPrice.toFixed(2);
-    row.dataset.discountTypeId = parsedDiscountTypeId;
-    row.dataset.discountAmount = parsedDiscountAmount.toFixed(2);
-    row.dataset.volumeThreshold = volumeThreshold || '';
-    row.dataset.volumePrice = volumePrice || '';
-
-    return { netPrice, vatAmount, totalPrice, parsedDiscountTypeId, vatPercentage, volumeThreshold, volumePrice };
+    totalSpan.textContent = totalGrossPrice.toFixed(2);
+    row.dataset.discountTypeId = discountTypeId.toString();
+    row.dataset.discountAmount = discountTypeId === 1 || discountTypeId === 2 ? '' : parsedDiscountAmount.toString();
+    row.dataset.partnerPrice = discountTypeId === 3 ? partnerPrice?.toString() || '' : '';
+    console.log(`calculateAllPrices for item ${itemId}: unitPrice=${effectiveUnitPrice.toFixed(2)}, discountTypeId=${discountTypeId}, discountAmount=${parsedDiscountAmount}, partnerPrice=${partnerPrice || 'N/A'}, netPrice=${netPrice.toFixed(2)}, grossPrice=${grossPrice.toFixed(2)}, totalGrossPrice=${totalGrossPrice.toFixed(2)}, vatRate=${vatRate}%`);
 }
 
 // Update price fields
@@ -1443,10 +1462,11 @@ function calculateQuoteTotals(quoteId) {
 
     const rows = document.querySelectorAll(`#items-tbody_${quoteId} .quote-item-row`);
     rows.forEach(row => {
-        const net = parseFloat(row.querySelector('.item-net-discounted-price').textContent) || 0;
-        const gross = parseFloat(row.querySelector('.item-total').textContent) || 0;
-        const discountAmount = parseFloat(row.dataset.discountAmount) || 0;
-        const quantity = parseInt(row.querySelector('.item-quantity').value, 10) || 1;
+        const quantity = parseInt(row.querySelector('.item-quantity')?.value || '1', 10);
+        const net = parseFloat(row.querySelector('.item-net-discounted-price')?.textContent || '0');
+        const gross = parseFloat(row.querySelector('.item-total')?.textContent || '0');
+        const discountAmount = parseFloat(row.dataset.discountAmount?.replace(',', '.') || '0');
+
         totalNet += net;
         totalVat += gross - net;
         totalGross += gross;
@@ -1470,6 +1490,46 @@ function calculateQuoteTotals(quoteId) {
 
     return { totalNet, totalVat, totalGross, totalItemDiscounts };
 }
+
+// ✅ Debounce utility to avoid excessive recalculations
+function debounce(fn, delay = 200) {
+    let timeout;
+    return (...args) => {
+        clearTimeout(timeout);
+        timeout = setTimeout(() => fn(...args), delay);
+    };
+}
+
+const debouncedCalculateTotals = debounce(calculateQuoteTotals);
+
+// ✅ Attach live event listeners to a row
+function bindRowEvents(row, quoteId) {
+    const quantityInput = row.querySelector('.item-quantity');
+    const discountInput = row.querySelector('.discount-amount');
+    const vatSelect = row.querySelector('.tom-select-vat');
+
+    if (quantityInput) {
+        quantityInput.addEventListener('input', () => {
+            calculateAllPrices(row, quantityInput.value, parseInt(row.dataset.discountTypeId), discountInput?.value, quantityInput.value, vatSelect, null);
+            debouncedCalculateTotals(quoteId);
+        });
+    }
+
+    if (discountInput) {
+        discountInput.addEventListener('input', () => {
+            calculateAllPrices(row, row.querySelector('.item-unit-price')?.value, parseInt(row.dataset.discountTypeId), discountInput.value, quantityInput?.value, vatSelect, null);
+            debouncedCalculateTotals(quoteId);
+        });
+    }
+
+    if (vatSelect?.tomselect) {
+        vatSelect.tomselect.on('change', () => {
+            calculateAllPrices(row, row.querySelector('.item-unit-price')?.value, parseInt(row.dataset.discountTypeId), discountInput?.value, quantityInput?.value, vatSelect, null);
+            debouncedCalculateTotals(quoteId);
+        });
+    }
+}
+
 
 // Initialize description toggle
 function initializeDescriptionToggle(row) {
@@ -1593,6 +1653,7 @@ function initializeDeleteButtons(quoteId) {
 
 // Add a new item row
 async function addItemRow(quoteId) {
+    initializeDeleteButtons(quoteId);
     const tbody = document.querySelector(`#items-tbody_${quoteId}`);
     if (!tbody) {
         console.error('Items tbody not found for quoteId:', quoteId);
@@ -1692,6 +1753,7 @@ async function addItemRow(quoteId) {
 
     initializeDescriptionToggle(itemRow);
     calculateQuoteTotals(quoteId);
+    bindRowEvents(itemRow, quoteId);
 }
 
 // Initialize event listeners
@@ -1831,6 +1893,33 @@ function validateForm(form, quoteId) {
     return errors;
 }
 
+function validateRow(row) {
+    const discountTypeId = parseInt(row.dataset.discountTypeId);
+    const discountAmount = parseFloat(row.querySelector('.discount-amount')?.value.replace(',', '.') || '0');
+
+    if (discountTypeId === 5 && (discountAmount < 0 || discountAmount > 100)) {
+        showToast('error', `A kedvezmény százaléknak 0 és 100 között kell lennie (tétel: ${row.dataset.itemId})`);
+        return false;
+    }
+
+    // Validate CustomDiscountAmount
+    if (discountTypeId === 6) {
+        if (discountAmount <= 0) {
+            showToast('error', `A kedvezmény összegnek nagyobbnak kell lennie 0-nál (tétel: ${itemId})`);
+            return false;
+        }
+        if (discountAmount >= listPrice) {
+            showToast('error', `A kedvezmény összeg nem lehet nagyobb vagy egyenlő a listaárral (tétel: ${itemId})`);
+            return false;
+        }
+    }
+
+    // Add more validations here if needed
+
+    return true;
+}
+
+
 // Save quote
 async function saveQuote(quoteId) {
     const baseForm = document.querySelector(`#quoteBaseInfoForm_${quoteId}`);
@@ -1852,10 +1941,6 @@ async function saveQuote(quoteId) {
 
     const baseData = new FormData(baseForm);
     const itemsData = new FormData(itemsForm);
-
-    // Log form data for debugging
-    console.log('Base Form Data:', Object.fromEntries(baseData));
-    console.log('Items Form Data:', Object.fromEntries(itemsData));
 
     const currencyId = baseData.get('currencyId');
     if (!currencyId || isNaN(parseInt(currencyId))) {
@@ -1926,29 +2011,23 @@ async function saveQuote(quoteId) {
     };
 
     const validVatTypeIds = [1, 2, 3]; // Based on expected VAT types: 27%, 0%, 5%
-    const vatRateToIdMap = {
-        '27': 1, // 27% VAT -> vatTypeId: 1
-        '0': 2,  // 0% VAT -> vatTypeId: 2
-        '5': 3   // 5% VAT -> vatTypeId: 3
-    };
     const quoteItems = [];
     const rows = document.querySelectorAll(`#items-tbody_${quoteId} .quote-item-row`);
     for (const row of rows) {
+            if (!validateRow(row)) {
+        return; // ❌ Block save if any row is invalid
+    }
         const itemId = row.dataset.itemId;
         const productId = itemsData.get(`items[${itemId}][productId]`);
         if (!productId) {
             console.warn(`Skipping item ${itemId}: No productId`);
+            showToast('warning', `Tétel ${itemId} kihagyva: nincs termék azonosító.`);
             continue;
         }
 
-        let vatTypeIdRaw = itemsData.get(`items[${itemId}][vatTypeId]`);
-        let vatTypeId = parseInt(vatTypeIdRaw);
-        if (vatTypeIdRaw && vatRateToIdMap[vatTypeIdRaw]) {
-            vatTypeId = vatRateToIdMap[vatTypeIdRaw];
-            console.log(`Mapped VAT rate ${vatTypeIdRaw} to vatTypeId: ${vatTypeId} for item ${itemId}`);
-        }
+        let vatTypeId = parseInt(itemsData.get(`items[${itemId}][vatTypeId]`));
         if (!vatTypeId || isNaN(vatTypeId) || !validVatTypeIds.includes(vatTypeId)) {
-            console.warn(`Invalid vatTypeId for item ${itemId}: ${vatTypeIdRaw} (parsed: ${vatTypeId}), using default: 2`);
+            console.warn(`Invalid vatTypeId for item ${itemId}: ${vatTypeId}, using default: 2`);
             showToast('warning', `Érvénytelen ÁFA típus tételnél ${itemId}, alapértelmezett 0% használata.`);
             vatTypeId = 2; // Default to 0% VAT
         }
@@ -1972,10 +2051,11 @@ async function saveQuote(quoteId) {
 
         const netPrice = parseFloat(row.querySelector('.item-net-discounted-price').textContent) || 0;
         const totalPrice = parseFloat(row.querySelector('.item-total').textContent) || 0;
-        const discountAmountRaw = parseFloat(row.dataset.discountAmount);
-        // Set DiscountAmount to null for NoDiscount (DiscountTypeId: 1)
-        const discountAmount = discountTypeId === 1 ? null : (isNaN(discountAmountRaw) ? 0 : discountAmountRaw);
-        console.log(`Item ${itemId}: DiscountTypeId=${discountTypeId}, DiscountAmount=${discountAmount}`);
+        let discountAmount = null;
+        if (discountTypeId !== 1) {
+            const discountAmountValue = row.dataset.discountAmount || itemsData.get(`items[${itemId}][discountAmount]`);
+            discountAmount = discountAmountValue && discountAmountValue !== '' ? parseFloat(discountAmountValue) : 0;
+        }
 
         const volumeThreshold = parseInt(row.dataset.volumeThreshold) || null;
         const volumePrice = parseFloat(row.dataset.volumePrice) || null;
@@ -1994,7 +2074,7 @@ async function saveQuote(quoteId) {
             PartnerPrice: discountTypeId === 3 ? netPrice : null,
             BasePrice: discountTypeId === 1 ? unitPrice : null,
             ListPrice: unitPrice,
-            DiscountPercentage: discountTypeId === 5 ? parseFloat(row.querySelector('.discount-amount').value) || 0 : null,
+            DiscountPercentage: discountTypeId === 5 ? parseFloat(itemsData.get(`items[${itemId}][discountAmount]`)) || 0 : null,
             VolumeThreshold: discountTypeId === 4 ? volumeThreshold : null,
             VolumePrice: discountTypeId === 4 ? volumePrice : null
         };

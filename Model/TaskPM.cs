@@ -10,20 +10,20 @@ public class TaskPM
     [StringLength(100)]
     public string Title { get; set; }
     
-    public string Description { get; set; }
+    public string? Description { get; set; }
 
-    public bool IsActive { get; set; } = true;
+    public bool? IsActive { get; set; } = true;
     
-    public int TaskTypePMId { get; set; }
+    public int? TaskTypePMId { get; set; }
     public TaskTypePM TaskTypePM { get; set; }
     
     public int? ProjectId { get; set; }
     public ProjectPM Project { get; set; }
     
-    public int TaskStatusPMId { get; set; }
+    public int? TaskStatusPMId { get; set; }
     public TaskStatusPM TaskStatusPM { get; set; }
     
-    public int TaskPriorityPMId { get; set; }
+    public int? TaskPriorityPMId { get; set; }
     public TaskPriorityPM TaskPriorityPM { get; set; }
     
     [Display(Name = "Due Date")]
@@ -35,12 +35,12 @@ public class TaskPM
     [Display(Name = "Actual Hours")]
     public decimal? ActualHours { get; set; }
     
-    public string CreatedById { get; set; }
+    public string? CreatedById { get; set; }
     public ApplicationUser CreatedBy { get; set; }
     
-    public DateTime CreatedDate { get; set; }
+    public DateTime? CreatedDate { get; set; }
     
-    public string AssignedToId { get; set; }
+    public string? AssignedToId { get; set; }
     public ApplicationUser AssignedTo { get; set; }
 
     public int? ProjectPMId { get; set; } 

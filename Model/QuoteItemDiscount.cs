@@ -47,4 +47,7 @@ namespace Cloud9_2.Models
         [ForeignKey("QuoteItemId")]
         public QuoteItem? QuoteItem { get; set; }
     }
+
+    
+
 }

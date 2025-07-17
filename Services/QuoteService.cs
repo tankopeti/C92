@@ -26,21 +26,12 @@ namespace Cloud9_2.Services
             _mapper = mapper;
         }
 
-        public async Task<string> GetNextQuoteNumberAsync()
+        private static readonly SemaphoreSlim _quoteNumberLock = new SemaphoreSlim(1, 1);
+
+        public Task<string> GetNextQuoteNumberAsync()
         {
-            var lastQuoteNumber = await _context.Quotes
-                .Where(q => q.QuoteNumber != null && q.QuoteNumber.StartsWith("QUOTE-"))
-                .OrderByDescending(q => q.QuoteNumber)
-                .Select(q => q.QuoteNumber)
-                .FirstOrDefaultAsync();
-
-            string nextNumber = "QUOTE-0001";
-            if (!string.IsNullOrEmpty(lastQuoteNumber) && int.TryParse(lastQuoteNumber.Replace("QUOTE-", ""), out int lastNumber))
-            {
-                nextNumber = $"QUOTE-{lastNumber + 1:D4}";
-            }
-
-            return nextNumber;
+            string timestamp = DateTime.UtcNow.ToString("yyyyMMddHHfff");
+            return Task.FromResult($"QUOTE-{timestamp}");
         }
 
         public async Task<bool> QuoteExistsAsync(int quoteId)
@@ -591,6 +582,7 @@ public async Task<QuoteDto> CreateQuoteAsync(CreateQuoteDto quoteDto)
             quoteItem.NetDiscountedPrice = netDiscountedPrice;
             quoteItem.ItemDescription = itemDto.ItemDescription;
             quoteItem.VatTypeId = itemDto.VatTypeId;
+            quoteItem.VatType = vatType;
             quoteItem.TotalPrice = itemDto.Quantity * netDiscountedPrice;
             quoteItem.DiscountTypeId = itemDto.DiscountTypeId;
             quoteItem.DiscountAmount = itemDto.DiscountAmount;
@@ -648,57 +640,75 @@ public async Task<QuoteDto> CreateQuoteAsync(CreateQuoteDto quoteDto)
             return true;
         }
 
-        public async Task<QuoteDto> CopyQuoteAsync(int quoteId)
+public async Task<QuoteDto> CopyQuoteAsync(int quoteId)
+{
+    var originalQuote = await _context.Quotes
+        .Include(q => q.QuoteItems)
+        .FirstOrDefaultAsync(q => q.QuoteId == quoteId);
+
+    if (originalQuote == null)
+    {
+        throw new KeyNotFoundException($"Quote with ID {quoteId} not found.");
+    }
+
+    string newQuoteNumber = await GetNextQuoteNumberAsync();
+
+    var newQuote = new Quote
+    {
+        QuoteNumber = newQuoteNumber,
+        PartnerId = originalQuote.PartnerId,
+        CurrencyId = originalQuote.CurrencyId,
+        QuoteDate = DateTime.UtcNow,
+        Status = "Draft",
+        TotalAmount = originalQuote.TotalAmount,
+        SalesPerson = originalQuote.SalesPerson,
+        ValidityDate = originalQuote.ValidityDate,
+        Subject = originalQuote.Subject,
+        Description = originalQuote.Description,
+        DetailedDescription = originalQuote.DetailedDescription,
+        DiscountPercentage = originalQuote.DiscountPercentage,
+        QuoteDiscountAmount = originalQuote.QuoteDiscountAmount,
+        TotalItemDiscounts = originalQuote.TotalItemDiscounts,
+        CompanyName = originalQuote.CompanyName,
+        CreatedBy = originalQuote.CreatedBy,
+        CreatedDate = DateTime.UtcNow,
+        ModifiedBy = originalQuote.ModifiedBy,
+        ModifiedDate = DateTime.UtcNow,
+        ReferenceNumber = originalQuote.ReferenceNumber,
+
+        QuoteItems = originalQuote.QuoteItems.Select(qi => new QuoteItem
         {
-            var originalQuote = await _context.Quotes
-                .Include(q => q.QuoteItems)
-                .FirstOrDefaultAsync(q => q.QuoteId == quoteId);
+            ProductId = qi.ProductId,
+            Quantity = qi.Quantity,
+            NetDiscountedPrice = qi.NetDiscountedPrice,
+            ItemDescription = qi.ItemDescription,
+            VatTypeId = qi.VatTypeId,
+            TotalPrice = qi.TotalPrice,
+            DiscountTypeId = qi.DiscountTypeId,
+            DiscountAmount = qi.DiscountAmount
+        }).ToList()
+    };
 
-            if (originalQuote == null)
-            {
-                throw new KeyNotFoundException($"Quote with ID {quoteId} not found");
-            }
+    try
+    {
+        _context.Quotes.Add(newQuote);
+        await _context.SaveChangesAsync();
+    }
+    catch (DbUpdateException ex)
+    {
+        throw new Exception($"Quote copied but failed to save. Inner error: {ex.InnerException?.Message}");
+    }
 
-            var newQuote = new Quote
-            {
-                QuoteNumber = await GetNextQuoteNumberAsync(),
-                PartnerId = originalQuote.PartnerId,
-                CurrencyId = originalQuote.CurrencyId,
-                QuoteDate = DateTime.UtcNow,
-                Status = "Draft",
-                TotalAmount = originalQuote.TotalAmount,
-                SalesPerson = originalQuote.SalesPerson,
-                ValidityDate = originalQuote.ValidityDate,
-                Subject = originalQuote.Subject,
-                Description = originalQuote.Description,
-                DetailedDescription = originalQuote.DetailedDescription,
-                DiscountPercentage = originalQuote.DiscountPercentage,
-                QuoteDiscountAmount = originalQuote.QuoteDiscountAmount,
-                TotalItemDiscounts = originalQuote.TotalItemDiscounts,
-                CompanyName = originalQuote.CompanyName,
-                CreatedBy = originalQuote.CreatedBy,
-                CreatedDate = DateTime.UtcNow,
-                ModifiedBy = originalQuote.ModifiedBy,
-                ModifiedDate = DateTime.UtcNow,
-                ReferenceNumber = originalQuote.ReferenceNumber,
-                QuoteItems = originalQuote.QuoteItems.Select(qi => new QuoteItem
-                {
-                    ProductId = qi.ProductId,
-                    Quantity = qi.Quantity,
-                    NetDiscountedPrice = qi.NetDiscountedPrice,
-                    ItemDescription = qi.ItemDescription,
-                    VatTypeId = qi.VatTypeId,
-                    TotalPrice = qi.TotalPrice,
-                    DiscountTypeId = qi.DiscountTypeId,
-                    DiscountAmount = qi.DiscountAmount
-                }).ToList()
-            };
+    try
+    {
+        return await GetQuoteByIdAsync(newQuote.QuoteId);
+    }
+    catch (Exception ex)
+    {
+        throw new Exception($"Quote saved but failed to retrieve. Inner error: {ex.Message}");
+    }
+}
 
-            _context.Quotes.Add(newQuote);
-            await _context.SaveChangesAsync();
-
-            return await GetQuoteByIdAsync(newQuote.QuoteId);
-        }
 
         public async Task<OrderDto> ConvertQuoteToOrderAsync(int quoteId, ConvertQuoteToOrderDto convertDto, string createdBy)
         {

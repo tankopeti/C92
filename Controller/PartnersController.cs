@@ -1,8 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Cloud9_2.Data;
-using System.Threading.Tasks;
-using System.Linq;
 
 namespace Cloud9_2.Controllers
 {

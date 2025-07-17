@@ -2,9 +2,6 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Cloud9_2.Data;
 using Cloud9_2.Models;
-using System.Linq;
-using System.Threading.Tasks;
-using Microsoft.Extensions.Logging;
 
 namespace Cloud9_2.Controllers
 {
@@ -32,6 +29,7 @@ namespace Cloud9_2.Controllers
 
                 if (!string.IsNullOrEmpty(search))
                 {
+                    _logger.LogInformation("Applying search filter: {search}", search);
                     query = query.Where(p => EF.Functions.Like(p.Name, $"%{search}%"));
                 }
 
@@ -47,7 +45,7 @@ namespace Cloud9_2.Controllers
                                 && (quoteDate == null || pp.EndDate == null || pp.EndDate >= quoteDate))
                             .OrderByDescending(pp => pp.StartDate)
                             .Select(pp => (decimal?)pp.SalesPrice)
-                            .FirstOrDefault() ?? p.UnitPrice, // Default to unitPrice if no valid price found
+                            .FirstOrDefault() ?? p.UnitPrice,
                         VolumePricing = _context.ProductPrices
                             .Where(pp => pp.ProductId == p.ProductId && pp.IsActive
                                 && (quoteDate == null || pp.StartDate <= quoteDate)
@@ -67,9 +65,23 @@ namespace Cloud9_2.Controllers
                             _context.PartnerProductPrice
                                 .Where(ppp => ppp.ProductId == p.ProductId && ppp.PartnerId == partnerId.Value)
                                 .Select(ppp => (decimal?)ppp.PartnerUnitPrice)
-                                .FirstOrDefault() : null
+                                .FirstOrDefault() ?? p.UnitPrice : null
                     })
                     .ToListAsync();
+
+                // Log PartnerPrice query results
+                if (partnerId.HasValue)
+                {
+                    var partnerPriceProducts = await _context.PartnerProductPrice
+                        .Where(ppp => ppp.PartnerId == partnerId.Value)
+                        .Select(ppp => new { ppp.ProductId, ppp.PartnerUnitPrice })
+                        .ToListAsync();
+                    _logger.LogInformation("PartnerProductPrice entries for partnerId: {partnerId}: {entries}", partnerId, string.Join(", ", partnerPriceProducts.Select(p => $"ProductId: {p.ProductId}, Price: {p.PartnerUnitPrice}")));
+                }
+
+                // Log the product IDs returned
+                var productIds = products.Select(p => p.ProductId).ToList();
+                _logger.LogInformation("Found {count} products with IDs: {productIds}", products.Count, string.Join(", ", productIds));
 
                 // Apply volume-based pricing logic
                 foreach (var product in products)
@@ -90,13 +102,25 @@ namespace Cloud9_2.Controllers
                         }
                         else
                         {
-                            product.VolumePrice = product.ListPrice; // Default to listPrice if no volume price applies
+                            product.VolumePrice = product.ListPrice;
                         }
                     }
                     else
                     {
-                        product.VolumePrice = product.ListPrice; // Default to listPrice if no volume pricing exists
+                        product.VolumePrice = product.ListPrice;
                     }
+                    // Ensure PartnerPrice defaults to ListPrice if null or 0
+                    if (partnerId.HasValue && (product.PartnerPrice == null || product.PartnerPrice == 0))
+                    {
+                        _logger.LogWarning("No valid PartnerPrice for ProductId: {productId}, PartnerId: {partnerId}, using ListPrice: {listPrice}", product.ProductId, partnerId, product.ListPrice);
+                        product.PartnerPrice = product.ListPrice;
+                    }
+                }
+
+                if (!products.Any())
+                {
+                    _logger.LogWarning("No products found for partnerId: {partnerId}, search: {search}, quoteDate: {quoteDate}, quantity: {quantity}", partnerId, search, quoteDate, quantity);
+                    return NotFound("No products found");
                 }
 
                 _logger.LogInformation("Returning {count} products", products.Count);
@@ -111,43 +135,143 @@ namespace Cloud9_2.Controllers
 
 
         [HttpGet("{id}")]
-        public async Task<IActionResult> GetProductById(int id, [FromQuery] int? partnerId = null)
+        public async Task<IActionResult> GetProductById(int id, [FromQuery] int? partnerId = null, [FromQuery] DateTime? quoteDate = null, [FromQuery] int quantity = 1)
         {
             try
             {
-                _logger.LogInformation("GetProductById called with id: {id}, partnerId: {partnerId}", id, partnerId);
+                _logger.LogInformation("GetProductById called with id: {id}, partnerId: {partnerId}, quoteDate: {quoteDate}, quantity: {quantity}", id, partnerId, quoteDate, quantity);
                 var product = await _context.Products
                     .Where(p => p.ProductId == id)
-                    .Select(p => new
+                    .Select(p => new ProductDto
                     {
-                        id = p.ProductId,
-                        name = p.Name,
-                        unitPrice = p.UnitPrice,
-                        listPrice = _context.ProductPrices
-                            .Where(pp => pp.ProductId == p.ProductId && pp.IsActive)
-                            .OrderByDescending(pp => pp.StartDate) // Get the latest price
-                            .Select(pp => pp.SalesPrice)
-                            .FirstOrDefault(), // Get SalesPrice from ProductPrice
-                        partnerPrice = partnerId.HasValue ?
+                        ProductId = p.ProductId,
+                        Name = p.Name,
+                        UnitPrice = p.UnitPrice,
+                        ListPrice = _context.ProductPrices
+                            .Where(pp => pp.ProductId == p.ProductId && pp.IsActive
+                                && (quoteDate == null || pp.StartDate <= quoteDate)
+                                && (quoteDate == null || pp.EndDate == null || pp.EndDate >= quoteDate))
+                            .OrderByDescending(pp => pp.StartDate)
+                            .Select(pp => (decimal?)pp.SalesPrice)
+                            .FirstOrDefault() ?? p.UnitPrice,
+                        VolumePricing = _context.ProductPrices
+                            .Where(pp => pp.ProductId == p.ProductId && pp.IsActive
+                                && (quoteDate == null || pp.StartDate <= quoteDate)
+                                && (quoteDate == null || pp.EndDate == null || pp.EndDate >= quoteDate))
+                            .OrderByDescending(pp => pp.StartDate)
+                            .Select(pp => new VolumePricing
+                            {
+                                Volume1 = pp.Volume1,
+                                Volume1Price = (decimal?)pp.Volume1Price,
+                                Volume2 = pp.Volume2,
+                                Volume2Price = (decimal?)pp.Volume2Price,
+                                Volume3 = pp.Volume3,
+                                Volume3Price = (decimal?)pp.Volume3Price
+                            })
+                            .FirstOrDefault() ?? new VolumePricing(),
+                        PartnerPrice = partnerId.HasValue ?
                             _context.PartnerProductPrice
                                 .Where(ppp => ppp.ProductId == p.ProductId && ppp.PartnerId == partnerId.Value)
                                 .Select(ppp => (decimal?)ppp.PartnerUnitPrice)
-                                .FirstOrDefault() : null
-                            })
+                                .FirstOrDefault() ?? p.UnitPrice : null
+                    })
                     .FirstOrDefaultAsync();
 
                 if (product == null)
                 {
-                    _logger.LogWarning("Product not found for id: {id}", id);
-                    return NotFound();
+                    _logger.LogWarning("Product not found for id: {id}, partnerId: {partnerId}", id, partnerId);
+                    return NotFound("Product not found");
                 }
+
+                // Apply volume-based pricing logic
+                if (product.VolumePricing != null)
+                {
+                    if (quantity <= product.VolumePricing.Volume1)
+                    {
+                        product.VolumePrice = product.VolumePricing.Volume1Price ?? product.ListPrice;
+                    }
+                    else if (quantity > product.VolumePricing.Volume1 && quantity <= product.VolumePricing.Volume2)
+                    {
+                        product.VolumePrice = product.VolumePricing.Volume2Price ?? product.ListPrice;
+                    }
+                    else if (quantity > product.VolumePricing.Volume2 && quantity <= product.VolumePricing.Volume3)
+                    {
+                        product.VolumePrice = product.VolumePricing.Volume3Price ?? product.ListPrice;
+                    }
+                    else
+                    {
+                        product.VolumePrice = product.ListPrice;
+                    }
+                }
+                else
+                {
+                    product.VolumePrice = product.ListPrice;
+                }
+
+                // Ensure PartnerPrice defaults to ListPrice if null or 0
+                if (partnerId.HasValue && (product.PartnerPrice == null || product.PartnerPrice == 0))
+                {
+                    _logger.LogWarning("No valid PartnerPrice for ProductId: {productId}, PartnerId: {partnerId}, using ListPrice: {listPrice}", product.ProductId, partnerId, product.ListPrice);
+                    product.PartnerPrice = product.ListPrice;
+                }
+
+                _logger.LogInformation("Returning product with id: {id}", id);
                 return Ok(product);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error in GetProductById for id: {id}, partnerId: {partnerId}", id, partnerId);
-                return StatusCode(500, new { error = "Internal server error" });
+                return StatusCode(500, new { error = "Internal server error", details = ex.Message });
             }
         }
+
+        [HttpGet("partner-price")]
+        public async Task<IActionResult> GetPartnerProductPrice([FromQuery] int partnerId, [FromQuery] int productId)
+        {
+            var product = await _context.Products
+                .Where(p => p.ProductId == productId)
+                .Select(p => new
+                {
+                    p.ProductId,
+                    p.Name,
+                    PartnerPrice = _context.PartnerProductPrice
+                        .Where(ppp => ppp.ProductId == productId && ppp.PartnerId == partnerId)
+                        .Select(ppp => (decimal?)ppp.PartnerUnitPrice)
+                        .FirstOrDefault() ?? p.UnitPrice
+                })
+                .FirstOrDefaultAsync();
+
+            if (product == null)
+            {
+                return NotFound();
+            }
+
+            return Ok(product);
+        }
+
+        [HttpGet("pricing/{productId}")]
+        public async Task<IActionResult> GetVolumePricing(int productId)
+        {
+            var pricing = await _context.ProductPrices
+                .Where(p => p.ProductId == productId && p.IsActive)
+                .Select(p => new
+                {
+                    p.ProductId,
+                    p.SalesPrice,
+                    p.Volume1,
+                    p.Volume1Price,
+                    p.Volume2,
+                    p.Volume2Price,
+                    p.Volume3,
+                    p.Volume3Price
+                })
+                .FirstOrDefaultAsync();
+
+            if (pricing == null)
+                return NotFound($"Nincs aktív volume pricing a termékhez (ID: {productId})");
+
+            return Ok(pricing);
+        }
+
     }
 }

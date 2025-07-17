@@ -5,10 +5,6 @@ using Cloud9_2.Services;
 using Cloud9_2.Data;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
-using System;
-using System.Collections.Generic;
-using System.Threading.Tasks;
-using Microsoft.Extensions.Logging;
 
 namespace Cloud9_2.Controllers
 {
@@ -76,102 +72,134 @@ namespace Cloud9_2.Controllers
             }
         }
 
-[HttpPost]
-[ProducesResponseType(StatusCodes.Status201Created)]
-[ProducesResponseType(StatusCodes.Status400BadRequest)]
-[ProducesResponseType(StatusCodes.Status500InternalServerError)]
+        [HttpPost]
+        [ProducesResponseType(StatusCodes.Status201Created)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
 public async Task<IActionResult> CreateQuote([FromBody] CreateQuoteDto quoteDto)
-{
-    if (quoteDto == null)
-    {
-        _logger.LogWarning("Received null CreateQuoteDto");
-        return BadRequest(new { error = "Invalid quote data: DTO is null" });
-    }
-
-    if (!ModelState.IsValid)
-    {
-        var errors = ModelState
-            .Where(x => x.Value.Errors.Count > 0)
-            .ToDictionary(kvp => kvp.Key, kvp => kvp.Value.Errors.Select(e => e.ErrorMessage).ToArray());
-        _logger.LogWarning("Invalid quote data submitted: {Errors}, QuoteDTO: {@QuoteDTO}", JsonSerializer.Serialize(errors), quoteDto);
-        return BadRequest(new { error = "Invalid quote data", details = errors });
-    }
-
-    try
-    {
-        _logger.LogInformation("Creating new quote for partner ID: {PartnerId}, QuoteDTO: {@QuoteDTO}", quoteDto.PartnerId, quoteDto);
-
-        // Validate foreign keys
-        if (!await _context.Partners.AnyAsync(p => p.PartnerId == quoteDto.PartnerId))
         {
-            _logger.LogWarning("Invalid PartnerId: {PartnerId}", quoteDto.PartnerId);
-            return BadRequest(new { error = $"Invalid PartnerId: {quoteDto.PartnerId}" });
-        }
-        if (!await _context.Currencies.AnyAsync(c => c.CurrencyId == quoteDto.CurrencyId))
-        {
-            _logger.LogWarning("Invalid CurrencyId: {CurrencyId}", quoteDto.CurrencyId);
-            return BadRequest(new { error = $"Invalid CurrencyId: {quoteDto.CurrencyId}" });
-        }
-
-        if (quoteDto.Items == null || !quoteDto.Items.Any())
-        {
-            _logger.LogWarning("No items provided for quote creation");
-            return BadRequest(new { error = "A quote must contain at least one item" });
-        }
-
-        foreach (var item in quoteDto.Items)
-        {
-            if (!await _context.Products.AnyAsync(p => p.ProductId == item.ProductId))
+            if (quoteDto == null)
             {
-                _logger.LogWarning("Invalid ProductId: {ProductId}", item.ProductId);
-                return BadRequest(new { error = $"Invalid product ID: {item.ProductId}" });
+                _logger.LogWarning("Received null CreateQuoteDto");
+                return BadRequest(new { error = "Invalid quote data: DTO is null" });
             }
-            if (!await _context.VatTypes.AnyAsync(v => v.VatTypeId == item.VatTypeId))
+
+            if (!ModelState.IsValid)
             {
-                _logger.LogWarning("Invalid VatTypeId: {VatTypeId}", item.VatTypeId);
-                return BadRequest(new { error = $"Invalid VatTypeId: {item.VatTypeId}" });
+                var errors = ModelState
+                    .Where(x => x.Value.Errors.Count > 0)
+                    .ToDictionary(kvp => kvp.Key, kvp => kvp.Value.Errors.Select(e => e.ErrorMessage).ToArray());
+                _logger.LogWarning("Invalid quote data submitted: {Errors}, QuoteDTO: {@QuoteDTO}", JsonSerializer.Serialize(errors), quoteDto);
+                return BadRequest(new { error = "Invalid quote data", details = errors });
             }
-            if (item.Quantity <= 0)
+
+            try
             {
-                _logger.LogWarning("Invalid Quantity for ProductId: {ProductId}", item.ProductId);
-                return BadRequest(new { error = $"Quantity must be positive for product ID: {item.ProductId}" });
-            }
-            if (item.Discount != null && item.Discount.DiscountType != DiscountType.NoDiscount)
-            {
-                if (item.Discount.DiscountType == DiscountType.CustomDiscountPercentage &&
-                    (item.Discount.DiscountPercentage < 0 || item.Discount.DiscountPercentage > 100))
+                _logger.LogInformation("Creating new quote for partner ID: {PartnerId}, QuoteDTO: {@QuoteDTO}", quoteDto.PartnerId, quoteDto);
+
+                // Validate foreign keys
+                if (!await _context.Partners.AnyAsync(p => p.PartnerId == quoteDto.PartnerId))
                 {
-                    _logger.LogWarning("Invalid DiscountPercentage for ProductId: {ProductId}", item.ProductId);
-                    return BadRequest(new { error = $"DiscountPercentage must be between 0 and 100 for product ID: {item.ProductId}" });
+                    _logger.LogWarning("Invalid PartnerId: {PartnerId}", quoteDto.PartnerId);
+                    return BadRequest(new { error = $"Invalid PartnerId: {quoteDto.PartnerId}" });
                 }
-                if (item.Discount.DiscountType == DiscountType.CustomDiscountAmount && item.Discount.DiscountAmount < 0)
+                if (!await _context.Currencies.AnyAsync(c => c.CurrencyId == quoteDto.CurrencyId))
                 {
-                    _logger.LogWarning("Invalid DiscountAmount for ProductId: {ProductId}", item.ProductId);
-                    return BadRequest(new { error = $"DiscountAmount must be non-negative for product ID: {item.ProductId}" });
+                    _logger.LogWarning("Invalid CurrencyId: {CurrencyId}", quoteDto.CurrencyId);
+                    return BadRequest(new { error = $"Invalid CurrencyId: {quoteDto.CurrencyId}" });
                 }
+
+                if (quoteDto.Items == null || !quoteDto.Items.Any())
+                {
+                    _logger.LogWarning("No items provided for quote creation");
+                    return BadRequest(new { error = "A quote must contain at least one item" });
+                }
+
+                // Validate quote-level discounts
+                if (quoteDto.DiscountPercentage.HasValue && (quoteDto.DiscountPercentage < 0 || quoteDto.DiscountPercentage > 100))
+                {
+                    _logger.LogWarning("Invalid DiscountPercentage: {DiscountPercentage}", quoteDto.DiscountPercentage);
+                    return BadRequest(new { error = "DiscountPercentage must be between 0 and 100" });
+                }
+                if (quoteDto.DiscountAmount.HasValue && quoteDto.DiscountAmount < 0)
+                {
+                    _logger.LogWarning("Invalid QuoteDiscountAmount: {QuoteDiscountAmount}", quoteDto.DiscountAmount);
+                    return BadRequest(new { error = "QuoteDiscountAmount must be non-negative" });
+                }
+                if (quoteDto.TotalItemDiscounts.HasValue && quoteDto.TotalItemDiscounts < 0)
+                {
+                    _logger.LogWarning("Invalid TotalItemDiscounts: {TotalItemDiscounts}", quoteDto.TotalItemDiscounts);
+                    return BadRequest(new { error = "TotalItemDiscounts must be non-negative" });
+                }
+
+                foreach (var item in quoteDto.Items)
+                {
+                    if (!await _context.Products.AnyAsync(p => p.ProductId == item.ProductId))
+                    {
+                        _logger.LogWarning("Invalid ProductId: {ProductId}", item.ProductId);
+                        return BadRequest(new { error = $"Invalid product ID: {item.ProductId}" });
+                    }
+                    if (!await _context.VatTypes.AnyAsync(v => v.VatTypeId == item.VatTypeId))
+                    {
+                        _logger.LogWarning("Invalid VatTypeId: {VatTypeId}", item.VatTypeId);
+                        return BadRequest(new { error = $"Invalid VatTypeId: {item.VatTypeId}" });
+                    }
+                    if (item.Quantity <= 0)
+                    {
+                        _logger.LogWarning("Invalid Quantity for ProductId: {ProductId}", item.ProductId);
+                        return BadRequest(new { error = $"Quantity must be positive for product ID: {item.ProductId}" });
+                    }
+                    if (item.NetDiscountedPrice < 0)
+                    {
+                        _logger.LogWarning("Invalid NetDiscountedPrice for ProductId: {ProductId}", item.ProductId);
+                        return BadRequest(new { error = $"NetDiscountedPrice must be non-negative for product ID: {item.ProductId}" });
+                    }
+                    if (item.DiscountTypeId.HasValue)
+                    {
+                        if (!Enum.IsDefined(typeof(DiscountType), item.DiscountTypeId.Value))
+                        {
+                            _logger.LogWarning("Invalid DiscountTypeId: {DiscountTypeId} for ProductId: {ProductId}", item.DiscountTypeId, item.ProductId);
+                            return BadRequest(new { error = $"Invalid DiscountTypeId: {item.DiscountTypeId} for product ID: {item.ProductId}" });
+                        }
+                        if (item.DiscountTypeId == (int)DiscountType.PartnerPrice && !item.PartnerPrice.HasValue)
+                        {
+                            _logger.LogWarning("Missing PartnerPrice for DiscountTypeId: 3 for ProductId: {ProductId}", item.ProductId);
+                            return BadRequest(new { error = $"PartnerPrice is required for DiscountTypeId: 3 for product ID: {item.ProductId}" });
+                        }
+                        if (item.DiscountTypeId != (int)DiscountType.NoDiscount && item.DiscountAmount < 0)
+                        {
+                            _logger.LogWarning("Invalid DiscountAmount: {DiscountAmount} for ProductId: {ProductId}", item.DiscountAmount, item.ProductId);
+                            return BadRequest(new { error = $"DiscountAmount must be non-negative for product ID: {item.ProductId}" });
+                        }
+                        if (item.DiscountTypeId == (int)DiscountType.NoDiscount && item.DiscountAmount.HasValue)
+                        {
+                            _logger.LogWarning("DiscountAmount provided for NoDiscount type for ProductId: {ProductId}", item.ProductId);
+                            return BadRequest(new { error = $"DiscountAmount must be null for NoDiscount type for product ID: {item.ProductId}" });
+                        }
+                    }
+                }
+
+                var quote = await _quoteService.CreateQuoteAsync(quoteDto);
+                _logger.LogInformation("Created quote with ID: {QuoteId}", quote.QuoteId);
+                return CreatedAtAction(nameof(GetQuote), new { quoteId = quote.QuoteId }, quote);
+            }
+            catch (ArgumentException ex)
+            {
+                _logger.LogWarning(ex, "Validation error creating quote for PartnerId: {PartnerId}", quoteDto.PartnerId);
+                return BadRequest(new { error = ex.Message });
+            }
+            catch (DbUpdateException ex)
+            {
+                _logger.LogError(ex, "Database error creating quote for PartnerId: {PartnerId}", quoteDto.PartnerId);
+                return StatusCode(500, new { error = "Database error creating quote", errorDetails = ex.InnerException?.Message ?? ex.Message });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Unexpected error creating quote for PartnerId: {PartnerId}, QuoteDTO: {@QuoteDTO}", quoteDto.PartnerId, quoteDto);
+                return StatusCode(500, new { error = "Failed to create quote", errorDetails = ex.Message, stackTrace = ex.StackTrace });
             }
         }
-
-        var quote = await _quoteService.CreateQuoteAsync(quoteDto);
-        _logger.LogInformation("Created quote with ID: {QuoteId}", quote.QuoteId);
-        return CreatedAtAction(nameof(GetQuote), new { quoteId = quote.QuoteId }, quote);
-    }
-    catch (ArgumentException ex)
-    {
-        _logger.LogWarning(ex, "Validation error creating quote for PartnerId: {PartnerId}", quoteDto.PartnerId);
-        return BadRequest(new { error = ex.Message });
-    }
-    catch (DbUpdateException ex)
-    {
-        _logger.LogError(ex, "Database error creating quote for PartnerId: {PartnerId}", quoteDto.PartnerId);
-        return StatusCode(500, new { error = "Database error creating quote", errorDetails = ex.InnerException?.Message ?? ex.Message });
-    }
-    catch (Exception ex)
-    {
-        _logger.LogError(ex, "Unexpected error creating quote for PartnerId: {PartnerId}, QuoteDTO: {@QuoteDTO}", quoteDto.PartnerId, quoteDto);
-        return StatusCode(500, new { error = "Failed to create quote", errorDetails = ex.Message, stackTrace = ex.StackTrace });
-    }
-}
+    
 
         [HttpGet("{quoteId}")]
         [ProducesResponseType(StatusCodes.Status200OK)]
@@ -231,28 +259,53 @@ public async Task<IActionResult> CreateQuote([FromBody] CreateQuoteDto quoteDto)
             }
         }
 
-        [HttpGet("{id}")]
+        [HttpGet("partner/{partnerId}")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-        public async Task<IActionResult> GetPartnerById(int id)
+        public async Task<IActionResult> GetPartnerById(int partnerId)
         {
             try
             {
-                _logger.LogInformation($"Fetching partner with ID {id}.");
+                _logger.LogInformation($"Fetching partner with ID {partnerId}.");
                 var partner = await _context.Partners
-                    .Where(p => p.PartnerId == id)
-                    .Select(p => new PartnerDto
+                    .Where(p => p.PartnerId == partnerId)
+                    .Select(p => new Cloud9_2.Models.PartnerDto
                     {
                         PartnerId = p.PartnerId,
-                        Name = p.Name
+                        Name = p.Name,
+                        Email = p.Email,
+                        PhoneNumber = p.PhoneNumber,
+                        AlternatePhone = p.AlternatePhone,
+                        Website = p.Website,
+                        CompanyName = p.CompanyName,
+                        TaxId = p.TaxId,
+                        IntTaxId = p.IntTaxId,
+                        Industry = p.Industry,
+                        AddressLine1 = p.AddressLine1,
+                        AddressLine2 = p.AddressLine2,
+                        City = p.City,
+                        State = p.State,
+                        PostalCode = p.PostalCode,
+                        Country = p.Country,
+                        Status = p.Status,
+                        LastContacted = p.LastContacted,
+                        Notes = p.Notes,
+                        AssignedTo = p.AssignedTo,
+                        BillingContactName = p.BillingContactName,
+                        BillingEmail = p.BillingEmail,
+                        PaymentTerms = p.PaymentTerms,
+                        CreditLimit = p.CreditLimit,
+                        PreferredCurrency = p.PreferredCurrency,
+                        IsTaxExempt = p.IsTaxExempt,
+                        PartnerGroupId = p.PartnerGroupId
                     })
                     .FirstOrDefaultAsync();
 
                 if (partner == null)
                 {
-                    _logger.LogWarning($"Partner with ID {id} not found.");
-                    return NotFound(new { message = $"Partner with ID {id} not found" });
+                    _logger.LogWarning($"Partner with ID {partnerId} not found.");
+                    return NotFound(new { message = $"Partner with ID {partnerId} not found" });
                 }
 
                 _logger.LogInformation($"Returning partner: {partner.Name}");
@@ -260,7 +313,7 @@ public async Task<IActionResult> CreateQuote([FromBody] CreateQuoteDto quoteDto)
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, $"Error fetching partner with ID {id}.");
+                _logger.LogError(ex, $"Error fetching partner with ID {partnerId}.");
                 return StatusCode(500, new { error = "Failed to retrieve partner.", details = ex.Message });
             }
         }
@@ -300,6 +353,26 @@ public async Task<IActionResult> CreateQuote([FromBody] CreateQuoteDto quoteDto)
                 {
                     _logger.LogWarning("Partner not found for PartnerId: {PartnerId}", quoteDto.PartnerId);
                     return BadRequest(new { error = $"Érvénytelen PartnerId: {quoteDto.PartnerId}" });
+                }
+                if (!await _context.Currencies.AnyAsync(c => c.CurrencyId == quoteDto.CurrencyId))
+                {
+                    _logger.LogWarning("Invalid CurrencyId: {CurrencyId}", quoteDto.CurrencyId);
+                    return BadRequest(new { error = $"Érvénytelen CurrencyId: {quoteDto.CurrencyId}" });
+                }
+                if (quoteDto.DiscountPercentage.HasValue && (quoteDto.DiscountPercentage < 0 || quoteDto.DiscountPercentage > 100))
+                {
+                    _logger.LogWarning("Invalid DiscountPercentage: {DiscountPercentage}", quoteDto.DiscountPercentage);
+                    return BadRequest(new { error = "DiscountPercentage must be between 0 and 100" });
+                }
+                if (quoteDto.DiscountAmount.HasValue && quoteDto.DiscountAmount < 0)
+                {
+                    _logger.LogWarning("Invalid QuoteDiscountAmount: {QuoteDiscountAmount}", quoteDto.DiscountAmount);
+                    return BadRequest(new { error = "QuoteDiscountAmount must be non-negative" });
+                }
+                if (quoteDto.TotalItemDiscounts.HasValue && quoteDto.TotalItemDiscounts < 0)
+                {
+                    _logger.LogWarning("Invalid TotalItemDiscounts: {TotalItemDiscounts}", quoteDto.TotalItemDiscounts);
+                    return BadRequest(new { error = "TotalItemDiscounts must be non-negative" });
                 }
 
                 var result = await _quoteService.UpdateQuoteAsync(quoteId, quoteDto);
@@ -382,6 +455,45 @@ public async Task<IActionResult> CreateQuote([FromBody] CreateQuoteDto quoteDto)
                     return NotFound(new { error = "Az árajánlat nem található" });
                 }
 
+                if (!await _context.Products.AnyAsync(p => p.ProductId == itemDto.ProductId))
+                {
+                    _logger.LogWarning("Invalid ProductId: {ProductId}", itemDto.ProductId);
+                    return BadRequest(new { error = $"Invalid product ID: {itemDto.ProductId}" });
+                }
+                if (!await _context.VatTypes.AnyAsync(v => v.VatTypeId == itemDto.VatTypeId))
+                {
+                    _logger.LogWarning("Invalid VatTypeId: {VatTypeId}", itemDto.VatTypeId);
+                    return BadRequest(new { error = $"Invalid VatTypeId: {itemDto.VatTypeId}" });
+                }
+                if (itemDto.Quantity <= 0)
+                {
+                    _logger.LogWarning("Invalid Quantity for ProductId: {ProductId}", itemDto.ProductId);
+                    return BadRequest(new { error = $"Quantity must be positive for product ID: {itemDto.ProductId}" });
+                }
+                if (itemDto.NetDiscountedPrice < 0)
+                {
+                    _logger.LogWarning("Invalid NetDiscountedPrice for ProductId: {ProductId}", itemDto.ProductId);
+                    return BadRequest(new { error = $"NetDiscountedPrice must be non-negative for product ID: {itemDto.ProductId}" });
+                }
+                if (itemDto.DiscountTypeId.HasValue)
+                {
+                    if (!Enum.IsDefined(typeof(DiscountType), itemDto.DiscountTypeId.Value))
+                    {
+                        _logger.LogWarning("Invalid DiscountTypeId: {DiscountTypeId} for ProductId: {ProductId}", itemDto.DiscountTypeId, itemDto.ProductId);
+                        return BadRequest(new { error = $"Invalid DiscountTypeId: {itemDto.DiscountTypeId} for product ID: {itemDto.ProductId}" });
+                    }
+                    if (itemDto.DiscountTypeId != (int)DiscountType.NoDiscount && itemDto.DiscountAmount < 0)
+                    {
+                        _logger.LogWarning("Invalid DiscountAmount: {DiscountAmount} for ProductId: {ProductId}", itemDto.DiscountAmount, itemDto.ProductId);
+                        return BadRequest(new { error = $"DiscountAmount must be non-negative for product ID: {itemDto.ProductId}" });
+                    }
+                    if (itemDto.DiscountTypeId == (int)DiscountType.NoDiscount && itemDto.DiscountAmount.HasValue)
+                    {
+                        _logger.LogWarning("DiscountAmount provided for NoDiscount type for ProductId: {ProductId}", itemDto.ProductId);
+                        return BadRequest(new { error = $"DiscountAmount must be null for NoDiscount type for product ID: {itemDto.ProductId}" });
+                    }
+                }
+
                 var result = await _quoteService.CreateQuoteItemAsync(quoteId, itemDto);
                 _logger.LogInformation("Created QuoteItem with ID: {QuoteItemId} for QuoteId: {QuoteId}", 
                     result.QuoteItemId, quoteId);
@@ -430,6 +542,45 @@ public async Task<IActionResult> CreateQuote([FromBody] CreateQuoteDto quoteDto)
 
             try
             {
+                if (!await _context.Products.AnyAsync(p => p.ProductId == itemDto.ProductId))
+                {
+                    _logger.LogWarning("Invalid ProductId: {ProductId}", itemDto.ProductId);
+                    return BadRequest(new { error = $"Invalid product ID: {itemDto.ProductId}" });
+                }
+                if (!await _context.VatTypes.AnyAsync(v => v.VatTypeId == itemDto.VatTypeId))
+                {
+                    _logger.LogWarning("Invalid VatTypeId: {VatTypeId}", itemDto.VatTypeId);
+                    return BadRequest(new { error = $"Invalid VatTypeId: {itemDto.VatTypeId}" });
+                }
+                if (itemDto.Quantity <= 0)
+                {
+                    _logger.LogWarning("Invalid Quantity for ProductId: {ProductId}", itemDto.ProductId);
+                    return BadRequest(new { error = $"Quantity must be positive for product ID: {itemDto.ProductId}" });
+                }
+                if (itemDto.NetDiscountedPrice < 0)
+                {
+                    _logger.LogWarning("Invalid NetDiscountedPrice for ProductId: {ProductId}", itemDto.ProductId);
+                    return BadRequest(new { error = $"NetDiscountedPrice must be non-negative for product ID: {itemDto.ProductId}" });
+                }
+                if (itemDto.DiscountTypeId.HasValue)
+                {
+                    if (!Enum.IsDefined(typeof(DiscountType), itemDto.DiscountTypeId.Value))
+                    {
+                        _logger.LogWarning("Invalid DiscountTypeId: {DiscountTypeId} for ProductId: {ProductId}", itemDto.DiscountTypeId, itemDto.ProductId);
+                        return BadRequest(new { error = $"Invalid DiscountTypeId: {itemDto.DiscountTypeId} for product ID: {itemDto.ProductId}" });
+                    }
+                    if (itemDto.DiscountTypeId != (int)DiscountType.NoDiscount && itemDto.DiscountAmount < 0)
+                    {
+                        _logger.LogWarning("Invalid DiscountAmount: {DiscountAmount} for ProductId: {ProductId}", itemDto.DiscountAmount, itemDto.ProductId);
+                        return BadRequest(new { error = $"DiscountAmount must be non-negative for product ID: {itemDto.ProductId}" });
+                    }
+                    if (itemDto.DiscountTypeId == (int)DiscountType.NoDiscount && itemDto.DiscountAmount.HasValue)
+                    {
+                        _logger.LogWarning("DiscountAmount provided for NoDiscount type for ProductId: {ProductId}", itemDto.ProductId);
+                        return BadRequest(new { error = $"DiscountAmount must be null for NoDiscount type for product ID: {itemDto.ProductId}" });
+                    }
+                }
+
                 var result = await _quoteService.UpdateQuoteItemAsync(quoteId, quoteItemId, itemDto);
                 if (result == null)
                 {
@@ -482,32 +633,32 @@ public async Task<IActionResult> CreateQuote([FromBody] CreateQuoteDto quoteDto)
             }
         }
 
-        [HttpPost("{quoteId}/copy")]
-        [ProducesResponseType(StatusCodes.Status201Created)]
-        [ProducesResponseType(StatusCodes.Status404NotFound)]
-        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-        public async Task<IActionResult> CopyQuote(int quoteId)
+[HttpPost("{quoteId}/copy")]
+[ProducesResponseType(StatusCodes.Status201Created)]
+[ProducesResponseType(StatusCodes.Status404NotFound)]
+[ProducesResponseType(StatusCodes.Status500InternalServerError)]
+public async Task<IActionResult> CopyQuote(int quoteId)
+{
+    try
+    {
+        _logger.LogInformation("Copying quote ID: {QuoteId}", quoteId);
+        var quoteExists = await _context.Quotes.AnyAsync(q => q.QuoteId == quoteId);
+        if (!quoteExists)
         {
-            try
-            {
-                _logger.LogInformation("Copying quote ID: {QuoteId}", quoteId);
-                var quoteExists = await _quoteService.QuoteExistsAsync(quoteId);
-                if (!quoteExists)
-                {
-                    _logger.LogWarning("Quote not found: {QuoteId}", quoteId);
-                    return NotFound(new { error = $"Quote with ID {quoteId} not found" });
-                }
-
-                var copiedQuote = await _quoteService.CopyQuoteAsync(quoteId);
-                _logger.LogInformation("Copied quote to new quote ID: {NewQuoteId}", copiedQuote.QuoteId);
-                return CreatedAtAction(nameof(GetQuote), new { quoteId = copiedQuote.QuoteId }, copiedQuote);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error copying quote ID: {QuoteId}", quoteId);
-                return StatusCode(500, new { error = "Failed to copy quote" });
-            }
+            _logger.LogWarning("Quote not found: {QuoteId}", quoteId);
+            return NotFound(new { error = $"Quote with ID {quoteId} not found" });
         }
+
+        var copiedQuote = await _quoteService.CopyQuoteAsync(quoteId);
+        _logger.LogInformation("Copied quote to new quote ID: {NewQuoteId}", copiedQuote.QuoteId);
+        return CreatedAtAction(nameof(GetQuote), new { quoteId = copiedQuote.QuoteId }, new { quoteNumber = copiedQuote.QuoteNumber });
+    }
+    catch (Exception ex)
+    {
+        _logger.LogError(ex, "Error copying quote ID: {QuoteId}. StackTrace: {StackTrace}", quoteId, ex.StackTrace);
+        return StatusCode(500, new { error = $"Failed to copy quote: {ex.Message}" });
+    }
+}
 
         [HttpPost("{quoteId}/convert-to-order")]
         [ProducesResponseType(StatusCodes.Status201Created)]
@@ -533,6 +684,17 @@ public async Task<IActionResult> CreateQuote([FromBody] CreateQuoteDto quoteDto)
 
             try
             {
+                if (!await _context.Currencies.AnyAsync(c => c.CurrencyId == convertDto.CurrencyId))
+                {
+                    _logger.LogWarning("Invalid CurrencyId: {CurrencyId}", convertDto.CurrencyId);
+                    return BadRequest(new { error = $"Invalid CurrencyId: {convertDto.CurrencyId}" });
+                }
+                if (convertDto.SiteId.HasValue && !await _context.Sites.AnyAsync(s => s.SiteId == convertDto.SiteId.Value))
+                {
+                    _logger.LogWarning("Invalid SiteId: {SiteId}", convertDto.SiteId);
+                    return BadRequest(new { error = $"Invalid SiteId: {convertDto.SiteId}" });
+                }
+
                 var userId = User.Identity?.Name ?? "System";
                 var order = await _quoteService.ConvertQuoteToOrderAsync(quoteId, convertDto, userId);
                 _logger.LogInformation("Converted quote ID: {QuoteId} to order ID: {OrderId}", quoteId, order.OrderId);

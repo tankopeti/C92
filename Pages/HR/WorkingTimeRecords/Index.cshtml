@@ -1,11 +1,11 @@
 @page
-@model Cloud9_2.Pages.GroupRemote.Tasks.IndexModel
+@model Cloud9_2.Pages.HR.WorkingTimeRecords.IndexModel
 @{
     Layout = "_Layout";
     ViewData["Title"] = "Dashboard";
 }
 
-@await Html.PartialAsync("_GroupRemoteSidebar")
+@await Html.PartialAsync("_HRSidebar")
 
 <!-- Main Content -->
 <div class="right-content">
@@ -31,8 +31,8 @@
             <nav aria-label="breadcrumb">
                 <ol class="breadcrumb bg-body-tertiary rounded-3 p-2 mb-0">
                     <li class="breadcrumb-item"><a href="../../">Főoldal</a></li>
-                    <li class="breadcrumb-item"><a href="../">Feladatok</a></li>
-                    <li class="breadcrumb-item active" aria-current="page">Sites</li>
+                    <li class="breadcrumb-item"><a href="../">HR</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">Munkaidő nyilvántartás</li>
                     <li class="breadcrumb-item active" aria-current="page">@Model.Sites.Count of @Model.TotalRecords site@(Model.TotalRecords != 1 ? "s" : "") (Page @Model.CurrentPage of @Model.TotalPages)</li>
                 </ol>
             </nav>
@@ -69,13 +69,12 @@
         <!-- Card Grid Header -->
         <div class="card-grid-header">
             <div class="card-grid-row">
-                <div class="card-grid-column site-name-col">Feladat azonosító</div>
-                <div class="card-grid-column partner-col">Típus</div>
-                <div class="card-grid-column partner-col">Státusz</div>
-                <div class="card-grid-column address-col">Dátum</div>
-                <div class="card-grid-column primary-col">Határidő</div>
+                <div class="card-grid-column site-name-col">Dolgozó neve</div>
+                <div class="card-grid-column partner-col">Felettes</div>
+                <div class="card-grid-column partner-col">Dátumtól</div>
+                <div class="card-grid-column address-col">Dátumig</div>
+                <div class="card-grid-column primary-col">Státusz</div>
                 <div class="card-grid-column created-col">Létrehozó</div>
-                <div class="card-grid-column actions-column">Felelős</div>
             </div>
         </div>
     </div>

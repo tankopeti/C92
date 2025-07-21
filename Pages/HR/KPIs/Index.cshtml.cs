@@ -7,7 +7,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 
-namespace Cloud9_2.Pages.GroupRemote.Tasks
+namespace Cloud9_2.Pages.HR.KPI
 {
     public class IndexModel : PageModel
     {

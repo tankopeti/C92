@@ -1,0 +1,29 @@
+@* File: _Groupsidebar.cshtml *@
+@using Cloud9_2.Helpers
+@inject Microsoft.AspNetCore.Mvc.Rendering.IHtmlHelper<dynamic> Html
+
+@* --- MODIFICATION --- *@
+@* Add class="left-sidebar" and remove inline style="width: 200px;" *@
+<div class="left-sidebar d-flex flex-column flex-shrink-0"> @* Keep border-end or remove if handled by CSS *@
+@* --- END MODIFICATION --- *@
+
+    <div class="pt-3">
+        @if (User.IsInRole("SuperAdmin") || User.IsInRole("Admin") || User.IsInRole("GroupRemoteUser"))
+        {
+            <ul class="nav flex-column">
+                <li class="nav-item">
+                    <a class="nav-link px-3 py-2 @(Html.IsActive("Tasks/Index", "GroupRemote") ? "active" : "")" asp-area="" asp-page="/GroupRemote/Tasks/Index">
+                        <i class="bi bi-people-fill me-2"></i>Feladatok
+                    </a>
+                    <a class="nav-link px-3 py-2 @(Html.IsActive("Projects/Index", "GroupRemote") ? "active" : "")" asp-area="" asp-page="/GroupRemote/Projects/Index">
+                        <i class="bi bi-people-fill me-2"></i>Projektek
+                    </a>
+                    <a class="nav-link px-3 py-2 @(Html.IsActive("Meetings/Index", "GroupRemote") ? "active" : "")" asp-area="" asp-page="/GroupRemote/Meetings/Index">
+                        <i class="bi bi-people-fill me-2"></i>Megbeszélések
+                    </a>
+                </li>
+                @* Add other sidebar links as needed *@
+            </ul>
+        }
+    </div>
+</div>

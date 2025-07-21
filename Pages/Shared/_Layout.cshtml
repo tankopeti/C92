@@ -17,6 +17,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="api-base-url" content="/api" />
     <title>@ViewData["Title"] - Cloud9.2</title>
+    
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <!-- Bootstrap CSS -->
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
     <!-- Google Fonts -->
@@ -627,20 +629,22 @@
                             <li class="nav-item dropdown">
                                 <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown" aria-expanded="false">HR</a>
                                 <ul class="dropdown-menu">
-                                    <li><a class="dropdown-item" asp-area="" asp-page="/Logistics/Products/Index">Dolgozók</a></li>
-                                    <li><a class="dropdown-item" asp-area="" asp-page="/Logistics/Products/Index">Munkakörök</a></li>
-                                    <li><a class="dropdown-item" asp-area="" asp-page="/Logistics/Products/Index">Cafeteria</a></li>
-                                    <li><a class="dropdown-item" asp-area="" asp-page="/Logistics/Products/Index">Önéletrajzok</a></li>
-                                    <li><a class="dropdown-item" asp-area="" asp-page="/Logistics/Products/Index">Kpi célok</a></li>
-                                    <li><a class="dropdown-item" asp-area="" asp-page="/Logistics/Products/Index">Munkaidő nyilvántartás</a></li>
-                                    <li><a class="dropdown-item" asp-area="" asp-page="/Logistics/Products/Index">Szabadságok</a></li>
+                                    <li><a class="dropdown-item" asp-area="" asp-page="/HR/Employees/Index">Dolgozók</a></li>
+                                    <li><a class="dropdown-item" asp-area="" asp-page="/HR/WorkGroup/Index">Munkakörök</a></li>
+                                    <li><a class="dropdown-item" asp-area="" asp-page="/HR/Cafeteria/Index">Cafeteria</a></li>
+                                    <li><a class="dropdown-item" asp-area="" asp-page="/HR/CVs/Index">Önéletrajzok</a></li>
+                                    <li><a class="dropdown-item" asp-area="" asp-page="/HR/KPIs/Index">Kpi célok</a></li>
+                                    <li><a class="dropdown-item" asp-area="" asp-page="/HR/WorkingTimeRecords/Index">Munkaidő nyilvántartás</a></li>
+                                    <li><a class="dropdown-item" asp-area="" asp-page="/HR/DaysOff/Index">Szabadságok</a></li>
                                 </ul>
                             </li>
                             @* Táv és csoportmunka menü *@
                             <li class="nav-item dropdown">
-                                <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown" aria-expanded="false">Táv és csoportmunka</a>
+                                <a class="nav-link dropdown-toggle" href="/GroupRemote/Sites/Index" data-bs-toggle="dropdown" aria-expanded="false">Táv és csoportmunka</a>
                                 <ul class="dropdown-menu">
                                     <li><a class="dropdown-item" asp-area="" asp-page="/GroupRemote/Tasks/Index">Feladatok</a></li>
+                                    <li><a class="dropdown-item" asp-area="" asp-page="/GroupRemote/Projects/Index">Projektek</a></li>
+                                    <li><a class="dropdown-item" asp-area="" asp-page="/GroupRemote/Meetings/Index">Megbeszélések</a></li>
                                     <li class="dropdown-item">
                                         <button class="dropdown-item" onclick="toggleChat()">
                                             <i class="bi bi-chat-left-text"></i> Chat
@@ -696,10 +700,7 @@
         </div>
     </footer>
 
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="~/lib/microsoft/signalr/dist/browser/signalr.js"></script>
-
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 
     <script src="https://code.jquery.com/ui/1.13.2/jquery-ui.min.js"></script>
 

@@ -5,9 +5,8 @@ using Cloud9_2.Models;
 using Cloud9_2.Data;
 using System.Collections.Generic;
 using System.Linq;
-using System.Threading.Tasks;
 
-namespace Cloud9_2.Pages.GroupRemote.Tasks
+namespace Cloud9_2.Pages.GroupRemote.Projects
 {
     public class IndexModel : PageModel
     {

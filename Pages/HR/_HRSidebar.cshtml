@@ -1,0 +1,41 @@
+@* File: _Groupsidebar.cshtml *@
+@using Cloud9_2.Helpers
+@inject Microsoft.AspNetCore.Mvc.Rendering.IHtmlHelper<dynamic> Html
+
+@* --- MODIFICATION --- *@
+@* Add class="left-sidebar" and remove inline style="width: 200px;" *@
+<div class="left-sidebar d-flex flex-column flex-shrink-0"> @* Keep border-end or remove if handled by CSS *@
+@* --- END MODIFICATION --- *@
+
+    <div class="pt-3">
+        @if (User.IsInRole("SuperAdmin") || User.IsInRole("Admin") || User.IsInRole("HRUser"))
+        {
+            <ul class="nav flex-column">
+                <li class="nav-item">
+                    <a class="nav-link px-3 py-2 @(Html.IsActive("Employees/Index", "HR") ? "active" : "")" asp-area="" asp-page="/HR/Employees/Index">
+                        <i class="bi bi-people-fill me-2"></i>Dolgozók
+                    </a>
+                    <a class="nav-link px-3 py-2 @(Html.IsActive("DaysOff/Index", "HR") ? "active" : "")" asp-area="" asp-page="/HR/DaysOff/Index">
+                        <i class="bi bi-people-fill me-2"></i>Szabadságok
+                    </a>
+                    <a class="nav-link px-3 py-2 @(Html.IsActive("WorkingTimeRecords/Index", "HR") ? "active" : "")" asp-area="" asp-page="/HR/WorkingTimeRecords/Index">
+                        <i class="bi bi-people-fill me-2"></i>Munkaidő nyilvántartás
+                    </a>
+                    <a class="nav-link px-3 py-2 @(Html.IsActive("Cafeteria/Index", "HR") ? "active" : "")" asp-area="" asp-page="/HR/Cafeteria/Index">
+                        <i class="bi bi-people-fill me-2"></i>Cafeteria
+                    </a>
+                    <a class="nav-link px-3 py-2 @(Html.IsActive("CVs/Index", "HR") ? "active" : "")" asp-area="" asp-page="/HR/CVs/Index">
+                        <i class="bi bi-people-fill me-2"></i>Önéletrajzok
+                    </a>
+                    <a class="nav-link px-3 py-2 @(Html.IsActive("KPIs/Index", "HR") ? "active" : "")" asp-area="" asp-page="/HR/KPIs/Index">
+                        <i class="bi bi-people-fill me-2"></i>Kpi
+                    </a>
+                    <a class="nav-link px-3 py-2 @(Html.IsActive("WorkGroup/Index", "HR") ? "active" : "")" asp-area="" asp-page="/HR/WorkGroup/Index">
+                        <i class="bi bi-people-fill me-2"></i>Munkkörök
+                    </a>
+                </li>
+                @* Add other sidebar links as needed *@
+            </ul>
+        }
+    </div>
+</div>

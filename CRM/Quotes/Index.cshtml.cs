@@ -49,7 +49,9 @@ namespace Cloud9_2.Pages.CRM.Quotes
             IQueryable<Quote> quotesQuery = _context.Quotes
                 .Include(q => q.Partner)
                 .Include(q => q.QuoteItems)
-                .ThenInclude(qi => qi.Product);
+                .ThenInclude(qi => qi.Product)
+                .Include(q => q.QuoteItems)
+                    .ThenInclude(qi => qi.VatType);;
 
             if (!string.IsNullOrEmpty(SearchTerm))
             {

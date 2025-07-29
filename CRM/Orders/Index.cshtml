@@ -1,39 +1,31 @@
 @page
-@model Cloud9_2.Pages.CRM.Orders.IndexModel
-@using System.Globalization
 @using Microsoft.AspNetCore.Mvc.Rendering
 @using Cloud9_2.Models
 @using Cloud9_2.Data
 @using Microsoft.AspNetCore.Antiforgery
-
+@model Cloud9_2.Pages.CRM.Orders.IndexModel
+@using System.Globalization
 @section Styles {
     <link rel="stylesheet" href="~/css/Orders.css" />
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/css/tom-select.bootstrap5.min.css" />
-}
-
-@{
-    ViewData["Title"] = "Orders";
 }
 
 @functions {
     public string GetAntiForgeryToken()
     {
-        var antiForgery = HttpContext.RequestServices.GetService<IAntiforgery>();
-        var tokenSet = antiForgery?.GetAndStoreTokens(HttpContext);
+        var antiForgery = PageContext.HttpContext.RequestServices.GetService<IAntiforgery>();
+        var tokenSet = antiForgery?.GetAndStoreTokens(PageContext.HttpContext);
         return tokenSet?.RequestToken ?? string.Empty;
     }
 }
-
 @{
     ViewData["Title"] = "Rendelések";
     Layout = "_Layout";
-    ViewData["AntiForgeryToken"] = GetAntiForgeryToken();
 }
-
 @await Html.PartialAsync("_CRMSidebar")
 
 <div class="right-content">
     <div class="page-header-fixed-top">
+        <!-- Breadcrumb Navigation -->
         <div class="d-flex justify-content-between align-items-center mb-2">
             <nav aria-label="breadcrumb">
                 <ol class="breadcrumb bg-body-tertiary rounded-3 p-2 mb-0">
@@ -44,9 +36,11 @@
                 </ol>
             </nav>
         </div>
+
+        <!-- Header with Buttons and Search -->
         <div class="d-flex justify-content-between align-items-center mb-3">
             <div class="d-flex align-items-center gap-2">
-                <button type="button" id="newOrderButton" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#newOrderModal" aria-label="Új rendelés létrehozása">
+                <button type="button" id="newOrderButton" class="btn-new" data-bs-toggle="modal" data-bs-target="#newOrderModal" aria-label="Új rendelés létrehozása">
                     <i class="bi bi-plus-circle me-1"></i>Új rendelés
                 </button>
             </div>
@@ -58,6 +52,7 @@
                         <i class="bi bi-search"></i>
                     </button>
                 </form>
+                <!-- Filter/Sort Dropdown -->
                 <div class="dropdown">
                     <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Rendezési és szűrési opciók">
                         <i class="bi bi-funnel me-1"></i>Rendezés/Szűrés
@@ -72,6 +67,8 @@
                 </div>
             </div>
         </div>
+
+        <!-- Card Grid Header -->
         <div class="card-grid-header">
             <div class="card-grid-row">
                 <div class="card-grid-column col">Rendelésszám</div>
@@ -83,6 +80,8 @@
             </div>
         </div>
     </div>
+
+    <!-- Card Grid Body -->
     <div class="scrollable-card-container">
         <div class="card-grid-body">
             @if (Model.Orders.Any())
@@ -158,7 +157,7 @@
             }
             else
             {
-                <div class="alert alert-warning text-center Faker mt-3" role="alert">
+                <div class="alert alert-warning text-center mt-3" role="alert">
                     @if (!string.IsNullOrEmpty(Model.SearchTerm))
                     {
                         @:No orders found matching "@Model.SearchTerm" on page @Model.CurrentPage.
@@ -171,6 +170,7 @@
                     {
                         @:No orders found. <button type="button" class="btn btn-link alert-link p-0 align-baseline" data-bs-toggle="modal" data-bs-target="#newOrderModal" aria-label="Első rendelés létrehozása">Create the first one?</button>
                     }
+                    <!-- Debug Info -->
                     <div class="mt-2 small text-muted">
                         Debug: Page=@Model.CurrentPage, PageSize=@Model.PageSize, TotalRecords=@Model.TotalRecords, DistinctOrderIdCount=@Model.DistinctOrderIdCount, SearchTerm="@Model.SearchTerm"
                     </div>
@@ -178,20 +178,35 @@
             }
         </div>
     </div>
-    @await Html.PartialAsync("_PaginationFooter", new Cloud9_2.Models.PaginationViewModel
+
+    <!-- Pagination Footer -->
+    @await Html.PartialAsync("_PaginationFooter", new PaginationViewModel
     {
         CurrentPage = Model.CurrentPage,
         TotalPages = Model.TotalPages,
         PageSize = Model.PageSize,
         SearchTerm = Model.SearchTerm,
         PageRoute = "./Index",
-        EntityName = "Orders"
+        EntityName = "Quotes"
     })
-    @await Html.PartialAsync("_Modals")
-    <div id="toastContainer" class="position-fixed bottom-0 end-0 p-3" style="z-index: 1055;"></div>
-</div>
+
+ @await Html.PartialAsync("_Modals")
+    
+<div id="toastContainer" class="position-fixed bottom-0 end-0 p-3" style="z-index: 1055;"></div>
+    
+
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js" integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4=" crossorigin="anonymous"></script>
+
+<!-- Tom Select Dependencies -->
+<link href="https://cdn.jsdelivr.net/npm/tom-select@2.4.3/dist/css/tom-select.bootstrap5.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/tom-select@2.4.3/dist/js/tom-select.complete.min.js"></script>
 
 @section Scripts {
     <script src="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/js/tom-select.complete.min.js"></script>
-    <script src="/js/orders.js" onerror="alert('Failed to load orders.js from /js/orders.js.')"></script>
+    <script src="/js/orders.js" onerror="alert('Failed to load quotes.js from /js/orders.js.')"></script>
+    <script src="/js/utils.js"></script>
+    <script src="/js/tomSelectUtils.js"></script>
+    <script src="/js/orderTomSelects.js" onerror="alert('Failed to load quotes.js from /js/orderTomSelects.js.')"></script>
 }
+

@@ -217,19 +217,54 @@ public async Task<IActionResult> CreateQuote([FromBody] CreateQuoteDto quoteDto)
             try
             {
                 _logger.LogInformation("Fetching quote ID: {QuoteId}", quoteId);
-                var quote = await _quoteService.GetQuoteByIdAsync(quoteId);
+                var quote = await _context.Quotes.FindAsync(quoteId);
                 if (quote == null)
                 {
                     _logger.LogWarning("Quote not found: {QuoteId}", quoteId);
                     return NotFound(new { error = $"Quote with ID {quoteId} not found" });
                 }
 
-                return Ok(quote);
+                return Ok(new
+                {
+                    id = quote.QuoteId,
+                    text = quote.QuoteNumber ?? $"Quote {quote.QuoteId}",
+                    partnerId = quote.PartnerId
+                });
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error fetching quote ID: {QuoteId}", quoteId);
                 return StatusCode(500, new { error = "Failed to retrieve quote" });
+            }
+        }
+
+        [HttpGet]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+        public async Task<IActionResult> GetQuotes(string term = "", int? partnerId = null, int skip = 0, int take = 50)
+        {
+            try
+            {
+                _logger.LogInformation("Fetching quotes with term: {Term}, partnerId: {PartnerId}, skip: {Skip}, take: {Take}", term, partnerId, skip, take);
+                var quotes = await _context.Quotes
+                    .Where(q => string.IsNullOrEmpty(term) || q.QuoteNumber.Contains(term))
+                    .Where(q => partnerId == null || q.PartnerId == partnerId)
+                    .Skip(skip)
+                    .Take(take)
+                    .Select(q => new
+                    {
+                        id = q.QuoteId,
+                        text = q.QuoteNumber ?? $"Quote {q.QuoteId}",
+                        partnerId = q.PartnerId
+                    })
+                    .ToListAsync();
+                _logger.LogInformation("Found {Count} quotes", quotes.Count);
+                return Ok(quotes);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error fetching quotes");
+                return StatusCode(500, new { error = "Failed to retrieve quotes" });
             }
         }
 
@@ -633,32 +668,32 @@ public async Task<IActionResult> CreateQuote([FromBody] CreateQuoteDto quoteDto)
             }
         }
 
-[HttpPost("{quoteId}/copy")]
-[ProducesResponseType(StatusCodes.Status201Created)]
-[ProducesResponseType(StatusCodes.Status404NotFound)]
-[ProducesResponseType(StatusCodes.Status500InternalServerError)]
-public async Task<IActionResult> CopyQuote(int quoteId)
-{
-    try
-    {
-        _logger.LogInformation("Copying quote ID: {QuoteId}", quoteId);
-        var quoteExists = await _context.Quotes.AnyAsync(q => q.QuoteId == quoteId);
-        if (!quoteExists)
+        [HttpPost("{quoteId}/copy")]
+        [ProducesResponseType(StatusCodes.Status201Created)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+        public async Task<IActionResult> CopyQuote(int quoteId)
         {
-            _logger.LogWarning("Quote not found: {QuoteId}", quoteId);
-            return NotFound(new { error = $"Quote with ID {quoteId} not found" });
-        }
+            try
+            {
+                _logger.LogInformation("Copying quote ID: {QuoteId}", quoteId);
+                var quoteExists = await _context.Quotes.AnyAsync(q => q.QuoteId == quoteId);
+                if (!quoteExists)
+                {
+                    _logger.LogWarning("Quote not found: {QuoteId}", quoteId);
+                    return NotFound(new { error = $"Quote with ID {quoteId} not found" });
+                }
 
-        var copiedQuote = await _quoteService.CopyQuoteAsync(quoteId);
-        _logger.LogInformation("Copied quote to new quote ID: {NewQuoteId}", copiedQuote.QuoteId);
-        return CreatedAtAction(nameof(GetQuote), new { quoteId = copiedQuote.QuoteId }, new { quoteNumber = copiedQuote.QuoteNumber });
-    }
-    catch (Exception ex)
-    {
-        _logger.LogError(ex, "Error copying quote ID: {QuoteId}. StackTrace: {StackTrace}", quoteId, ex.StackTrace);
-        return StatusCode(500, new { error = $"Failed to copy quote: {ex.Message}" });
-    }
-}
+                var copiedQuote = await _quoteService.CopyQuoteAsync(quoteId);
+                _logger.LogInformation("Copied quote to new quote ID: {NewQuoteId}", copiedQuote.QuoteId);
+                return CreatedAtAction(nameof(GetQuote), new { quoteId = copiedQuote.QuoteId }, new { quoteNumber = copiedQuote.QuoteNumber });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error copying quote ID: {QuoteId}. StackTrace: {StackTrace}", quoteId, ex.StackTrace);
+                return StatusCode(500, new { error = $"Failed to copy quote: {ex.Message}" });
+            }
+        }
 
         [HttpPost("{quoteId}/convert-to-order")]
         [ProducesResponseType(StatusCodes.Status201Created)]

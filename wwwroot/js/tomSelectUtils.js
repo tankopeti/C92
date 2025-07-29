@@ -1,0 +1,905 @@
+window.c92 = window.c92 || {};
+
+// VAT TomSelect initialization (used by quotes and orders)
+window.c92.initializeVatTomSelect = async function (input, id, context = 'quote') {
+    if (typeof TomSelect === 'undefined') {
+        console.error('TomSelect library not loaded');
+        window.c92.showToast('error', 'TomSelect könyvtár hiányzik.');
+        return Promise.reject('TomSelect missing');
+    }
+
+    if (!input) {
+        console.error('VAT select element is null or undefined');
+        window.c92.showToast('error', 'ÁFA választó elem nem található.');
+        return Promise.reject('VAT select element missing');
+    }
+
+    // Skip if already initialized with a valid value
+    if (input.tomselect && input.tomselect.getValue()) {
+        console.log('VAT select already initialized with value, skipping:', input, 'value:', input.tomselect.getValue());
+        return input.tomselect;
+    }
+
+    let hiddenInput = input.nextElementSibling;
+    if (!hiddenInput || hiddenInput.type !== 'hidden') {
+        hiddenInput = document.createElement('input');
+        hiddenInput.type = 'hidden';
+        hiddenInput.name = input.name;
+        input.parentNode.insertBefore(hiddenInput, input.nextSibling);
+    }
+
+    if (input.tomselect) {
+        console.log('VAT select already initialized, destroying:', input);
+        input.tomselect.destroy();
+    }
+    input.dataset.tomSelectInitialized = 'true';
+
+    try {
+        const response = await fetch('/api/vat/types', {
+            headers: {
+                'Content-Type': 'application/json',
+                'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]').value
+            }
+        });
+        if (!response.ok) {
+            throw new Error(`Failed to fetch VAT types: ${response.status} ${response.statusText}`);
+        }
+        let data = await response.json();
+        if (!Array.isArray(data) || data.length === 0) {
+            console.warn('No VAT types returned from API, using fallback');
+            data = [
+                { vatTypeId: 1, typeName: '27%', rate: 27 },
+                { vatTypeId: 2, typeName: '0%', rate: 0 },
+                { vatTypeId: 3, typeName: '5%', rate: 5 }
+            ];
+        }
+
+        // Clear existing options and add placeholder
+        input.innerHTML = '<option value="">-- Válasszon ÁFA típust --</option>';
+        data.forEach(vat => {
+            const option = new Option(vat.typeName, vat.vatTypeId, false, vat.vatTypeId === input.dataset.selectedId);
+            option.dataset.rate = vat.rate;
+            input.appendChild(option);
+        });
+
+        // Get selected values from attributes or DOM
+        const selectedId = input.dataset.selectedId || input.value || '';
+        const selectedText = (input.dataset.selectedText || '').replace(/ \?\? .*$/, '') || input.querySelector('option[selected]')?.text || '';
+
+        const rowClass = context === 'quote' ? '.quote-item-row' : '.order-item-row';
+        const calculateTotals = context === 'quote' ? window.calculateQuoteTotals : window.calculateOrderTotals;
+
+        const tomSelect = new TomSelect(input, {
+            create: false,
+            maxItems: 1,
+            valueField: 'vatTypeId',
+            labelField: 'typeName',
+            searchField: ['typeName'],
+            options: data.map(v => ({
+                vatTypeId: v.vatTypeId,
+                typeName: v.typeName,
+                rate: v.rate
+            })),
+            onInitialize() {
+                console.log('VAT TomSelect initialized for input:', input, 'context:', context, 'options:', data, 'selectedId:', selectedId, 'selectedText:', selectedText);
+                const exists = data.some(v => String(v.vatTypeId) === selectedId);
+                if (selectedId && !exists && selectedText) {
+                    console.warn(`Selected VAT ID ${selectedId} not in options, adding fallback`);
+                    this.addOption({ vatTypeId: selectedId, typeName: selectedText, rate: parseFloat(input.dataset.selectedRate || 0) });
+                }
+                if (selectedId && exists) {
+                    this.setValue(selectedId, true); // Silent update
+                    hiddenInput.value = selectedId;
+                } else if (data[0]) {
+                    this.setValue(data[0].vatTypeId, true);
+                    hiddenInput.value = data[0].vatTypeId;
+                }
+                console.log('Post-initialize value:', this.getValue(), 'display:', this.getOption(this.getValue())?.typeName);
+            },
+            onChange(value) {
+                console.log('VAT changed, value:', value, 'display:', this.getOption(value)?.typeName, 'context:', context);
+                hiddenInput.value = value || '';
+                const row = input.closest(rowClass);
+                if (!row) {
+                    console.warn('Parent row not found for VAT select:', rowClass);
+                    window.c92.showToast('warning', 'Szülő sor nem található az ÁFA választóhoz.');
+                    return;
+                }
+                const productSelect = row.querySelector('.tom-select-product');
+                if (productSelect?.tomselect) {
+                    const productId = productSelect.value || productSelect.dataset.selectedId;
+                    const quantityInput = row.querySelector(context === 'quote' ? '.item-quantity' : '.quantity');
+                    const unitPriceInput = row.querySelector(context === 'quote' ? '.item-unit-price' : '.unit-price');
+                    const discountTypeSelect = row.querySelector(context === 'quote' ? '.discount-type-id' : '.discount-type');
+                    const discountAmountInput = row.querySelector('.discount-amount');
+                    window.c92.calculateAllPrices(
+                        row,
+                        unitPriceInput?.value || 0,
+                        discountTypeSelect?.value || '1',
+                        discountAmountInput?.value || 0,
+                        parseInt(quantityInput?.value) || 1,
+                        input,
+                        { productId },
+                        context
+                    );
+                    if (typeof calculateTotals === 'function') {
+                        calculateTotals(id);
+                    } else {
+                        console.warn(`Calculate totals function not found for context: ${context}`);
+                    }
+                }
+            },
+            onDropdownOpen() {
+                console.log('Dropdown opened, value:', this.getValue(), 'display:', this.getOption(this.getValue())?.typeName);
+            },
+            onOptionAdd(value, data) {
+                console.log('Option added:', value, data);
+            }
+        });
+
+        // Only refresh if no value is set
+        if (!tomSelect.getValue()) {
+            tomSelect.refreshOptions();
+        }
+        console.log('VAT select initialized successfully, tomselect:', tomSelect, 'value:', tomSelect.getValue(), 'display:', tomSelect.getOption(tomSelect.getValue())?.typeName);
+        return tomSelect;
+    } catch (error) {
+        console.error('Failed to initialize VAT select:', error);
+        window.c92.showToast('error', 'Hiba az ÁFA típusok betöltése közben: ' + error.message);
+        input.dataset.tomSelectInitialized = '';
+        return Promise.reject(error);
+    }
+};
+
+// Currency TomSelect initialization (used by quotes and orders)
+window.c92.initializeCurrencyTomSelect = async function (currencySelectElement, context = 'order') {
+    if (!currencySelectElement || currencySelectElement.dataset.tomSelectInitialized === 'true') {
+        console.log(`Currency TomSelect already initialized for context: ${context}`);
+        return currencySelectElement?.tomselect || null;
+    }
+
+    const selectedId = currencySelectElement.dataset.selectedId || '';
+    const selectedText = currencySelectElement.dataset.selectedText || '';
+
+    // Fetch currencies
+    let initialOptions = [];
+    try {
+        const url = `/api/currencies?term=`;
+        console.log(`Fetching currencies from: ${url}`);
+        const headers = {
+            'Content-Type': 'application/json',
+            'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]')?.value
+        };
+        const token = localStorage.getItem('token');
+        if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+        }
+
+        const response = await fetch(url, { headers, credentials: 'include' });
+        if (!response.ok) {
+            const errorText = await response.text().catch(() => 'Unknown error');
+            console.error('Fetch currencies failed:', { status: response.status, error: errorText, url });
+            initialOptions = [{ id: 1, text: 'HUF' }]; // Fallback
+            throw new Error(`Failed to fetch currencies: ${response.status} - ${errorText}`);
+        }
+
+        const rawData = await response.json();
+        console.log('Raw currencies response:', rawData);
+
+        initialOptions = rawData.map(item => ({
+            id: item.id,
+            text: (item.text && item.text.trim() !== '') ? item.text.trim() : `Currency ${item.id}`
+        })).filter(item => item.text && item.text.trim() !== '');
+        console.log('Mapped currencies data:', initialOptions);
+    } catch (error) {
+        console.error('Error fetching currencies:', error);
+        initialOptions = [{ id: 1, text: 'HUF' }]; // Fallback
+        window.c92.showToast('error', `Hiba a pénznemek betöltése közben: ${error.message}`);
+    }
+
+    const control = new TomSelect(currencySelectElement, {
+        valueField: 'id',
+        labelField: 'text',
+        searchField: ['text'],
+        maxOptions: null,
+        placeholder: '-- Válasszon pénznemet --',
+        allowEmptyOption: false,
+        create: false,
+        options: initialOptions,
+        load: async function (query, callback) {
+            try {
+                const searchUrl = `/api/currencies?term=${encodeURIComponent(query)}`;
+                console.log(`Searching currencies from: ${searchUrl}`);
+                const headers = {
+                    'Content-Type': 'application/json',
+                    'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]')?.value
+                };
+                const token = localStorage.getItem('token');
+                if (token) {
+                    headers['Authorization'] = `Bearer ${token}`;
+                }
+
+                const response = await fetch(searchUrl, { headers, credentials: 'include' });
+                if (!response.ok) {
+                    const errorText = await response.text().catch(() => 'Unknown error');
+                    console.error('Fetch currencies failed:', { status: response.status, error: errorText, searchUrl });
+                    callback([{ id: null, text: 'Nincs találat' }]);
+                    return;
+                }
+
+                const searchData = await response.json();
+                console.log('Search currencies response:', searchData);
+                const mappedData = searchData.map(item => ({
+                    id: item.id,
+                    text: (item.text && item.text.trim() !== '') ? item.text.trim() : `Currency ${item.id}`
+                })).filter(item => item.text && item.text.trim() !== '');
+                callback(mappedData.length ? mappedData : [{ id: null, text: 'Nincs találat' }]);
+            } catch (error) {
+                console.error('Error searching currencies:', error);
+                window.c92.showToast('error', `Hiba a pénznemek betöltése közben: ${error.message}`);
+                callback([{ id: null, text: 'Hiba a betöltés során' }]);
+            }
+        },
+        render: {
+            option: function (data, escape) {
+                return `<div>${escape(data.text)}</div>`;
+            },
+            item: function (data, escape) {
+                return `<div>${escape(data.text)}</div>`;
+            }
+        },
+        onInitialize: function () {
+            currencySelectElement.dataset.tomSelectInitialized = 'true';
+            console.log(`Currency TomSelect initialized for select:`, currencySelectElement, `context: ${context}`, `options:`, initialOptions, `selectedId: ${selectedId}, selectedText: ${selectedText}`);
+            if (selectedId && selectedText) {
+                this.addOption({ id: selectedId, text: selectedText });
+                this.setValue(selectedId);
+            } else if (initialOptions.length) {
+                this.addOption(initialOptions);
+                this.setValue(initialOptions[0].id); // Default to first currency
+            }
+        },
+        onChange: function (value) {
+            console.log(`Currency selected for context: ${context}, value: ${value}`);
+            const display = this.options[value]?.text || 'undefined';
+            console.log(`Post-initialize value: ${value} display: ${display}`);
+            window.calculateOrderTotals(context); // Recalculate totals
+        }
+    });
+
+    const value = control.getValue();
+    const display = control.options[value]?.text || 'undefined';
+    console.log(`Currency select initialized successfully, tomselect:`, control, `value: ${value} display: ${display}`);
+    return control;
+};
+
+window.c92.initializePartnerTomSelect = async function (partnerSelectElement, contextId, context = 'order') {
+    if (!partnerSelectElement || partnerSelectElement.dataset.tomSelectInitialized === 'true') {
+        console.log(`Partner TomSelect already initialized for context: ${contextId} (${context})`);
+        return partnerSelectElement?.tomselect || null;
+    }
+
+    const selectedId = partnerSelectElement.dataset.selectedId || '';
+    const selectedText = partnerSelectElement.dataset.selectedText || '';
+
+    // Fetch initial partners
+    let initialOptions = [];
+    try {
+        const url = `/api/Partners?search=&skip=0&take=50`;
+        console.log(`Fetching partners from: ${url} for context: ${context}`);
+        const headers = {
+            'Content-Type': 'application/json',
+            'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]')?.value
+        };
+        const token = localStorage.getItem('token');
+        if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+        }
+
+        const response = await fetch(url, { headers, credentials: 'include' });
+        if (!response.ok) {
+            const errorText = await response.text().catch(() => 'Unknown error');
+            console.error('Fetch partners failed:', { status: response.status, error: errorText, url });
+            initialOptions = [{ id: null, text: 'Nincs elérhető partner' }];
+            throw new Error(`Failed to fetch partners: ${response.status} - ${errorText}`);
+        }
+
+        const rawData = await response.json();
+        console.log('Raw partners response:', rawData);
+
+        initialOptions = rawData.map(item => ({
+            id: item.id,
+            text: item.text || `Partner ${item.id}`
+        })).filter(item => item.text && item.text.trim() !== '');
+        console.log('Mapped partners data:', initialOptions);
+    } catch (error) {
+        console.error('Error fetching initial partners:', error);
+        initialOptions = [{ id: null, text: 'Partner API nem elérhető vagy nincs adat' }];
+        window.c92.showToast('error', `Hiba a partnerek betöltése közben: ${error.message}`);
+    }
+
+    const control = new TomSelect(partnerSelectElement, {
+        valueField: 'id',
+        labelField: 'text',
+        searchField: ['text'],
+        maxOptions: null,
+        placeholder: '-- Válasszon partnert --',
+        allowEmptyOption: true,
+        create: false,
+        options: initialOptions,
+        load: async function (query, callback) {
+            try {
+                const searchUrl = `/api/Partners?search=${encodeURIComponent(query)}&skip=0&take=50`;
+                console.log(`Searching partners from: ${searchUrl}`);
+                const headers = {
+                    'Content-Type': 'application/json',
+                    'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]')?.value
+                };
+                const token = localStorage.getItem('token');
+                if (token) {
+                    headers['Authorization'] = `Bearer ${token}`;
+                }
+
+                const response = await fetch(searchUrl, { headers, credentials: 'include' });
+                if (!response.ok) {
+                    const errorText = await response.text().catch(() => 'Unknown error');
+                    console.error('Fetch partners failed:', { status: response.status, error: errorText, searchUrl });
+                    callback([{ id: null, text: 'Nincs találat' }]);
+                    return;
+                }
+
+                const searchData = await response.json();
+                console.log('Search partners response:', searchData);
+                const mappedData = searchData.map(item => ({
+                    id: item.id,
+                    text: item.text || `Partner ${item.id}`
+                })).filter(item => item.text && item.text.trim() !== '');
+                callback(mappedData.length ? mappedData : [{ id: null, text: 'Nincs találat' }]);
+            } catch (error) {
+                console.error('Error searching partners:', error);
+                window.c92.showToast('error', `Hiba a partnerek betöltése közben: ${error.message}`);
+                callback([{ id: null, text: 'Hiba a betöltés során' }]);
+            }
+        },
+        render: {
+            option: function (data, escape) {
+                return `<div>${escape(data.text)}</div>`;
+            },
+            item: function (data, escape) {
+                return `<div>${escape(data.text)}</div>`;
+            }
+        },
+        onInitialize: function () {
+            partnerSelectElement.dataset.tomSelectInitialized = 'true';
+            console.log(`Partner TomSelect initialized for context: ${contextId} (${context}), selectedId: ${selectedId}, selectedText: ${selectedText}`);
+            if (selectedId && selectedText) {
+                this.addOption({ id: selectedId, text: selectedText });
+                this.setValue(selectedId);
+            }
+        },
+        onChange: function (value) {
+            console.log(`Partner selected for context: ${contextId} (${context}), value: ${value}`);
+            // Trigger dependent dropdowns (e.g., SiteId, ProductId) to reinitialize
+            const siteSelect = document.querySelector(`#site-select_${contextId}`);
+            if (siteSelect && typeof window.c92.initializeSiteTomSelect === 'function') {
+                window.c92.initializeSiteTomSelect(siteSelect, contextId, context);
+            }
+            const productSelects = document.querySelectorAll(`#items-tbody_${contextId} .tom-select-product`);
+            productSelects.forEach(select => {
+                if (select.tomselect) {
+                    select.tomselect.destroy();
+                    select.dataset.tomSelectInitialized = 'false';
+                    window.c92.initializeProductTomSelect(select, contextId, context);
+                }
+            });
+        }
+    });
+
+    console.log('Partner TomSelect options after init:', control.options);
+    return control;
+};
+
+window.c92.initializeSiteTomSelect = async function (siteSelectElement, contextId, context = 'order') {
+    if (!siteSelectElement || siteSelectElement.dataset.tomSelectInitialized === 'true') {
+        console.log(`Site TomSelect already initialized for context: ${contextId} (${context})`);
+        return siteSelectElement?.tomselect || null;
+    }
+
+    const selectedId = siteSelectElement.dataset.selectedId || '';
+    const selectedText = siteSelectElement.dataset.selectedText || '';
+    const partnerSelect = document.querySelector(`#partner-select_${contextId}`);
+    const partnerId = partnerSelect?.value ? parseInt(partnerSelect.value) : null;
+
+    // Fetch initial sites if partnerId is available
+    let initialOptions = [];
+    if (partnerId) {
+        try {
+            const url = `/api/orders/sites?partnerId=${partnerId}`;
+            console.log(`Fetching sites from: ${url} for context: ${context}`);
+            const headers = {
+                'Content-Type': 'application/json',
+                'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]')?.value
+            };
+            const token = localStorage.getItem('token');
+            if (token) {
+                headers['Authorization'] = `Bearer ${token}`;
+            }
+
+            const response = await fetch(url, { headers, credentials: 'include' });
+            if (!response.ok) {
+                const errorText = await response.text().catch(() => 'Unknown error');
+                console.error('Fetch sites failed:', { status: response.status, error: errorText, url });
+                initialOptions = [{ id: null, text: response.status === 404 ? 'Telephely API nem elérhető' : 'Nincs elérhető telephely' }];
+                throw new Error(`Failed to fetch sites: ${response.status} - ${errorText}`);
+            }
+
+            const rawData = await response.json();
+            console.log('Raw sites response:', rawData);
+
+            initialOptions = rawData.map(item => ({
+                id: item.id,
+                text: (item.text && item.text.trim() !== '') ? item.text.trim() : `Site ${item.id}`
+            })).filter(item => item.text && item.text.trim() !== '');
+            console.log('Mapped sites data:', initialOptions);
+        } catch (error) {
+            console.error('Error fetching initial sites:', error);
+            initialOptions = [{ id: null, text: 'Nincs elérhető telephely vagy endpoint hiba' }];
+        }
+    } else {
+        initialOptions = [{ id: null, text: 'Válasszon partnert előbb' }];
+    }
+
+    const control = new TomSelect(siteSelectElement, {
+        valueField: 'id',
+        labelField: 'text',
+        searchField: ['text'],
+        maxOptions: null,
+        placeholder: '-- Válasszon telephelyet --',
+        allowEmptyOption: true,
+        create: false,
+        options: initialOptions,
+        load: async function (query, callback) {
+            try {
+                const partnerId = partnerSelect?.value ? parseInt(partnerSelect.value) : null;
+                if (!partnerId) {
+                    console.log('No partner selected, skipping site fetch');
+                    callback([{ id: null, text: 'Válasszon partnert előbb' }]);
+                    return;
+                }
+
+                const searchUrl = `/api/orders/sites?partnerId=${partnerId}&term=${encodeURIComponent(query)}`;
+                console.log(`Searching sites from: ${searchUrl}`);
+                const headers = {
+                    'Content-Type': 'application/json',
+                    'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]')?.value
+                };
+                const token = localStorage.getItem('token');
+                if (token) {
+                    headers['Authorization'] = `Bearer ${token}`;
+                }
+
+                const response = await fetch(searchUrl, { headers, credentials: 'include' });
+                if (!response.ok) {
+                    const errorText = await response.text().catch(() => 'Unknown error');
+                    console.error('Fetch sites failed:', { status: response.status, error: errorText, searchUrl });
+                    callback([{ id: null, text: response.status === 404 ? 'Telephely API nem elérhető' : 'Nincs találat' }]);
+                    return;
+                }
+
+                const searchData = await response.json();
+                console.log('Search sites response:', searchData);
+                const mappedData = searchData.map(item => ({
+                    id: item.id,
+                    text: (item.text && item.text.trim() !== '') ? item.text.trim() : `Site ${item.id}`
+                })).filter(item => item.text && item.text.trim() !== '');
+                callback(mappedData.length ? mappedData : [{ id: null, text: 'Nincs találat' }]);
+            } catch (error) {
+                console.error('Error searching sites:', error);
+                window.c92.showToast('error', `Hiba a telephelyek betöltése közben: ${error.message}`);
+                callback([{ id: null, text: 'Hiba a betöltés során' }]);
+            }
+        },
+        render: {
+            option: function (data, escape) {
+                return `<div>${escape(data.text)}</div>`;
+            },
+            item: function (data, escape) {
+                return `<div>${escape(data.text)}</div>`;
+            }
+        },
+        onInitialize: function () {
+            siteSelectElement.dataset.tomSelectInitialized = 'true';
+            console.log(`Site TomSelect initialized for context: ${contextId} (${context}), selectedId: ${selectedId}, selectedText: ${selectedText}`);
+            if (selectedId && selectedText) {
+                this.addOption({ id: selectedId, text: selectedText });
+                this.setValue(selectedId);
+            }
+        },
+        onChange: function (value) {
+            console.log(`Site selected for context: ${contextId} (${context}), value: ${value}`);
+        }
+    });
+
+    console.log('Site TomSelect options after init:', control.options);
+    return control;
+};
+
+window.c92.initializeCurrencyTomSelect = async function (currencySelectElement, context = 'order') {
+    if (!currencySelectElement || currencySelectElement.dataset.tomSelectInitialized === 'true') {
+        console.log(`Currency TomSelect already initialized for context: ${context}`);
+        return currencySelectElement?.tomselect || null;
+    }
+
+    const selectedId = currencySelectElement.dataset.selectedId || '';
+    const selectedText = currencySelectElement.dataset.selectedText || '';
+    const contextId = currencySelectElement.id.split('_')[1] || 'new'; // Extract contextId (e.g., 'new')
+
+    // Fetch currencies
+    let initialOptions = [];
+    try {
+        const url = `/api/currencies?term=`;
+        console.log(`Fetching currencies from: ${url}`);
+        const headers = {
+            'Content-Type': 'application/json',
+            'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]')?.value
+        };
+        const token = localStorage.getItem('token');
+        if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+        }
+
+        const response = await fetch(url, { headers, credentials: 'include' });
+        if (!response.ok) {
+            const errorText = await response.text().catch(() => 'Unknown error');
+            console.error('Fetch currencies failed:', { status: response.status, error: errorText, url });
+            initialOptions = [{ id: 1, text: 'HUF' }]; // Fallback
+            throw new Error(`Failed to fetch currencies: ${response.status} - ${errorText}`);
+        }
+
+        const rawData = await response.json();
+        console.log('Raw currencies response:', rawData);
+
+        initialOptions = rawData.map(item => ({
+            id: item.id,
+            text: (item.text && item.text.trim() !== '') ? item.text.trim() : `Currency ${item.id}`
+        })).filter(item => item.text && item.text.trim() !== '');
+        console.log('Mapped currencies data:', initialOptions);
+    } catch (error) {
+        console.error('Error fetching currencies:', error);
+        initialOptions = [{ id: 1, text: 'HUF' }]; // Fallback
+        window.c92.showToast('error', `Hiba a pénznemek betöltése közben: ${error.message}`);
+    }
+
+    const control = new TomSelect(currencySelectElement, {
+        valueField: 'id',
+        labelField: 'text',
+        searchField: ['text'],
+        maxOptions: null,
+        placeholder: '-- Válasszon pénznemet --',
+        allowEmptyOption: false,
+        create: false,
+        options: initialOptions,
+        load: async function (query, callback) {
+            try {
+                const searchUrl = `/api/currencies?term=${encodeURIComponent(query)}`;
+                console.log(`Searching currencies from: ${searchUrl}`);
+                const headers = {
+                    'Content-Type': 'application/json',
+                    'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]')?.value
+                };
+                const token = localStorage.getItem('token');
+                if (token) {
+                    headers['Authorization'] = `Bearer ${token}`;
+                }
+
+                const response = await fetch(searchUrl, { headers, credentials: 'include' });
+                if (!response.ok) {
+                    const errorText = await response.text().catch(() => 'Unknown error');
+                    console.error('Fetch currencies failed:', { status: response.status, error: errorText, searchUrl });
+                    callback([{ id: null, text: 'Nincs találat' }]);
+                    return;
+                }
+
+                const searchData = await response.json();
+                console.log('Search currencies response:', searchData);
+                const mappedData = searchData.map(item => ({
+                    id: item.id,
+                    text: (item.text && item.text.trim() !== '') ? item.text.trim() : `Currency ${item.id}`
+                })).filter(item => item.text && item.text.trim() !== '');
+                callback(mappedData.length ? mappedData : [{ id: null, text: 'Nincs találat' }]);
+            } catch (error) {
+                console.error('Error searching currencies:', error);
+                window.c92.showToast('error', `Hiba a pénznemek betöltése közben: ${error.message}`);
+                callback([{ id: null, text: 'Hiba a betöltés során' }]);
+            }
+        },
+        render: {
+            option: function (data, escape) {
+                return `<div>${escape(data.text)}</div>`;
+            },
+            item: function (data, escape) {
+                return `<div>${escape(data.text)}</div>`;
+            }
+        },
+        onInitialize: function () {
+            currencySelectElement.dataset.tomSelectInitialized = 'true';
+            console.log(`Currency TomSelect initialized for select:`, currencySelectElement, `context: ${context}`, `options:`, initialOptions, `selectedId: ${selectedId}, selectedText: ${selectedText}`);
+            if (selectedId && selectedText) {
+                this.addOption({ id: selectedId, text: selectedText });
+                this.setValue(selectedId);
+            } else if (initialOptions.length) {
+                this.addOption(initialOptions);
+                this.setValue(initialOptions[0].id); // Default to first currency
+            }
+        },
+        onChange: function (value) {
+            console.log(`Currency selected for context: ${context}, value: ${value}`);
+            const display = this.options[value]?.text || 'undefined';
+            console.log(`Post-initialize value: ${value} display: ${display}`);
+            window.calculateOrderTotals(contextId); // Use contextId instead of context
+        }
+    });
+
+    console.log('Currency select initialized successfully, tomselect:', control, 'value:', control.getValue(), 'display:', control.options[control.getValue()]?.text || 'undefined');
+    return control;
+};
+
+window.c92.initializeProductTomSelect = async function (productSelectElement, contextId, context = 'order') {
+    if (!productSelectElement || productSelectElement.dataset.tomSelectInitialized === 'true') {
+        console.log(`Product TomSelect already initialized for context: ${contextId} (${context})`);
+        return productSelectElement?.tomselect || null;
+    }
+
+    const selectedId = productSelectElement.dataset.selectedId || '';
+    const selectedText = productSelectElement.dataset.selectedText || '';
+    const partnerSelect = document.querySelector(`#partner-select_${contextId}`);
+    const partnerId = partnerSelect?.value ? parseInt(partnerSelect.value) : null;
+
+    // Fetch initial products
+    let initialOptions = [];
+    if (partnerId) {
+        try {
+            const url = `/api/Product?partnerId=${partnerId}&search=`;
+            console.log(`Fetching products from: ${url} for context: ${context}`);
+            const headers = {
+                'Content-Type': 'application/json',
+                'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]')?.value
+            };
+            const token = localStorage.getItem('token');
+            if (token) {
+                headers['Authorization'] = `Bearer ${token}`;
+            }
+
+            const response = await fetch(url, { headers, credentials: 'include' });
+            if (!response.ok) {
+                const errorText = await response.text().catch(() => 'Unknown error');
+                console.error('Fetch products failed:', { status: response.status, error: errorText, url });
+                initialOptions = [{ id: null, text: 'Nincs elérhető termék' }];
+                throw new Error(`Failed to fetch products: ${response.status} - ${errorText}`);
+            }
+
+            const rawData = await response.json();
+            console.log('Raw products response:', rawData);
+
+            initialOptions = rawData.map(item => ({
+                id: item.productId,
+                text: (item.name && item.name.trim() !== '') ? item.name.trim() : `Product ${item.productId}`,
+                partnerPrice: item.partnerPrice || item.listPrice || item.unitPrice || 0
+            })).filter(item => item.text && item.text.trim() !== '');
+            console.log('Mapped products data:', initialOptions);
+        } catch (error) {
+            console.error('Error fetching initial products:', error);
+            initialOptions = [{ id: null, text: 'Termék API nem elérhető vagy nincs adat' }];
+        }
+    } else {
+        initialOptions = [{ id: null, text: 'Válasszon partnert előbb' }];
+    }
+
+    const control = new TomSelect(productSelectElement, {
+        valueField: 'id',
+        labelField: 'text',
+        searchField: ['text'],
+        maxOptions: null,
+        placeholder: '-- Válasszon terméket --',
+        allowEmptyOption: true,
+        create: false,
+        options: initialOptions,
+        load: async function (query, callback) {
+            try {
+                if (!partnerId) {
+                    console.log('No partner selected, skipping product fetch');
+                    callback([{ id: null, text: 'Válasszon partnert előbb' }]);
+                    return;
+                }
+
+                const searchUrl = `/api/Product?partnerId=${partnerId}&search=${encodeURIComponent(query)}`;
+                console.log(`Searching products from: ${searchUrl}`);
+                const headers = {
+                    'Content-Type': 'application/json',
+                    'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]')?.value
+                };
+                const token = localStorage.getItem('token');
+                if (token) {
+                    headers['Authorization'] = `Bearer ${token}`;
+                }
+
+                const response = await fetch(searchUrl, { headers, credentials: 'include' });
+                if (!response.ok) {
+                    const errorText = await response.text().catch(() => 'Unknown error');
+                    console.error('Fetch products failed:', { status: response.status, error: errorText, searchUrl });
+                    callback([{ id: null, text: 'Nincs találat' }]);
+                    return;
+                }
+
+                const searchData = await response.json();
+                console.log('Search products response:', searchData);
+                const mappedData = searchData.map(item => ({
+                    id: item.productId,
+                    text: (item.name && item.name.trim() !== '') ? item.name.trim() : `Product ${item.productId}`,
+                    partnerPrice: item.partnerPrice || item.listPrice || item.unitPrice || 0
+                })).filter(item => item.text && item.text.trim() !== '');
+                callback(mappedData.length ? mappedData : [{ id: null, text: 'Nincs találat' }]);
+            } catch (error) {
+                console.error('Error searching products:', error);
+                window.c92.showToast('error', `Hiba a termékek betöltése közben: ${error.message}`);
+                callback([{ id: null, text: 'Hiba a betöltés során' }]);
+            }
+        },
+        render: {
+            option: function (data, escape) {
+                return `<div>${escape(data.text)}</div>`; // Removed price
+            },
+            item: function (data, escape) {
+                return `<div>${escape(data.text)}</div>`;
+            }
+        },
+        onInitialize: function () {
+            productSelectElement.dataset.tomSelectInitialized = 'true';
+            console.log(`Product TomSelect initialized for context: ${contextId} (${context}), selectedId: ${selectedId}, selectedText: ${selectedText}`);
+            if (selectedId && selectedText) {
+                this.addOption({ id: selectedId, text: selectedText });
+                this.setValue(selectedId);
+            }
+        },
+        onChange: function (value) {
+            console.log(`Product selected for context: ${contextId} (${context}), value: ${value}`);
+            const row = productSelectElement.closest('.order-item-row');
+            if (row && value) {
+                const option = this.options[value];
+                const priceInput = row.querySelector('.unit-price');
+                if (priceInput && option?.partnerPrice) {
+                    priceInput.value = option.partnerPrice.toFixed(2);
+                    window.calculateTotalPrice(row, contextId);
+                    window.calculateOrderTotals(contextId);
+                }
+            }
+        }
+    });
+
+    console.log('Product TomSelect options after init:', control.options);
+    return control;
+};
+
+
+console.log('Defining window.c92.initializeQuoteTomSelect');
+
+window.c92.initializeQuoteTomSelect = async function (select, contextId, context = 'order') {
+    console.log('TomSelect Quote Init for context:', context, 'id:', contextId, 
+                'selectedId:', select.dataset.selectedId, 'selectedText:', select.dataset.selectedText);
+
+    if (!select || select.dataset.tomSelectInitialized === 'true') {
+        console.log(`Quote TomSelect already initialized for context: ${contextId} (${context})`);
+        return select?.tomselect || null;
+    }
+
+    const partnerSelect = document.querySelector(`#partner-select_${contextId}`);
+    const partnerId = partnerSelect?.value ? parseInt(partnerSelect.value) : null;
+    const selectedId = select.dataset.selectedId || '';
+    const selectedText = select.dataset.selectedText || '';
+
+    // Fetch quotes from /api/Partners
+    let initialOptions = [];
+    try {
+        const url = partnerId 
+            ? `/api/Partners?search=&partnerId=${partnerId}&skip=0&take=50`
+            : `/api/Partners?search=&skip=0&take=50`;
+        console.log(`Fetching quotes from: ${url} for context: ${context}`);
+        const headers = {
+            'Content-Type': 'application/json',
+            'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]')?.value
+        };
+        const token = localStorage.getItem('token');
+        if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+        }
+
+        const response = await fetch(url, { headers, credentials: 'include' });
+        if (!response.ok) {
+            const errorText = await response.text().catch(() => 'Unknown error');
+            console.error('Fetch quotes failed:', { status: response.status, error: errorText, url });
+            initialOptions = [{ id: null, text: 'Nincs elérhető árajánlat' }];
+            throw new Error(`Failed to fetch quotes: ${response.status} - ${errorText}`);
+        }
+
+        const rawData = await response.json();
+        console.log('Raw partners response:', rawData);
+
+        // Extract quotes from partner data
+        initialOptions = partnerId 
+            ? rawData.find(p => p.id === partnerId)?.quotes || []
+            : rawData.flatMap(p => p.quotes || []);
+        initialOptions = initialOptions.map(item => ({
+            id: item.id,
+            text: item.text || `Quote ${item.id}`
+        })).filter(item => item.text && item.text.trim() !== '');
+        console.log('Mapped quotes data:', initialOptions);
+    } catch (error) {
+        console.error('Error fetching initial quotes:', error);
+        initialOptions = [{ id: null, text: 'Árajánlat API nem elérhető vagy nincs adat' }];
+        window.c92.showToast('error', `Hiba az árajánlatok betöltése közben: ${error.message}`);
+    }
+
+    const tomSelect = new TomSelect(select, {
+        valueField: 'id',
+        labelField: 'text',
+        searchField: ['text'],
+        maxItems: 1,
+        placeholder: '-- Válasszon árajánlatot --',
+        allowEmptyOption: true,
+        create: false,
+        options: initialOptions,
+        load: async function (query, callback) {
+            try {
+                const safeQuery = query.trim() || '';
+                const searchUrl = partnerId 
+                    ? `/api/Partners?search=${encodeURIComponent(safeQuery)}&partnerId=${partnerId}&skip=0&take=50`
+                    : `/api/Partners?search=${encodeURIComponent(safeQuery)}&skip=0&take=50`;
+                console.log('Quote Search Query:', searchUrl);
+                const response = await fetch(searchUrl, {
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]')?.value,
+                        'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
+                    },
+                    credentials: 'include'
+                });
+                if (!response.ok) {
+                    const errorText = await response.text().catch(() => 'Unknown error');
+                    throw new Error(`Failed to search quotes: ${response.status} - ${errorText}`);
+                }
+                const data = await response.json();
+                console.log('Search partners response:', data);
+                const mappedData = (partnerId 
+                    ? data.find(p => p.id === partnerId)?.quotes || []
+                    : data.flatMap(p => p.quotes || [])).map(item => ({
+                        id: item.id,
+                        text: item.text || `Quote ${item.id}`
+                    })).filter(item => item.text && item.text.trim() !== '');
+                callback(mappedData.length ? mappedData : [{ id: null, text: 'Nincs találat' }]);
+            } catch (error) {
+                console.error('Error fetching quotes:', error);
+                window.c92.showToast('error', `Hiba az árajánlatok keresése közben: ${error.message}`);
+                callback([{ id: null, text: 'Hiba a betöltés során' }]);
+            }
+        },
+        render: {
+            option: (data, escape) => `<div>${escape(data.text)}</div>`,
+            item: (data, escape) => `<div>${escape(data.text)}</div>`
+        },
+        onInitialize: function () {
+            select.dataset.tomSelectInitialized = 'true';
+            console.log('Quote TomSelect initialized for context:', contextId);
+            if (selectedId && selectedText) {
+                this.addOption({ id: selectedId, text: selectedText });
+                this.setValue(selectedId);
+                console.log('Initialized quote with pre-selected:', selectedId, selectedText);
+            }
+        },
+        onChange: function (value) {
+            console.log(`Quote selected for context: ${contextId} (${context}), value: ${value}`);
+        }
+    });
+
+    console.log('Quote TomSelect options after init:', tomSelect.options);
+    return tomSelect;
+};

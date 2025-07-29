@@ -1,0 +1,707 @@
+@using Microsoft.AspNetCore.Mvc.Rendering
+@using Cloud9_2.Models
+@using System.Globalization
+@model Cloud9_2.Pages.CRM.Quotes.IndexModel
+
+@foreach (var quote in Model.Quotes)
+{
+    <!-- Edit Quote Modal -->
+    <div class="modal fade" id="editQuoteModal_@quote.QuoteId" tabindex="-1"
+        aria-labelledby="editQuoteModalLabel_@quote.QuoteId" aria-hidden="true" data-bs-backdrop="static"
+        data-bs-keyboard="false" data-partner-id="@quote.PartnerId"
+        data-quote-date="@(quote.QuoteDate?.ToString("yyyy-MM-dd") ?? DateTime.Now.ToString("yyyy-MM-dd"))">
+        <div class="modal-dialog" style="max-width: 95%;">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="editQuoteModalLabel_@quote.QuoteId">Árajánlat szerkesztése:
+                        @quote.QuoteNumber</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <!-- Tabs -->
+                    <ul class="nav nav-tabs" id="quoteTabs_@quote.QuoteId" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="base-info-tab_@quote.QuoteId" data-bs-toggle="tab"
+                                data-bs-target="#base-info_@quote.QuoteId" type="button" role="tab"
+                                aria-controls="base-info_@quote.QuoteId" aria-selected="true">Alapadatok</button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="items-tab_@quote.QuoteId" data-bs-toggle="tab"
+                                data-bs-target="#items_@quote.QuoteId" type="button" role="tab"
+                                aria-controls="items_@quote.QuoteId" aria-selected="false">Tételek</button>
+                        </li>
+                    </ul>
+
+                    <!-- Tab Content -->
+                    <div class="tab-content" id="quoteTabContent_@quote.QuoteId">
+                        <!-- Base Info Tab -->
+                        <div class="tab-pane fade show active" id="base-info_@quote.QuoteId" role="tabpanel"
+                            aria-labelledby="base-info-tab_@quote.QuoteId">
+                            <form id="quoteBaseInfoForm_@quote.QuoteId">
+                                <table class="table table-sm mt-3">
+                                    <tbody>
+                                        <tr>
+                                            <th>Árajánlat száma</th>
+                                            <td><span class="form-control-plaintext">@quote.QuoteNumber</span></td>
+                                        </tr>
+                                        <tr>
+                                            <th>Dátum</th>
+                                            <td><input type="date" class="form-control" name="quoteDate"
+                                                    value="@(quote.QuoteDate?.ToString("yyyy-MM-dd") ?? "")" required></td>
+                                        </tr>
+                                        <tr>
+                                            <th>Partner</th>
+                                            <td>
+                                                <select name="partnerId" class="form-select tom-select partner-select"
+                                                    data-selected-id="@quote.PartnerId"
+                                                    data-selected-text="@(quote.Partner?.CompanyName ?? "Unknown")"
+                                                    autocomplete="off" required>
+                                                    <option value=""></option>
+                                                </select>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <th>Pénznem</th>
+                                            <td>
+                                                <select name="currencyId" class="form-select tom-select"
+                                                    data-selected-id="@quote.CurrencyId"
+                                                    data-selected-text="@(quote.Currency?.CurrencyName ?? "Unknown")"
+                                                    autocomplete="off" required>
+                                                    <option value=""></option>
+                                                </select>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <th>Értékesítő</th>
+                                            <td><input type="text" class="form-control" name="salesPerson"
+                                                    value="@(quote.SalesPerson ?? "")"></td>
+                                        </tr>
+                                        <tr>
+                                            <th>Érvényességi dátum</th>
+                                            <td><input type="date" class="form-control" name="validityDate"
+                                                    value="@(quote.ValidityDate?.ToString("yyyy-MM-dd") ?? "")"></td>
+                                        </tr>
+                                        <tr>
+                                            <th>Tárgy</th>
+                                            <td><input type="text" class="form-control" name="subject"
+                                                    value="@(quote.Subject ?? "")" required></td>
+                                        </tr>
+                                        <tr>
+                                            <th>Leírás</th>
+                                            <td><textarea class="form-control"
+                                                    name="description">@(quote.Description ?? "")</textarea></td>
+                                        </tr>
+                                        <tr>
+                                            <th>Részletes leírás</th>
+                                            <td><textarea class="form-control"
+                                                    name="detailedDescription">@(quote.DetailedDescription ?? "")</textarea>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <th>Státusz</th>
+                                            <td>
+                                                @{
+                                                    var statusDisplay = new Dictionary<string, string>
+                                                                                        {
+                                                                                        { "InProgress", "Folyamatban" },
+                                                                                        { "Accepted", "Elfogadva" },
+                                                                                        { "Rejected", "Elutasítva" },
+                                                                                        { "Draft", "Piszkozat" }
+                                                                                        };
+                                                }
+                                                <select class="form-select" name="status" required>
+                                                    @foreach (var status in
+                                                                                                    Enum.GetValues(typeof(Cloud9_2.Pages.CRM.Quotes.QuoteStatus)))
+                                                    {
+                                                        var displayText = statusDisplay.ContainsKey(status.ToString()) ?
+                                                        statusDisplay[status.ToString()] : status.ToString();
+                                                        <option value="@status" selected="@(quote.Status == status.ToString())">
+                                                            @displayText</option>
+                                                    }
+                                                </select>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </form>
+                        </div>
+
+                        <!-- Items Tab -->
+                        <div class="tab-pane fade" id="items_@quote.QuoteId" role="tabpanel"
+                            aria-labelledby="items-tab_@quote.QuoteId">
+                            <button type="button" class="btn btn-primary mb-3 add-item-row"
+                                data-quote-id="@quote.QuoteId">Tétel hozzáadása</button>
+                            <form id="quoteItemsForm_@quote.QuoteId" data-quote-id="@quote.QuoteId">
+                                <!-- Hidden fields for totals -->
+                                <input type="hidden" name="TotalNet" class="quote-total-net-input" value="0">
+                                <input type="hidden" name="TotalVat" class="quote-vat-amount-input" value="0">
+                                <input type="hidden" name="TotalGross" class="quote-gross-amount-input" value="0">
+                                <div class="table-responsive">
+                                    <table class="table table-sm table-bordered" id="quoteItemsTable_@quote.QuoteId">
+                                        <thead>
+                                            <tr>
+                                                <th style="width: 25%;">Termék</th>
+                                                <th style="width: 5%;">Mennyiség</th>
+                                                <th style="width: 10%;">Listaár</th>
+                                                <th style="width: 10%;">Kedvezmény típus</th>
+                                                <th style="width: 10%;">Kedvezmény összege</th>
+                                                <th style="width: 10%;">Nettó egységár</th>
+                                                <th style="width: 5%;">ÁFA</th>
+                                                <th style="width: 10%;">Nettó összes ár</th>
+                                                <th style="width: 10%;">Bruttó ár</th>
+                                                <th style="width: 5%;">Műveletek</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="items-tbody_@quote.QuoteId">
+                                            @foreach (var item in quote.QuoteItems)
+                                            {
+                                                <tr class="quote-item-row" data-item-id="@item.QuoteItemId">
+                                                    <td>
+                                                        <select name="quoteItems[@item.QuoteItemId].ProductId"
+                                                            class="form-select tom-select-product"
+                                                            data-selected-id="@item.ProductId"
+                                                            data-selected-text="@item.Product?.Name ?? " Ismeretlen termék""
+                                                            autocomplete="off" required>
+                                                            <option value="@item.ProductId" selected>@item.Product?.Name
+                                                            </option>
+                                                            <option value="" disabled>-- Válasszon terméket --</option>
+                                                        </select>
+                                                    </td>
+                                                    <td>
+                                                        <input type="number" name="quoteItems[@item.QuoteItemId].Quantity"
+                                                            class="form-control form-control-sm item-quantity"
+                                                            value="@item.Quantity.ToString(CultureInfo.InvariantCulture)"
+                                                            min="0" step="1" required>
+                                                    </td>
+                                                    <td>
+                                                        <input type="number" name="quoteItems[@item.QuoteItemId].ListPrice"
+                                                            class="form-control form-control-sm item-list-price"
+                                                            value="@(item.ListPrice?.ToString(CultureInfo.InvariantCulture) ?? "0")"
+                                                            min="0" step="0.01" required readonly
+                                                            style="background-color: #f8f9fa; cursor: not-allowed;">
+                                                    </td>
+                                                    <td>
+                                                        <select name="quoteItems[@item.QuoteItemId].DiscountTypeId"
+                                                            class="form-select form-select-sm discount-type-id"
+                                                            data-discount-name-prefix="quoteItems[@item.QuoteItemId]">
+                                                            <option value="1"
+                                                                selected="@(item.DiscountTypeId == null || item.DiscountTypeId == 1)">
+                                                                Nincs Kedvezmény</option>
+                                                            <option value="2" selected="@(item.DiscountTypeId == 2)">Listaár
+                                                            </option>
+                                                            <option value="3" selected="@(item.DiscountTypeId == 3)">Ügyfélár
+                                                            </option>
+                                                            <option value="4" selected="@(item.DiscountTypeId == 4)">Mennyiségi
+                                                                kedvezmény</option>
+                                                            <option value="5" selected="@(item.DiscountTypeId == 5)">Egyedi
+                                                                kedvezmény %</option>
+                                                            <option value="6" selected="@(item.DiscountTypeId == 6)">Egyedi
+                                                                kedvezmény Összeg</option>
+                                                        </select>
+                                                    </td>
+                                                    <td>
+                                                        <input type="number" name="quoteItems[@item.QuoteItemId].DiscountAmount"
+                                                            class="form-control form-control-sm discount-value"
+                                                            value="@(item.DiscountAmount?.ToString(CultureInfo.InvariantCulture) ?? "0")"
+                                                            min="0" step="0.01">
+                                                    </td>
+                                                    <td>
+                                                        <span
+                                                            class="item-net-discounted-price">@item.NetDiscountedPrice.ToString("F2",
+                                                                                                                CultureInfo.InvariantCulture)</span>
+                                                    </td>
+                                                    <td>
+                                                        <select name="quoteItems[@item.QuoteItemId].VatTypeId"
+                                                            class="form-select tom-select-vat"
+                                                            data-selected-id="@item.VatTypeId"
+                                                            data-selected-text="@item.VatType?.TypeName ?? " Ismeretlen ÁFA""
+                                                            autocomplete="off" required>
+                                                            <option value="@item.VatTypeId" selected>@item.VatType?.TypeName ??
+                                                                "Ismeretlen ÁFA"</option>
+                                                            <option value="" disabled>-- Válasszon ÁFA típust --</option>
+                                                        </select>
+                                                    </td>
+                                                    <td>
+                                                        <span class="item-list-price-total">@((item.Quantity *
+                                                                                                                item.NetDiscountedPrice).ToString("F2",
+                                                                                                                CultureInfo.InvariantCulture))</span>
+                                                    </td>
+                                                    <td>
+                                                        @{
+                                                            var vatRate = item.VatType?.Rate ?? 0;
+                                                            var grossPrice = item.Quantity * item.NetDiscountedPrice * (1 + vatRate
+                                                            / 100);
+                                                        }
+                                                        <span class="item-gross-price">@grossPrice.ToString("F2",
+                                                                                                                CultureInfo.InvariantCulture)</span>
+                                                    </td>
+                                                    <td>
+                                                        <button type="button"
+                                                            class="btn btn-outline-secondary btn-sm edit-description"
+                                                            data-item-id="@item.QuoteItemId"><i
+                                                                class="bi bi-pencil"></i></button>
+                                                        <button type="button" class="btn btn-danger btn-sm remove-item-row"
+                                                            data-item-id="@item.QuoteItemId"><i
+                                                                class="bi bi-trash"></i></button>
+                                                    </td>
+                                                </tr>
+                                                <tr class="description-row" data-item-id="@item.QuoteItemId"
+                                                    style="display: none;">
+                                                    <td colspan="13">
+                                                        <div class="mb-2">
+                                                            <label class="form-label">Leírás (max 200 karakter)</label>
+                                                            <textarea name="quoteItems[@item.QuoteItemId].ItemDescriptionInput"
+                                                        class="form-control form-control-sm item-description-input"
+                                                        maxlength="200"
+                                                        rows="2">@(item.ItemDescription ?? "")</textarea>
+                                                            <div class="form-text">Karakterek: <span
+                                                                    class="char-count">@((item.ItemDescription?.Length ??
+                                                                                                                                0))</span>/200</div>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            }
+                                            <!-- Quote Total Row -->
+                                            <tr class="quote-total-row">
+                                                <td colspan="7" class="text-end"><strong>Kedvezmény a végösszegre
+                                                        %:</strong></td>
+                                                <td><input type="number" class="form-control total-discount-input"
+                                                        name="TotalDiscount"
+                                                        value="@(quote.DiscountPercentage?.ToString(CultureInfo.InvariantCulture) ?? (quote.QuoteDiscountAmount?.ToString(CultureInfo.InvariantCulture) ?? "0"))"
+                                                        min="0" step="0.01"></td>
+                                                <td colspan="2"></td>
+                                            </tr>
+                                            <tr class="quote-total-row">
+                                                <td colspan="7" class="text-end"><strong>Összesen Nettó:</strong></td>
+                                                <td><span class="quote-total-net">0.00</span></td>
+                                                <td colspan="2"></td>
+                                            </tr>
+                                            <tr class="quote-vat-row">
+                                                <td colspan="7" class="text-end"><strong>Összes ÁFA:</strong></td>
+                                                <td><span class="quote-vat-amount">0.00</span></td>
+                                                <td colspan="2"></td>
+                                            </tr>
+                                            <tr class="quote-gross-row">
+                                                <td colspan="7" class="text-end"><strong>Összesen Bruttó:</strong></td>
+                                                <td><span class="quote-gross-amount">0.00</span></td>
+                                                <td colspan="2"></td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Bezár</button>
+                    <button type="button" class="btn btn-primary save-quote" data-quote-id="@quote.QuoteId">Mentés</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- View Quote Modal -->
+    <div class="modal fade" id="viewQuoteModal_@quote.QuoteId" tabindex="-1"
+        aria-labelledby="viewQuoteModalLabel_@quote.QuoteId" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="viewQuoteModalLabel_@quote.QuoteId">Részletek: @quote.QuoteNumber</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Bezárás"></button>
+                </div>
+                <div class="modal-body">
+                    <table class="table table-sm">
+                        <tbody>
+                            <tr>
+                                <th>Árajánlat száma</th>
+                                <td>@quote.QuoteNumber</td>
+                            </tr>
+                            <tr>
+                                <th>Dátum</th>
+                                <td>@quote.QuoteDate?.ToString("yyyy-MM-dd")</td>
+                            </tr>
+                            <tr>
+                                <th>Partner</th>
+                                <td>@quote.Partner.Name</td>
+                            </tr>
+                            <tr>
+                                <th>Pénznem</th>
+                                <td>@quote.Currency?.CurrencyName</td>
+                            </tr>
+                            <tr>
+                                <th>Értékesítő</th>
+                                <td>@quote.SalesPerson</td>
+                            </tr>
+                            <tr>
+                                <th>Érvényesség dátuma</th>
+                                <td>@quote.ValidityDate?.ToString("yyyy-MM-dd")</td>
+                            </tr>
+                            <tr>
+                                <th>Státusz</th>
+                                <td>@quote.Status</td>
+                            </tr>
+                            <tr>
+                                <th>Cég neve</th>
+                                <td>@quote.CompanyName</td>
+                            </tr>
+                            <tr>
+                                <th>Tárgy</th>
+                                <td>@quote.Subject</td>
+                            </tr>
+                            <tr>
+                                <th>Leírás</th>
+                                <td>@quote.Description</td>
+                            </tr>
+                            <tr>
+                                <th>Részletes leírás</th>
+                                <td>@quote.DetailedDescription</td>
+                            </tr>
+                            <tr>
+                                <th>Létrehozta</th>
+                                <td>@quote.CreatedBy</td>
+                            </tr>
+                            <tr>
+                                <th>Létrehozás dátuma</th>
+                                <td>@quote.CreatedDate?.ToString("yyyy-MM-dd HH:mm:ss")</td>
+                            </tr>
+                            <tr>
+                                <th>Módosította</th>
+                                <td>@quote.ModifiedBy</td>
+                            </tr>
+                            <tr>
+                                <th>Módosítás dátuma</th>
+                                <td>@quote.ModifiedDate?.ToString("yyyy-MM-dd HH:mm:ss")</td>
+                            </tr>
+                            <tr>
+                                <th>Referenciaszám</th>
+                                <td>@quote.ReferenceNumber</td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <h5 class="mt-4">Tételek</h5>
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Termék</th>
+                                <th>Leírás</th>
+                                <th>Mennyiség</th>
+                                <th>Egységár</th>
+                                <th>Kedvezmény</th>
+                                <th>Összesen</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @if (quote.QuoteItems != null && quote.QuoteItems.Any())
+                            {
+                                @foreach (var quoteItem in quote.QuoteItems)
+                                {
+                                    <tr data-item-id="@quoteItem.QuoteItemId">
+                                        <td>@(quoteItem.Product?.Name ?? "N/A")</td>
+                                        <td>@quoteItem.ItemDescription</td>
+                                        <td>@quoteItem.Quantity</td>
+                                        <td>@(quoteItem.NetDiscountedPrice.ToString("F2", CultureInfo.GetCultureInfo("hu-HU")))</td>
+                                        <td>
+                                            @(quoteItem.DiscountAmount.HasValue && quoteItem.DiscountAmount.Value > 0
+                                                                            ? $"{quoteItem.DiscountAmount.Value:F2}"
+                                                                            : "0,00")
+                                        </td>
+                                        <td>@((quoteItem.NetDiscountedPrice * quoteItem.Quantity).ToString("F2",
+                                                                            CultureInfo.GetCultureInfo("hu-HU")))</td>
+                                    </tr>
+                                }
+                            }
+                            else
+                            {
+                                <tr>
+                                    <td colspan="6">Nincsenek tételek.</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"
+                        aria-label="Bezárás">Bezárás</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Convert Quote Modal -->
+    <div class="modal fade" id="convertQuoteModal_@quote.QuoteId" tabindex="-1"
+        aria-labelledby="convertQuoteModalLabel_@quote.QuoteId" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="convertQuoteModalLabel_@quote.QuoteId">Árajánlat átalakítása rendeléssé</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="convertQuoteForm_@quote.QuoteId">
+                        @Html.AntiForgeryToken()
+                        <div class="mb-3">
+                            <label for="quoteNumber_@quote.QuoteId" class="form-label">Ajánlat száma</label>
+                            <input type="text" id="quoteNumber_@quote.QuoteId" name="quoteNumber" class="form-control"
+                                value="@quote.QuoteNumber" readonly>
+                        </div>
+                        <div class="mb-3">
+                            <label for="currency_@quote.QuoteId" class="form-label">Pénznem</label>
+                            <input type="text" id="currency_@quote.QuoteId" name="currency" class="form-control"
+                                value="@quote.Currency" readonly>
+                        </div>
+                        <div class="mb-3">
+                            <label for="totalAmount_@quote.QuoteId" class="form-label">Összeg</label>
+                            <input type="text" id="totalAmount_@quote.QuoteId" name="totalAmount" class="form-control"
+                                value="@quote.TotalAmount" readonly>
+                        </div>
+                        <div class="mb-3">
+                            <label for="partner_@quote.QuoteId" class="form-label">Partner</label>
+                            <input type="text" id="partner_@quote.QuoteId" name="partner" class="form-control"
+                                value="@quote.PartnerId" readonly>
+                        </div>
+                        <div class="mb-3">
+                            <label for="quoteDate_@quote.QuoteId" class="form-label">Létrehozási dátum</label>
+                            <input type="text" id="quoteDate_@quote.QuoteId" name="quoteDate" class="form-control"
+                                value="@(quote.QuoteDate.HasValue? quote.QuoteDate.Value.ToString("yyyy-MM-dd") : "N/A")"
+                                readonly>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Mégse</button>
+                    <button type="button" class="btn btn-primary convert-quote"
+                        data-quote-id="@quote.QuoteId">Átalakítás</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Delete Quote Modal -->
+    <div class="modal fade" id="deleteQuoteModal_@quote.QuoteId" tabindex="-1"
+        aria-labelledby="deleteQuoteModalLabel_@quote.QuoteId" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="deleteQuoteModalLabel_@quote.QuoteId">Árajánlat törlése</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Bezárás"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="deleteQuoteForm_@quote.QuoteId" method="post">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="QuoteId" value="@quote.QuoteId" autocomplete="off" />
+                        <p>Biztosan törölni szeretné a következő árajánlatot: <strong>@quote.QuoteNumber</strong>?</p>
+                        <div id="deleteWarning_@quote.QuoteNumber" class="alert alert-warning" style="display: none;">
+                            Ez az árajánlat nem törölhető, mert kapcsolódó rekordok léteznek.
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"
+                        aria-label="Mégse">Mégse</button>
+                    <button type="button" class="btn btn-danger confirm-delete-quote" data-quote-id="@quote.QuoteId"
+                        aria-label="Árajánlat törlése">Törlés</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- New Quote Modal -->
+<div class="modal fade" id="newQuoteModal" tabindex="-1" aria-labelledby="newQuoteModalLabel" aria-hidden="true">
+    <div class="modal-dialog" style="max-width: 95%;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="newQuoteModalLabel">Új árajánlat létrehozása</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <!-- Tabs -->
+                <ul class="nav nav-tabs" id="quoteTabs_new" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="base-info-tab_new" data-bs-toggle="tab"
+                            data-bs-target="#base-info_new" type="button" role="tab" aria-controls="base-info_new"
+                            aria-selected="true">Alapadatok</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="items-tab_new" data-bs-toggle="tab" data-bs-target="#items_new"
+                            type="button" role="tab" aria-controls="items_new" aria-selected="false">Tételek</button>
+                    </li>
+                </ul>
+
+                <!-- Tab Content -->
+                <div class="tab-content" id="quoteTabContent_new">
+                    <!-- Base Info Tab -->
+                    <div class="tab-pane fade show active" id="base-info_new" role="tabpanel"
+                        aria-labelledby="base-info-tab_new">
+                        <form id="quoteBaseInfoForm_new">
+                            <div class="table-responsive">
+                                <table class="table table-sm mt-3">
+                                    <tbody>
+                                        <tr>
+                                            <th>Árajánlat száma</th>
+                                            <td><input type="text" class="form-control" name="quoteNumber" value=""
+                                                    placeholder="Automatikusan generálódik" readonly></td>
+                                        </tr>
+                                        <tr>
+                                            <th>Dátum</th>
+                                            <td><input type="date" class="form-control" name="quoteDate"
+                                                    value="@DateTime.Today.ToString("yyyy-MM-dd")" required></td>
+                                        </tr>
+                                        <tr>
+                                            <th>Partner</th>
+                                            <td>
+                                                <select name="partnerId" class="form-select tom-select"
+                                                    data-selected-id="" data-selected-text="" autocomplete="off"
+                                                    required>
+                                                    <option value="" disabled selected> </option>
+                                                </select>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <th>Értékesítő</th>
+                                            <td><input type="text" class="form-control" name="salesPerson" value="">
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <th>Érvényességi dátum</th>
+                                            <td><input type="date" class="form-control" name="validityDate"
+                                                    value="@DateTime.Today.AddDays(30).ToString("yyyy-MM-dd")"></td>
+                                        </tr>
+                                        <tr>
+                                            <th>Pénznem</th>
+                                            <td>
+                                                <select name="currencyId" class="form-select tom-select"
+                                                    id="currencySelect" required>
+                                                    <option value="" disabled selected>-- Válasszon pénznemet --
+                                                    </option>
+                                                </select>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <th>Tárgy</th>
+                                            <td><input type="text" class="form-control" name="subject" value=""
+                                                    required></td>
+                                        </tr>
+                                        <tr>
+                                            <th>Leírás</th>
+                                            <td><textarea class="form-control" name="description"></textarea></td>
+                                        </tr>
+                                        <tr>
+                                            <th>Részletes leírás</th>
+                                            <td><textarea class="form-control" name="detailedDescription"></textarea>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <th>Státusz</th>
+                                            <td>
+                                                <select class="form-select" name="status" required>
+                                                    @foreach (var status in
+                                                                                                        Enum.GetValues(typeof(Cloud9_2.Pages.CRM.Quotes.QuoteStatus)))
+                                                    {
+                                                        var displayText = new Dictionary<string, string>
+                                                                                                        {
+                                                                                                        { "InProgress", "Folyamatban" },
+                                                                                                        { "Accepted", "Elfogadva" },
+                                                                                                        { "Rejected", "Elutasítva" },
+                                                                                                        { "Draft", "Piszkozat" }
+                                                                                                        }.GetValueOrDefault(status.ToString(), status.ToString());
+                                                        <option value="@status" selected="@(status.ToString() == "Draft")">
+                                                            @displayText</option>
+                                                    }
+                                                </select>
+                                            </td>
+                                        </tr>
+                                        <input type="hidden" name="TotalItemDiscounts">
+                                    </tbody>
+                                </table>
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- Items Tab -->
+                    <div class="tab-pane fade" id="items_new" role="tabpanel" aria-labelledby="items-tab_new">
+                        <button type="button" class="btn btn-primary mb-3 add-item-row" data-quote-id="new">Tétel
+                            hozzáadása</button>
+                        <form id="quoteItemsForm_new" data-quote-id="new">
+                            <!-- Hidden fields for totals -->
+                            <input type="hidden" name="TotalNet" class="quote-total-net-input" value="0">
+                            <input type="hidden" name="TotalVat" class="quote-vat-amount-input" value="0">
+                            <input type="hidden" name="TotalGross" class="quote-gross-amount-input" value="0">
+                            <div class="table-responsive">
+                                <table class="table table-sm table-bordered" id="quoteItemsTable">
+                                    <thead>
+                                        <tr>
+                                            <th style="width: 25%;">Termék</th>
+                                            <th style="width: 5%;">Mennyiség</th>
+                                            <th style="width: 10%;">Listaár</th>
+                                            <th style="width: 10%;">Kedvezmény típus</th>
+                                            <th style="width: 10%;">Kedvezmény összege</th>
+                                            <th style="width: 10%;">Nettó egységár</th>
+                                            <th style="width: 5%;">ÁFA</th>
+                                            <th style="width: 10%;">Nettó összes ár</th>
+                                            <th style="width: 10%;">Bruttó ár</th>
+                                            <th style="width: 5%;">Műveletek</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="items-tbody_new">
+                                        <!-- Quote Total Row -->
+                                        <tr class="quote-total-row">
+                                            <td colspan="5" class="text-end"><strong>Összesen Nettó:</strong></td>
+                                            <td><span class="quote-total-net">0.00</span></td>
+                                            <td colspan="3"></td>
+                                        </tr>
+                                        <tr class="quote-vat-row">
+                                            <td colspan="5" class="text-end"><strong>Összes ÁFA:</strong></td>
+                                            <td><span class="quote-vat-amount">0.00</span></td>
+                                            <td colspan="3"></td>
+                                        </tr>
+                                        <tr class="quote-gross-row">
+                                            <td colspan="5" class="text-end"><strong>Összesen Bruttó:</strong></td>
+                                            <td><span class="quote-gross-amount">0.00</span></td>
+                                            <td colspan="3"></td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Bezár</button>
+                <button type="button" class="btn btn-primary save-quote" data-quote-id="new">Mentés</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Description Modal -->
+<div class="modal fade" id="editDescriptionModal" tabindex="-1" aria-labelledby="editDescriptionModalLabel"
+    aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-md">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="editDescriptionModalLabel">Tétel leírás szerkesztése</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="editDescriptionForm" class="needs-validation" novalidate>
+                    <input type="hidden" id="editDescriptionItemId" name="itemId" />
+                    <div class="mb-3">
+                        <label for="editDescription" class="form-label">Leírás (max 200 karakter)</label>
+                        <textarea class="form-control" id="editDescription" name="description" rows="4" maxlength="200"
+                            required></textarea>
+                        <div class="form-text">Karakterek: <span id="charCount">0</span>/200</div>
+                        <div class="invalid-feedback">A leírás megadása kötelező.</div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Mégse</button>
+                <button type="button" class="btn btn-primary" id="saveDescriptionBtn">Mentés</button>
+            </div>
+        </div>
+    </div>
+</div>

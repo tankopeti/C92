@@ -1,0 +1,32 @@
+@* File: _Groupsidebar.cshtml *@
+@using Cloud9_2.Helpers
+@inject Microsoft.AspNetCore.Mvc.Rendering.IHtmlHelper<dynamic> Html
+
+@* --- MODIFICATION --- *@
+@* Add class="left-sidebar" and remove inline style="width: 200px;" *@
+<div class="left-sidebar d-flex flex-column flex-shrink-0"> @* Keep border-end or remove if handled by CSS *@
+@* --- END MODIFICATION --- *@
+
+    <div class="pt-3">
+        @if (User.IsInRole("SuperAdmin") || User.IsInRole("Admin") || User.IsInRole("DocManUser"))
+        {
+            <ul class="nav flex-column">
+                <li class="nav-item">
+                    <a class="nav-link px-3 py-2 @(Html.IsActive("Doc/Index", "DocManagement") ? "active" : "")" asp-area="" asp-page="/DocManagement/Doc/Index">
+                        <i class="bi bi-people-fill me-2"></i>Dokumentumok
+                    </a>
+                    <a class="nav-link px-3 py-2 @(Html.IsActive("DocIn/Index", "DocManagement") ? "active" : "")" asp-area="" asp-page="/DocManagement/DocIn/Index">
+                        <i class="bi bi-people-fill me-2"></i>Bejövő iktatás
+                    </a>
+                    <a class="nav-link px-3 py-2 @(Html.IsActive("DocOut/Index", "DocManagement") ? "active" : "")" asp-area="" asp-page="/DocManagement/DocOut/Index">
+                        <i class="bi bi-people-fill me-2"></i>Kimenő iktatás
+                    </a>
+                    <a class="nav-link px-3 py-2 @(Html.IsActive("Contracts/Index", "DocManagement") ? "active" : "")" asp-area="" asp-page="/DocManagement/Contracts/Index">
+                        <i class="bi bi-people-fill me-2"></i>Szerződések
+                    </a>
+                </li>
+                @* Add other sidebar links as needed *@
+            </ul>
+        }
+    </div>
+</div>

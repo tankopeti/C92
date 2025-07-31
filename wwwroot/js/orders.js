@@ -106,20 +106,98 @@ async function initializeEventListeners(orderId) {
         return;
     }
 
-    // Initialize save button
-    const saveButton = modal.querySelector(`#saveOrderBtn_${orderId}`);
-    if (saveButton) {
-        // Remove existing listeners to prevent duplicates
-        const newSaveButton = saveButton.cloneNode(true);
-        saveButton.replaceWith(newSaveButton);
-        newSaveButton.addEventListener('click', async () => {
-            console.log(`Save button clicked for orderId: ${orderId}`);
-            // Implement save logic here (use original saveOrder if needed)
-        });
-        console.log(`Save button initialized for orderId: ${orderId}`);
-    } else {
-        console.warn(`Save button #saveOrderBtn_${orderId} not found`);
+const saveButton = document.querySelector(`#saveOrderBtn_${orderId}`);
+if (!saveButton) {
+    console.error(`Save button #saveOrderBtn_${orderId} not found`);
+    window.c92.showToast('error', `Mentés gomb nem található: ${orderId}`);
+    return;
+}
+saveButton.addEventListener('click', () => {
+    console.log(`Save button clicked for orderId: ${orderId}`);
+    const form = document.querySelector(`#${orderId === 'new' ? 'newOrderForm' : 'editOrderForm_' + orderId}`);
+    if (!form) {
+        console.error(`Form not found for orderId: ${orderId}`);
+        window.c92.showToast('error', `Űrlap nem található: ${orderId}`);
+        return;
     }
+    const partnerSelect = document.querySelector(`#partner-select_${orderId}`);
+    const currencySelect = document.querySelector(`#currency-select_${orderId}`);
+    let totalGross = parseFloat(document.querySelector(`#total-gross-${orderId}`)?.textContent) || 0;
+    const orderItems = [];
+    form.querySelectorAll('.order-item-row').forEach(row => {
+        const productSelect = row.querySelector('.tom-select-product');
+        const item = {
+            productId: parseInt(productSelect?.tomselect?.getValue() || productSelect?.value) || 0,
+            quantity: parseFloat(row.querySelector('.quantity')?.value) || 1,
+            unitPrice: parseFloat(row.querySelector('.unit-price')?.value) || 0,
+            discountPercentage: row.dataset.discountTypeId == '5' ? parseFloat(row.dataset.discountValue) || 0 : null,
+            discountAmount: row.dataset.discountTypeId == '3' ? parseFloat(row.dataset.discountValue) || 0 : null,
+            description: row.nextElementSibling?.querySelector('.item-description')?.value || ''
+        };
+        if (orderId !== 'new') {
+            item.orderItemId = parseInt(row.dataset.itemId) || 0; // For UpdateOrderDto
+        }
+        orderItems.push(item);
+    });
+    const orderData = {
+        partnerId: parseInt(partnerSelect?.tomselect?.getValue() || '') || 0,
+        currencyId: parseInt(currencySelect?.tomselect?.getValue() || '') || 0,
+        orderNumber: `ORD-${Date.now()}`,
+        orderDate: new Date().toISOString(),
+        totalAmount: totalGross, // Use gross amount (1244.6)
+        status: orderId === 'new' ? 'Draft' : 'Pending',
+        createdBy: 'user', // Replace with actual user from auth
+        createdDate: new Date().toISOString(),
+        modifiedBy: 'user', // Replace with actual user
+        modifiedDate: new Date().toISOString(),
+        orderItems: orderItems
+    };
+    console.log('Order data to save:', JSON.stringify(orderData, null, 2));
+    if (!orderData.partnerId) {
+        console.error('Missing partnerId');
+        window.c92.showToast('error', 'Kérjük, válasszon partnert.');
+        return;
+    }
+    if (!orderData.currencyId) {
+        console.error('Missing currencyId');
+        window.c92.showToast('error', 'Kérjük, válasszon pénznemet.');
+        return;
+    }
+    if (!orderData.orderItems.length) {
+        console.error('No items in order');
+        window.c92.showToast('error', 'Legalább egy tétel szükséges.');
+        return;
+    }
+    fetch(orderId === 'new' ? '/api/orders' : `/api/orders/${orderId}`, {
+        method: orderId === 'new' ? 'POST' : 'PUT',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + (localStorage.getItem('token') || '')
+        },
+        body: JSON.stringify(orderData)
+    })
+    .then(response => {
+        console.log('Fetch response status:', response.status);
+        if (!response.ok) {
+            return response.json().then(err => {
+                throw new Error(err.error || err.message || `HTTP ${response.status}`);
+            });
+        }
+        return response.json();
+    })
+    .then(data => {
+        console.log('Save success:', data);
+        window.c92.showToast('success', `Rendelés mentve: ${orderId}`);
+        const modal = document.querySelector(`#${orderId === 'new' ? 'newOrderModal' : 'editOrderModal_' + orderId}`);
+        if (modal) {
+            bootstrap.Modal.getInstance(modal).hide();
+        }
+    })
+    .catch(error => {
+        console.error('Save error:', error);
+        window.c92.showToast('error', `Hiba a mentés során: ${error.message}`);
+    });
+});
 
     // Initialize add item button
     const addItemButton = modal.querySelector('.add-item-row');

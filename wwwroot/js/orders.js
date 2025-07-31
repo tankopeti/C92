@@ -392,6 +392,8 @@ async function addItemRow(orderId) {
     itemRow.className = 'order-item-row';
     itemRow.dataset.itemId = newItemId;
     itemRow.dataset.orderId = orderId;
+    itemRow.dataset.discountTypeId = '1';
+    itemRow.dataset.discountValue = '0';
     itemRow.innerHTML = `
         <td>
             <select name="items[${newItemId}][productId]" id="tomselect-product-${newItemId}" class="form-select tom-select-product" autocomplete="off" required
@@ -406,7 +408,7 @@ async function addItemRow(orderId) {
             <input type="number" name="items[${newItemId}][unitPrice]" class="form-control form-control-sm unit-price" value="0" min="0" step="0.01" required>
         </td>
         <td>
-            <select name="items[${newItemId}][discountTypeId]" class="form-select form-control-sm discount-type-id">
+            <select name="items[${newItemId}][discountTypeId]" id="discount-type-${newItemId}" class="form-select form-control-sm discount-type-id">
                 <option value="1" selected>Nincs Kedvezmény</option>
                 <option value="3">Ügyfélár</option>
                 <option value="4">Mennyiségi kedvezmény</option>
@@ -415,8 +417,7 @@ async function addItemRow(orderId) {
             </select>
         </td>
         <td>
-            <input type="number" name="items[${newItemId}][discountValue]" class="form-control form-control-sm discount-value" value="0" min="0" step="0.01" style="display: none;">
-            <span class="discount-amount">0.00</span>
+            <input type="number" name="items[${newItemId}][discountValue]" id="discount-value-${newItemId}" class="form-control form-control-sm discount-value" value="0" min="0" step="0.01" disabled>
         </td>
         <td>
             <span class="net-unit-price">0.00</span>
@@ -462,6 +463,15 @@ async function addItemRow(orderId) {
         tbody.appendChild(descriptionRow);
     }
 
+    // Check for duplicate discount-value inputs
+    const existingDiscountInputs = itemRow.querySelectorAll('.discount-value');
+    if (existingDiscountInputs.length > 1) {
+        console.warn(`Multiple discount-value inputs found in row ${newItemId}: ${existingDiscountInputs.length}`);
+        existingDiscountInputs.forEach((input, index) => {
+            if (index > 0) input.remove();
+        });
+    }
+
     // Initialize product select
     const productSelect = itemRow.querySelector('.tom-select-product');
     let products = [];
@@ -488,20 +498,20 @@ async function addItemRow(orderId) {
                     listPrice: selectedProductId === '62044' ? 980 : 1000,
                     text: selectedProductText
                 };
-                await updatePriceFields(productSelect, selectedProductId, products);
+                await window.updatePriceFields(productSelect, selectedProductId, products);
                 console.log('Pre-selection prices updated for product:', selectedProductId);
             } else {
-                await updatePriceFields(productSelect, null, products);
+                await window.updatePriceFields(productSelect, null, products);
             }
         } catch (err) {
             console.error('Failed to initialize product select:', err);
             window.c92.showToast('error', `Hiba a termékek betöltése közben: ${err.message}`);
-            await updatePriceFields(productSelect, null, []);
+            await window.updatePriceFields(productSelect, null, []);
         }
     } else {
         console.error('Product select initialization failed: initializeProductTomSelect not defined');
         window.c92.showToast('error', 'Termékválasztó inicializálási hiba.');
-        await updatePriceFields(productSelect, null, []);
+        await window.updatePriceFields(productSelect, null, []);
     }
 
     // Initialize VAT select
@@ -515,6 +525,47 @@ async function addItemRow(orderId) {
             window.c92.showToast('error', `Hiba az ÁFA kiválasztás közben: ${err.message}`);
         }
     }
+
+    // Initialize discount type and value
+    const discountTypeSelect = itemRow.querySelector('.discount-type-id');
+    const discountValueInput = itemRow.querySelector('.discount-value');
+    const quantityInput = itemRow.querySelector('.quantity');
+
+    // Ensure single discount-value input
+    if (!discountValueInput) {
+        console.error(`Discount value input not found in row ${newItemId}`);
+        window.c92.showToast('error', 'Kedvezmény mező nem található.');
+        return;
+    }
+
+    function updateDiscountField() {
+        const discountTypeId = parseInt(discountTypeSelect.value);
+        const isEditable = [5, 6].includes(discountTypeId);
+        discountValueInput.disabled = !isEditable;
+        itemRow.dataset.discountTypeId = discountTypeId.toString();
+        if (!isEditable) {
+            discountValueInput.value = '0';
+            itemRow.dataset.discountValue = '0';
+        } else {
+            itemRow.dataset.discountValue = discountValueInput.value || '0';
+        }
+        console.log(`Discount field updated for item ${newItemId}: discountTypeId=${discountTypeId}, isEditable=${isEditable}, disabled=${discountValueInput.disabled}, value=${discountValueInput.value}`);
+        window.updatePriceFields(productSelect, productSelect.value, products);
+        window.calculateOrderTotals(orderId);
+    }
+
+    discountTypeSelect.addEventListener('change', updateDiscountField);
+    discountValueInput.addEventListener('input', () => {
+        itemRow.dataset.discountValue = discountValueInput.value || '0';
+        console.log(`Discount value changed for item ${newItemId}: discountValue=${discountValueInput.value}`);
+        window.updatePriceFields(productSelect, productSelect.value, products);
+        window.calculateOrderTotals(orderId);
+    });
+    quantityInput.addEventListener('input', () => {
+        console.log(`Quantity changed for item ${newItemId}: quantity=${quantityInput.value}`);
+        window.updatePriceFields(productSelect, productSelect.value, products);
+        window.calculateOrderTotals(orderId);
+    });
 
     // Initialize row calculations and description toggle
     initializeRowCalculations(itemRow);

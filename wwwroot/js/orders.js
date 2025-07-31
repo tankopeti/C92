@@ -97,6 +97,60 @@ async function initializeModalFields(orderId) {
     await initializeEventListeners(orderId);
 }
 
+async function initializeEventListeners(orderId) {
+    console.log('Initializing event listeners for orderId:', orderId);
+    const modal = document.getElementById(orderId === 'new' ? 'newOrderModal' : `editOrderModal_${orderId}`);
+    if (!modal) {
+        console.error(`Modal for orderId: ${orderId} not found`);
+        window.c92.showToast('error', `Modal nem található: ${orderId}`);
+        return;
+    }
+
+    // Initialize save button
+    const saveButton = modal.querySelector(`#saveOrderBtn_${orderId}`);
+    if (saveButton) {
+        // Remove existing listeners to prevent duplicates
+        const newSaveButton = saveButton.cloneNode(true);
+        saveButton.replaceWith(newSaveButton);
+        newSaveButton.addEventListener('click', async () => {
+            console.log(`Save button clicked for orderId: ${orderId}`);
+            // Implement save logic here (use original saveOrder if needed)
+        });
+        console.log(`Save button initialized for orderId: ${orderId}`);
+    } else {
+        console.warn(`Save button #saveOrderBtn_${orderId} not found`);
+    }
+
+    // Initialize add item button
+    const addItemButton = modal.querySelector('.add-item-row');
+    if (addItemButton) {
+        const newAddItemButton = addItemButton.cloneNode(true);
+        addItemButton.replaceWith(newAddItemButton);
+        newAddItemButton.addEventListener('click', () => {
+            console.log(`Add item button clicked for orderId: ${orderId}`);
+            addItemRow(orderId);
+        });
+        console.log(`Add item button initialized for orderId: ${orderId}`);
+    } else {
+        console.warn(`Add item button .add-item-row not found for orderId: ${orderId}`);
+        window.c92.showToast('error', 'Tétel hozzáadása gomb nem található.');
+    }
+
+    // Initialize delete buttons
+    modal.querySelectorAll('.remove-item-row').forEach(btn => {
+        const newBtn = btn.cloneNode(true);
+        btn.replaceWith(newBtn);
+        newBtn.addEventListener('click', () => {
+            const itemId = newBtn.dataset.itemId;
+            const itemRow = document.querySelector(`tr.order-item-row[data-item-id="${itemId}"]`);
+            const descriptionRow = document.querySelector(`tr.description-row[data-item-id="${itemId}"]`);
+            if (itemRow) itemRow.remove();
+            if (descriptionRow) descriptionRow.remove();
+            window.calculateOrderTotals(orderId);
+        });
+    });
+}
+
 async function populateEditOrderModal(orderId) {
     try {
         const modal = document.getElementById(`editOrderModal_${orderId}`);
@@ -315,6 +369,363 @@ async function populateEditOrderModal(orderId) {
     }
 }
 
+async function addItemRow(orderId) {
+    const tbody = document.querySelector(`#items-tbody_${orderId}`);
+    if (!tbody) {
+        console.error('Items tbody not found for orderId:', orderId);
+        window.c92.showToast('error', 'Táblázat nem található.');
+        return;
+    }
+
+    const newItemId = 'new_' + Date.now();
+    console.log('Adding new item row for orderId:', orderId, 'NewItemId:', newItemId);
+
+    // Pre-select product for Order 1626
+    let selectedProductId = null;
+    let selectedProductText = null;
+    if (orderId === '1626') {
+        selectedProductId = '62044'; // Termék 4
+        selectedProductText = 'Termék 4';
+    }
+
+    const itemRow = document.createElement('tr');
+    itemRow.className = 'order-item-row';
+    itemRow.dataset.itemId = newItemId;
+    itemRow.dataset.orderId = orderId;
+    itemRow.innerHTML = `
+        <td>
+            <select name="items[${newItemId}][productId]" id="tomselect-product-${newItemId}" class="form-select tom-select-product" autocomplete="off" required
+                ${selectedProductId ? `data-selected-id="${selectedProductId}" data-selected-text="${selectedProductText}"` : ''}>
+                <option value="" disabled selected>-- Válasszon terméket --</option>
+            </select>
+        </td>
+        <td>
+            <input type="number" name="items[${newItemId}][quantity]" class="form-control form-control-sm quantity" value="1" min="0" step="1" required>
+        </td>
+        <td>
+            <input type="number" name="items[${newItemId}][unitPrice]" class="form-control form-control-sm unit-price" value="0" min="0" step="0.01" required>
+        </td>
+        <td>
+            <select name="items[${newItemId}][discountTypeId]" class="form-select form-control-sm discount-type-id">
+                <option value="1" selected>Nincs Kedvezmény</option>
+                <option value="3">Ügyfélár</option>
+                <option value="4">Mennyiségi kedvezmény</option>
+                <option value="5">Egyedi kedvezmény %</option>
+                <option value="6">Egyedi kedvezmény Összeg</option>
+            </select>
+        </td>
+        <td>
+            <input type="number" name="items[${newItemId}][discountValue]" class="form-control form-control-sm discount-value" value="0" min="0" step="0.01" style="display: none;">
+            <span class="discount-amount">0.00</span>
+        </td>
+        <td>
+            <span class="net-unit-price">0.00</span>
+        </td>
+        <td>
+            <select name="items[${newItemId}][vatTypeId]" id="tomselect-vat-${newItemId}" class="form-select tom-select-vat" data-selected-id="1" data-selected-text="27%" data-selected-rate="27" autocomplete="off" required>
+                <option value="1" selected>27%</option>
+                <option value="" disabled>-- Válasszon ÁFA típust --</option>
+            </select>
+        </td>
+        <td>
+            <span class="net-total-price">0.00</span>
+        </td>
+        <td>
+            <span class="gross-total-price">0.00</span>
+        </td>
+        <td>
+            <button type="button" class="btn btn-outline-secondary btn-sm edit-description" data-item-id="${newItemId}"><i class="bi bi-pencil"></i></button>
+            <button type="button" class="btn btn-danger btn-sm remove-item-row" data-item-id="${newItemId}"><i class="bi bi-trash"></i></button>
+        </td>
+    `;
+
+    const descriptionRow = document.createElement('tr');
+    descriptionRow.className = 'description-row';
+    descriptionRow.dataset.itemId = newItemId;
+    descriptionRow.style.display = 'none';
+    descriptionRow.innerHTML = `
+        <td colspan="10">
+            <div class="mb-2">
+                <label class="form-label">Leírás (max 200 karakter)</label>
+                <textarea name="items[${newItemId}][description]" class="form-control form-control-sm item-description" maxlength="200" rows="2"></textarea>
+                <div class="form-text">Karakterek: <span class="char-count">0</span>/200</div>
+            </div>
+        </td>
+    `;
+
+    const orderTotalRow = tbody.querySelector('.order-total-row');
+    if (orderTotalRow) {
+        tbody.insertBefore(itemRow, orderTotalRow);
+        tbody.insertBefore(descriptionRow, orderTotalRow);
+    } else {
+        tbody.appendChild(itemRow);
+        tbody.appendChild(descriptionRow);
+    }
+
+    // Initialize product select
+    const productSelect = itemRow.querySelector('.tom-select-product');
+    let products = [];
+    if (productSelect && typeof window.c92.initializeProductTomSelect === 'function') {
+        try {
+            const tomSelect = await window.c92.initializeProductTomSelect(productSelect, { orderId: orderId });
+            console.log('Product select initialized for item:', newItemId, 'TomSelect:', !!tomSelect);
+            products = Object.values(tomSelect.options).map(opt => ({
+                productId: opt.value,
+                listPrice: opt.listPrice || (opt.value === '62044' ? 980 : opt.value === '62056' ? 1000 : 0),
+                volumePrice: opt.volumePrice || 0,
+                partnerPrice: opt.partnerPrice || null,
+                volumePricing: opt.volumePricing || {},
+                text: opt.text
+            }));
+            console.log('Products loaded:', products);
+
+            // Handle pre-selected product
+            if (selectedProductId) {
+                console.log('Pre-selecting product:', selectedProductId, selectedProductText);
+                tomSelect.setValue(selectedProductId);
+                const product = products.find(p => p.productId == selectedProductId) || {
+                    productId: selectedProductId,
+                    listPrice: selectedProductId === '62044' ? 980 : 1000,
+                    text: selectedProductText
+                };
+                await updatePriceFields(productSelect, selectedProductId, products);
+                console.log('Pre-selection prices updated for product:', selectedProductId);
+            } else {
+                await updatePriceFields(productSelect, null, products);
+            }
+        } catch (err) {
+            console.error('Failed to initialize product select:', err);
+            window.c92.showToast('error', `Hiba a termékek betöltése közben: ${err.message}`);
+            await updatePriceFields(productSelect, null, []);
+        }
+    } else {
+        console.error('Product select initialization failed: initializeProductTomSelect not defined');
+        window.c92.showToast('error', 'Termékválasztó inicializálási hiba.');
+        await updatePriceFields(productSelect, null, []);
+    }
+
+    // Initialize VAT select
+    const vatSelect = itemRow.querySelector('.tom-select-vat');
+    if (vatSelect && typeof window.c92.initializeVatTomSelect === 'function') {
+        try {
+            await window.c92.initializeVatTomSelect(vatSelect, { context: 'order' });
+            console.log('VAT select initialized for item:', newItemId);
+        } catch (err) {
+            console.error('Failed to initialize VAT select:', err);
+            window.c92.showToast('error', `Hiba az ÁFA kiválasztás közben: ${err.message}`);
+        }
+    }
+
+    // Initialize row calculations and description toggle
+    initializeRowCalculations(itemRow);
+    initializeDescriptionToggle(itemRow);
+    window.calculateOrderTotals(orderId);
+}
+
+function initializeRowCalculations(row) {
+    const inputs = row.querySelectorAll('input, select:not(.tom-select-product, .tom-select-vat)');
+    console.log(`Initializing row: ${row.dataset.itemId} Inputs: ${inputs.length}`);
+    inputs.forEach(input => {
+        if (input._listener) {
+            input.removeEventListener('input', input._listener);
+            input.removeEventListener('change', input._listener);
+        }
+    });
+    updatePriceFields(row.querySelector('.tom-select-product'), row.querySelector('.tom-select-product').value, []);
+}
+
+
+function initializeDescriptionToggle(row) {
+    const editDescriptionBtn = row.querySelector('.edit-description');
+    const itemId = row.dataset.itemId;
+    const descriptionRow = document.querySelector(`tr.description-row[data-item-id="${itemId}"]`);
+    if (!editDescriptionBtn || !descriptionRow) return;
+
+    editDescriptionBtn.addEventListener('click', () => {
+        descriptionRow.style.display = descriptionRow.style.display === 'none' ? '' : 'none';
+    });
+
+    const textarea = descriptionRow.querySelector('.item-description');
+    const charCountSpan = descriptionRow.querySelector('.char-count');
+    if (textarea && charCountSpan) {
+        textarea.addEventListener('input', () => {
+            charCountSpan.textContent = textarea.value.length;
+        });
+    }
+}
+
+function updatePriceFields(select, productId, products) {
+    const row = select.closest('tr.order-item-row');
+    if (!row) {
+        console.error('Row not found for select element:', select);
+        window.c92.showToast('error', 'Sor nem található.');
+        return;
+    }
+    const orderId = row.closest('table').dataset.orderId || 'new';
+    const unitPriceInput = row.querySelector('.unit-price');
+    const discountTypeSelect = row.querySelector('.discount-type-id');
+    const discountAmountInput = row.querySelector('.discount-value');
+    const netUnitPriceSpan = row.querySelector('.net-unit-price');
+    const vatSelect = row.querySelector('.tom-select-vat');
+    const grossTotalPriceSpan = row.querySelector('.gross-total-price');
+    const quantityInput = row.querySelector('.quantity');
+    if (!unitPriceInput || !discountTypeSelect || !discountAmountInput || !netUnitPriceSpan || !vatSelect || !grossTotalPriceSpan || !quantityInput) {
+        console.error('Missing fields in row:', row);
+        window.c92.showToast('error', 'Hiányzó mezők a sorban.');
+        return;
+    }
+    console.log('updatePriceFields called with productId:', productId, 'products length:', products.length);
+    if (!productId && select.dataset.selectedId) {
+        productId = select.dataset.selectedId;
+        console.log('Using dataset.selectedId as fallback productId:', productId);
+    }
+    if (!productId) {
+        console.log('No productId, resetting fields');
+        unitPriceInput.value = '0.00';
+        discountAmountInput.value = '';
+        netUnitPriceSpan.textContent = '0.00';
+        grossTotalPriceSpan.textContent = '0.00';
+        discountTypeSelect.value = '1';
+        discountAmountInput.readOnly = true;
+        row.dataset.discountTypeId = '1';
+        row.dataset.discountAmount = '0';
+        row.dataset.volumePrice = '';
+        window.calculateOrderTotals(orderId);
+        return;
+    }
+    let product = products.find(p => p.productId == productId);
+    if (!product && select.tomselect) {
+        product = select.tomselect.options[productId];
+        console.log('Fetched product from TomSelect options:', product);
+    }
+    // Fallback for known products
+    if (!product) {
+        if (productId === '62044') {
+            product = { productId: '62044', listPrice: 980, text: 'Termék 4' };
+            console.log('Using fallback product data for ProductId: 62044');
+        } else if (productId === '62056') {
+            product = { productId: '62056', listPrice: 1000, text: 'Termék 5' }; // Adjust listPrice as needed
+            console.log('Using fallback product data for ProductId: 62056');
+        } else {
+            product = { productId, listPrice: 0, text: 'Ismeretlen termék' };
+            console.warn('No product data available for productId:', productId);
+        }
+    }
+    const unitPrice = parseFloat(product.listPrice) || 0;
+    const quantity = parseInt(quantityInput.value, 10) || 1;
+    let discountTypeId = parseInt(discountTypeSelect.value, 10) || 1;
+    let discountAmount = parseFloat(discountAmountInput.value) || 0;
+    unitPriceInput.value = unitPrice.toFixed(2);
+    discountAmountInput.readOnly = ![5, 6].includes(discountTypeId);
+    if (discountTypeId === 1) {
+        discountAmountInput.value = '';
+        discountAmount = 0;
+    }
+    calculateAllPrices(row, unitPrice, discountTypeId, discountAmount, quantity, vatSelect, product);
+    // Update event listeners
+    quantityInput.removeEventListener('input', quantityInput._listener);
+    discountTypeSelect.removeEventListener('change', discountTypeSelect._listener);
+    discountAmountInput.removeEventListener('input', discountAmountInput._listener);
+    vatSelect.removeEventListener('change', vatSelect._listener);
+    quantityInput._listener = () => {
+        let newQuantity = parseInt(quantityInput.value, 10) || 1;
+        if (newQuantity < 1) {
+            window.c92.showToast('error', 'A mennyiségnek nagyobbnak kell lennie, mint 0.');
+            quantityInput.value = '1';
+            newQuantity = 1;
+        }
+        let newDiscountAmount = parseFloat(discountAmountInput.value) || 0;
+        if (newDiscountAmount < 0) {
+            window.c92.showToast('error', 'A kedvezmény összege nem lehet negatív.');
+            discountAmountInput.value = '';
+            newDiscountAmount = 0;
+        }
+        calculateAllPrices(
+            row,
+            unitPrice,
+            parseInt(discountTypeSelect.value, 10) || 1,
+            newDiscountAmount,
+            newQuantity,
+            vatSelect,
+            product
+        );
+        window.calculateOrderTotals(orderId);
+    };
+    discountTypeSelect._listener = () => {
+        const newDiscountTypeId = parseInt(discountTypeSelect.value, 10) || 1;
+        discountAmountInput.readOnly = ![5, 6].includes(newDiscountTypeId);
+        if (newDiscountTypeId === 1) {
+            discountAmountInput.value = '';
+        }
+        let newDiscountAmount = parseFloat(discountAmountInput.value) || 0;
+        if (newDiscountAmount < 0) {
+            window.c92.showToast('error', 'A kedvezmény összege nem lehet negatív.');
+            discountAmountInput.value = '';
+            newDiscountAmount = 0;
+        }
+        calculateAllPrices(
+            row,
+            unitPrice,
+            newDiscountTypeId,
+            newDiscountAmount,
+            parseInt(quantityInput.value, 10) || 1,
+            vatSelect,
+            product
+        );
+        window.calculateOrderTotals(orderId);
+    };
+    discountAmountInput._listener = () => {
+        let newDiscountAmount = parseFloat(discountAmountInput.value) || 0;
+        if (newDiscountAmount < 0) {
+            window.c92.showToast('error', 'A kedvezmény összege nem lehet negatív.');
+            discountAmountInput.value = '';
+            newDiscountAmount = 0;
+        }
+        const newDiscountTypeId = parseInt(discountTypeSelect.value, 10) || 1;
+        if (newDiscountTypeId === 5) {
+            newDiscountAmount = unitPrice * (newDiscountAmount / 100);
+        }
+        calculateAllPrices(
+            row,
+            unitPrice,
+            newDiscountTypeId,
+            newDiscountAmount,
+            parseInt(quantityInput.value, 10) || 1,
+            vatSelect,
+            product
+        );
+        window.calculateOrderTotals(orderId);
+    };
+    vatSelect._listener = () => {
+        let newDiscountAmount = parseFloat(discountAmountInput.value) || 0;
+        if (newDiscountAmount < 0) {
+            window.c92.showToast('error', 'A kedvezmény összege nem lehet negatív.');
+            discountAmountInput.value = '';
+            newDiscountAmount = 0;
+        }
+        const newDiscountTypeId = parseInt(discountTypeSelect.value, 10) || 1;
+        if (newDiscountTypeId === 5) {
+            newDiscountAmount = unitPrice * (newDiscountAmount / 100);
+        }
+        calculateAllPrices(
+            row,
+            unitPrice,
+            newDiscountTypeId,
+            newDiscountAmount,
+            parseInt(quantityInput.value, 10) || 1,
+            vatSelect,
+            product
+        );
+        window.calculateOrderTotals(orderId);
+    };
+    quantityInput.addEventListener('input', quantityInput._listener);
+    discountTypeSelect.addEventListener('change', discountTypeSelect._listener);
+    discountAmountInput.addEventListener('input', discountAmountInput._listener);
+    vatSelect.addEventListener('change', vatSelect._listener);
+    window.calculateOrderTotals(orderId);
+}
+
+
 async function calculateAllPrices(row, unitPrice, discountTypeId, discountAmount, quantity, vatSelect, product) {
     const itemId = row.dataset.itemId;
     const orderId = row.closest('table').dataset.orderId || 'new';
@@ -323,7 +734,6 @@ async function calculateAllPrices(row, unitPrice, discountTypeId, discountAmount
     const grossTotalPriceSpan = row.querySelector('.gross-total-price');
     const unitPriceInput = row.querySelector('.unit-price');
     const discountAmountInput = row.querySelector('.discount-value');
-放下
     const netTotalSpan = row.querySelector('.net-total-price');
     if (!netUnitPriceSpan || !grossTotalPriceSpan || !unitPriceInput || !discountAmountInput || !netTotalSpan) {
         console.error('Missing price fields in row:', row);
@@ -503,444 +913,49 @@ async function calculateAllPrices(row, unitPrice, discountTypeId, discountAmount
     console.log(`calculateAllPrices for item ${itemId}: unitPrice=${effectiveUnitPrice.toFixed(2)}, discountTypeId=${discountTypeId}, discountAmount=${parsedDiscountAmount}, partnerPrice=${partnerPrice || 'N/A'}, netPrice=${netPrice.toFixed(2)}, grossPrice=${grossPrice.toFixed(2)}, totalGrossPrice=${totalGrossPrice.toFixed(2)}, vatRate=${vatRate}%`);
 }
 
-function updatePriceFields(select, productId, products) {
-    const row = select.closest('tr.order-item-row');
-    if (!row) {
-        console.error('Row not found for select element:', select);
-        window.c92.showToast('error', 'Sor nem található.');
-        return;
-    }
-    const orderId = row.closest('table').dataset.orderId || 'new';
-    const unitPriceInput = row.querySelector('.unit-price');
-    const discountTypeSelect = row.querySelector('.discount-type-id');
-    const discountAmountInput = row.querySelector('.discount-value');
-    const netUnitPriceSpan = row.querySelector('.net-unit-price');
-    const vatSelect = row.querySelector('.tom-select-vat');
-    const grossTotalPriceSpan = row.querySelector('.gross-total-price');
-    const quantityInput = row.querySelector('.quantity');
-    if (!unitPriceInput || !discountTypeSelect || !discountAmountInput || !netUnitPriceSpan || !vatSelect || !grossTotalPriceSpan || !quantityInput) {
-        console.error('Missing fields in row:', row);
-        window.c92.showToast('error', 'Hiányzó mezők a sorban.');
-        return;
-    }
-    console.log('updatePriceFields called with productId:', productId, 'products length:', products.length);
-    if (!productId && select.dataset.selectedId) {
-        productId = select.dataset.selectedId;
-        console.log('Using dataset.selectedId as fallback productId:', productId);
-    }
-    if (!productId) {
-        console.log('No productId, resetting fields');
-        unitPriceInput.value = '0.00';
-        discountAmountInput.value = '';
-        netUnitPriceSpan.textContent = '0.00';
-        grossTotalPriceSpan.textContent = '0.00';
-        discountTypeSelect.value = '1';
-        discountAmountInput.readOnly = true;
-        row.dataset.discountTypeId = '1';
-        row.dataset.discountAmount = '0';
-        row.dataset.volumePrice = '';
-        window.calculateOrderTotals(orderId);
-        return;
-    }
-    let product = products.find(p => p.productId == productId);
-    if (!product && select.tomselect) {
-        product = select.tomselect.options[productId];
-        console.log('Fetched product from TomSelect options:', product);
-    }
-    // Fallback for known products
-    if (!product) {
-        if (productId === '62044') {
-            product = { productId: '62044', listPrice: 980, text: 'Termék 4' };
-            console.log('Using fallback product data for ProductId: 62044');
-        } else if (productId === '62056') {
-            product = { productId: '62056', listPrice: 1000, text: 'Termék 5' }; // Adjust listPrice as needed
-            console.log('Using fallback product data for ProductId: 62056');
-        } else {
-            product = { productId, listPrice: 0, text: 'Ismeretlen termék' };
-            console.warn('No product data available for productId:', productId);
-        }
-    }
-    const unitPrice = parseFloat(product.listPrice) || 0;
-    const quantity = parseInt(quantityInput.value, 10) || 1;
-    let discountTypeId = parseInt(discountTypeSelect.value, 10) || 1;
-    let discountAmount = parseFloat(discountAmountInput.value) || 0;
-    unitPriceInput.value = unitPrice.toFixed(2);
-    discountAmountInput.readOnly = ![5, 6].includes(discountTypeId);
-    if (discountTypeId === 1) {
-        discountAmountInput.value = '';
-        discountAmount = 0;
-    }
-    calculateAllPrices(row, unitPrice, discountTypeId, discountAmount, quantity, vatSelect, product);
-    // Update event listeners
-    quantityInput.removeEventListener('input', quantityInput._listener);
-    discountTypeSelect.removeEventListener('change', discountTypeSelect._listener);
-    discountAmountInput.removeEventListener('input', discountAmountInput._listener);
-    vatSelect.removeEventListener('change', vatSelect._listener);
-    quantityInput._listener = () => {
-        let newQuantity = parseInt(quantityInput.value, 10) || 1;
-        if (newQuantity < 1) {
-            window.c92.showToast('error', 'A mennyiségnek nagyobbnak kell lennie, mint 0.');
-            quantityInput.value = '1';
-            newQuantity = 1;
-        }
-        let newDiscountAmount = parseFloat(discountAmountInput.value) || 0;
-        if (newDiscountAmount < 0) {
-            window.c92.showToast('error', 'A kedvezmény összege nem lehet negatív.');
-            discountAmountInput.value = '';
-            newDiscountAmount = 0;
-        }
-        calculateAllPrices(
-            row,
-            unitPrice,
-            parseInt(discountTypeSelect.value, 10) || 1,
-            newDiscountAmount,
-            newQuantity,
-            vatSelect,
-            product
-        );
-        window.calculateOrderTotals(orderId);
-    };
-    discountTypeSelect._listener = () => {
-        const newDiscountTypeId = parseInt(discountTypeSelect.value, 10) || 1;
-        discountAmountInput.readOnly = ![5, 6].includes(newDiscountTypeId);
-        if (newDiscountTypeId === 1) {
-            discountAmountInput.value = '';
-        }
-        let newDiscountAmount = parseFloat(discountAmountInput.value) || 0;
-        if (newDiscountAmount < 0) {
-            window.c92.showToast('error', 'A kedvezmény összege nem lehet negatív.');
-            discountAmountInput.value = '';
-            newDiscountAmount = 0;
-        }
-        calculateAllPrices(
-            row,
-            unitPrice,
-            newDiscountTypeId,
-            newDiscountAmount,
-            parseInt(quantityInput.value, 10) || 1,
-            vatSelect,
-            product
-        );
-        window.calculateOrderTotals(orderId);
-    };
-    discountAmountInput._listener = () => {
-        let newDiscountAmount = parseFloat(discountAmountInput.value) || 0;
-        if (newDiscountAmount < 0) {
-            window.c92.showToast('error', 'A kedvezmény összege nem lehet negatív.');
-            discountAmountInput.value = '';
-            newDiscountAmount = 0;
-        }
-        const newDiscountTypeId = parseInt(discountTypeSelect.value, 10) || 1;
-        if (newDiscountTypeId === 5) {
-            newDiscountAmount = unitPrice * (newDiscountAmount / 100);
-        }
-        calculateAllPrices(
-            row,
-            unitPrice,
-            newDiscountTypeId,
-            newDiscountAmount,
-            parseInt(quantityInput.value, 10) || 1,
-            vatSelect,
-            product
-        );
-        window.calculateOrderTotals(orderId);
-    };
-    vatSelect._listener = () => {
-        let newDiscountAmount = parseFloat(discountAmountInput.value) || 0;
-        if (newDiscountAmount < 0) {
-            window.c92.showToast('error', 'A kedvezmény összege nem lehet negatív.');
-            discountAmountInput.value = '';
-            newDiscountAmount = 0;
-        }
-        const newDiscountTypeId = parseInt(discountTypeSelect.value, 10) || 1;
-        if (newDiscountTypeId === 5) {
-            newDiscountAmount = unitPrice * (newDiscountAmount / 100);
-        }
-        calculateAllPrices(
-            row,
-            unitPrice,
-            newDiscountTypeId,
-            newDiscountAmount,
-            parseInt(quantityInput.value, 10) || 1,
-            vatSelect,
-            product
-        );
-        window.calculateOrderTotals(orderId);
-    };
-    quantityInput.addEventListener('input', quantityInput._listener);
-    discountTypeSelect.addEventListener('change', discountTypeSelect._listener);
-    discountAmountInput.addEventListener('input', discountAmountInput._listener);
-    vatSelect.addEventListener('change', vatSelect._listener);
-    window.calculateOrderTotals(orderId);
-}
-
-async function addItemRow(orderId) {
-    const tbody = document.querySelector(`#items-tbody_${orderId}`);
-    if (!tbody) {
-        console.error('Items tbody not found for orderId:', orderId);
-        window.c92.showToast('error', 'Táblázat nem található.');
-        return;
-    }
-
-    const newItemId = 'new_' + Date.now();
-    console.log('Adding new item row for orderId:', orderId, 'NewItemId:', newItemId);
-
-    // Pre-select product for Order 1626
-    let selectedProductId = null;
-    let selectedProductText = null;
-    if (orderId === '1626') {
-        selectedProductId = '62044'; // Termék 4
-        selectedProductText = 'Termék 4';
-    }
-
-    const itemRow = document.createElement('tr');
-    itemRow.className = 'order-item-row';
-    itemRow.dataset.itemId = newItemId;
-    itemRow.dataset.orderId = orderId;
-    itemRow.innerHTML = `
-        <td>
-            <select name="items[${newItemId}][productId]" id="tomselect-product-${newItemId}" class="form-select tom-select-product" autocomplete="off" required
-                ${selectedProductId ? `data-selected-id="${selectedProductId}" data-selected-text="${selectedProductText}"` : ''}>
-                <option value="" disabled selected>-- Válasszon terméket --</option>
-            </select>
-        </td>
-        <td>
-            <input type="number" name="items[${newItemId}][quantity]" class="form-control form-control-sm quantity" value="1" min="0" step="1" required>
-        </td>
-        <td>
-            <input type="number" name="items[${newItemId}][unitPrice]" class="form-control form-control-sm unit-price" value="0" min="0" step="0.01" required>
-        </td>
-        <td>
-            <select name="items[${newItemId}][discountTypeId]" class="form-select form-control-sm discount-type-id">
-                <option value="1" selected>Nincs Kedvezmény</option>
-                <option value="3">Ügyfélár</option>
-                <option value="4">Mennyiségi kedvezmény</option>
-                <option value="5">Egyedi kedvezmény %</option>
-                <option value="6">Egyedi kedvezmény Összeg</option>
-            </select>
-        </td>
-        <td>
-            <input type="number" name="items[${newItemId}][discountValue]" class="form-control form-control-sm discount-value" value="0" min="0" step="0.01" style="display: none;">
-            <span class="discount-amount">0.00</span>
-        </td>
-        <td>
-            <span class="net-unit-price">0.00</span>
-        </td>
-        <td>
-            <select name="items[${newItemId}][vatTypeId]" id="tomselect-vat-${newItemId}" class="form-select tom-select-vat" data-selected-id="1" data-selected-text="27%" data-selected-rate="27" autocomplete="off" required>
-                <option value="1" selected>27%</option>
-                <option value="" disabled>-- Válasszon ÁFA típust --</option>
-            </select>
-        </td>
-        <td>
-            <span class="net-total-price">0.00</span>
-        </td>
-        <td>
-            <span class="gross-total-price">0.00</span>
-        </td>
-        <td>
-            <button type="button" class="btn btn-outline-secondary btn-sm edit-description" data-item-id="${newItemId}"><i class="bi bi-pencil"></i></button>
-            <button type="button" class="btn btn-danger btn-sm remove-item-row" data-item-id="${newItemId}"><i class="bi bi-trash"></i></button>
-        </td>
-    `;
-
-    const descriptionRow = document.createElement('tr');
-    descriptionRow.className = 'description-row';
-    descriptionRow.dataset.itemId = newItemId;
-    descriptionRow.style.display = 'none';
-    descriptionRow.innerHTML = `
-        <td colspan="10">
-            <div class="mb-2">
-                <label class="form-label">Leírás (max 200 karakter)</label>
-                <textarea name="items[${newItemId}][description]" class="form-control form-control-sm item-description" maxlength="200" rows="2"></textarea>
-                <div class="form-text">Karakterek: <span class="char-count">0</span>/200</div>
-            </div>
-        </td>
-    `;
-
-    const orderTotalRow = tbody.querySelector('.order-total-row');
-    if (orderTotalRow) {
-        tbody.insertBefore(itemRow, orderTotalRow);
-        tbody.insertBefore(descriptionRow, orderTotalRow);
-    } else {
-        tbody.appendChild(itemRow);
-        tbody.appendChild(descriptionRow);
-    }
-
-    // Initialize product select
-    const productSelect = itemRow.querySelector('.tom-select-product');
-    let products = [];
-    if (productSelect && typeof window.c92.initializeProductTomSelect === 'function') {
-        try {
-            const tomSelect = await window.c92.initializeProductTomSelect(productSelect, { orderId: orderId });
-            console.log('Product select initialized for item:', newItemId, 'TomSelect:', !!tomSelect);
-            products = Object.values(tomSelect.options).map(opt => ({
-                productId: opt.value,
-                listPrice: opt.listPrice || (opt.value === '62044' ? 980 : opt.value === '62056' ? 1000 : 0),
-                volumePrice: opt.volumePrice || 0,
-                partnerPrice: opt.partnerPrice || null,
-                volumePricing: opt.volumePricing || {},
-                text: opt.text
-            }));
-            console.log('Products loaded:', products);
-
-            // Handle pre-selected product
-            if (selectedProductId) {
-                console.log('Pre-selecting product:', selectedProductId, selectedProductText);
-                tomSelect.setValue(selectedProductId);
-                const product = products.find(p => p.productId == selectedProductId) || {
-                    productId: selectedProductId,
-                    listPrice: selectedProductId === '62044' ? 980 : 1000,
-                    text: selectedProductText
-                };
-                await updatePriceFields(productSelect, selectedProductId, products);
-                console.log('Pre-selection prices updated for product:', selectedProductId);
-            } else {
-                await updatePriceFields(productSelect, null, products);
-            }
-        } catch (err) {
-            console.error('Failed to initialize product select:', err);
-            window.c92.showToast('error', `Hiba a termékek betöltése közben: ${err.message}`);
-            await updatePriceFields(productSelect, null, []);
-        }
-    } else {
-        console.error('Product select initialization failed: initializeProductTomSelect not defined');
-        window.c92.showToast('error', 'Termékválasztó inicializálási hiba.');
-        await updatePriceFields(productSelect, null, []);
-    }
-
-    // Initialize VAT select
-    const vatSelect = itemRow.querySelector('.tom-select-vat');
-    if (vatSelect && typeof window.c92.initializeVatTomSelect === 'function') {
-        try {
-            await window.c92.initializeVatTomSelect(vatSelect, { context: 'order' });
-            console.log('VAT select initialized for item:', newItemId);
-        } catch (err) {
-            console.error('Failed to initialize VAT select:', err);
-            window.c92.showToast('error', `Hiba az ÁFA kiválasztás közben: ${err.message}`);
-        }
-    }
-
-    // Initialize row calculations and description toggle
-    initializeRowCalculations(itemRow);
-    initializeDescriptionToggle(itemRow);
-    window.calculateOrderTotals(orderId);
-}
-
-function initializeRowCalculations(row) {
-    const inputs = row.querySelectorAll('input, select:not(.tom-select-product, .tom-select-vat)');
-    console.log(`Initializing row: ${row.dataset.itemId} Inputs: ${inputs.length}`);
-    inputs.forEach(input => {
-        if (input._listener) {
-            input.removeEventListener('input', input._listener);
-            input.removeEventListener('change', input._listener);
-        }
-    });
-    updatePriceFields(row.querySelector('.tom-select-product'), row.querySelector('.tom-select-product').value, []);
-}
-
-function initializeDescriptionToggle(row) {
-    const editDescriptionBtn = row.querySelector('.edit-description');
-    const itemId = row.dataset.itemId;
-    const descriptionRow = document.querySelector(`tr.description-row[data-item-id="${itemId}"]`);
-    if (!editDescriptionBtn || !descriptionRow) return;
-
-    editDescriptionBtn.addEventListener('click', () => {
-        descriptionRow.style.display = descriptionRow.style.display === 'none' ? '' : 'none';
-    });
-
-    const textarea = descriptionRow.querySelector('.item-description');
-    const charCountSpan = descriptionRow.querySelector('.char-count');
-    if (textarea && charCountSpan) {
-        textarea.addEventListener('input', () => {
-            charCountSpan.textContent = textarea.value.length;
-        });
-    }
-}
-
 window.calculateOrderTotals = function(orderId) {
+    console.log(`Calculating totals for orderId: ${orderId}`);
     const tbody = document.querySelector(`#items-tbody_${orderId}`);
     if (!tbody) {
         console.error(`Tbody #items-tbody_${orderId} not found`);
+        window.c92.showToast('error', `Táblázat nem található: ${orderId}`);
         return;
     }
-
     let totalNet = 0;
     let totalVat = 0;
     let totalGross = 0;
-
-    tbody.querySelectorAll('.order-item-row').forEach(row => {
-        const netTotal = parseFloat(row.querySelector('.net-total-price')?.textContent) || 0;
-        const grossTotal = parseFloat(row.querySelector('.gross-total-price')?.textContent) || 0;
+    const rows = tbody.querySelectorAll('.order-item-row');
+    console.log(`Found ${rows.length} order-item-row(s)`);
+    rows.forEach(row => {
+        const netTotalSpan = row.querySelector('.net-total-price');
+        const grossTotalSpan = row.querySelector('.gross-total-price');
+        const netTotal = netTotalSpan ? parseFloat(netTotalSpan.textContent) || 0 : 0;
+        const grossTotal = grossTotalSpan ? parseFloat(grossTotalSpan.textContent) || 0 : 0;
+        console.log(`Row ${row.dataset.itemId}: netTotal=${netTotal}, grossTotal=${grossTotal}, netContent=${netTotalSpan?.textContent}, grossContent=${grossTotalSpan?.textContent}`);
         totalNet += netTotal;
         totalVat += grossTotal - netTotal;
         totalGross += grossTotal;
     });
-
-    const totalNetSpan = document.querySelector(`#order-total-net_${orderId}`);
-    const totalVatSpan = document.querySelector(`#order-vat-amount_${orderId}`);
-    const totalGrossSpan = document.querySelector(`#order-gross-amount_${orderId}`);
-
-    if (totalNetSpan) totalNetSpan.textContent = totalNet.toFixed(2);
-    if (totalVatSpan) totalVatSpan.textContent = totalVat.toFixed(2);
-    if (totalGrossSpan) totalGrossSpan.textContent = totalGross.toFixed(2);
-
-    console.log(`Order totals for orderId: ${orderId}`, { totalNet, totalVat, totalGross });
-};
-
-async function initializeEventListeners(orderId) {
-    console.log('Initializing event listeners for orderId:', orderId);
-    const modal = document.getElementById(orderId === 'new' ? 'newOrderModal' : `editOrderModal_${orderId}`);
-    if (!modal) {
-        console.error(`Modal for orderId: ${orderId} not found`);
-        window.c92.showToast('error', `Modal nem található: ${orderId}`);
+    console.log(`Totals before update: totalNet=${totalNet}, totalVat=${totalVat}, totalGross=${totalGross}`);
+    // Use class selectors within tbody
+    const totalNetSpan = tbody.querySelector('.order-total-net');
+    const totalVatSpan = tbody.querySelector('.order-vat-amount');
+    const totalGrossSpan = tbody.querySelector('.order-gross-amount');
+    console.log(`Total spans: net=${!!totalNetSpan}, vat=${!!totalVatSpan}, gross=${!!totalGrossSpan}`);
+    if (!totalNetSpan || !totalVatSpan || !totalGrossSpan) {
+        console.error(`Total spans not found in #items-tbody_${orderId}`, {
+            netClass: '.order-total-net',
+            vatClass: '.order-vat-amount',
+            grossClass: '.order-gross-amount'
+        });
+        window.c92.showToast('error', `Összesítő mezők nem találhatók: ${orderId}`);
         return;
     }
-
-    // Initialize save button
-    const saveButton = modal.querySelector(`#saveOrderBtn_${orderId}`);
-    if (saveButton) {
-        // Remove existing listeners to prevent duplicates
-        const newSaveButton = saveButton.cloneNode(true);
-        saveButton.replaceWith(newSaveButton);
-        newSaveButton.addEventListener('click', async () => {
-            console.log(`Save button clicked for orderId: ${orderId}`);
-            // Implement save logic here (use original saveOrder if needed)
-        });
-        console.log(`Save button initialized for orderId: ${orderId}`);
-    } else {
-        console.warn(`Save button #saveOrderBtn_${orderId} not found`);
-    }
-
-    // Initialize add item button
-    const addItemButton = modal.querySelector('.add-item-row');
-    if (addItemButton) {
-        const newAddItemButton = addItemButton.cloneNode(true);
-        addItemButton.replaceWith(newAddItemButton);
-        newAddItemButton.addEventListener('click', () => {
-            console.log(`Add item button clicked for orderId: ${orderId}`);
-            addItemRow(orderId);
-        });
-        console.log(`Add item button initialized for orderId: ${orderId}`);
-    } else {
-        console.warn(`Add item button .add-item-row not found for orderId: ${orderId}`);
-        window.c92.showToast('error', 'Tétel hozzáadása gomb nem található.');
-    }
-
-    // Initialize delete buttons
-    modal.querySelectorAll('.remove-item-row').forEach(btn => {
-        const newBtn = btn.cloneNode(true);
-        btn.replaceWith(newBtn);
-        newBtn.addEventListener('click', () => {
-            const itemId = newBtn.dataset.itemId;
-            const itemRow = document.querySelector(`tr.order-item-row[data-item-id="${itemId}"]`);
-            const descriptionRow = document.querySelector(`tr.description-row[data-item-id="${itemId}"]`);
-            if (itemRow) itemRow.remove();
-            if (descriptionRow) descriptionRow.remove();
-            window.calculateOrderTotals(orderId);
-        });
-    });
-}
+    totalNetSpan.textContent = totalNet.toFixed(2);
+    totalVatSpan.textContent = totalVat.toFixed(2);
+    totalGrossSpan.textContent = totalGross.toFixed(2);
+    console.log(`Order totals updated for orderId: ${orderId}`, { totalNet, totalVat, totalGross });
+};
 
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', () => {

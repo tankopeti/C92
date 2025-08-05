@@ -10,245 +10,250 @@
 @foreach (var order in Model.Orders)
 {
 
-    <!-- Edit Order Modal -->
-    <div class="modal fade" id="editOrderModal_@order.OrderId" tabindex="-1" aria-labelledby="editOrderModalLabel_@order.OrderId" aria-hidden="true">
-        <div class="modal-dialog modal-xl">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="editOrderModalLabel_@order.OrderId">Rendelés szerkesztése: @(order.OrderNumber ?? "N/A")</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    <!-- Tabs -->
-                    <ul class="nav nav-tabs" id="orderTabs_@order.OrderId" role="tablist">
-                        <li class="nav-item" role="presentation">
-                            <button class="nav-link active" id="base-info-tab_@order.OrderId" data-bs-toggle="tab" data-bs-target="#base-info_@order.OrderId" type="button" role="tab" aria-controls="base-info_@order.OrderId" aria-selected="true">Alapadatok</button>
-                        </li>
-                        <li class="nav-item" role="presentation">
-                            <button class="nav-link" id="items-tab_@order.OrderId" data-bs-toggle="tab" data-bs-target="#items_@order.OrderId" type="button" role="tab" aria-controls="items_@order.OrderId" aria-selected="false">Tételek</button>
-                        </li>
-                    </ul>
-
-                <!-- Tab Content -->
-                <div class="tab-content" id="orderTabContent_@order.OrderId">
-                    <!-- Base Info Tab -->
-                    <div class="tab-pane fade show active" id="base-info_@order.OrderId" role="tabpanel" aria-labelledby="base-info-tab_@order.OrderId">
-                        <form id="orderBaseInfoForm_@order.OrderId">
-                            @Html.AntiForgeryToken()
-                            <table class="table table-sm mt-3">
-                                <tbody>
-                                    <tr>
-                                        <th>Rendelésszám</th>
-                                        <td><input type="text" class="form-control" name="OrderNumber" value="@order.OrderNumber" readonly></td>
-                                    </tr>
-                                    <tr>
-                                        <th>Rendelés dátuma</th>
-                                        <td><input type="date" class="form-control" name="OrderDate" value="@(order.OrderDate?.ToString("yyyy-MM-dd"))" required></td>
-                                    </tr>
-                                    <tr>
-                                        <th>Határidő</th>
-                                        <td><input type="date" class="form-control" name="Deadline" value="@(order.Deadline?.ToString("yyyy-MM-dd"))"></td>
-                                    </tr>
-                                    <tr>
-                                        <th>Partner</th>
-                                        <td>
-                                            <select name="PartnerId" id="partner-select_@order.OrderId" class="form-select tom-select" 
-                                                    data-selected-id="@order.PartnerId" 
-                                                    data-selected-text="@(order.Partner?.Name ?? "")" 
-                                                    autocomplete="off">
-                                                <option value="">-- Válasszon partnert --</option>
-                                            </select>
-                                        </td>
-                                    </tr>
-                                    <tr>
-                                        <th>Telephely</th>
-                                        <td>
-                                            <select name="SiteId" id="site-select_@order.OrderId" class="form-select tom-select" 
-                                                    data-selected-id="@order.SiteId" 
-                                                    data-selected-text="@(order.Site?.Address ?? "")" 
-                                                    autocomplete="off">
-                                                <option value="">-- Válasszon telephelyet --</option>
-                                            </select>
-                                        </td>
-                                    </tr>
-                                    <tr>
-                                        <th>Pénznem</th>
-                                    <td>
-                                        <select name="CurrencyId" class="form-select tom-select" data-selected-id="@order.CurrencyId" data-selected-text="@(order.Currency?.CurrencyName ?? "")" autocomplete="off">
-                                            <option value="" disabled selected>-- Válasszon pénznemet --</option>
-                                        </select>
-                                    </td>
-                                    </tr>
-                                    <tr>
-                                        <th>Státusz</th>
-                                        <td>
-                                            <select class="form-select" name="Status" required>
-                                                @foreach (var status in Model.StatusDisplayNames)
-                                                {
-                                                    <option value="@status.Key" selected="@(order.Status == status.Key)">@status.Value</option>
-                                                }
-                                            </select>
-                                        </td>
-                                    </tr>
-                                    <tr>
-                                        <th>Értékesítő</th>
-                                        <td><input type="text" class="form-control" name="SalesPerson" value="@order.SalesPerson"></td>
-                                    </tr>
-                                    <tr>
-                                        <th>Szállítási dátum</th>
-                                        <td><input type="date" class="form-control" name="DeliveryDate" value="@(order.DeliveryDate?.ToString("yyyy-MM-dd"))"></td>
-                                    </tr>
-                                    <tr>
-                                        <th>Cégnév</th>
-                                        <td><input type="text" class="form-control" name="CompanyName" value="@order.CompanyName"></td>
-                                    </tr>
-                                    <tr>
-                                        <th>Tárgy</th>
-                                        <td><input type="text" class="form-control" name="Subject" value="@order.Subject"></td>
-                                    </tr>
-                                    <tr>
-                                        <th>Fizetési feltételek</th>
-                                        <td><input type="text" class="form-control" name="PaymentTerms" value="@order.PaymentTerms"></td>
-                                    </tr>
-                                    <tr>
-                                        <th>Szállítási mód</th>
-                                        <td><input type="text" class="form-control" name="ShippingMethod" value="@order.ShippingMethod"></td>
-                                    </tr>
-                                    <tr>
-                                        <th>Rendelés típusa</th>
-                                        <td><input type="text" class="form-control" name="OrderType" value="@order.OrderType"></td>
-                                    </tr>
-                                    <tr>
-                                        <th>Hivatkozási szám</th>
-                                        <td><input type="text" class="form-control" name="ReferenceNumber" value="@order.ReferenceNumber"></td>
-                                    </tr>
-                                    <tr>
-                                        <th>Árajánlat</th>
-                                    <td>
-                                        <select name="QuoteId" class="form-select tom-select" data-selected-id="@order.QuoteId" data-selected-text="@(order.Quote?.QuoteNumber ?? "")" autocomplete="off">
-                                            <option value=""></option>
-                                        </select>
-                                    </td>
-                                    </tr>
-                                    <tr>
-                                        <th>Kedvezmény (%)</th>
-                                        <td><input type="number" step="0.01" min="0" max="100" class="form-control" name="DiscountPercentage" value="@(order.DiscountPercentage?.ToString("F2", CultureInfo.InvariantCulture))"></td>
-                                    </tr>
-                                    <tr>
-                                        <th>Kedvezmény összege</th>
-                                        <td><input type="number" step="0.01" min="0" class="form-control" name="DiscountAmount" value="@(order.DiscountAmount?.ToString("F2", CultureInfo.InvariantCulture))"></td>
-                                    </tr>
-                                    <tr>
-                                        <th>Összesen</th>
-                                        <td><input type="number" step="0.01" class="form-control" name="TotalAmount" value="@(order.TotalAmount?.ToString("F2", CultureInfo.InvariantCulture))" required></td>
-                                    </tr>
-                                    <tr>
-                                        <th>Leírás</th>
-                                        <td><textarea class="form-control" name="Description" rows="4" maxlength="1000">@order.Description</textarea></td>
-                                    </tr>
-                                    <tr>
-                                        <th>Részletes leírás</th>
-                                        <td><textarea class="form-control" name="DetailedDescription" rows="6" maxlength="2000">@order.DetailedDescription</textarea></td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </form>
-                    </div>
-
-                    <!-- Items Tab (unchanged) -->
-                    <div class="tab-pane fade" id="items_@order.OrderId" role="tabpanel" aria-labelledby="items-tab_@order.OrderId">
-                        <button type="button" class="btn btn-primary mb-3 add-item-row" data-order-id="@order.OrderId">Tétel hozzáadása</button>
-                        <form id="orderItemsForm_@order.OrderId" data-order-id="@order.OrderId">
-                            <input type="hidden" name="__RequestVerificationToken" value=@Html.AntiForgeryToken()/>
-                            <table class="table table-sm table-bordered">
-                                <thead>
-                                    <tr>
-                                        <th style="width: 30%;">Termék</th>
-                                        <th style="width: 15%;">Mennyiség</th>
-                                        <th style="width: 15%;">Egységár</th>
-                                        <th style="width: 20%;">Kedvezmény</th>
-                                        <th style="width: 15%;">Összesen</th>
-                                        <th style="width: 5%;"></th>
-                                    </tr>
-                                </thead>
-                                <tbody id="items-tbody_@order.OrderId">
-                                    @foreach (var item in order.OrderItems)
-                                    {
-                                        <script>console.log('Server-side item ID:', '@item.OrderItemId', 'ProductId:', '@item.ProductId');</script>
-                                        <tr class="order-item-row" data-item-id="@item.OrderItemId">
-                                            <td>
-                                                <select name="orderItems[@item.OrderItemId].ProductId" class="form-select tom-select-product" data-selected-id="@item.ProductId" data-selected-text="@(item.Product?.Name ?? "")" autocomplete="off" required>
-                                                    <option value="" disabled selected>-- Válasszon terméket --</option>
-                                                </select>
-                                            </td>
-                                            <td>
-                                                <input type="number" name="orderItems[@item.OrderItemId].Quantity" class="form-control form-control-sm quantity" value="@item.Quantity.ToString(CultureInfo.InvariantCulture)" min="0" step="1" required>
-                                            </td>
-                                            <td>
-                                                <input type="number" name="orderItems[@item.OrderItemId].UnitPrice" class="form-control form-control-sm unit-price" value="@item.UnitPrice.ToString(CultureInfo.InvariantCulture)" min="0" step="0.01" required>
-                                            </td>
-                                            <td>
-                                                <div class="input-group input-group-sm">
-                                                    <input type="text" name="@(item.DiscountPercentage != null ? $"orderItems[{item.OrderItemId}].DiscountPercentage" : $"orderItems[{item.OrderItemId}].DiscountAmount")" class="form-control discount-value" value="@(item.DiscountPercentage != null ? item.DiscountPercentage : item.DiscountAmount)" placeholder="pl. 10">
-                                                    <select class="form-select discount-type" data-discount-name-prefix="orderItems[@item.OrderItemId]">
-                                                        @if (item.DiscountPercentage != null)
-                                                        {
-                                                            <option value="Percentage" selected>%</option>
-                                                            <option value="Amount">Összeg</option>
-                                                        }
-                                                        else
-                                                        {
-                                                            <option value="Percentage">%</option>
-                                                            <option value="Amount" selected>Összeg</option>
-                                                        }
-                                                    </select>
-                                                </div>
-                                            </td>
-                                            <td>
-                                                <span class="total-price">@((item.Quantity * item.UnitPrice).ToString("F2", CultureInfo.InvariantCulture))</span>
-                                                <input type="hidden" name="orderItems[@item.OrderItemId].Description" class="item-description" value="@(item.Description ?? "")">
-                                            </td>
-                                            <td>
-                                                <button type="button" class="btn btn-outline-secondary btn-sm edit-description" data-item-id="@item.OrderItemId"><i class="bi bi-pencil"></i></button>
-                                                <button type="button" class="btn btn-danger btn-sm remove-item-row"><i class="bi bi-trash"></i></button>
-                                            </td>
-                                        </tr>
-                                        <tr class="description-row" data-item-id="@item.OrderItemId" style="display: none;">
-                                            <td colspan="6">
-                                                <div class="mb-2">
-                                                    <label class="form-label">Leírás (max 200 karakter)</label>
-                                                    <textarea name="orderItems[@item.OrderItemId].DescriptionInput" class="form-control form-control-sm item-description" maxlength="200" rows="2">@(item.Description ?? "")</textarea>
-                                                    <div class="form-text">Karakterek: <span class="char-count">@((item.Description?.Length ?? 0))</span>/200</div>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    }
-                                    <!-- Order Total Row -->
-                                    <tr class="order-total-row">
-                                        <td colspan="3"></td>
-                                        <td><strong>Összesen:</strong></td>
-                                        <td><span class="order-total-amount">0.00</span></td>
-                                        <td></td>
-                                    </tr>
-                                    <tr class="order-discount-row">
-                                        <td colspan="3"></td>
-                                        <td><strong>Kedvezményes ár:</strong></td>
-                                        <td><span class="order-final-total">0.00</span></td>
-                                        <td></td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </form>
-                    </div>
-                </div>
+<!-- Edit Order Modal -->
+@* <div class="modal fade" id="editOrderModal_@order.OrderId" tabindex="-1" aria-labelledby="editOrderModalLabel_@order.OrderId" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="editOrderModalLabel_@order.OrderId">Rendelés szerkesztése: @(order.OrderNumber ?? "N/A")</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Bezár</button>
-                <button type="button" class="btn btn-primary save-order" data-order-id="@order.OrderId">Mentés</button>
+            <div class="modal-body">
+                <!-- Tabs -->
+                <ul class="nav nav-tabs" id="orderTabs_@order.OrderId" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="base-info-tab_@order.OrderId" data-bs-toggle="tab" data-bs-target="#base-info_@order.OrderId" type="button" role="tab" aria-controls="base-info_@order.OrderId" aria-selected="true">Alapadatok</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="items-tab_@order.OrderId" data-bs-toggle="tab" data-bs-target="#items_@order.OrderId" type="button" role="tab" aria-controls="items_@order.OrderId" aria-selected="false">Tételek</button>
+                    </li>
+                </ul>
+
+            <!-- Tab Content -->
+            <div class="tab-content" id="orderTabContent_@order.OrderId">
+                <!-- Base Info Tab -->
+                <div class="tab-pane fade show active" id="base-info_@order.OrderId" role="tabpanel" aria-labelledby="base-info-tab_@order.OrderId">
+                    <form id="orderBaseInfoForm_@order.OrderId">
+                        @Html.AntiForgeryToken()
+                        <table class="table table-sm mt-3">
+                            <tbody>
+                                <tr>
+                                    <th>Rendelésszám</th>
+                                    <td><input type="text" class="form-control" name="OrderNumber" value="@order.OrderNumber" readonly></td>
+                                </tr>
+                                <tr>
+                                    <th>Rendelés dátuma</th>
+                                    <td><input type="date" class="form-control" name="OrderDate" value="@(order.OrderDate?.ToString("yyyy-MM-dd"))" required></td>
+                                </tr>
+                                <tr>
+                                    <th>Határidő</th>
+                                    <td><input type="date" class="form-control" name="Deadline" value="@(order.Deadline?.ToString("yyyy-MM-dd"))"></td>
+                                </tr>
+                                <tr>
+                                    <th>Partner</th>
+                                    <td>
+                                        <select name="PartnerId" id="partner-select_@order.OrderId" class="form-select tom-select" 
+                                                data-selected-id="@order.PartnerId" 
+                                                data-selected-text="@(order.Partner?.Name ?? "")" 
+                                                autocomplete="off">
+                                            <option value="">-- Válasszon partnert --</option>
+                                        </select>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th>Telephely</th>
+                                    <td>
+                                        <select name="SiteId" id="site-select_@order.OrderId" class="form-select tom-select" 
+                                                data-selected-id="@order.SiteId" 
+                                                data-selected-text="@(order.Site?.AddressLine1 ?? "")" 
+                                                autocomplete="off">
+                                            <option value="">-- Válasszon telephelyet --</option>
+                                        </select>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th>Pénznem</th>
+                                <td>
+                                    <select name="CurrencyId" class="form-select tom-select" data-selected-id="@order.CurrencyId" data-selected-text="@(order.Currency?.CurrencyName ?? "")" autocomplete="off">
+                                        <option value="" disabled selected>-- Válasszon pénznemet --</option>
+                                    </select>
+                                </td>
+                                </tr>
+                                <tr>
+                                    <th>Státusz</th>
+                                    <td>
+                                        <select class="form-select" name="Status" required>
+                                            @foreach (var status in Model.StatusDisplayNames)
+                                            {
+                                                <option value="@status.Key" selected="@(order.Status == status.Key)">@status.Value</option>
+                                            }
+                                        </select>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th>Értékesítő</th>
+                                    <td><input type="text" class="form-control" name="SalesPerson" value="@order.SalesPerson"></td>
+                                </tr>
+                                <tr>
+                                    <th>Szállítási dátum</th>
+                                    <td><input type="date" class="form-control" name="DeliveryDate" value="@(order.DeliveryDate?.ToString("yyyy-MM-dd"))"></td>
+                                </tr>
+                                <tr>
+                                    <th>Cégnév</th>
+                                    <td><input type="text" class="form-control" name="CompanyName" value="@order.CompanyName"></td>
+                                </tr>
+                                <tr>
+                                    <th>Tárgy</th>
+                                    <td><input type="text" class="form-control" name="Subject" value="@order.Subject"></td>
+                                </tr>
+                                <tr>
+                                    <th>Fizetési feltételek</th>
+                                    <td><input type="text" class="form-control" name="PaymentTerms" value="@order.PaymentTerms"></td>
+                                </tr>
+                                <tr>
+                                    <th>Szállítási mód</th>
+                                    <td><input type="text" class="form-control" name="ShippingMethod" value="@order.ShippingMethod"></td>
+                                </tr>
+                                <tr>
+                                    <th>Rendelés típusa</th>
+                                    <td><input type="text" class="form-control" name="OrderType" value="@order.OrderType"></td>
+                                </tr>
+                                <tr>
+                                    <th>Hivatkozási szám</th>
+                                    <td><input type="text" class="form-control" name="ReferenceNumber" value="@order.ReferenceNumber"></td>
+                                </tr>
+                                <tr>
+                                    <th>Árajánlat</th>
+                                <td>
+                                    <select name="QuoteId" class="form-select tom-select" data-selected-id="@order.QuoteId" data-selected-text="@(order.Quote?.QuoteNumber ?? "")" autocomplete="off">
+                                        <option value=""></option>
+                                    </select>
+                                </td>
+                                </tr>
+                                <tr>
+                                    <th>Kedvezmény (%)</th>
+                                    <td><input type="number" step="0.01" min="0" max="100" class="form-control" name="DiscountPercentage" value="@(order.DiscountPercentage?.ToString("F2", CultureInfo.InvariantCulture))"></td>
+                                </tr>
+                                <tr>
+                                    <th>Kedvezmény összege</th>
+                                    <td><input type="number" step="0.01" min="0" class="form-control" name="DiscountAmount" value="@(order.DiscountAmount?.ToString("F2", CultureInfo.InvariantCulture))"></td>
+                                </tr>
+                                <tr>
+                                    <th>Összesen</th>
+                                    <td><input type="number" step="0.01" class="form-control" name="TotalAmount" value="@(order.TotalAmount?.ToString("F2", CultureInfo.InvariantCulture))" required></td>
+                                </tr>
+                                <tr>
+                                    <th>Leírás</th>
+                                    <td><textarea class="form-control" name="Description" rows="4" maxlength="1000">@order.Description</textarea></td>
+                                </tr>
+                                <tr>
+                                    <th>Részletes leírás</th>
+                                    <td><textarea class="form-control" name="DetailedDescription" rows="6" maxlength="2000">@order.DetailedDescription</textarea></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </form>
+                </div>
+
+                <!-- Items Tab (unchanged) -->
+                <div class="tab-pane fade" id="items_@order.OrderId" role="tabpanel" aria-labelledby="items-tab_@order.OrderId">
+                    <button type="button" class="btn btn-primary mb-3 add-item-row" data-order-id="@order.OrderId">Tétel hozzáadása</button>
+                    <form id="orderItemsForm_@order.OrderId" data-order-id="@order.OrderId">
+                        <input type="hidden" name="__RequestVerificationToken" value=@Html.AntiForgeryToken()/>
+                        <table class="table table-sm table-bordered">
+                            <thead>
+                                <tr>
+                                    <th style="width: 30%;">Termék</th>
+                                    <th style="width: 15%;">Mennyiség</th>
+                                    <th style="width: 15%;">Egységár</th>
+                                    <th style="width: 20%;">Kedvezmény</th>
+                                    <th style="width: 15%;">Kedvezmény összeg</th>
+                                    <th style="width: 15%;">Nettó egységár</th>
+                                    <th style="width: 15%;">ÁFA</th>
+                                    <th style="width: 15%;">Nettó összeg</th>
+                                    <th style="width: 15%;">Bruttó összeg</th>
+                                    <th style="width: 15%;">Műveletek</th>
+                                    <th style="width: 5%;"></th>
+                                </tr>
+                            </thead>
+                            <tbody id="items-tbody_@order.OrderId">
+                                @foreach (var item in order.OrderItems)
+                                {
+                                    <script>console.log('Server-side item ID:', '@item.OrderItemId', 'ProductId:', '@item.ProductId');</script>
+                                    <tr class="order-item-row" data-item-id="@item.OrderItemId">
+                                        <td>
+                                            <select name="orderItems[@item.OrderItemId].ProductId" class="form-select tom-select-product" data-selected-id="@item.ProductId" data-selected-text="@(item.Product?.Name ?? "")" autocomplete="off" required>
+                                                <option value="" disabled selected>-- Válasszon terméket --</option>
+                                            </select>
+                                        </td>
+                                        <td>
+                                            <input type="number" name="orderItems[@item.OrderItemId].Quantity" class="form-control form-control-sm quantity" value="@item.Quantity.ToString(CultureInfo.InvariantCulture)" min="0" step="1" required>
+                                        </td>
+                                        <td>
+                                            <input type="number" name="orderItems[@item.OrderItemId].UnitPrice" class="form-control form-control-sm unit-price" value="@item.UnitPrice.ToString(CultureInfo.InvariantCulture)" min="0" step="0.01" required>
+                                        </td>
+                                        <td>
+                                            <div class="input-group input-group-sm">
+                                                <input type="text" name="@(item.DiscountPercentage != null ? $"orderItems[{item.OrderItemId}].DiscountPercentage" : $"orderItems[{item.OrderItemId}].DiscountAmount")" class="form-control discount-value" value="@(item.DiscountPercentage != null ? item.DiscountPercentage : item.DiscountAmount)" placeholder="pl. 10">
+                                                <select class="form-select discount-type" data-discount-name-prefix="orderItems[@item.OrderItemId]">
+                                                    @if (item.DiscountPercentage != null)
+                                                    {
+                                                        <option value="Percentage" selected>%</option>
+                                                        <option value="Amount">Összeg</option>
+                                                    }
+                                                    else
+                                                    {
+                                                        <option value="Percentage">%</option>
+                                                        <option value="Amount" selected>Összeg</option>
+                                                    }
+                                                </select>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <span class="total-price">@((item.Quantity * item.UnitPrice).ToString("F2", CultureInfo.InvariantCulture))</span>
+                                            <input type="hidden" name="orderItems[@item.OrderItemId].Description" class="item-description" value="@(item.Description ?? "")">
+                                        </td>
+                                        <td>
+                                            <button type="button" class="btn btn-outline-secondary btn-sm edit-description" data-item-id="@item.OrderItemId"><i class="bi bi-pencil"></i></button>
+                                            <button type="button" class="btn btn-danger btn-sm remove-item-row"><i class="bi bi-trash"></i></button>
+                                        </td>
+                                    </tr>
+                                    <tr class="description-row" data-item-id="@item.OrderItemId" style="display: none;">
+                                        <td colspan="6">
+                                            <div class="mb-2">
+                                                <label class="form-label">Leírás (max 200 karakter)</label>
+                                                <textarea name="orderItems[@item.OrderItemId].DescriptionInput" class="form-control form-control-sm item-description" maxlength="200" rows="2">@(item.Description ?? "")</textarea>
+                                                <div class="form-text">Karakterek: <span class="char-count">@((item.Description?.Length ?? 0))</span>/200</div>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                }
+                                <!-- Order Total Row -->
+                                <tr class="order-total-row">
+                                    <td colspan="3"></td>
+                                    <td><strong>Összesen:</strong></td>
+                                    <td><span class="order-total-amount">0.00</span></td>
+                                    <td></td>
+                                </tr>
+                                <tr class="order-discount-row">
+                                    <td colspan="3"></td>
+                                    <td><strong>Kedvezményes ár:</strong></td>
+                                    <td><span class="order-final-total">0.00</span></td>
+                                    <td></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </form>
+                </div>
             </div>
         </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Bezár</button>
+            <button type="button" class="btn btn-primary save-order" data-order-id="@order.OrderId">Mentés</button>
         </div>
     </div>
+    </div>
+</div>
 
     <!-- View Order Modal -->
     <div class="modal fade" id="viewOrderModal_@order.OrderId" tabindex="-1" aria-labelledby="viewOrderModalLabel_@order.OrderId" aria-hidden="true">
@@ -445,7 +450,7 @@
                 </div>
             </div>
         </div>
-    </div>
+    </div> *@
 }
 
 <!-- New Order Modal -->
@@ -612,7 +617,7 @@
                     <!-- Items Tab -->
                     <div class="tab-pane fade" id="items_new" role="tabpanel" aria-labelledby="items-tab_new">
                         <button type="button" class="btn btn-primary mb-3 add-item-row" data-order-id="new">Tétel hozzáadása</button>
-                        <form id="orderItemsForm_new" data-order-id="new">
+                        <form id="newOrderForm" method="post" action="/Orders/Create">
                             <!-- Hidden fields for totals -->
                             <input type="hidden" name="TotalNet" class="order-total-net-input" value="0">
                             <input type="hidden" name="TotalVat" class="order-vat-amount-input" value="0">
@@ -659,7 +664,7 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Bezár</button>
-                <button type="button" class="btn btn-primary save-order" data-order-id="new">Mentés</button>
+                <button type="button" class="btn btn-primary" id="saveOrderBtn_new">Mentés</button>
             </div>
         </div>
     </div>

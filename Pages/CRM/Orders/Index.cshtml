@@ -58,11 +58,9 @@
                         <i class="bi bi-funnel me-1"></i>Rendezés/Szűrés
                     </button>
                     <ul class="dropdown-menu dropdown-menu-end">
-                        <li><a class="dropdown-item" href="?SearchTerm=@Model.SearchTerm&PageSize=@Model.PageSize&StatusFilter=all&SortBy=OrderDate">Összes rendelés (Legújabb elöl)</a></li>
-                        <li><a class="dropdown-item" href="?SearchTerm=@Model.SearchTerm&PageSize=@Model.PageSize&StatusFilter=all&SortBy=OrderId">Rendezés: Rendelés ID (Csökkenő)</a></li>
-                        <li><a class="dropdown-item" href="?SearchTerm=@Model.SearchTerm&PageSize=@Model.PageSize&StatusFilter=all&SortBy=OrderNumber">Rendelésszám</a></li>
-                        <li><a class="dropdown-item" href="?SearchTerm=@Model.SearchTerm&PageSize=@Model.PageSize&StatusFilter=all&SortBy=PartnerName">Partner neve</a></li>
-                        <li><a class="dropdown-item" href="?SearchTerm=@Model.SearchTerm&PageSize=@Model.PageSize&StatusFilter=all&SortBy=TotalAmount">Összesen</a></li>
+                        <li><a class="dropdown-item" href="?SearchTerm=@Model.SearchTerm&PageSize=@Model.PageSize&StatusFilter=all&SortBy=orderdate">Összes rendelés (Legújabb elöl)</a></li>
+                        <li><a class="dropdown-item" href="?SearchTerm=@Model.SearchTerm&PageSize=@Model.PageSize&StatusFilter=all&SortBy=deadline">Rendezés: Határidő</a></li>
+                        <li><a class="dropdown-item" href="?SearchTerm=@Model.SearchTerm&PageSize=@Model.PageSize&StatusFilter=all&SortBy=orderid">Rendezés: Rendelés ID</a></li>
                     </ul>
                 </div>
             </div>
@@ -109,7 +107,8 @@
                                 <div class="card-grid-cell col">
                                     @{
                                         var badgeClass = "badge bg-secondary";
-                                        if (order.Status == "Pending") badgeClass = "badge badge-pending";
+                                        if (order.Status == "Draft") badgeClass = "badge badge-draft";
+                                        else if (order.Status == "Pending") badgeClass = "badge badge-pending";
                                         else if (order.Status == "Confirmed") badgeClass = "badge badge-confirmed";
                                         else if (order.Status == "Shipped") badgeClass = "badge badge-shipped";
                                         else if (order.Status == "Cancelled") badgeClass = "badge badge-cancelled";
@@ -187,14 +186,12 @@
         PageSize = Model.PageSize,
         SearchTerm = Model.SearchTerm,
         PageRoute = "./Index",
-        EntityName = "Quotes"
+        EntityName = "Orders"
     })
 
- @await Html.PartialAsync("_Modals")
-    
-<div id="toastContainer" class="position-fixed bottom-0 end-0 p-3" style="z-index: 1055;"></div>
-    
+    @await Html.PartialAsync("_Modals")
 
+    <div id="toastContainer" class="position-fixed bottom-0 end-0 p-3" style="z-index: 1055;"></div>
 
 <script src="https://code.jquery.com/jquery-3.6.0.min.js" integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4=" crossorigin="anonymous"></script>
 
@@ -203,10 +200,8 @@
 <script src="https://cdn.jsdelivr.net/npm/tom-select@2.4.3/dist/js/tom-select.complete.min.js"></script>
 
 @section Scripts {
-    <script src="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/js/tom-select.complete.min.js"></script>
-    <script src="/js/orders.js" onerror="alert('Failed to load quotes.js from /js/orders.js.')"></script>
+    <script src="/js/orders.js" onerror="alert('Failed to load orders.js from /js/orders.js.')"></script>
     <script src="/js/utils.js"></script>
     <script src="/js/tomSelectUtils.js"></script>
-    <script src="/js/orderTomSelects.js" onerror="alert('Failed to load quotes.js from /js/orderTomSelects.js.')"></script>
+    <script src="/js/orderTomSelects.js" onerror="alert('Failed to load orderTomSelects.js from /js/orderTomSelects.js.')"></script>
 }
-

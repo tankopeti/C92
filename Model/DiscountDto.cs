@@ -5,7 +5,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace Cloud9_2.Models
 {
-public class DiscountDto
+    public class DiscountDto
     {
         [Required(ErrorMessage = "DiscountId is required")]
         public int DiscountId { get; set; }
@@ -35,4 +35,14 @@ public class DiscountDto
         [Range(0, double.MaxValue, ErrorMessage = "VolumePrice must be non-negative")]
         public decimal? VolumePrice { get; set; }
     }
+}
+
+public enum DiscountType
+{
+    NoDiscount = 1,
+    ListPrice = 2,
+    PartnerPrice = 3,
+    VolumeDiscount = 4,
+    CustomDiscountPercentage = 5,
+    CustomDiscountAmount = 6
 }

@@ -16,10 +16,6 @@ namespace Cloud9_2.Models
         [ForeignKey("OrderId")]
         public Order? Order { get; set; }
 
-        [StringLength(200)]
-        [Display(Name = "Tétel megnevezése")]
-        public string? ItemName { get; set; }
-
         [StringLength(500)]
         [Display(Name = "Leírás")]
         public string? Description { get; set; }
@@ -35,20 +31,8 @@ namespace Cloud9_2.Models
         public decimal UnitPrice { get; set; }
 
         [DataType(DataType.Currency)]
-        [Display(Name = "Összesen")]
-        public decimal? TotalPrice { get; set; }
-
-        [Display(Name = "Kedvezmény %")]
-        [Range(0, 100)]
-        public decimal? DiscountPercentage { get; set; }
-
-        [DataType(DataType.Currency)]
         [Display(Name = "Kedvezmény összeg")]
         public decimal? DiscountAmount { get; set; }
-
-        [StringLength(50)]
-        [Display(Name = "Mértékegység")]
-        public string? UnitOfMeasure { get; set; }
 
         [StringLength(100)]
         [Display(Name = "Létrehozta")]
@@ -65,6 +49,9 @@ namespace Cloud9_2.Models
         [Display(Name = "Módosítás dátuma")]
         [DataType(DataType.DateTime)]
         public DateTime? ModifiedDate { get; set; } = DateTime.UtcNow;
+
+        [Display(Name = "Kedvezmény típusa")]
+        public int? DiscountType { get; set; }
 
         [Required]
         [Display(Name = "Termék")]

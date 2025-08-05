@@ -34,7 +34,7 @@ namespace Cloud9_2.Models
         public decimal TotalPrice { get; set; }
 
         public int? DiscountTypeId { get; set; }
-        public DiscountType? DiscountType { get; set; } 
+        public DiscountType? DiscountType { get; set; }
 
         public decimal? DiscountPercentage { get; set; }
         public decimal? DiscountAmount { get; set; }
@@ -44,6 +44,7 @@ namespace Cloud9_2.Models
         public decimal? ListPrice { get; set; }
         public VatTypeDto? VatType { get; set; }
         public int? VolumeThreshold { get; set; }
+        public decimal? GrossPrice { get; set; }
     
     }
     public class CreateQuoteItemDto

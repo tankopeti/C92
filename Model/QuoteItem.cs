@@ -49,8 +49,6 @@ namespace Cloud9_2.Models
         [ForeignKey("ProductId")]
         public Product? Product { get; set; }
 
-        [ForeignKey("VatTypeId")]
-
         public int? DiscountTypeId { get; set; }
 
         [NotMapped]

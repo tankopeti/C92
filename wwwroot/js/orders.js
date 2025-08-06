@@ -10,7 +10,6 @@ async function initializeOrderModals() {
             await initializeModalFields('new');
         });
     }
-
     document.querySelectorAll('[id^="editOrderModal_"]').forEach(modal => {
         const orderId = modal.id.replace('editOrderModal_', '');
         modal.addEventListener('show.bs.modal', async () => {
@@ -28,12 +27,10 @@ async function initializeModalFields(orderId) {
         window.c92.showToast('error', 'Űrlap nem található.');
         return;
     }
-
     const partnerSelect = form.querySelector('[name="PartnerId"]');
     const siteSelect = form.querySelector('[name="SiteId"]');
     const currencySelect = form.querySelector('[name="currencyId"]');
     const quoteSelect = form.querySelector('[name="quoteId"]');
-
     console.log('Initializing TomSelect for:', partnerSelect?.name);
     if (partnerSelect && typeof window.c92.initializePartnerTomSelect === 'function') {
         try {
@@ -60,7 +57,6 @@ async function initializeModalFields(orderId) {
             window.c92.showToast('error', `Hiba a partner kiválasztás közben: ${err.message}`);
         }
     }
-
     console.log('Initializing TomSelect for:', siteSelect?.name);
     if (siteSelect && typeof window.c92.initializeSiteTomSelect === 'function') {
         try {
@@ -71,7 +67,6 @@ async function initializeModalFields(orderId) {
             window.c92.showToast('error', `Hiba a telephely kiválasztás közben: ${err.message}`);
         }
     }
-
     console.log('Initializing TomSelect for:', currencySelect?.name);
     if (currencySelect && typeof window.c92.initializeCurrencyTomSelect === 'function') {
         try {
@@ -82,7 +77,6 @@ async function initializeModalFields(orderId) {
             window.c92.showToast('error', `Hiba a pénznem kiválasztás közben: ${err.message}`);
         }
     }
-
     console.log('Initializing TomSelect for:', quoteSelect?.name);
     if (quoteSelect && typeof window.c92.initializeQuoteTomSelect === 'function') {
         try {
@@ -93,7 +87,6 @@ async function initializeModalFields(orderId) {
             window.c92.showToast('error', `Hiba az árajánlat kiválasztás közben: ${err.message}`);
         }
     }
-
     await initializeEventListeners(orderId);
 }
 
@@ -106,13 +99,17 @@ async function initializeEventListeners(orderId) {
         return;
     }
 
+    // Save Button
     const saveButton = document.querySelector(`#saveOrderBtn_${orderId}`);
     if (!saveButton) {
         console.error(`Save button #saveOrderBtn_${orderId} not found`);
         window.c92.showToast('error', `Mentés gomb nem található: ${orderId}`);
         return;
     }
-    saveButton.addEventListener('click', () => {
+
+    // Remove existing listeners to prevent duplicates
+    saveButton.removeEventListener('click', saveButton._clickHandler);
+    saveButton._clickHandler = async () => {
         console.log(`Save button clicked for orderId: ${orderId}`);
         const form = document.querySelector(`#${orderId === 'new' ? 'newOrderForm' : 'editOrderForm_' + orderId}`);
         const baseInfoForm = document.querySelector(`#orderBaseInfoForm_${orderId}`);
@@ -121,71 +118,137 @@ async function initializeEventListeners(orderId) {
             window.c92.showToast('error', `Űrlap nem található: ${orderId}`);
             return;
         }
+
         const totalGrossElement = document.querySelector(`#items-tbody_${orderId} .order-gross-amount`);
         const totalGrossText = totalGrossElement?.textContent?.trim() || '0';
         console.log(`Total gross element: ${totalGrossElement ? 'found' : 'not found'}, text: ${totalGrossText}`);
         let totalGross = parseFloat(totalGrossText.replace(/[^0-9.]/g, '')) || 0;
         console.log(`Parsed totalGross: ${totalGross}`);
+
         const orderItems = [];
-        form.querySelectorAll('.order-item-row').forEach(row => {
+        for (const row of form.querySelectorAll('.order-item-row')) {
             const productSelect = row.querySelector('.tom-select-product');
+            const discountTypeId = parseInt(row.dataset.discountTypeId) || 1;
+            const unitPrice = parseFloat(row.querySelector('.unit-price')?.value) || 0;
+            const productId = parseInt(productSelect?.tomselect?.getValue() || productSelect?.value) || 0;
+            if (!productId) {
+                console.error(`Invalid ProductId for row ${row.dataset.itemId}: ${productId}`);
+                window.c92.showToast('error', `Érvénytelen termék azonosító: ${row.dataset.itemId}`);
+                return;
+            }
             const item = {
-                productId: parseInt(productSelect?.tomselect?.getValue() || productSelect?.value) || 0,
-                quantity: parseFloat(row.querySelector('.quantity')?.value) || 1,
-                unitPrice: parseFloat(row.querySelector('.unit-price')?.value) || 0,
-                discountPercentage: row.dataset.discountTypeId == '5' ? parseFloat(row.dataset.discountAmount) || 0 : null,
-                discountAmount: row.dataset.discountTypeId == '3' || row.dataset.discountTypeId == '6' ? parseFloat(row.dataset.discountAmount) || 0 : null,
-                description: row.nextElementSibling?.querySelector('.item-description')?.value || ''
+                ProductId: productId,
+                DiscountType: discountTypeId,
+                Quantity: parseFloat(row.querySelector('.quantity')?.value) || 1,
+                UnitPrice: unitPrice,
+                DiscountAmount: parseFloat(row.dataset.discountAmount) || 0,
+                Description: row.nextElementSibling?.querySelector('.item-description')?.value || '',
+                CreatedBy: localStorage.getItem('username') || 'System',
+                CreatedDate: new Date().toISOString(),
+                ModifiedBy: localStorage.getItem('username') || 'System',
+                ModifiedDate: new Date().toISOString()
             };
             if (orderId !== 'new') {
-                item.orderItemId = parseInt(row.dataset.itemId) || 0;
+                item.OrderItemId = parseInt(row.dataset.itemId) || 0;
             }
+            console.log(`Order item for row ${row.dataset.itemId}:`, item);
             orderItems.push(item);
-        });
+        }
+        console.log(`Order items to save:`, JSON.stringify(orderItems, null, 2));
+
         const orderData = {
-            partnerId: parseInt(baseInfoForm.querySelector('[name="PartnerId"]')?.tomselect?.getValue() || baseInfoForm.querySelector('[name="PartnerId"]')?.value) || 0,
-            currencyId: parseInt(baseInfoForm.querySelector('[name="currencyId"]')?.tomselect?.getValue() || baseInfoForm.querySelector('[name="currencyId"]')?.value) || 0,
-            siteId: parseInt(baseInfoForm.querySelector('[name="SiteId"]')?.tomselect?.getValue() || baseInfoForm.querySelector('[name="SiteId"]')?.value) || null,
-            quoteId: parseInt(baseInfoForm.querySelector('[name="quoteId"]')?.tomselect?.getValue() || baseInfoForm.querySelector('[name="quoteId"]')?.value) || null,
-            orderNumber: baseInfoForm.querySelector('[name="orderNumber"]')?.value || `ORD-${Date.now()}`,
-            orderDate: baseInfoForm.querySelector('[name="orderDate"]')?.value || new Date().toISOString().split('T')[0],
-            totalAmount: totalGross,
-            status: baseInfoForm.querySelector('[name="status"]')?.value || 'Draft',
-            createdBy: baseInfoForm.querySelector('[name="createdBy"]')?.value || localStorage.getItem('username') || 'System',
-            createdDate: baseInfoForm.querySelector('[name="createdDate"]')?.value || new Date().toISOString(),
-            modifiedBy: baseInfoForm.querySelector('[name="modifiedBy"]')?.value || localStorage.getItem('username') || 'System',
-            modifiedDate: baseInfoForm.querySelector('[name="modifiedDate"]')?.value || new Date().toISOString(),
-            orderItems: orderItems,
-            deadline: baseInfoForm.querySelector('[name="deadline"]')?.value || null,
-            description: baseInfoForm.querySelector('[name="description"]')?.value || null,
-            salesPerson: baseInfoForm.querySelector('[name="salesPerson"]')?.value || null,
-            deliveryDate: baseInfoForm.querySelector('[name="deliveryDate"]')?.value || null,
-            discountPercentage: parseFloat(baseInfoForm.querySelector('[name="discountPercentage"]')?.value) || null,
-            discountAmount: parseFloat(baseInfoForm.querySelector('[name="discountAmount"]')?.value) || null,
-            companyName: baseInfoForm.querySelector('[name="companyName"]')?.value || null,
-            subject: baseInfoForm.querySelector('[name="subject"]')?.value || null,
-            detailedDescription: baseInfoForm.querySelector('[name="detailedDescription"]')?.value || null,
-            paymentTerms: baseInfoForm.querySelector('[name="paymentTerms"]')?.value || null,
-            shippingMethod: baseInfoForm.querySelector('[name="shippingMethod"]')?.value || null,
-            orderType: baseInfoForm.querySelector('[name="orderType"]')?.value || null,
-            referenceNumber: baseInfoForm.querySelector('[name="referenceNumber"]')?.value || null
+            PartnerId: parseInt(baseInfoForm.querySelector('[name="PartnerId"]')?.tomselect?.getValue() || baseInfoForm.querySelector('[name="PartnerId"]')?.value) || 0,
+            CurrencyId: parseInt(baseInfoForm.querySelector('[name="currencyId"]')?.tomselect?.getValue() || baseInfoForm.querySelector('[name="currencyId"]')?.value) || 0,
+            SiteId: parseInt(baseInfoForm.querySelector('[name="SiteId"]')?.tomselect?.getValue() || baseInfoForm.querySelector('[name="SiteId"]')?.value) || null,
+            QuoteId: parseInt(baseInfoForm.querySelector('[name="quoteId"]')?.tomselect?.getValue() || baseInfoForm.querySelector('[name="quoteId"]')?.value) || null,
+            OrderNumber: baseInfoForm.querySelector('[name="orderNumber"]')?.value || `ORD-${Date.now()}`,
+            OrderDate: baseInfoForm.querySelector('[name="orderDate"]')?.value || new Date().toISOString().split('T')[0],
+            TotalAmount: totalGross,
+            Status: baseInfoForm.querySelector('[name="status"]')?.value || 'Draft',
+            CreatedBy: baseInfoForm.querySelector('[name="createdBy"]')?.value || localStorage.getItem('username') || 'System',
+            CreatedDate: baseInfoForm.querySelector('[name="createdDate"]')?.value || new Date().toISOString(),
+            ModifiedBy: baseInfoForm.querySelector('[name="modifiedBy"]')?.value || localStorage.getItem('username') || 'System',
+            ModifiedDate: baseInfoForm.querySelector('[name="modifiedDate"]')?.value || new Date().toISOString(),
+            OrderItems: orderItems,
+            Deadline: baseInfoForm.querySelector('[name="deadline"]')?.value || null,
+            Description: baseInfoForm.querySelector('[name="description"]')?.value || null,
+            SalesPerson: baseInfoForm.querySelector('[name="salesPerson"]')?.value || null,
+            DeliveryDate: baseInfoForm.querySelector('[name="deliveryDate"]')?.value || null,
+            DiscountPercentage: parseFloat(baseInfoForm.querySelector('[name="discountPercentage"]')?.value) || null,
+            DiscountAmount: parseFloat(baseInfoForm.querySelector('[name="discountAmount"]')?.value) || null,
+            CompanyName: baseInfoForm.querySelector('[name="companyName"]')?.value || null,
+            Subject: baseInfoForm.querySelector('[name="subject"]')?.value || null,
+            DetailedDescription: baseInfoForm.querySelector('[name="detailedDescription"]')?.value || null,
+            PaymentTerms: baseInfoForm.querySelector('[name="paymentTerms"]')?.value || null,
+            ShippingMethod: baseInfoForm.querySelector('[name="shippingMethod"]')?.value || null,
+            OrderType: baseInfoForm.querySelector('[name="orderType"]')?.value || null,
+            ReferenceNumber: baseInfoForm.querySelector('[name="referenceNumber"]')?.value || null
         };
         console.log('Order data to save:', JSON.stringify(orderData, null, 2));
-        if (!orderData.partnerId) {
-            console.error('Missing partnerId');
+
+        if (!orderData.PartnerId) {
+            console.error('Missing PartnerId');
             window.c92.showToast('error', 'Kérjük, válasszon partnert.');
             return;
         }
-        if (!orderData.currencyId) {
-            console.error('Missing currencyId');
+        if (!orderData.CurrencyId) {
+            console.error('Missing CurrencyId');
             window.c92.showToast('error', 'Kérjük, válasszon pénznemet.');
             return;
         }
-        if (!orderData.orderItems.length) {
+        if (!orderData.OrderItems.length) {
             console.error('No items in order');
             window.c92.showToast('error', 'Legalább egy tétel szükséges.');
             return;
         }
+
+        // For existing orders, sync OrderItems by deleting removed items
+        if (orderId !== 'new') {
+            try {
+                const response = await fetch(`/api/orders/${orderId}`, {
+                    headers: {
+                        'Authorization': 'Bearer ' + (localStorage.getItem('token') || ''),
+                        'Accept': 'application/json'
+                    }
+                });
+                if (!response.ok) {
+                    const err = await response.json();
+                    console.error(`Failed to fetch order ${orderId}:`, err);
+                    window.c92.showToast('error', `Hiba a rendelés lekérése során: ${err.error || err.message || 'HTTP ' + response.status}`);
+                    return;
+                }
+                const existingOrder = await response.json();
+                const existingItemIds = existingOrder.orderItems.map(item => item.orderItemId);
+                const currentItemIds = orderItems.map(item => item.OrderItemId).filter(id => id > 0);
+
+                // Delete items that are no longer in the UI
+                for (const itemId of existingItemIds) {
+                    if (!currentItemIds.includes(itemId)) {
+                        console.log(`Deleting OrderItem ${itemId} from server`);
+                        const deleteResponse = await fetch(`/api/orders/${orderId}/items/${itemId}`, {
+                            method: 'DELETE',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Authorization': 'Bearer ' + (localStorage.getItem('token') || '')
+                            }
+                        });
+                        if (!deleteResponse.ok) {
+                            const err = await deleteResponse.json();
+                            console.error(`Failed to delete OrderItem ${itemId}:`, err);
+                            window.c92.showToast('error', `Hiba a tétel törlése során: ${err.error || err.message || 'HTTP ' + deleteResponse.status}`);
+                            return;
+                        }
+                        console.log(`OrderItem ${itemId} deleted from server`);
+                    }
+                }
+            } catch (error) {
+                console.error('Error syncing OrderItems:', error);
+                window.c92.showToast('error', `Hiba a tételek szinkronizálása során: ${error.message}`);
+                return;
+            }
+        }
+
+        // Save the order
         fetch(orderId === 'new' ? '/api/orders' : `/api/orders/${orderId}`, {
             method: orderId === 'new' ? 'POST' : 'PUT',
             headers: {
@@ -198,6 +261,7 @@ async function initializeEventListeners(orderId) {
             console.log('Fetch response status:', response.status);
             if (!response.ok) {
                 return response.json().then(err => {
+                    console.error('API error response:', err);
                     throw new Error(err.error || err.message || `HTTP ${response.status}`);
                 });
             }
@@ -215,34 +279,106 @@ async function initializeEventListeners(orderId) {
             console.error('Save error:', error);
             window.c92.showToast('error', `Hiba a mentés során: ${error.message}`);
         });
-    });
+    };
+    saveButton.addEventListener('click', saveButton._clickHandler);
 
+    // Add Item Button
     const addItemButton = modal.querySelector('.add-item-row');
     if (addItemButton) {
+        // Remove existing listeners to prevent duplicates
+        addItemButton.removeEventListener('click', addItemButton._clickHandler);
         const newAddItemButton = addItemButton.cloneNode(true);
         addItemButton.replaceWith(newAddItemButton);
-        newAddItemButton.addEventListener('click', () => {
+        newAddItemButton._clickHandler = () => {
             console.log(`Add item button clicked for orderId: ${orderId}`);
             addItemRow(orderId);
-        });
+        };
+        newAddItemButton.addEventListener('click', newAddItemButton._clickHandler);
         console.log(`Add item button initialized for orderId: ${orderId}`);
     } else {
         console.warn(`Add item button .add-item-row not found for orderId: ${orderId}`);
         window.c92.showToast('error', 'Tétel hozzáadása gomb nem található.');
     }
 
-    modal.querySelectorAll('.remove-item-row').forEach(btn => {
-        const newBtn = btn.cloneNode(true);
-        btn.replaceWith(newBtn);
-        newBtn.addEventListener('click', () => {
-            const itemId = newBtn.dataset.itemId;
-            const itemRow = document.querySelector(`tr.order-item-row[data-item-id="${itemId}"]`);
-            const descriptionRow = document.querySelector(`tr.description-row[data-item-id="${itemId}"]`);
-            if (itemRow) itemRow.remove();
-            if (descriptionRow) descriptionRow.remove();
-            window.calculateOrderTotals(orderId);
-        });
-    });
+    // Remove Item Button (using event delegation)
+    modal.removeEventListener('click', modal._removeItemHandler); // Remove any existing handler
+    modal._removeItemHandler = async (event) => {
+        if (!event.target.closest('.remove-item-row')) return;
+        const btn = event.target.closest('.remove-item-row');
+        const itemId = btn.dataset.itemId;
+        console.log(`Remove item button clicked for orderId: ${orderId}, itemId: ${itemId}, button:`, btn);
+
+        if (!itemId) {
+            console.error('Missing itemId on remove button');
+            window.c92.showToast('error', 'Tétel azonosító hiányzik.');
+            return;
+        }
+
+        if (orderId !== 'new' && !parseInt(orderId)) {
+            console.error(`Invalid orderId: ${orderId}`);
+            window.c92.showToast('error', `Érvénytelen rendelés azonosító: ${orderId}`);
+            return;
+        }
+
+        const itemRow = document.querySelector(`tr.order-item-row[data-item-id="${itemId}"]`);
+        const descriptionRow = document.querySelector(`tr.description-row[data-item-id="${itemId}"]`);
+        console.log(`Item row found: ${!!itemRow}, Description row found: ${!!descriptionRow}`);
+        if (!itemRow) {
+            console.error(`Item row not found for itemId: ${itemId}`);
+            window.c92.showToast('error', `Tétel nem található: ${itemId}`);
+            return;
+        }
+
+        if (orderId !== 'new' && !itemId.startsWith('new_')) {
+            const numericItemId = parseInt(itemId);
+            if (isNaN(numericItemId) || numericItemId <= 0) {
+                console.error(`Invalid OrderItemId: ${itemId}`);
+                window.c92.showToast('error', `Érvénytelen tétel azonosító: ${itemId}`);
+                return;
+            }
+
+            try {
+                const token = localStorage.getItem('token');
+                console.log(`Authorization token: ${token ? 'present' : 'missing'}`);
+                if (!token) {
+                    console.error('No authentication token found');
+                    window.c92.showToast('error', 'Kérjük, jelentkezzen be a tétel törléséhez.');
+                    window.location.href = 'Identity/Account/Login';
+                    return;
+                }
+
+                const response = await fetch(`/api/orders/${orderId}/items/${numericItemId}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                console.log(`DELETE response status: ${response.status}`);
+
+                if (!response.ok) {
+                    const err = await response.json().catch(() => ({}));
+                    console.error('API error response:', err);
+                    window.c92.showToast('error', `Hiba a tétel törlése során: ${err.error || err.message || `HTTP ${response.status}`}`);
+                    return;
+                }
+
+                console.log(`Order item ${numericItemId} deleted from server for order ${orderId}`);
+                window.c92.showToast('success', `Tétel törölve a szerverről: ${itemId}`);
+            } catch (error) {
+                console.error('Delete error:', error);
+                window.c92.showToast('error', `Hiba a tétel törlése során: ${error.message}`);
+                return;
+            }
+        }
+
+        console.log(`Removing UI elements for itemId: ${itemId}`);
+        itemRow.remove();
+        if (descriptionRow) descriptionRow.remove();
+        window.calculateOrderTotals(orderId);
+        window.c92.showToast('success', `Tétel törölve a felületről: ${itemId}`);
+    };
+    modal.addEventListener('click', modal._removeItemHandler);
 }
 
 async function populateEditOrderModal(orderId) {
@@ -253,25 +389,15 @@ async function populateEditOrderModal(orderId) {
             window.c92.showToast('error', 'Modal nem található.');
             return;
         }
-
         const form = modal.querySelector(`#orderBaseInfoForm_${orderId}`);
         if (!form) {
             console.error(`Form #orderBaseInfoForm_${orderId} not found`);
             window.c92.showToast('error', 'Űrlap nem található.');
             return;
         }
-
         const token = localStorage.getItem('token');
         const requestVerificationToken = document.querySelector('input[name="__RequestVerificationToken"]')?.value;
         console.log(`Fetching order ${orderId} with token: ${token ? 'present' : 'missing'}, verification token: ${requestVerificationToken ? 'present' : 'missing'}`);
-
-        if (!token) {
-            console.warn('No authentication token found. Redirecting to login.');
-            window.c92.showToast('error', 'Kérjük, jelentkezzen be a rendelés megtekintéséhez.');
-            window.location.href = 'Identity/Account/Login';
-            return;
-        }
-
         const response = await fetch(`/api/orders/${orderId}`, {
             method: 'GET',
             headers: {
@@ -295,7 +421,6 @@ async function populateEditOrderModal(orderId) {
         }
         const order = await response.json();
         console.log(`Fetched order data for ${orderId}:`, JSON.stringify(order, null, 2));
-
         const setFieldValue = (selector, value) => {
             const element = form.querySelector(selector);
             if (element) {
@@ -304,7 +429,6 @@ async function populateEditOrderModal(orderId) {
                 console.warn(`Element ${selector} not found in #orderBaseInfoForm_${orderId}`);
             }
         };
-
         setFieldValue('[name="orderNumber"]', order.orderNumber);
         setFieldValue('[name="orderDate"]', order.orderDate ? order.orderDate.split('T')[0] : '');
         setFieldValue('[name="deadline"]', order.deadline ? order.deadline.split('T')[0] : '');
@@ -322,17 +446,14 @@ async function populateEditOrderModal(orderId) {
         setFieldValue('[name="totalAmount"]', order.totalAmount ? order.totalAmount.toFixed(2) : 0);
         setFieldValue('[name="description"]', order.description);
         setFieldValue('[name="detailedDescription"]', order.detailedDescription);
-
         const partnerSelect = form.querySelector('[name="PartnerId"]');
         const currencySelect = form.querySelector('[name="currencyId"]');
         const siteSelect = form.querySelector('[name="SiteId"]');
         const quoteSelect = form.querySelector('[name="quoteId"]');
-
         if (!partnerSelect) console.error(`Partner select not found in #orderBaseInfoForm_${orderId}`);
         if (!siteSelect) console.error(`Site select not found in #orderBaseInfoForm_${orderId}`);
         if (!currencySelect) console.error(`Currency select not found in #orderBaseInfoForm_${orderId}`);
         if (!quoteSelect) console.error(`Quote select not found in #orderBaseInfoForm_${orderId}`);
-
         if (partnerSelect) {
             partnerSelect.dataset.selectedId = order.partnerId || '';
             partnerSelect.dataset.selectedText = order.partnerName || '';
@@ -343,7 +464,6 @@ async function populateEditOrderModal(orderId) {
             }
             console.log(`Partner TomSelect initialized for orderId: ${orderId}, value: ${order.partnerId}`);
         }
-
         if (siteSelect) {
             siteSelect.dataset.selectedId = order.siteId || '';
             siteSelect.dataset.selectedText = order.siteName || '';
@@ -354,7 +474,6 @@ async function populateEditOrderModal(orderId) {
             }
             console.log(`Site TomSelect initialized for orderId: ${orderId}, value: ${order.siteId}`);
         }
-
         if (currencySelect) {
             currencySelect.dataset.selectedId = order.currencyId || '';
             currencySelect.dataset.selectedText = order.currencyName || '';
@@ -365,7 +484,6 @@ async function populateEditOrderModal(orderId) {
             }
             console.log(`Currency TomSelect initialized for orderId: ${orderId}, value: ${order.currencyId}`);
         }
-
         if (quoteSelect) {
             quoteSelect.dataset.selectedId = order.quoteId || '';
             quoteSelect.dataset.selectedText = order.quoteName || '';
@@ -376,12 +494,10 @@ async function populateEditOrderModal(orderId) {
             }
             console.log(`Quote TomSelect initialized for orderId: ${orderId}, value: ${order.quoteId}`);
         }
-
         const tbody = document.querySelector(`#items-tbody_${orderId}`);
         if (tbody) {
             tbody.querySelectorAll('.order-item-row, .description-row').forEach(row => row.remove());
         }
-
         if (order.orderItems && order.orderItems.length > 0) {
             for (const item of order.orderItems) {
                 const itemId = item.orderItemId || 'new_' + Date.now();
@@ -436,7 +552,6 @@ async function populateEditOrderModal(orderId) {
                         <button type="button" class="btn btn-danger btn-sm remove-item-row" data-item-id="${itemId}"><i class="bi bi-trash"></i></button>
                     </td>
                 `;
-
                 const descriptionRow = document.createElement('tr');
                 descriptionRow.className = 'description-row';
                 descriptionRow.dataset.itemId = itemId;
@@ -450,7 +565,6 @@ async function populateEditOrderModal(orderId) {
                         </div>
                     </td>
                 `;
-
                 const tbody = document.querySelector(`#items-tbody_${orderId}`);
                 const orderTotalRow = tbody.querySelector('.order-total-row');
                 if (orderTotalRow) {
@@ -460,7 +574,6 @@ async function populateEditOrderModal(orderId) {
                     tbody.appendChild(itemRow);
                     tbody.appendChild(descriptionRow);
                 }
-
                 const productSelect = itemRow.querySelector('.tom-select-product');
                 if (productSelect && typeof window.c92.initializeProductTomSelect === 'function') {
                     const tomSelect = await window.c92.initializeProductTomSelect(productSelect, { orderId: orderId });
@@ -478,7 +591,6 @@ async function populateEditOrderModal(orderId) {
                         await updatePriceFields(productSelect, productId, products);
                     }
                 }
-
                 const vatSelect = itemRow.querySelector('.tom-select-vat');
                 if (vatSelect && typeof window.c92.initializeVatTomSelect === 'function') {
                     const vatTomSelect = await window.c92.initializeVatTomSelect(vatSelect, { context: 'order' });
@@ -487,12 +599,10 @@ async function populateEditOrderModal(orderId) {
                         console.log(`VAT TomSelect set to: ${item.vatTypeId}`);
                     }
                 }
-
                 initializeRowCalculations(itemRow);
                 initializeDescriptionToggle(itemRow);
             }
         }
-
         initializeEventListeners(orderId);
         window.calculateOrderTotals(orderId);
     } catch (error) {
@@ -508,17 +618,14 @@ async function addItemRow(orderId) {
         window.c92.showToast('error', 'Táblázat nem található.');
         return;
     }
-
     const newItemId = 'new_' + Date.now();
     console.log('Adding new item row for orderId:', orderId, 'NewItemId:', newItemId);
-
     let selectedProductId = null;
     let selectedProductText = null;
     if (orderId === '1626') {
         selectedProductId = '62044';
         selectedProductText = 'Termék 4';
     }
-
     const itemRow = document.createElement('tr');
     itemRow.className = 'order-item-row';
     itemRow.dataset.itemId = newItemId;
@@ -548,7 +655,7 @@ async function addItemRow(orderId) {
             </select>
         </td>
         <td>
-            <input type="number" name="items[${newItemId}][discountValue]" id="discount-value-${newItemId}" class="form-control form-control-sm discount-value" value="0" min="0" step="0.01" readonly>
+            <input type="number" name="items[${newItemId}][discountValue]" id="discount-value-${newItemId}" class="form-control form-control-sm discount-value" value="0" min="0">
         </td>
         <td>
             <span class="net-unit-price">0.00</span>
@@ -570,7 +677,6 @@ async function addItemRow(orderId) {
             <button type="button" class="btn btn-danger btn-sm remove-item-row" data-item-id="${newItemId}"><i class="bi bi-trash"></i></button>
         </td>
     `;
-
     const descriptionRow = document.createElement('tr');
     descriptionRow.className = 'description-row';
     descriptionRow.dataset.itemId = newItemId;
@@ -584,7 +690,6 @@ async function addItemRow(orderId) {
             </div>
         </td>
     `;
-
     const orderTotalRow = tbody.querySelector('.order-total-row');
     if (orderTotalRow) {
         tbody.insertBefore(itemRow, orderTotalRow);
@@ -593,7 +698,6 @@ async function addItemRow(orderId) {
         tbody.appendChild(itemRow);
         tbody.appendChild(descriptionRow);
     }
-
     const existingDiscountInputs = itemRow.querySelectorAll('.discount-value');
     if (existingDiscountInputs.length > 1) {
         console.warn(`Multiple discount-value inputs found in row ${newItemId}: ${existingDiscountInputs.length}`);
@@ -601,7 +705,6 @@ async function addItemRow(orderId) {
             if (index > 0) input.remove();
         });
     }
-
     const productSelect = itemRow.querySelector('.tom-select-product');
     let products = [];
     if (productSelect && typeof window.c92.initializeProductTomSelect === 'function') {
@@ -617,7 +720,6 @@ async function addItemRow(orderId) {
                 text: opt.text
             }));
             console.log('Products loaded:', products);
-
             if (selectedProductId) {
                 console.log('Pre-selecting product:', selectedProductId, selectedProductText);
                 tomSelect.setValue(selectedProductId);
@@ -640,7 +742,6 @@ async function addItemRow(orderId) {
         window.c92.showToast('error', 'Termékválasztó inicializálási hiba.');
         await window.updatePriceFields(productSelect, null, []);
     }
-
     const vatSelect = itemRow.querySelector('.tom-select-vat');
     if (vatSelect && typeof window.c92.initializeVatTomSelect === 'function') {
         try {
@@ -651,42 +752,75 @@ async function addItemRow(orderId) {
             window.c92.showToast('error', `Hiba az ÁFA kiválasztás közben: ${err.message}`);
         }
     }
-
     const discountTypeSelect = itemRow.querySelector('.discount-type-id');
     const discountValueInput = itemRow.querySelector('.discount-value');
     const quantityInput = itemRow.querySelector('.quantity');
-
     if (!discountValueInput) {
         console.error(`Discount value input not found in row ${newItemId}`);
         window.c92.showToast('error', 'Kedvezmény mező nem található.');
         return;
     }
-
+    // Log existing event listeners to detect interference
+    const getEventListeners = (element) => {
+        const events = ['input', 'change', 'keydown'];
+        const listeners = {};
+        events.forEach(event => {
+            listeners[event] = (element.__proto__.__lookupGetter__('on' + event) || (() => [])).call(element);
+        });
+        return listeners;
+    };
+    console.log(`Event listeners on discountValueInput for item ${newItemId}:`, getEventListeners(discountValueInput));
     function updateDiscountField() {
         const discountTypeId = parseInt(discountTypeSelect.value, 10) || 1;
         const isEditable = [5, 6].includes(discountTypeId);
         discountValueInput.readOnly = !isEditable;
+        discountValueInput.step = discountTypeId === 5 ? '1' : '0.01';
+        console.log(`updateDiscountField for item ${newItemId}: discountTypeId=${discountTypeId}, isEditable=${isEditable}, value=${discountValueInput.value}, dataset=${itemRow.dataset.discountAmount}`);
         window.updatePriceFields(productSelect, productSelect.value, products);
-        console.log(`Discount field updated for item ${newItemId}: discountTypeId=${discountTypeId}, isEditable=${isEditable}, value=${discountValueInput.value}, dataset=${itemRow.dataset.discountAmount}`);
         window.calculateOrderTotals(orderId);
     }
-
+    // Debounce utility
+    function debounce(func, wait) {
+        let timeout;
+        return function executedFunction(...args) {
+            const later = () => {
+                clearTimeout(timeout);
+                func(...args);
+            };
+            clearTimeout(timeout);
+            timeout = setTimeout(later, wait);
+        };
+    }
     discountTypeSelect.addEventListener('change', updateDiscountField);
-    discountValueInput.addEventListener('input', () => {
-        const discountTypeId = parseInt(discountTypeSelect.value, 10) || 1;
-        if (![1, 3, 4].includes(discountTypeId)) {
-            itemRow.dataset.discountAmount = discountValueInput.value || '0';
-            console.log(`Discount value changed for item ${newItemId}: discountValue=${discountValueInput.value}`);
-            window.updatePriceFields(productSelect, productSelect.value, products);
-            window.calculateOrderTotals(orderId);
-        }
+    discountValueInput.addEventListener('input', (event) => {
+        console.log(`Typing in discountValueInput for item ${newItemId}: value=${event.target.value}`);
     });
+    discountValueInput.addEventListener('change', debounce((event) => {
+        const discountTypeId = parseInt(discountTypeSelect.value, 10) || 1;
+        if ([5, 6].includes(discountTypeId)) {
+            const value = parseFloat(event.target.value);
+            console.log(`Discount value changed for item ${newItemId}: input=${event.target.value}, parsed=${value}`);
+            if (isNaN(value) || value < 0 || (discountTypeId === 5 && value > 100)) {
+                console.warn(`Invalid discount value for item ${newItemId}: ${event.target.value}`);
+                window.c92.showToast('error', `A kedvezmény ${discountTypeId === 5 ? 'százaléknak 0 és 100 között kell lennie' : 'összeg nem lehet negatív'}.`);
+                discountValueInput.value = '0';
+                itemRow.dataset.discountAmount = '0';
+            } else {
+                const unitPrice = parseFloat(itemRow.querySelector('.unit-price')?.value) || 0;
+                itemRow.dataset.discountAmount = discountTypeId === 5 ? (unitPrice * (value / 100)).toFixed(2) : value.toFixed(2);
+                console.log(`Discount value processed for item ${newItemId}: discountValue=${discountValueInput.value}, dataset=${itemRow.dataset.discountAmount}`);
+                window.updatePriceFields(productSelect, productSelect.value, products);
+                window.calculateOrderTotals(orderId);
+            }
+        } else {
+            console.log(`Ignored change event for non-editable discountTypeId=${discountTypeId}`);
+        }
+    }, 500));
     quantityInput.addEventListener('input', () => {
         console.log(`Quantity changed for item ${newItemId}: quantity=${quantityInput.value}`);
         window.updatePriceFields(productSelect, productSelect.value, products);
         window.calculateOrderTotals(orderId);
     });
-
     initializeRowCalculations(itemRow);
     initializeDescriptionToggle(itemRow);
     if (selectedProductId) {
@@ -712,11 +846,9 @@ function initializeDescriptionToggle(row) {
     const itemId = row.dataset.itemId;
     const descriptionRow = document.querySelector(`tr.description-row[data-item-id="${itemId}"]`);
     if (!editDescriptionBtn || !descriptionRow) return;
-
     editDescriptionBtn.addEventListener('click', () => {
         descriptionRow.style.display = descriptionRow.style.display === 'none' ? '' : 'none';
     });
-
     const textarea = descriptionRow.querySelector('.item-description');
     const charCountSpan = descriptionRow.querySelector('.char-count');
     if (textarea && charCountSpan) {
@@ -786,11 +918,10 @@ function updatePriceFields(select, productId, products) {
     const partnerPrice = parseFloat(product.partnerPrice) || unitPrice;
     const quantity = parseInt(quantityInput.value, 10) || 1;
     let discountTypeId = parseInt(discountTypeSelect.value, 10) || 1;
+    let discountPercentage = 0;
     let discountAmount = 0;
-
     unitPriceInput.value = unitPrice.toFixed(2);
     discountAmountInput.readOnly = ![5, 6].includes(discountTypeId);
-
     if ([1, 3, 4].includes(discountTypeId)) {
         if (discountTypeId === 1) {
             discountAmount = 0;
@@ -801,18 +932,30 @@ function updatePriceFields(select, productId, products) {
         discountAmountInput.value = formattedDiscount;
         row.dataset.discountAmount = formattedDiscount;
         console.log(`Auto-filled discount for type ${discountTypeId}: discountAmount=${formattedDiscount}, unitPrice=${unitPrice}, partnerPrice=${partnerPrice}`);
-    } else {
+    } else if (discountTypeId === 5) {
+        discountPercentage = parseFloat(discountAmountInput.value) || 0;
+        if (discountPercentage < 0 || discountPercentage > 100) {
+            console.warn(`Invalid discount percentage: ${discountPercentage} for item ${row.dataset.itemId}, using 0`);
+            window.c92.showToast('error', `A kedvezmény százaléknak 0 és 100 között kell lennie`);
+            discountPercentage = 0;
+            discountAmountInput.value = '0';
+        }
+        discountAmount = unitPrice * (discountPercentage / 100);
+        row.dataset.discountAmount = (unitPrice - (unitPrice * (1 - discountPercentage / 100))).toFixed(2);
+        console.log(`Percentage discount for type 5: discountPercentage=${discountPercentage}, discountAmount=${discountAmount}, unitPrice=${unitPrice}`);
+    } else if (discountTypeId === 6) {
         discountAmount = parseFloat(discountAmountInput.value) || 0;
-        if (discountTypeId === 5) {
-            discountAmount = unitPrice * (discountAmount / 100);
+        if (discountAmount < 0) {
+            console.warn(`Invalid discount amount: ${discountAmount} for item ${row.dataset.itemId}, using 0`);
+            window.c92.showToast('error', `A kedvezmény összeg nem lehet negatív`);
+            discountAmount = 0;
+            discountAmountInput.value = '0';
         }
         row.dataset.discountAmount = discountAmount.toFixed(2);
     }
-
-    calculateAllPrices(row, unitPrice, discountTypeId, discountAmount, quantity, vatSelect, product);
-
-    if ([1, 3, 4].includes(discountTypeId)) {
-        const formattedDiscount = discountAmount > 0 ? discountAmount.toFixed(2) : '0';
+    calculateAllPrices(row, unitPrice, discountTypeId, discountPercentage, quantity, vatSelect, product);
+    if ([1, 3, 4, 5, 6].includes(discountTypeId)) {
+        const formattedDiscount = discountTypeId === 5 ? discountPercentage.toFixed(2) : (discountAmount > 0 ? discountAmount.toFixed(2) : '0');
         if (discountAmountInput.value !== formattedDiscount) {
             discountAmountInput.value = formattedDiscount;
             console.log(`Reapplied discountAmountInput.value=${formattedDiscount} after calculateAllPrices`);
@@ -820,12 +963,10 @@ function updatePriceFields(select, productId, products) {
             discountAmountInput.dispatchEvent(new Event('change'));
         }
     }
-
     quantityInput.removeEventListener('input', quantityInput._listener);
     discountTypeSelect.removeEventListener('change', discountTypeSelect._listener);
     discountAmountInput.removeEventListener('input', discountAmountInput._listener);
     vatSelect.removeEventListener('change', vatSelect._listener);
-
     quantityInput._listener = () => {
         let newQuantity = parseInt(quantityInput.value, 10) || 1;
         if (newQuantity < 1) {
@@ -833,17 +974,19 @@ function updatePriceFields(select, productId, products) {
             quantityInput.value = '1';
             newQuantity = 1;
         }
-        let newDiscountAmount = [1, 3, 4].includes(discountTypeId) ? (discountTypeId === 1 ? 0 : unitPrice - partnerPrice) : parseFloat(discountAmountInput.value) || 0;
-        if (newDiscountAmount < 0) {
-            window.c92.showToast('error', 'A kedvezmény összege nem lehet negatív.');
+        let newDiscountPercentage = [5].includes(discountTypeId) ? parseFloat(discountAmountInput.value) || 0 : 0;
+        let newDiscountAmount = [1, 3, 4].includes(discountTypeId) ? (discountTypeId === 1 ? 0 : unitPrice - partnerPrice) : ([5].includes(discountTypeId) ? unitPrice * (newDiscountPercentage / 100) : parseFloat(discountAmountInput.value) || 0);
+        if (newDiscountAmount < 0 || (discountTypeId === 5 && (newDiscountPercentage < 0 || newDiscountPercentage > 100))) {
+            window.c92.showToast('error', `A kedvezmény ${discountTypeId === 5 ? 'százaléknak 0 és 100 között kell lennie' : 'összeg nem lehet negatív'}.`);
             discountAmountInput.value = '0';
+            newDiscountPercentage = 0;
             newDiscountAmount = 0;
         }
         calculateAllPrices(
             row,
             unitPrice,
             parseInt(discountTypeSelect.value, 10) || 1,
-            newDiscountAmount,
+            discountTypeId === 5 ? newDiscountPercentage : newDiscountAmount,
             newQuantity,
             vatSelect,
             product
@@ -853,6 +996,7 @@ function updatePriceFields(select, productId, products) {
     discountTypeSelect._listener = () => {
         const newDiscountTypeId = parseInt(discountTypeSelect.value, 10) || 1;
         discountAmountInput.readOnly = ![5, 6].includes(newDiscountTypeId);
+        let newDiscountPercentage = 0;
         let newDiscountAmount = 0;
         if ([1, 3, 4].includes(newDiscountTypeId)) {
             newDiscountAmount = newDiscountTypeId === 1 ? 0 : unitPrice - partnerPrice;
@@ -863,21 +1007,21 @@ function updatePriceFields(select, productId, products) {
             discountAmountInput.dispatchEvent(new Event('input'));
             discountAmountInput.dispatchEvent(new Event('change'));
         } else {
-            newDiscountAmount = parseFloat(discountAmountInput.value) || 0;
-            if (newDiscountAmount < 0) {
-                window.c92.showToast('error', 'A kedvezmény összege nem lehet negatív.');
+            newDiscountPercentage = newDiscountTypeId === 5 ? parseFloat(discountAmountInput.value) || 0 : 0;
+            newDiscountAmount = newDiscountTypeId === 5 ? unitPrice * (newDiscountPercentage / 100) : parseFloat(discountAmountInput.value) || 0;
+            if (newDiscountAmount < 0 || (newDiscountTypeId === 5 && (newDiscountPercentage < 0 || newDiscountPercentage > 100))) {
+                window.c92.showToast('error', `A kedvezmény ${newDiscountTypeId === 5 ? 'százaléknak 0 és 100 között kell lennie' : 'összeg nem lehet negatív'}.`);
                 discountAmountInput.value = '0';
+                newDiscountPercentage = 0;
                 newDiscountAmount = 0;
             }
-            if (newDiscountTypeId === 5) {
-                newDiscountAmount = unitPrice * (newDiscountAmount / 100);
-            }
+            row.dataset.discountAmount = newDiscountAmount.toFixed(2);
         }
         calculateAllPrices(
             row,
             unitPrice,
             newDiscountTypeId,
-            newDiscountAmount,
+            newDiscountTypeId === 5 ? newDiscountPercentage : newDiscountAmount,
             parseInt(quantityInput.value, 10) || 1,
             vatSelect,
             product
@@ -894,20 +1038,20 @@ function updatePriceFields(select, productId, products) {
             discountAmountInput.dispatchEvent(new Event('input'));
             discountAmountInput.dispatchEvent(new Event('change'));
         } else {
-            let newDiscountAmount = parseFloat(discountAmountInput.value) || 0;
-            if (newDiscountAmount < 0) {
-                window.c92.showToast('error', 'A kedvezmény összege nem lehet negatív.');
+            let newDiscountPercentage = newDiscountTypeId === 5 ? parseFloat(discountAmountInput.value) || 0 : 0;
+            let newDiscountAmount = newDiscountTypeId === 5 ? unitPrice * (newDiscountPercentage / 100) : parseFloat(discountAmountInput.value) || 0;
+            if (newDiscountAmount < 0 || (newDiscountTypeId === 5 && (newDiscountPercentage < 0 || newDiscountPercentage > 100))) {
+                window.c92.showToast('error', `A kedvezmény ${newDiscountTypeId === 5 ? 'százaléknak 0 és 100 között kell lennie' : 'összeg nem lehet negatív'}.`);
                 discountAmountInput.value = '0';
+                newDiscountPercentage = 0;
                 newDiscountAmount = 0;
             }
-            if (newDiscountTypeId === 5) {
-                newDiscountAmount = unitPrice * (newDiscountAmount / 100);
-            }
+            row.dataset.discountAmount = newDiscountAmount.toFixed(2);
             calculateAllPrices(
                 row,
                 unitPrice,
                 newDiscountTypeId,
-                newDiscountAmount,
+                newDiscountTypeId === 5 ? newDiscountPercentage : newDiscountAmount,
                 parseInt(quantityInput.value, 10) || 1,
                 vatSelect,
                 product
@@ -916,20 +1060,19 @@ function updatePriceFields(select, productId, products) {
         window.calculateOrderTotals(orderId);
     };
     vatSelect._listener = () => {
-        let newDiscountAmount = [1, 3, 4].includes(discountTypeId) ? (discountTypeId === 1 ? 0 : unitPrice - partnerPrice) : parseFloat(discountAmountInput.value) || 0;
-        if (newDiscountAmount < 0) {
-            window.c92.showToast('error', 'A kedvezmény összege nem lehet negatív.');
+        let newDiscountPercentage = [5].includes(discountTypeId) ? parseFloat(discountAmountInput.value) || 0 : 0;
+        let newDiscountAmount = [1, 3, 4].includes(discountTypeId) ? (discountTypeId === 1 ? 0 : unitPrice - partnerPrice) : ([5].includes(discountTypeId) ? unitPrice * (newDiscountPercentage / 100) : parseFloat(discountAmountInput.value) || 0);
+        if (newDiscountAmount < 0 || (discountTypeId === 5 && (newDiscountPercentage < 0 || newDiscountPercentage > 100))) {
+            window.c92.showToast('error', `A kedvezmény ${discountTypeId === 5 ? 'százaléknak 0 és 100 között kell lennie' : 'összeg nem lehet negatív'}.`);
             discountAmountInput.value = '0';
+            newDiscountPercentage = 0;
             newDiscountAmount = 0;
-        }
-        if (discountTypeId === 5) {
-            newDiscountAmount = unitPrice * (newDiscountAmount / 100);
         }
         calculateAllPrices(
             row,
             unitPrice,
             discountTypeId,
-            newDiscountAmount,
+            discountTypeId === 5 ? newDiscountPercentage : newDiscountAmount,
             parseInt(quantityInput.value, 10) || 1,
             vatSelect,
             product
@@ -943,7 +1086,7 @@ function updatePriceFields(select, productId, products) {
     window.calculateOrderTotals(orderId);
 }
 
-async function calculateAllPrices(row, unitPrice, discountTypeId, discountAmount, quantity, vatSelect, product) {
+async function calculateAllPrices(row, unitPrice, discountTypeId, discountValue, quantity, vatSelect, product) {
     const itemId = row.dataset.itemId;
     const orderId = row.closest('table').dataset.orderId || 'new';
     const productId = product?.productId || row.querySelector('.tom-select-product')?.tomselect?.getValue();
@@ -959,7 +1102,6 @@ async function calculateAllPrices(row, unitPrice, discountTypeId, discountAmount
     }
     const vatTypeId = vatSelect.tomselect?.getValue() || vatSelect.dataset.selectedId || '1';
     const vatRate = vatSelect.tomselect?.options?.[vatTypeId]?.rate ?? 27;
-
     let effectiveUnitPrice = parseFloat(unitPrice) || parseFloat(product?.listPrice) || 0;
     if (!effectiveUnitPrice) {
         if (productId === '62044') {
@@ -974,9 +1116,9 @@ async function calculateAllPrices(row, unitPrice, discountTypeId, discountAmount
             effectiveUnitPrice = 0;
         }
     }
-
     let netPrice = effectiveUnitPrice;
-    let parsedDiscountAmount = discountAmount;
+    let parsedDiscountAmount = discountValue;
+    let partnerPrice = null;
     const validDiscountTypeIds = [1, 3, 4, 5, 6];
     if (!validDiscountTypeIds.includes(discountTypeId)) {
         console.warn(`Érvénytelen kedvezmény típus: ${discountTypeId} a tételhez ${itemId}, NoDiscount (1) használata`);
@@ -988,7 +1130,6 @@ async function calculateAllPrices(row, unitPrice, discountTypeId, discountAmount
             discountTypeSelect.tomselect.setValue('1');
         }
     }
-    let partnerPrice = null;
     if (discountTypeId === 3) {
         try {
             const partnerSelect = document.querySelector(`#partner-select_${orderId}`);
@@ -1057,6 +1198,7 @@ async function calculateAllPrices(row, unitPrice, discountTypeId, discountAmount
         discountAmountInput.value = '0';
         netPrice = effectiveUnitPrice;
     } else if (discountTypeId === 5) {
+        parsedDiscountAmount = parseFloat(discountAmountInput.value) || 0;
         if (parsedDiscountAmount < 0 || parsedDiscountAmount > 100) {
             console.warn(`Érvénytelen kedvezmény százalék: ${parsedDiscountAmount} a tételhez ${itemId}, 0 használata`);
             window.c92.showToast('error', `A kedvezmény százaléknak 0 és 100 között kell lennie a tételhez ${itemId}`);
@@ -1064,6 +1206,7 @@ async function calculateAllPrices(row, unitPrice, discountTypeId, discountAmount
             discountAmountInput.value = '0';
         }
         netPrice = effectiveUnitPrice * (1 - parsedDiscountAmount / 100);
+        row.dataset.discountAmount = (effectiveUnitPrice - netPrice).toFixed(2); // Store monetary discount
     } else if (discountTypeId === 6) {
         parsedDiscountAmount = parseFloat(discountAmountInput.value) || 0;
         if (parsedDiscountAmount < 0) {
@@ -1073,10 +1216,12 @@ async function calculateAllPrices(row, unitPrice, discountTypeId, discountAmount
             discountAmountInput.value = '0';
         }
         netPrice = effectiveUnitPrice - parsedDiscountAmount;
+        row.dataset.discountAmount = parsedDiscountAmount.toFixed(2);
     } else if (discountTypeId === 3 && partnerPrice !== null) {
         netPrice = partnerPrice;
         parsedDiscountAmount = effectiveUnitPrice - partnerPrice;
         discountAmountInput.value = parsedDiscountAmount > 0 ? parsedDiscountAmount.toFixed(2) : '0';
+        row.dataset.discountAmount = parsedDiscountAmount > 0 ? parsedDiscountAmount.toFixed(2) : '0';
     } else if (discountTypeId === 4 && productId) {
         try {
             const response = await fetch(`/api/product/pricing/${productId}`);
@@ -1099,6 +1244,7 @@ async function calculateAllPrices(row, unitPrice, discountTypeId, discountAmount
                 parsedDiscountAmount = effectiveUnitPrice - volumePrice;
                 if (parsedDiscountAmount < 0 || isNaN(parsedDiscountAmount)) parsedDiscountAmount = 0;
                 discountAmountInput.value = parsedDiscountAmount > 0 ? parsedDiscountAmount.toFixed(2) : '0';
+                row.dataset.discountAmount = parsedDiscountAmount > 0 ? parsedDiscountAmount.toFixed(2) : '0';
                 console.log(`✅ Volume pricing applied: quantity=${quantityInt}, unit=${volumePrice}`);
             } else {
                 throw new Error(`No usable volume price for product ${productId}`);
@@ -1109,6 +1255,7 @@ async function calculateAllPrices(row, unitPrice, discountTypeId, discountAmount
             netPrice = effectiveUnitPrice;
             parsedDiscountAmount = 0;
             discountAmountInput.value = '0';
+            row.dataset.discountAmount = '0';
         }
     }
     if (netPrice < 0) {
@@ -1117,6 +1264,7 @@ async function calculateAllPrices(row, unitPrice, discountTypeId, discountAmount
         netPrice = 0;
         parsedDiscountAmount = 0;
         discountAmountInput.value = '0';
+        row.dataset.discountAmount = '0';
     }
     const grossPrice = netPrice * (1 + vatRate / 100);
     const totalGrossPrice = grossPrice * quantity;
@@ -1126,8 +1274,6 @@ async function calculateAllPrices(row, unitPrice, discountTypeId, discountAmount
     netTotalSpan.textContent = netTotalPrice.toFixed(2);
     grossTotalPriceSpan.textContent = totalGrossPrice.toFixed(2);
     row.dataset.discountTypeId = discountTypeId.toString();
-    row.dataset.discountAmount = parsedDiscountAmount > 0 ? parsedDiscountAmount.toFixed(2) : '0';
-    row.dataset.partnerPrice = discountTypeId === 3 ? partnerPrice?.toString() || '' : '';
     console.log(`calculateAllPrices for item ${itemId}: unitPrice=${effectiveUnitPrice.toFixed(2)}, discountTypeId=${discountTypeId}, discountAmount=${parsedDiscountAmount}, partnerPrice=${partnerPrice || 'N/A'}, netPrice=${netPrice.toFixed(2)}, grossPrice=${grossPrice.toFixed(2)}, totalGrossPrice=${totalGrossPrice.toFixed(2)}, vatRate=${vatRate}%`);
 }
 

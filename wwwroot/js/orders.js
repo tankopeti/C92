@@ -17,6 +17,92 @@ async function initializeOrderModals() {
             await populateEditOrderModal(orderId);
         });
     });
+    // Initialize delete modals
+    document.querySelectorAll('[id^="deleteOrderModal_"]').forEach(modal => {
+            const orderId = modal.id.replace('deleteOrderModal_', '');
+            modal.addEventListener('show.bs.modal', () => {
+                console.log(`Delete Order modal shown for orderId: ${orderId}`);
+                initializeDeleteOrderModal(orderId);
+            });
+        });
+}
+
+async function initializeDeleteOrderModal(orderId) {
+    console.log('Initializing delete order modal for orderId:', orderId);
+    const modal = document.getElementById(`deleteOrderModal_${orderId}`);
+    if (!modal) {
+        console.error(`Delete modal #deleteOrderModal_${orderId} not found`);
+        window.c92.showToast('error', `Törlési modal nem található: ${orderId}`);
+        return;
+    }
+    let deleteButton = modal.querySelector('.delete-order-btn');
+    if (!deleteButton) {
+        // Fallback selectors for robustness
+        deleteButton = modal.querySelector('button[data-order-id="' + orderId + '"]') || 
+                      modal.querySelector('button.btn-danger') || 
+                      modal.querySelector('button[type="button"]:not(.btn-close)');
+        if (!deleteButton) {
+            console.error(`Delete button not found for orderId: ${orderId}`);
+            console.log('Modal HTML:', modal.outerHTML); // Log modal HTML for debugging
+            window.c92.showToast('error', `Törlés gomb nem található: ${orderId}`);
+            return;
+        }
+        console.warn(`Fallback delete button used for orderId: ${orderId}`, deleteButton);
+    }
+    // Remove existing listeners to prevent duplicates
+    deleteButton.removeEventListener('click', deleteButton._clickHandler);
+    deleteButton._clickHandler = async () => {
+        console.log(`Delete button clicked for orderId: ${orderId}`);
+        const antiForgeryToken = document.querySelector('input[name="__RequestVerificationToken"]')?.value;
+        if (!antiForgeryToken) {
+            console.error('Anti-forgery token not found');
+            window.c92.showToast('error', 'Hiányzik az anti-forgery token.');
+            return;
+        }
+        try {
+            const basePath = ''; // Set to '/CRM' if your app runs under /CRM
+            const response = await fetch(`${basePath}/api/orders/${orderId}`, {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'RequestVerificationToken': antiForgeryToken
+                },
+                credentials: 'include' // Include cookies for ASP.NET Core Identity
+            });
+            console.log(`DELETE response status: ${response.status}`);
+            if (!response.ok) {
+                const err = await response.json().catch(() => ({}));
+                console.error('API error response:', err);
+                if (response.status === 401 || response.status === 403) {
+                    console.error('Unauthorized or forbidden access, redirecting to login');
+                    window.c92.showToast('error', 'Kérjük, jelentkezzen be a rendelés törléséhez.');
+                    window.location.href = '/Identity/Account/Login';
+                    return;
+                }
+                window.c92.showToast('error', `Hiba a rendelés törlése során: ${err.error || err.message || `HTTP ${response.status}`}`);
+                return;
+            }
+            console.log(`Order ${orderId} deleted from server`);
+            window.c92.showToast('success', `Rendelés törölve: ${orderId}`);
+            const modalInstance = bootstrap.Modal.getInstance(modal);
+            if (modalInstance) {
+                modalInstance.hide();
+            }
+            // Remove order card from UI
+            const orderCard = document.querySelector(`.partner-card[data-order-id="${orderId}"]`);
+            if (orderCard) {
+                orderCard.remove();
+                console.log(`Order card removed for orderId: ${orderId}`);
+            } else {
+                console.warn(`Order card not found for orderId: ${orderId}`);
+            }
+        } catch (error) {
+            console.error('Delete error:', error);
+            window.c92.showToast('error', `Hiba a rendelés törlése során: ${error.message}`);
+        }
+    };
+    deleteButton.addEventListener('click', deleteButton._clickHandler);
 }
 
 async function initializeModalFields(orderId) {
@@ -300,89 +386,117 @@ async function initializeEventListeners(orderId) {
         window.c92.showToast('error', 'Tétel hozzáadása gomb nem található.');
     }
 
-    // Remove Item Button (using event delegation)
-    modal.removeEventListener('click', modal._removeItemHandler); // Remove any existing handler
-    modal._removeItemHandler = async (event) => {
-        if (!event.target.closest('.remove-item-row')) return;
-        const btn = event.target.closest('.remove-item-row');
-        const itemId = btn.dataset.itemId;
-        console.log(`Remove item button clicked for orderId: ${orderId}, itemId: ${itemId}, button:`, btn);
-
-        if (!itemId) {
-            console.error('Missing itemId on remove button');
-            window.c92.showToast('error', 'Tétel azonosító hiányzik.');
+// Inside initializeEventListeners
+modal.removeEventListener('click', modal._removeItemHandler);
+modal._removeItemHandler = async (event) => {
+    if (!event.target.closest('.remove-item-row')) return;
+    const btn = event.target.closest('.remove-item-row');
+    const itemId = btn.dataset.itemId;
+    console.log(`Remove item button clicked for orderId: ${orderId}, itemId: ${itemId}, button:`, btn);
+    if (!itemId) {
+        console.error('Missing itemId on remove button');
+        window.c92.showToast('error', 'Tétel azonosító hiányzik.');
+        return;
+    }
+    if (orderId !== 'new' && !parseInt(orderId)) {
+        console.error(`Invalid orderId: ${orderId}`);
+        window.c92.showToast('error', `Érvénytelen rendelés azonosító: ${orderId}`);
+        return;
+    }
+    const itemRow = document.querySelector(`tr.order-item-row[data-item-id="${itemId}"]`);
+    const descriptionRow = document.querySelector(`tr.description-row[data-item-id="${itemId}"]`);
+    console.log(`Item row found: ${!!itemRow}, Description row found: ${!!descriptionRow}`);
+    if (!itemRow) {
+        console.error(`Item row not found for itemId: ${itemId}`);
+        window.c92.showToast('error', `Tétel nem található: ${itemId}`);
+        return;
+    }
+    if (orderId !== 'new' && !itemId.startsWith('new_')) {
+        const numericItemId = parseInt(itemId);
+        if (isNaN(numericItemId) || numericItemId <= 0) {
+            console.error(`Invalid OrderItemId: ${itemId}`);
+            window.c92.showToast('error', `Érvénytelen tétel azonosító: ${itemId}`);
             return;
         }
-
-        if (orderId !== 'new' && !parseInt(orderId)) {
-            console.error(`Invalid orderId: ${orderId}`);
-            window.c92.showToast('error', `Érvénytelen rendelés azonosító: ${orderId}`);
-            return;
-        }
-
-        const itemRow = document.querySelector(`tr.order-item-row[data-item-id="${itemId}"]`);
-        const descriptionRow = document.querySelector(`tr.description-row[data-item-id="${itemId}"]`);
-        console.log(`Item row found: ${!!itemRow}, Description row found: ${!!descriptionRow}`);
-        if (!itemRow) {
-            console.error(`Item row not found for itemId: ${itemId}`);
-            window.c92.showToast('error', `Tétel nem található: ${itemId}`);
-            return;
-        }
-
-        if (orderId !== 'new' && !itemId.startsWith('new_')) {
-            const numericItemId = parseInt(itemId);
-            if (isNaN(numericItemId) || numericItemId <= 0) {
-                console.error(`Invalid OrderItemId: ${itemId}`);
-                window.c92.showToast('error', `Érvénytelen tétel azonosító: ${itemId}`);
+        try {
+            const antiForgeryToken = document.querySelector('input[name="__RequestVerificationToken"]')?.value;
+            if (!antiForgeryToken) {
+                console.error('Anti-forgery token not found');
+                window.c92.showToast('error', 'Hiányzik az anti-forgery token.');
                 return;
             }
-
-            try {
-                const token = localStorage.getItem('token');
-                console.log(`Authorization token: ${token ? 'present' : 'missing'}`);
-                if (!token) {
-                    console.error('No authentication token found');
+            const basePath = ''; // Corrected to match /api/orders
+            const orderResponse = await fetch(`${basePath}/api/orders/${orderId}`, {
+                method: 'GET',
+                headers: {
+                    'Accept': 'application/json',
+                    'RequestVerificationToken': antiForgeryToken
+                },
+                credentials: 'include'
+            });
+            console.log(`GET request URL: ${basePath}/api/orders/${orderId}`);
+            if (!orderResponse.ok) {
+                console.error(`Failed to fetch order ${orderId}: ${orderResponse.status}`);
+                window.c92.showToast('error', `Nem sikerült lekérni a rendelést: ${orderId}`);
+                return;
+            }
+            const orderData = await orderResponse.json();
+            const itemExists = orderData.orderItems?.some(item => item.orderItemId === numericItemId);
+            if (!itemExists) {
+                console.error(`Order item ${numericItemId} not found in order ${orderId} data`);
+                window.c92.showToast('error', `A tétel nem található a rendelésben: ${numericItemId}`);
+                return;
+            }
+            const response = await fetch(`${basePath}/api/orders/${orderId}/items/${numericItemId}`, {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'RequestVerificationToken': antiForgeryToken
+                },
+                credentials: 'include'
+            });
+            console.log(`DELETE request URL: ${basePath}/api/orders/${orderId}/items/${numericItemId}`);
+            console.log(`DELETE response status: ${response.status}`);
+            console.log(`Response headers:`, Object.fromEntries(response.headers));
+            if (!response.ok) {
+                const err = await response.json().catch(() => ({}));
+                console.error('API error response:', err);
+                if (response.status === 401 || response.status === 403) {
+                    console.error('Unauthorized or forbidden access, redirecting to login');
+                    console.log('Cookies sent:', document.cookie);
                     window.c92.showToast('error', 'Kérjük, jelentkezzen be a tétel törléséhez.');
-                    window.location.href = 'Identity/Account/Login';
+                    window.location.href = '/CRM/Identity/Account/Login';
                     return;
                 }
-
-                const response = await fetch(`/api/orders/${orderId}/items/${numericItemId}`, {
-                    method: 'DELETE',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                    }
-                });
-                console.log(`DELETE response status: ${response.status}`);
-
-                if (!response.ok) {
-                    const err = await response.json().catch(() => ({}));
-                    console.error('API error response:', err);
-                    window.c92.showToast('error', `Hiba a tétel törlése során: ${err.error || err.message || `HTTP ${response.status}`}`);
+                if (response.status === 404) {
+                    console.error(`Order item ${numericItemId} not found for order ${orderId}`);
+                    window.c92.showToast('error', `A tétel nem található: ${numericItemId}`);
                     return;
                 }
-
-                console.log(`Order item ${numericItemId} deleted from server for order ${orderId}`);
-                window.c92.showToast('success', `Tétel törölve a szerverről: ${itemId}`);
-            } catch (error) {
-                console.error('Delete error:', error);
-                window.c92.showToast('error', `Hiba a tétel törlése során: ${error.message}`);
+                window.c92.showToast('error', `Hiba a tétel törlése során: ${err.error || err.message || `HTTP ${response.status}`}`);
                 return;
             }
+            console.log(`Order item ${numericItemId} deleted from server for order ${orderId}`);
+            window.c92.showToast('success', `Tétel törölve a szerverről: ${itemId}`);
+        } catch (error) {
+            console.error('Delete error:', error);
+            window.c92.showToast('error', `Hiba a tétel törlése során: ${error.message}`);
+            return;
         }
-
-        console.log(`Removing UI elements for itemId: ${itemId}`);
-        itemRow.remove();
-        if (descriptionRow) descriptionRow.remove();
-        window.calculateOrderTotals(orderId);
-        window.c92.showToast('success', `Tétel törölve a felületről: ${itemId}`);
-    };
-    modal.addEventListener('click', modal._removeItemHandler);
+    }
+    console.log(`Removing UI elements for itemId: ${itemId}`);
+    itemRow.remove();
+    if (descriptionRow) descriptionRow.remove();
+    window.calculateOrderTotals(orderId);
+    window.c92.showToast('success', `Tétel törölve a felületről: ${itemId}`);
+};
+modal.addEventListener('click', modal._removeItemHandler);
 }
 
 async function populateEditOrderModal(orderId) {
     try {
+        console.log('Starting populateEditOrderModal for orderId:', orderId);
         const modal = document.getElementById(`editOrderModal_${orderId}`);
         if (!modal) {
             console.error(`Modal #editOrderModal_${orderId} not found`);
@@ -395,26 +509,23 @@ async function populateEditOrderModal(orderId) {
             window.c92.showToast('error', 'Űrlap nem található.');
             return;
         }
-        const token = localStorage.getItem('token');
-        const requestVerificationToken = document.querySelector('input[name="__RequestVerificationToken"]')?.value;
-        console.log(`Fetching order ${orderId} with token: ${token ? 'present' : 'missing'}, verification token: ${requestVerificationToken ? 'present' : 'missing'}`);
-        const response = await fetch(`/api/orders/${orderId}`, {
+        const basePath = '';
+        const response = await fetch(`${basePath}/api/orders/${orderId}`, {
             method: 'GET',
             headers: {
-                'Authorization': `Bearer ${token}`,
-                'RequestVerificationToken': requestVerificationToken || '',
-                'Accept': 'application/json'
-            }
+                'Accept': 'application/json',
+                'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]')?.value || ''
+            },
+            credentials: 'include'
         });
         if (!response.ok) {
+            const errorText = await response.text();
+            console.error(`API error for order ${orderId}: ${response.status} ${response.statusText}`, errorText);
             if (response.status === 404) {
-                console.error(`Order ${orderId} not found on server`);
                 window.c92.showToast('error', `A rendelés nem található: ${orderId}`);
-                return;
-            } else if (response.status === 401 || response.status === 403) {
-                console.error(`Access denied for order ${orderId}: ${response.status}`);
-                window.c92.showToast('error', 'Nincs jogosultság a rendelés megtekintéséhez.');
-                window.location.href = 'Identity/Account/Login';
+                modal.querySelector('.btn-close').click();
+                const orderCard = document.querySelector(`.partner-card[data-order-id="${orderId}"]`);
+                if (orderCard) orderCard.remove();
                 return;
             }
             throw new Error(`Failed to fetch order: ${response.status} ${response.statusText}`);
@@ -426,83 +537,130 @@ async function populateEditOrderModal(orderId) {
             if (element) {
                 element.value = value || '';
             } else {
-                console.warn(`Element ${selector} not found in #orderBaseInfoForm_${orderId}`);
+                console.error(`Element ${selector} not found in #orderBaseInfoForm_${orderId}`);
             }
         };
-        setFieldValue('[name="orderNumber"]', order.orderNumber);
-        setFieldValue('[name="orderDate"]', order.orderDate ? order.orderDate.split('T')[0] : '');
-        setFieldValue('[name="deadline"]', order.deadline ? order.deadline.split('T')[0] : '');
-        setFieldValue('[name="status"]', order.status || 'Draft');
-        setFieldValue('[name="salesPerson"]', order.salesPerson);
-        setFieldValue('[name="deliveryDate"]', order.deliveryDate ? order.deliveryDate.split('T')[0] : '');
-        setFieldValue('[name="companyName"]', order.companyName);
-        setFieldValue('[name="subject"]', order.subject);
-        setFieldValue('[name="paymentTerms"]', order.paymentTerms);
-        setFieldValue('[name="shippingMethod"]', order.shippingMethod);
-        setFieldValue('[name="orderType"]', order.orderType);
-        setFieldValue('[name="referenceNumber"]', order.referenceNumber);
-        setFieldValue('[name="discountPercentage"]', order.discountPercentage ? order.discountPercentage.toFixed(2) : '');
-        setFieldValue('[name="discountAmount"]', order.discountAmount ? order.discountAmount.toFixed(2) : '');
-        setFieldValue('[name="totalAmount"]', order.totalAmount ? order.totalAmount.toFixed(2) : 0);
-        setFieldValue('[name="description"]', order.description);
-        setFieldValue('[name="detailedDescription"]', order.detailedDescription);
+        setFieldValue('[name="OrderNumber"]', order.orderNumber);
+        setFieldValue('[name="OrderDate"]', order.orderDate ? order.orderDate.split('T')[0] : '');
+        setFieldValue('[name="Deadline"]', order.deadline ? order.deadline.split('T')[0] : '');
+        setFieldValue('[name="Status"]', order.status || 'Draft');
+        setFieldValue('[name="SalesPerson"]', order.salesPerson);
+        setFieldValue('[name="DeliveryDate"]', order.deliveryDate ? order.deliveryDate.split('T')[0] : '');
+        setFieldValue('[name="CompanyName"]', order.companyName);
+        setFieldValue('[name="Subject"]', order.subject);
+        setFieldValue('[name="PaymentTerms"]', order.paymentTerms);
+        setFieldValue('[name="ShippingMethod"]', order.shippingMethod);
+        setFieldValue('[name="OrderType"]', order.orderType);
+        setFieldValue('[name="ReferenceNumber"]', order.referenceNumber);
+        setFieldValue('[name="DiscountPercentage"]', order.discountPercentage ? order.discountPercentage.toFixed(2) : '');
+        setFieldValue('[name="DiscountAmount"]', order.discountAmount ? order.discountAmount.toFixed(2) : '');
+        setFieldValue('[name="TotalAmount"]', order.totalAmount ? order.totalAmount.toFixed(2) : 0);
+        setFieldValue('[name="Description"]', order.description);
+        setFieldValue('[name="DetailedDescription"]', order.detailedDescription);
+        console.log('Form fields populated for orderId:', orderId);
         const partnerSelect = form.querySelector('[name="PartnerId"]');
-        const currencySelect = form.querySelector('[name="currencyId"]');
+        const currencySelect = form.querySelector('[name="CurrencyId"]');
         const siteSelect = form.querySelector('[name="SiteId"]');
-        const quoteSelect = form.querySelector('[name="quoteId"]');
-        if (!partnerSelect) console.error(`Partner select not found in #orderBaseInfoForm_${orderId}`);
-        if (!siteSelect) console.error(`Site select not found in #orderBaseInfoForm_${orderId}`);
-        if (!currencySelect) console.error(`Currency select not found in #orderBaseInfoForm_${orderId}`);
-        if (!quoteSelect) console.error(`Quote select not found in #orderBaseInfoForm_${orderId}`);
+        const quoteSelect = form.querySelector('[name="QuoteId"]');
+        if (!partnerSelect) console.error(`Partner select [name="PartnerId"] not found in #orderBaseInfoForm_${orderId}`);
+        if (!siteSelect) console.error(`Site select [name="SiteId"] not found in #orderBaseInfoForm_${orderId}`);
+        if (!currencySelect) console.error(`Currency select [name="CurrencyId"] not found in #orderBaseInfoForm_${orderId}`);
+        if (!quoteSelect) console.error(`Quote select [name="QuoteId"] not found in #orderBaseInfoForm_${orderId}`);
+
         if (partnerSelect) {
-            partnerSelect.dataset.selectedId = order.partnerId || '';
-            partnerSelect.dataset.selectedText = order.partnerName || '';
-            const partnerTomSelect = await window.c92.initializePartnerTomSelect?.(partnerSelect, orderId, 'order');
-            if (partnerTomSelect && order.partnerId) {
-                partnerTomSelect.setValue(order.partnerId);
-                console.log(`Partner TomSelect set to: ${order.partnerId}`);
+            try {
+                partnerSelect.dataset.selectedId = order.partnerId || '';
+                partnerSelect.dataset.selectedText = order.partnerName || '';
+                const partnerTomSelect = await window.c92.initializePartnerTomSelect?.(partnerSelect, orderId, 'order');
+                if (partnerTomSelect && order.partnerId) {
+                    partnerTomSelect.setValue(order.partnerId);
+                    console.log(`Partner TomSelect set to: ${order.partnerId}`);
+                }
+                console.log(`Partner TomSelect initialized for orderId: ${orderId}, value: ${order.partnerId}`);
+            } catch (error) {
+                console.error(`Failed to initialize Partner TomSelect for orderId: ${orderId}`, error);
+                window.c92.showToast('error', 'Hiba a partner kiválasztás inicializálásakor.');
             }
-            console.log(`Partner TomSelect initialized for orderId: ${orderId}, value: ${order.partnerId}`);
         }
+
         if (siteSelect) {
-            siteSelect.dataset.selectedId = order.siteId || '';
-            siteSelect.dataset.selectedText = order.siteName || '';
-            const siteTomSelect = await window.c92.initializeSiteTomSelect?.(siteSelect, orderId, 'order');
-            if (siteTomSelect && order.siteId) {
-                siteTomSelect.setValue(order.siteId);
-                console.log(`Site TomSelect set to: ${order.siteId}`);
+            try {
+                siteSelect.dataset.selectedId = order.siteId || '';
+                siteSelect.dataset.selectedText = order.siteName || '';
+                const siteTomSelect = await window.c92.initializeSiteTomSelect?.(siteSelect, orderId, 'order');
+                if (siteTomSelect && order.siteId) {
+                    siteTomSelect.setValue(order.siteId);
+                    console.log(`Site TomSelect set to: ${order.siteId}`);
+                }
+                console.log(`Site TomSelect initialized for orderId: ${orderId}, value: ${order.siteId}`);
+            } catch (error) {
+                console.error(`Failed to initialize Site TomSelect for orderId: ${orderId}`, error);
+                window.c92.showToast('error', 'Hiba a telephely kiválasztás inicializálásakor.');
             }
-            console.log(`Site TomSelect initialized for orderId: ${orderId}, value: ${order.siteId}`);
         }
+
         if (currencySelect) {
-            currencySelect.dataset.selectedId = order.currencyId || '';
-            currencySelect.dataset.selectedText = order.currencyName || '';
-            const currencyTomSelect = await window.c92.initializeCurrencyTomSelect?.(currencySelect, 'order');
-            if (currencyTomSelect && order.currencyId) {
-                currencyTomSelect.setValue(order.currencyId);
-                console.log(`Currency TomSelect set to: ${order.currencyId}`);
+            try {
+                currencySelect.dataset.selectedId = order.currencyId || '';
+                currencySelect.dataset.selectedText = order.currencyName || '';
+                const currencyTomSelect = await window.c92.initializeCurrencyTomSelect?.(currencySelect, 'order');
+                if (currencyTomSelect && order.currencyId) {
+                    currencyTomSelect.setValue(order.currencyId);
+                    console.log(`Currency TomSelect set to: ${order.currencyId}`);
+                }
+                console.log(`Currency TomSelect initialized for orderId: ${orderId}, value: ${order.currencyId}`);
+            } catch (error) {
+                console.error(`Failed to initialize Currency TomSelect for orderId: ${orderId}`, error);
+                window.c92.showToast('error', 'Hiba a pénznem kiválasztás inicializálásakor.');
             }
-            console.log(`Currency TomSelect initialized for orderId: ${orderId}, value: ${order.currencyId}`);
         }
+
         if (quoteSelect) {
-            quoteSelect.dataset.selectedId = order.quoteId || '';
-            quoteSelect.dataset.selectedText = order.quoteName || '';
-            const quoteTomSelect = await window.c92.initializeQuoteTomSelect?.(quoteSelect, orderId, 'order');
-            if (quoteTomSelect && order.quoteId) {
-                quoteTomSelect.setValue(order.quoteId);
-                console.log(`Quote TomSelect set to: ${order.quoteId}`);
+            try {
+                quoteSelect.dataset.selectedId = order.quoteId || '';
+                quoteSelect.dataset.selectedText = order.quoteName || '';
+                const quoteTomSelect = await window.c92.initializeQuoteTomSelect?.(quoteSelect, orderId, 'order');
+                if (quoteTomSelect && order.quoteId) {
+                    quoteTomSelect.setValue(order.quoteId);
+                    console.log(`Quote TomSelect set to: ${order.quoteId}`);
+                }
+                console.log(`Quote TomSelect initialized for orderId: ${orderId}, value: ${order.quoteId}`);
+            } catch (error) {
+                console.error(`Failed to initialize Quote TomSelect for orderId: ${orderId}`, error);
+                window.c92.showToast('error', 'Hiba az árajánlat kiválasztás inicializálásakor.');
             }
-            console.log(`Quote TomSelect initialized for orderId: ${orderId}, value: ${order.quoteId}`);
         }
+
         const tbody = document.querySelector(`#items-tbody_${orderId}`);
-        if (tbody) {
-            tbody.querySelectorAll('.order-item-row, .description-row').forEach(row => row.remove());
+        if (!tbody) {
+            console.error(`Table body #items-tbody_${orderId} not found`);
+            window.c92.showToast('error', 'Rendelési tételek táblázata nem található.');
+            return;
         }
+        tbody.querySelectorAll('.order-item-row, .description-row').forEach(row => row.remove());
+        console.log('Cleared existing order items for orderId:', orderId);
+
         if (order.orderItems && order.orderItems.length > 0) {
+            console.log(`Populating ${order.orderItems.length} order items for orderId: ${orderId}`);
             for (const item of order.orderItems) {
                 const itemId = item.orderItemId || 'new_' + Date.now();
                 const productId = item.productId || '';
                 const productText = item.productName || '';
+                const quantity = item.quantity || 1;
+                const unitPrice = item.unitPrice || 0;
+                const discountTypeId = item.discountTypeId || 1;
+                const discountValue = item.discountPercentage || item.discountAmount || 0;
+                const vatTypeId = item.vatTypeId || 1;
+                const description = item.description || '';
+                const vatRate = item.vatRate || 0.27;
+
+                console.log(`Creating row for itemId: ${itemId}, productId: ${productId}, quantity: ${quantity}, unitPrice: ${unitPrice}, vatTypeId: ${vatTypeId}`);
+
+                // Calculate initial prices
+                const netUnitPrice = unitPrice * (1 - (discountTypeId === 5 ? discountValue / 100 : 0));
+                const netTotalPrice = quantity * netUnitPrice;
+                const grossTotalPrice = netTotalPrice * (1 + vatRate);
+
                 const itemRow = document.createElement('tr');
                 itemRow.className = 'order-item-row';
                 itemRow.dataset.itemId = itemId;
@@ -515,43 +673,43 @@ async function populateEditOrderModal(orderId) {
                         </select>
                     </td>
                     <td>
-                        <input type="number" name="items[${itemId}][quantity]" class="form-control form-control-sm quantity" value="${item.quantity || 1}" min="0" step="1" required>
+                        <input type="number" name="items[${itemId}][quantity]" class="form-control form-control-sm quantity" value="${quantity}" min="0" step="1" required>
                     </td>
                     <td>
-                        <input type="number" name="items[${itemId}][unitPrice]" class="form-control form-control-sm unit-price" value="${item.unitPrice || 0}" min="0" step="0.01" required>
+                        <input type="number" name="items[${itemId}][unitPrice]" class="form-control form-control-sm unit-price" value="${unitPrice.toFixed(2)}" min="0" step="0.01" required>
                     </td>
                     <td>
                         <select name="items[${itemId}][discountTypeId]" id="discount-type-${itemId}" class="form-select form-control-sm discount-type-id">
-                            <option value="1" ${item.discountTypeId === 1 ? 'selected' : ''}>Nincs Kedvezmény</option>
-                            <option value="3" ${item.discountTypeId === 3 ? 'selected' : ''}>Ügyfélár</option>
-                            <option value="4" ${item.discountTypeId === 4 ? 'selected' : ''}>Mennyiségi kedvezmény</option>
-                            <option value="5" ${item.discountTypeId === 5 ? 'selected' : ''}>Egyedi kedvezmény %</option>
-                            <option value="6" ${item.discountTypeId === 6 ? 'selected' : ''}>Egyedi kedvezmény Összeg</option>
+                            <option value="1" ${discountTypeId === 1 ? 'selected' : ''}>Nincs Kedvezmény</option>
+                            <option value="3" ${discountTypeId === 3 ? 'selected' : ''}>Ügyfélár</option>
+                            <option value="4" ${discountTypeId === 4 ? 'selected' : ''}>Mennyiségi kedvezmény</option>
+                            <option value="5" ${discountTypeId === 5 ? 'selected' : ''}>Egyedi kedvezmény %</option>
+                            <option value="6" ${discountTypeId === 6 ? 'selected' : ''}>Egyedi kedvezmény Összeg</option>
                         </select>
                     </td>
                     <td>
-                        <input type="number" name="items[${itemId}][discountValue]" id="discount-value-${itemId}" class="form-control form-control-sm discount-value" value="${item.discountPercentage || item.discountAmount || 0}" min="0" step="0.01" readonly>
+                        <input type="number" name="items[${itemId}][discountValue]" id="discount-value-${itemId}" class="form-control form-control-sm discount-value" value="${discountValue.toFixed(2)}" min="0" step="0.01" readonly>
                     </td>
                     <td>
-                        <span class="net-unit-price">0.00</span>
+                        <span class="net-unit-price">${netUnitPrice.toFixed(2)}</span>
                     </td>
                     <td>
-                        <select name="items[${itemId}][vatTypeId]" id="tomselect-vat-${itemId}" class="form-select tom-select-vat" data-selected-id="${item.vatTypeId || 1}" data-selected-text="27%" data-selected-rate="27" autocomplete="off" required>
-                            <option value="1" selected>27%</option>
+                        <select name="items[${itemId}][vatTypeId]" id="tomselect-vat-${itemId}" class="form-select tom-select-vat" data-selected-id="${vatTypeId}" data-selected-text="${vatRate * 100}%" data-selected-rate="${vatRate}" autocomplete="off" required>
                             <option value="" disabled>-- Válasszon ÁFA típust --</option>
                         </select>
                     </td>
                     <td>
-                        <span class="net-total-price">0.00</span>
+                        <span class="net-total-price">${netTotalPrice.toFixed(2)}</span>
                     </td>
                     <td>
-                        <span class="gross-total-price">0.00</span>
+                        <span class="gross-total-price">${grossTotalPrice.toFixed(2)}</span>
                     </td>
                     <td>
                         <button type="button" class="btn btn-outline-secondary btn-sm edit-description" data-item-id="${itemId}"><i class="bi bi-pencil"></i></button>
                         <button type="button" class="btn btn-danger btn-sm remove-item-row" data-item-id="${itemId}"><i class="bi bi-trash"></i></button>
                     </td>
                 `;
+
                 const descriptionRow = document.createElement('tr');
                 descriptionRow.className = 'description-row';
                 descriptionRow.dataset.itemId = itemId;
@@ -560,12 +718,12 @@ async function populateEditOrderModal(orderId) {
                     <td colspan="10">
                         <div class="mb-2">
                             <label class="form-label">Leírás (max 200 karakter)</label>
-                            <textarea name="items[${itemId}][description]" class="form-control form-control-sm item-description" maxlength="200" rows="2">${item.description || ''}</textarea>
-                            <div class="form-text">Karakterek: <span class="char-count">${(item.description || '').length}</span>/200</div>
+                            <textarea name="items[${itemId}][description]" class="form-control form-control-sm item-description" maxlength="200" rows="2">${description}</textarea>
+                            <div class="form-text">Karakterek: <span class="char-count">${description.length}</span>/200</div>
                         </div>
                     </td>
                 `;
-                const tbody = document.querySelector(`#items-tbody_${orderId}`);
+
                 const orderTotalRow = tbody.querySelector('.order-total-row');
                 if (orderTotalRow) {
                     tbody.insertBefore(itemRow, orderTotalRow);
@@ -574,37 +732,94 @@ async function populateEditOrderModal(orderId) {
                     tbody.appendChild(itemRow);
                     tbody.appendChild(descriptionRow);
                 }
-                const productSelect = itemRow.querySelector('.tom-select-product');
-                if (productSelect && typeof window.c92.initializeProductTomSelect === 'function') {
-                    const tomSelect = await window.c92.initializeProductTomSelect(productSelect, { orderId: orderId });
-                    if (tomSelect && productId) {
-                        tomSelect.setValue(productId);
-                        console.log(`Product TomSelect set to: ${productId}`);
-                        const products = Object.values(tomSelect.options).map(opt => ({
-                            productId: opt.value,
-                            listPrice: opt.listPrice || (opt.value === '62044' ? 980 : opt.value === '62056' ? 1000 : 0),
-                            volumePrice: opt.volumePrice || 0,
-                            partnerPrice: opt.partnerPrice || null,
-                            volumePricing: opt.volumePricing || {},
-                            text: opt.text
-                        }));
-                        await updatePriceFields(productSelect, productId, products);
+                console.log(`Appended item row for itemId: ${itemId}`);
+
+                try {
+                    const productSelect = itemRow.querySelector('.tom-select-product');
+                    if (productSelect && typeof window.c92.initializeProductTomSelect === 'function') {
+                        const tomSelect = await window.c92.initializeProductTomSelect(productSelect, { orderId: orderId });
+                        if (tomSelect && productId) {
+                            tomSelect.setValue(productId);
+                            console.log(`Product TomSelect set to: ${productId}`);
+                            const products = Object.values(tomSelect.options).map(opt => ({
+                                productId: opt.value,
+                                listPrice: opt.listPrice || (opt.value === '62044' ? 980 : opt.value === '62056' ? 1000 : 0),
+                                volumePrice: opt.volumePrice || 0,
+                                partnerPrice: opt.partnerPrice || null,
+                                volumePricing: opt.volumePricing || {},
+                                text: opt.text
+                            }));
+                            await updatePriceFields(productSelect, productId, products);
+                        } else {
+                            console.warn(`Failed to set Product TomSelect for itemId: ${itemId}, productId: ${productId}`);
+                        }
+                    } else {
+                        console.warn(`Product TomSelect not initialized for itemId: ${itemId}`);
                     }
+                } catch (error) {
+                    console.error(`Failed to initialize Product TomSelect for itemId: ${itemId}`, error);
+                    window.c92.showToast('error', 'Hiba a termék kiválasztás inicializálásakor.');
                 }
-                const vatSelect = itemRow.querySelector('.tom-select-vat');
-                if (vatSelect && typeof window.c92.initializeVatTomSelect === 'function') {
-                    const vatTomSelect = await window.c92.initializeVatTomSelect(vatSelect, { context: 'order' });
-                    if (vatTomSelect && item.vatTypeId) {
-                        vatTomSelect.setValue(item.vatTypeId);
-                        console.log(`VAT TomSelect set to: ${item.vatTypeId}`);
+
+                try {
+                    const vatSelect = itemRow.querySelector('.tom-select-vat');
+                    if (vatSelect && typeof window.c92.initializeVatTomSelect === 'function') {
+                        const vatOptions = [
+                            { vatTypeId: 1, typeName: '27%', rate: 0.27 },
+                            { vatTypeId: 2, typeName: '0%', rate: 0.0 },
+                            { vatTypeId: 3, typeName: '5%', rate: 0.05 }
+                        ];
+                        const vatTomSelect = await window.c92.initializeVatTomSelect(vatSelect, orderId, { context: 'order', vatOptions });
+                        if (vatTomSelect && vatTypeId) {
+                            vatTomSelect.setValue(vatTypeId);
+                            console.log(`VAT TomSelect set to: ${vatTypeId}`);
+                        } else {
+                            console.warn(`Failed to set VAT TomSelect for itemId: ${itemId}, vatTypeId: ${vatTypeId}`);
+                        }
+                        console.log('VAT select initialized for item:', itemId);
+                    } else {
+                        console.warn(`VAT TomSelect not initialized for itemId: ${itemId}`);
                     }
+                } catch (error) {
+                    console.error(`Failed to initialize VAT TomSelect for itemId: ${itemId}`, error);
+                    window.c92.showToast('error', 'Hiba az ÁFA kiválasztás inicializálásakor.');
                 }
-                initializeRowCalculations(itemRow);
-                initializeDescriptionToggle(itemRow);
+
+                try {
+                    initializeRowCalculations(itemRow);
+                    console.log(`Row calculations initialized for itemId: ${itemId}`);
+                } catch (error) {
+                    console.error(`Failed to initialize row calculations for itemId: ${itemId}`, error);
+                }
+
+                try {
+                    initializeDescriptionToggle(itemRow);
+                    console.log(`Description toggle initialized for itemId: ${itemId}`);
+                } catch (error) {
+                    console.error(`Failed to initialize description toggle for itemId: ${itemId}`, error);
+                }
             }
+        } else {
+            console.log('No order items to populate for orderId:', orderId);
+            tbody.innerHTML = '<tr><td colspan="10">Nincsenek rendelési tételek.</td></tr>';
         }
-        initializeEventListeners(orderId);
-        window.calculateOrderTotals(orderId);
+
+        try {
+            initializeEventListeners(orderId);
+            console.log('Event listeners initialized for orderId:', orderId);
+        } catch (error) {
+            console.error(`Failed to initialize event listeners for orderId: ${orderId}`, error);
+        }
+
+        try {
+            window.calculateOrderTotals(orderId);
+            console.log('Order totals calculated for orderId:', orderId);
+        } catch (error) {
+            console.error(`Failed to calculate order totals for orderId: ${orderId}`, error);
+            window.c92.showToast('error', 'Hiba a rendelés összegek számításakor.');
+        }
+
+        console.log('Completed populateEditOrderModal for orderId:', orderId);
     } catch (error) {
         console.error(`Failed to populate edit order modal for orderId: ${orderId}`, error);
         window.c92.showToast('error', `Hiba a rendelés betöltése közben: ${error.message}`);

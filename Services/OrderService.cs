@@ -1,454 +1,394 @@
-using Cloud9_2.Data;
-using Cloud9_2.Models;
-using Microsoft.EntityFrameworkCore;
-using System.Text.Json;
-using Cloud9_2.Pages.CRM.Orders;
-using Microsoft.Extensions.Logging;
 using System;
-using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
+using Cloud9_2.Models;
+using Cloud9_2.Data;
 
 namespace Cloud9_2.Services
 {
-    public class OrderService : IOrderService
+
+
+public interface IOrderService
+    {
+        Task<string> GetNextOrderNumberAsync();
+        Task<bool> OrderExistsAsync(int OrderId);
+        Task<List<Partner>> GetPartnersAsync();
+        Task<List<OrderItem>> GetOrderItemsAsync(int OrderId);
+        Task<Order> CreateOrderAsync(Order order);
+        Task<Order> GetOrderByIdAsync(int OrderId);
+        Task<Order?> UpdateOrderAsync(int orderId, Order orderUpdate);
+        Task<bool> DeleteOrderAsync(int OrderId);
+        Task<OrderItem?> CreateOrderItemAsync(int OrderId, OrderItem item);
+        Task<OrderItem?> UpdateOrderItemAsync(int OrderId, int OrderItemId, OrderItem itemUpdate);
+        Task<bool> DeleteOrderItemAsync(int OrderId, int OrderItemId);
+        Task<Order> CopyOrderAsync(int OrderId);
+        Task<List<Order>> GetOrdersAsync(string searchTerm, string statusFilter, string sortBy, int skip, int take);
+        Task<OrderDto> GetOrderAsync(int orderId);
+    }
+
+public class OrderService : IOrderService
     {
         private readonly ApplicationDbContext _context;
         private readonly ILogger<OrderService> _logger;
-        private readonly IHttpContextAccessor _httpContextAccessor;
 
-        public OrderService(ApplicationDbContext context, ILogger<OrderService> logger, IHttpContextAccessor httpContextAccessor)
+        public OrderService(ApplicationDbContext context, ILogger<OrderService> logger)
         {
-            _context = context ?? throw new ArgumentNullException(nameof(context));
-            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-            _httpContextAccessor = httpContextAccessor;
+            _context = context;
+            _logger = logger;
         }
 
         public async Task<string> GetNextOrderNumberAsync()
         {
-            try
-            {
-                if (_context == null)
-                {
-                    _logger.LogError("Database context is null");
-                    throw new InvalidOperationException("Database context is not initialized");
-                }
-
-                var lastOrderNumber = await _context.Orders
-                    .Where(q => q.OrderNumber != null && q.OrderNumber.StartsWith("TestOrder-"))
-                    .OrderByDescending(q => q.OrderNumber)
-                    .Select(q => q.OrderNumber)
-                    .FirstOrDefaultAsync();
-
-                string baseNumber = "TestOrder-0001";
-                if (!string.IsNullOrEmpty(lastOrderNumber))
-                {
-                    var parts = lastOrderNumber.Split('-');
-                    if (parts.Length >= 2 && int.TryParse(parts[1], out int lastNumber))
-                    {
-                        baseNumber = $"TestOrder-{lastNumber + 1:D4}";
-                    }
-                    else
-                    {
-                        _logger.LogWarning("Failed to parse lastOrderNumber: {LastOrderNumber}", lastOrderNumber);
-                    }
-                }
-
-                string nextNumber;
-                var random = new Random();
-                int attempts = 0;
-                const int maxAttempts = 5;
-
-                do
-                {
-                    if (attempts++ >= maxAttempts)
-                    {
-                        _logger.LogError("Failed to generate unique order number after {MaxAttempts} attempts", maxAttempts);
-                        throw new InvalidOperationException("Unable to generate unique order number");
-                    }
-
-                    var randomSuffix = random.Next(0, 10000).ToString("D4");
-                    nextNumber = $"{baseNumber}-{randomSuffix}";
-                }
-                while (await _context.Orders.AnyAsync(o => o.OrderNumber == nextNumber));
-
-                _logger.LogInformation("Generated next order number: {NextNumber}", nextNumber);
-                return nextNumber;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error generating next order number: {Message}", ex.Message);
-                throw;
-            }
+            var year = DateTime.UtcNow.DayOfYear;
+            var count = await _context.Orders.CountAsync(o => o.OrderNumber != null && o.OrderNumber.Contains($"TestOrder-{year}"));
+            return $"TestOrder-{year}-{count + 1:D4}";
         }
 
         public async Task<bool> OrderExistsAsync(int OrderId)
         {
-            return await _context.Orders.AnyAsync(q => q.OrderId == OrderId);
+            return await _context.Orders.AnyAsync(o => o.OrderId == OrderId);
         }
 
-        public async Task<OrderDto> CreateOrderAsync(CreateOrderDto orderDto)
+        public async Task<List<Partner>> GetPartnersAsync()
         {
-            try
-            {
-                if (orderDto.PartnerId <= 0)
-                    throw new ArgumentException("PartnerId is required.");
-                if (orderDto.OrderItems == null || !orderDto.OrderItems.Any())
-                    throw new ArgumentException("At least one order item is required.");
-
-                var order = new Order
-                {
-                    OrderNumber = await GetNextOrderNumberAsync(), // Always generate
-                    PartnerId = orderDto.PartnerId,
-                    CurrencyId = orderDto.CurrencyId,
-                    SiteId = orderDto.SiteId,
-                    QuoteId = orderDto.QuoteId,
-                    OrderDate = orderDto.OrderDate ?? DateTime.UtcNow,
-                    Deadline = orderDto.Deadline,
-                    DeliveryDate = orderDto.DeliveryDate,
-                    ReferenceNumber = orderDto.ReferenceNumber,
-                    OrderType = orderDto.OrderType,
-                    CompanyName = orderDto.CompanyName,
-                    TotalAmount = orderDto.TotalAmount ?? 0,
-                    DiscountPercentage = orderDto.DiscountPercentage,
-                    DiscountAmount = orderDto.DiscountAmount,
-                    PaymentTerms = orderDto.PaymentTerms,
-                    ShippingMethod = orderDto.ShippingMethod,
-                    SalesPerson = orderDto.SalesPerson,
-                    Subject = orderDto.Subject,
-                    Description = orderDto.Description,
-                    DetailedDescription = orderDto.DetailedDescription,
-                    Status = orderDto.Status ?? "Draft",
-                    CreatedBy = orderDto.CreatedBy,
-                    CreatedDate = orderDto.CreatedDate ?? DateTime.UtcNow,
-                    ModifiedBy = orderDto.ModifiedBy,
-                    ModifiedDate = orderDto.ModifiedDate,
-                    OrderItems = new List<OrderItem>()
-                };
-
-                foreach (var itemDto in orderDto.OrderItems)
-                {
-                    if (itemDto.ProductId <= 0)
-                        throw new ArgumentException($"Invalid ProductId for order item: {itemDto.ProductId}");
-                    var orderItem = new OrderItem
-                    {
-                        ProductId = itemDto.ProductId,
-                        Quantity = itemDto.Quantity,
-                        UnitPrice = itemDto.UnitPrice,
-                        DiscountPercentage = itemDto.DiscountPercentage,
-                        DiscountAmount = itemDto.DiscountAmount,
-                        Description = itemDto.Description
-                    };
-                    order.OrderItems.Add(orderItem);
-                }
-
-                _context.Orders.Add(order);
-                await _context.SaveChangesAsync();
-
-                return new OrderDto
-                {
-                    OrderId = order.OrderId,
-                    OrderNumber = order.OrderNumber
-                };
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error creating order: {Message}", ex.Message);
-                throw;
-            }
+            return await _context.Partners.ToListAsync();
         }
 
-        public async Task<List<PartnerDto>> GetPartnersAsync()
-        {
-            try
-            {
-                var partners = await _context.Partners
-                    .Select(p => new PartnerDto
-                    {
-                        PartnerId = p.PartnerId,
-                        Name = p.Name
-                    })
-                    .ToListAsync();
-                _logger.LogInformation($"Fetched {partners.Count} partners from database.");
-                return partners;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error fetching partners from database.");
-                throw;
-            }
-        }
-
-        public async Task<List<OrderItemDto>> GetOrderItemsAsync(int OrderId)
+        public async Task<List<OrderItem>> GetOrderItemsAsync(int OrderId)
         {
             return await _context.OrderItems
-                .Where(qi => qi.OrderId == OrderId)
-                .Include(qi => qi.Product)
-                .Select(qi => new OrderItemDto
-                {
-                    OrderItemId = qi.OrderItemId,
-                    OrderId = qi.OrderId,
-                    ProductId = qi.ProductId,
-                    Product = qi.Product != null ? new ProductDto
-                    {
-                        ProductId = qi.Product.ProductId,
-                        Name = qi.Product.Name
-                    } : null,
-                    Quantity = qi.Quantity,
-                    UnitPrice = qi.UnitPrice,
-                    Description = qi.Description,
-                    DiscountPercentage = qi.DiscountPercentage,
-                    DiscountAmount = qi.DiscountAmount
-                    // TotalPrice is computed in OrderItemDto
-                })
+                .Where(oi => oi.OrderId == OrderId)
+                .Include(oi => oi.Product)
+                .Include(oi => oi.VatType)
                 .ToListAsync();
         }
 
-public async Task<OrderDto> UpdateOrderAsync(int orderId, UpdateOrderDto orderDto, string modifiedBy)
+public async Task<Order> CreateOrderAsync(Order order)
 {
-    _logger.LogInformation("Updating order for OrderId: {OrderId}", orderId);
+    if (order == null)
+    {
+        _logger.LogError("CreateOrderAsync received null order");
+        throw new ArgumentNullException(nameof(order));
+    }
+
+    if (_context == null)
+    {
+        _logger.LogError("Database context is null for CreateOrderAsync");
+        throw new InvalidOperationException("Adatbázis kapcsolat nem érhető el");
+    }
+
+    _logger.LogInformation("Validating order: PartnerId={PartnerId}, CurrencyId={CurrencyId}, SiteId={SiteId}, QuoteId={QuoteId}, OrderNumber={OrderNumber}, Status={Status}, TotalAmount={TotalAmount}", 
+        order.PartnerId, order.CurrencyId, order.SiteId, order.QuoteId, order.OrderNumber, order.Status, order.TotalAmount);
+
+    if (order.PartnerId <= 0 || !await _context.Partners.AnyAsync(p => p.PartnerId == order.PartnerId))
+    {
+        _logger.LogError("Invalid PartnerId: {PartnerId}", order.PartnerId);
+        throw new ArgumentException($"Érvénytelen PartnerId: {order.PartnerId}");
+    }
+
+    if (order.CurrencyId <= 0 || !await _context.Currencies.AnyAsync(c => c.CurrencyId == order.CurrencyId))
+    {
+        _logger.LogError("Invalid CurrencyId: {CurrencyId}", order.CurrencyId);
+        throw new ArgumentException($"Érvénytelen CurrencyId: {order.CurrencyId}");
+    }
+
+    if (order.SiteId.HasValue && !await _context.Sites.AnyAsync(s => s.SiteId == order.SiteId))
+    {
+        _logger.LogError("Invalid SiteId: {SiteId}", order.SiteId);
+        throw new ArgumentException($"Érvénytelen SiteId: {order.SiteId}");
+    }
+
+    if (order.QuoteId.HasValue && !await _context.Quotes.AnyAsync(q => q.QuoteId == order.QuoteId))
+    {
+        _logger.LogError("Invalid QuoteId: {QuoteId}", order.QuoteId);
+        throw new ArgumentException($"Érvénytelen QuoteId: {order.QuoteId}");
+    }
+
+    if (order.OrderItems == null || !order.OrderItems.Any())
+    {
+        _logger.LogError("No order items provided");
+        throw new ArgumentException("Legalább egy tétel szükséges");
+    }
+
+    foreach (var item in order.OrderItems)
+    {
+        _logger.LogInformation("Validating OrderItem: ProductId={ProductId}, VatTypeId={VatTypeId}, OrderItemId={OrderItemId}", 
+            item.ProductId, item.VatTypeId, item.OrderItemId);
+
+        if (item.OrderItemId != 0)
+        {
+            _logger.LogWarning("OrderItemId {OrderItemId} provided for new OrderItem, resetting to 0", item.OrderItemId);
+            item.OrderItemId = 0; // Ensure IDENTITY column is not set
+        }
+
+        if (item.ProductId <= 0 || !await _context.Products.AnyAsync(p => p.ProductId == item.ProductId))
+        {
+            _logger.LogError("Invalid ProductId in OrderItem: {ProductId}", item.ProductId);
+            throw new ArgumentException($"Érvénytelen ProductId: {item.ProductId}");
+        }
+        if (item.Quantity <= 0)
+        {
+            _logger.LogError("Invalid Quantity in OrderItem: {Quantity}", item.Quantity);
+            throw new ArgumentException($"Érvénytelen mennyiség: {item.Quantity}");
+        }
+        if (item.UnitPrice < 0)
+        {
+            _logger.LogError("Invalid UnitPrice in OrderItem: {UnitPrice}", item.UnitPrice);
+            throw new ArgumentException($"Érvénytelen egységár: {item.UnitPrice}");
+        }
+        if (item.DiscountAmount < 0)
+        {
+            _logger.LogError("Invalid DiscountAmount in OrderItem: {DiscountAmount}", item.DiscountAmount);
+            throw new ArgumentException($"Érvénytelen kedvezmény összeg: {item.DiscountAmount}");
+        }
+        if (item.VatTypeId.HasValue && item.VatTypeId <= 0)
+        {
+            _logger.LogError("Invalid VatTypeId in OrderItem: {VatTypeId}", item.VatTypeId);
+            throw new ArgumentException($"Érvénytelen ÁFA típus azonosító: {item.VatTypeId}");
+        }
+        if (item.VatTypeId.HasValue && !await _context.VatTypes.AnyAsync(v => v.VatTypeId == item.VatTypeId))
+        {
+            _logger.LogError("VAT type not found for VatTypeId: {VatTypeId}", item.VatTypeId);
+            throw new ArgumentException($"Érvénytelen ÁFA típus azonosító: {item.VatTypeId}");
+        }
+    }
+
     using var transaction = await _context.Database.BeginTransactionAsync();
     try
     {
-        if (orderDto == null)
-        {
-            _logger.LogWarning("Received null UpdateOrderDto for OrderId: {OrderId}", orderId);
-            throw new ArgumentNullException(nameof(orderDto));
-        }
-
-        var order = await _context.Orders
-            .Include(o => o.OrderItems)
-            .FirstOrDefaultAsync(o => o.OrderId == orderId);
-        if (order == null)
-        {
-            _logger.LogWarning("Order not found for OrderId: {OrderId}", orderId);
-            throw new KeyNotFoundException($"Rendelés nem található: {orderId}");
-        }
-
-        // Validate required fields
-        if (orderDto.OrderDate == null)
-            throw new ArgumentException("Rendelés dátuma kötelező.");
-        if (orderDto.PartnerId == null)
-            throw new ArgumentException("Partner kiválasztása kötelező.");
-        if (orderDto.CurrencyId == null)
-            throw new ArgumentException("Pénznem kiválasztása kötelező.");
-        if (string.IsNullOrEmpty(orderDto.Status))
-            throw new ArgumentException("Státusz megadása kötelező.");
-        if (orderDto.OrderItems == null || !orderDto.OrderItems.Any())
-            throw new ArgumentException("Legalább egy tétel szükséges a rendeléshez.");
-
-        // Validate foreign keys
-        if (!await _context.Partners.AnyAsync(p => p.PartnerId == orderDto.PartnerId))
-            throw new ArgumentException($"Érvénytelen PartnerId: {orderDto.PartnerId}");
-        if (!await _context.Currencies.AnyAsync(c => c.CurrencyId == orderDto.CurrencyId))
-            throw new ArgumentException($"Érvénytelen CurrencyId: {orderDto.CurrencyId}");
-        if (orderDto.SiteId.HasValue && !await _context.Sites.AnyAsync(s => s.SiteId == orderDto.SiteId.Value))
-            throw new ArgumentException($"Érvénytelen SiteId: {orderDto.SiteId}");
-        if (orderDto.QuoteId.HasValue && !await _context.Quotes.AnyAsync(q => q.QuoteId == orderDto.QuoteId.Value))
-            throw new ArgumentException($"Érvénytelen QuoteId: {orderDto.QuoteId}");
-
-        // Update fields
-        order.OrderNumber = orderDto.OrderNumber;
-        order.PartnerId = orderDto.PartnerId.Value;
-        order.OrderDate = orderDto.OrderDate.Value;
-        order.Status = orderDto.Status;
-        order.TotalAmount = orderDto.TotalAmount ?? 0;
-        order.SalesPerson = orderDto.SalesPerson;
-        order.Deadline = orderDto.Deadline;
-        order.Subject = orderDto.Subject;
-        order.Description = orderDto.Description;
-        order.DetailedDescription = orderDto.DetailedDescription;
-        order.DiscountAmount = orderDto.DiscountAmount;
-        order.DiscountPercentage = orderDto.DiscountPercentage;
-        order.DeliveryDate = orderDto.DeliveryDate;
-        order.CompanyName = orderDto.CompanyName;
-        order.PaymentTerms = orderDto.PaymentTerms;
-        order.ShippingMethod = orderDto.ShippingMethod;
-        order.OrderType = orderDto.OrderType;
-        order.ReferenceNumber = orderDto.ReferenceNumber;
-        order.QuoteId = orderDto.QuoteId;
-        order.SiteId = orderDto.SiteId;
-        order.CurrencyId = orderDto.CurrencyId.Value;
-
-        // Handle OrderItems
-        _logger.LogInformation("Processing {ItemCount} OrderItems for OrderId: {OrderId}", orderDto.OrderItems.Count, orderId);
-
-        var updateItemIds = orderDto.OrderItems
-            .Where(i => i.OrderItemId != 0)
-            .Select(i => i.OrderItemId)
-            .ToList();
-        var itemsToRemove = order.OrderItems
-            .Where(oi => !updateItemIds.Contains(oi.OrderItemId))
-            .ToList();
-        _context.OrderItems.RemoveRange(itemsToRemove);
-
-        foreach (var itemDto in orderDto.OrderItems)
-        {
-            if (!itemDto.ProductId.HasValue || itemDto.ProductId <= 0)
-                throw new ArgumentException($"Érvénytelen ProductId: {itemDto.ProductId} az {itemDto.OrderItemId} tételhez.");
-
-            if (!await _context.Products.AnyAsync(p => p.ProductId == itemDto.ProductId.Value))
-                throw new ArgumentException($"Nem létező ProductId: {itemDto.ProductId} az {itemDto.OrderItemId} tételhez.");
-
-            var item = order.OrderItems.FirstOrDefault(oi => oi.OrderItemId == itemDto.OrderItemId);
-            if (item == null && itemDto.OrderItemId == 0)
-            {
-                item = new OrderItem { OrderId = orderId };
-                order.OrderItems.Add(item);
-            }
-            else if (item == null)
-            {
-                throw new ArgumentException($"Érvénytelen OrderItemId: {itemDto.OrderItemId}");
-            }
-
-            item.ProductId = itemDto.ProductId.Value;
-            item.Quantity = itemDto.Quantity ?? 1;
-            item.UnitPrice = itemDto.UnitPrice ?? 0;
-            item.Description = itemDto.Description;
-            item.DiscountPercentage = itemDto.DiscountPercentage;
-            item.DiscountAmount = itemDto.DiscountAmount;
-            item.TotalPrice = (itemDto.Quantity ?? 1) * (itemDto.UnitPrice ?? 0) - (itemDto.DiscountAmount ?? 0);
-        }
-
-        order.ModifiedBy = modifiedBy ?? "System";
+        order.OrderNumber = await GetNextOrderNumberAsync(); // Always generate unique OrderNumber
+        order.CreatedDate = DateTime.UtcNow;
         order.ModifiedDate = DateTime.UtcNow;
+        order.CreatedBy ??= "System";
+        order.ModifiedBy ??= "System";
+        order.Status ??= "Pending";
+
+        _context.Orders.Add(order);
+        await _context.SaveChangesAsync();
+
+        foreach (var item in order.OrderItems)
+        {
+            item.OrderId = order.OrderId;
+            item.OrderItemId = 0; // Ensure IDENTITY column is not set
+            item.CreatedDate = DateTime.UtcNow;
+            item.ModifiedDate = DateTime.UtcNow;
+            item.CreatedBy ??= "System";
+            item.ModifiedBy ??= "System";
+            _context.OrderItems.Add(item);
+        }
 
         await _context.SaveChangesAsync();
         await transaction.CommitAsync();
-        _logger.LogInformation("Successfully updated Order ID: {OrderId} with {ItemCount} items", orderId, order.OrderItems.Count);
+
+        var createdOrder = await _context.Orders
+            .Include(o => o.OrderItems)
+            .FirstOrDefaultAsync(o => o.OrderId == order.OrderId);
+        return createdOrder ?? throw new Exception("Failed to retrieve created order");
     }
     catch (DbUpdateException ex)
     {
         await transaction.RollbackAsync();
-        _logger.LogError(ex, "Database error saving OrderId: {OrderId}. Inner exception: {InnerException}", orderId, ex.InnerException?.Message);
-        throw new InvalidOperationException($"Adatbázis hiba a rendelés mentése során: {ex.InnerException?.Message}", ex);
+        _logger.LogError(ex, "Database error creating order for PartnerId: {PartnerId}", order.PartnerId);
+        throw new InvalidOperationException($"Adatbázis hiba a megrendelés létrehozásakor: {ex.InnerException?.Message ?? ex.Message}", ex);
     }
     catch (Exception ex)
     {
         await transaction.RollbackAsync();
-        _logger.LogError(ex, "Unexpected error saving OrderId: {OrderId}: {Message}", orderId, ex.Message);
-        throw;
-    }
-
-    // Fetch updated order using safe projection to DTO
-    try
-    {
-        var updatedOrderDto = await _context.Orders
-            .Where(o => o.OrderId == orderId)
-            .Select(order => new OrderDto
-            {
-                OrderId = order.OrderId,
-                OrderNumber = order.OrderNumber,
-                OrderDate = order.OrderDate,
-                Deadline = order.Deadline,
-                Description = order.Description,
-                TotalAmount = order.TotalAmount,
-                SalesPerson = order.SalesPerson,
-                DeliveryDate = order.DeliveryDate,
-                DiscountPercentage = order.DiscountPercentage,
-                DiscountAmount = order.DiscountAmount,
-                CompanyName = order.CompanyName,
-                Subject = order.Subject,
-                DetailedDescription = order.DetailedDescription,
-                CreatedBy = order.CreatedBy,
-                CreatedDate = order.CreatedDate,
-                ModifiedBy = order.ModifiedBy,
-                ModifiedDate = order.ModifiedDate,
-                Status = order.Status ?? "Unknown",
-                PartnerId = order.PartnerId,
-                Partner = order.Partner == null ? null : new PartnerDto
-                {
-                    PartnerId = order.Partner.PartnerId,
-                    Name = order.Partner.Name ?? "Unknown",
-                    // Add other PartnerDto fields with ?? "" as needed
-                },
-                SiteId = order.SiteId,
-                Site = order.Site == null ? null : new SiteDto
-                {
-                    SiteId = order.Site.SiteId,
-                    Address = order.Site.City // or whatever property you use
-                    // Add other SiteDto fields with ?? "" as needed
-                },
-                CurrencyId = order.CurrencyId,
-                Currency = order.Currency == null ? null : new CurrencyDto
-                {
-                    CurrencyId = order.Currency.CurrencyId,
-                    CurrencyName = order.Currency.CurrencyName ?? "Unknown"
-                    // Add other CurrencyDto fields with ?? "" as needed
-                },
-                PaymentTerms = order.PaymentTerms,
-                ShippingMethod = order.ShippingMethod,
-                OrderType = order.OrderType,
-                OrderItems = order.OrderItems.Select(oi => new OrderItemDto
-                {
-                    OrderItemId = oi.OrderItemId,
-                    OrderId = oi.OrderId,
-                    ProductId = oi.ProductId,
-                    Product = oi.Product == null ? null : new ProductDto
-                    {
-                        ProductId = oi.Product.ProductId,
-                        Name = oi.Product.Name ?? "Unknown",
-                        // Add other ProductDto fields with ?? "" as needed
-                    },
-                    Quantity = oi.Quantity,
-                    UnitPrice = oi.UnitPrice,
-                    Description = oi.Description,
-                    DiscountPercentage = oi.DiscountPercentage,
-                    DiscountAmount = oi.DiscountAmount
-                }).ToList(),
-                ReferenceNumber = order.ReferenceNumber,
-                QuoteId = order.QuoteId,
-                Quote = order.Quote == null ? null : new QuoteDto
-                {
-                    QuoteId = order.Quote.QuoteId
-                    // Add other QuoteDto fields with ?? "" as needed
-                }
-            })
-            .FirstOrDefaultAsync();
-
-        if (updatedOrderDto == null)
-        {
-            throw new KeyNotFoundException($"Frissített rendelés nem található: {orderId}");
-        }
-
-        return updatedOrderDto;
-    }
-    catch (Exception ex)
-    {
-        _logger.LogError(ex, "Error fetching updated order for OrderId: {OrderId}: {Message}", orderId, ex.Message);
-        throw new InvalidOperationException($"Hiba a frissített rendelés lekérdezése során: {ex.Message}", ex);
+        _logger.LogError(ex, "Unexpected error creating order for PartnerId: {PartnerId}", order.PartnerId);
+        throw new InvalidOperationException($"Hiba a megrendelés létrehozásakor: {ex.Message}", ex);
     }
 }
 
-        public async Task<bool> DeleteOrderAsync(int orderId)
+public async Task<Order> GetOrderByIdAsync(int OrderId)
         {
             var order = await _context.Orders
-                .Include(q => q.OrderItems)
-                .FirstOrDefaultAsync(q => q.OrderId == orderId);
+                .Include(o => o.OrderItems)
+                .FirstOrDefaultAsync(o => o.OrderId == OrderId);
+            if (order == null)
+            {
+                _logger.LogWarning("Order not found for OrderId: {OrderId}", OrderId);
+                throw new ArgumentException($"Érvénytelen OrderId: {OrderId}");
+            }
+            return order;
+        }
+
+public async Task<OrderDto> GetOrderAsync(int id)
+        {
+            try
+            {
+                var order = await _context.Orders
+                    .AsNoTracking()
+                    .Include(o => o.OrderItems)
+                    .ThenInclude(oi => oi.Product)
+                    .Include(o => o.OrderItems)
+                    .ThenInclude(oi => oi.VatType)
+                    .Include(o => o.Partner)
+                    .Include(o => o.Currency)
+                    .Include(o => o.Site)
+                    .Include(o => o.Quote)
+                    .FirstOrDefaultAsync(o => o.OrderId == id);
+
+                if (order == null)
+                {
+                    _logger.LogWarning("Order {id} not found in database", id);
+                    return null;
+                }
+
+                var orderDto = new OrderDto
+                {
+                    OrderId = order.OrderId,
+                    OrderNumber = order.OrderNumber,
+                    OrderDate = order.OrderDate,
+                    Deadline = order.Deadline,
+                    Status = order.Status,
+                    SalesPerson = order.SalesPerson,
+                    DeliveryDate = order.DeliveryDate,
+                    DiscountPercentage = order.DiscountPercentage,
+                    DiscountAmount = order.DiscountAmount,
+                    CompanyName = order.CompanyName,
+                    Subject = order.Subject,
+                    PaymentTerms = order.PaymentTerms,
+                    ShippingMethod = order.ShippingMethod,
+                    OrderType = order.OrderType,
+                    ReferenceNumber = order.ReferenceNumber,
+                    TotalAmount = order.TotalAmount,
+                    Description = order.Description,
+                    DetailedDescription = order.DetailedDescription,
+                    PartnerId = order.PartnerId,
+                    SiteId = order.SiteId,
+                    CurrencyId = order.CurrencyId,
+                    QuoteId = order.QuoteId,
+                    CreatedBy = order.CreatedBy,
+                    CreatedDate = order.CreatedDate,
+                    ModifiedBy = order.ModifiedBy,
+                    ModifiedDate = order.ModifiedDate,
+                    OrderItems = order.OrderItems?.Select(oi => new OrderItemDto
+                    {
+                        OrderItemId = oi.OrderItemId,
+                        ProductId = oi.ProductId,
+                        ProductName = oi.Product?.Name ?? "Unknown",
+                        Quantity = oi.Quantity,
+                        UnitPrice = oi.UnitPrice,
+                        DiscountTypeId = oi.DiscountType,
+                        DiscountAmount = oi.DiscountAmount,
+                        VatTypeId = oi.VatTypeId,
+                        VatRate = oi.VatType?.Rate, // Handle null case
+                        Description = oi.Description,
+                        CreatedBy = oi.CreatedBy,
+                        CreatedDate = oi.CreatedDate,
+                        ModifiedBy = oi.ModifiedBy,
+                        ModifiedDate = oi.ModifiedDate
+                    }).ToList() ?? new List<OrderItemDto>()
+                };
+
+                _logger.LogInformation("Fetched order {id} with {ItemCount} items: {OrderItems}", id, orderDto.OrderItems.Count, orderDto.OrderItems.Select(oi => new { oi.OrderItemId, oi.ProductId, oi.VatTypeId }));
+                return orderDto;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error fetching order {id}", id);
+                throw;
+            }
+        }
+
+public async Task<Order?> UpdateOrderAsync(int orderId, Order orderUpdate)
+        {
+            _logger.LogInformation("UpdateOrderAsync called for OrderId: {OrderId}", orderId);
+
+            if (orderUpdate == null)
+            {
+                _logger.LogWarning("UpdateOrderAsync received null orderUpdate for OrderId: {OrderId}", orderId);
+                throw new ArgumentNullException(nameof(orderUpdate));
+            }
+
+            var order = await _context.Orders
+                .Include(o => o.OrderItems)
+                .FirstOrDefaultAsync(o => o.OrderId == orderId);
 
             if (order == null)
+            {
+                _logger.LogWarning("Order not found for OrderId: {OrderId}", orderId);
+                return null;
+            }
+
+            using var transaction = await _context.Database.BeginTransactionAsync();
+            try
+            {
+                order.PartnerId = orderUpdate.PartnerId != 0 ? orderUpdate.PartnerId : order.PartnerId;
+                order.CurrencyId = orderUpdate.CurrencyId != 0 ? orderUpdate.CurrencyId : order.CurrencyId;
+                order.SiteId = orderUpdate.SiteId != 0 ? orderUpdate.SiteId : order.SiteId;
+                order.QuoteId = orderUpdate.QuoteId != 0 ? orderUpdate.QuoteId : order.QuoteId;
+                order.OrderNumber = orderUpdate.OrderNumber ?? order.OrderNumber;
+                order.OrderDate = orderUpdate.OrderDate ?? order.OrderDate;
+                order.Deadline = orderUpdate.Deadline ?? order.Deadline;
+                order.DeliveryDate = orderUpdate.DeliveryDate ?? order.DeliveryDate;
+                order.ReferenceNumber = orderUpdate.ReferenceNumber ?? order.ReferenceNumber;
+                order.OrderType = orderUpdate.OrderType ?? order.OrderType;
+                order.CompanyName = orderUpdate.CompanyName ?? order.CompanyName;
+                order.TotalAmount = orderUpdate.TotalAmount != 0 ? orderUpdate.TotalAmount : order.TotalAmount;
+                order.DiscountAmount = orderUpdate.DiscountAmount ?? order.DiscountAmount;
+                order.PaymentTerms = orderUpdate.PaymentTerms ?? order.PaymentTerms;
+                order.ShippingMethod = orderUpdate.ShippingMethod ?? order.ShippingMethod;
+                order.SalesPerson = orderUpdate.SalesPerson ?? order.SalesPerson;
+                order.Subject = orderUpdate.Subject ?? order.Subject;
+                order.Description = orderUpdate.Description ?? order.Description;
+                order.DetailedDescription = orderUpdate.DetailedDescription ?? order.DetailedDescription;
+                order.Status = orderUpdate.Status ?? order.Status;
+                order.ModifiedBy = orderUpdate.ModifiedBy ?? order.ModifiedBy;
+                order.ModifiedDate = orderUpdate.ModifiedDate ?? DateTime.UtcNow;
+
+                if (orderUpdate.OrderItems != null)
+                {
+                    foreach (var itemUpdate in orderUpdate.OrderItems)
+                    {
+                        if (itemUpdate.OrderItemId == 0)
+                        {
+                            itemUpdate.OrderId = orderId;
+                            await CreateOrderItemAsync(orderId, itemUpdate);
+                        }
+                        else
+                        {
+                            await UpdateOrderItemAsync(orderId, itemUpdate.OrderItemId, itemUpdate);
+                        }
+                    }
+                }
+
+                await _context.SaveChangesAsync();
+                await transaction.CommitAsync();
+                return order;
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                _logger.LogError(ex, "Error updating order for OrderId: {OrderId}", orderId);
+                throw;
+            }
+        }
+
+public async Task<bool> DeleteOrderAsync(int orderId)
+        {
+            var order = await _context.Orders.FirstOrDefaultAsync(o => o.OrderId == orderId);
+            if (order == null)
+            {
+                _logger.LogWarning("Order {orderId} not found for deletion", orderId);
                 return false;
-
-            // Remove other related entities if any
-            _context.OrderItems.RemoveRange(order.OrderItems);
-
-            // Add more as needed
-
+            }
             _context.Orders.Remove(order);
-
             await _context.SaveChangesAsync();
+            _logger.LogInformation("Order {orderId} deleted successfully", orderId);
             return true;
         }
 
-        public async Task<OrderItemResponseDto> CreateOrderItemAsync(int OrderId, CreateOrderItemDto itemDto)
+public async Task<OrderItem?> CreateOrderItemAsync(int OrderId, OrderItem item)
         {
-            _logger.LogInformation("CreateOrderItemAsync called for OrderId: {OrderId}, ItemDto: {ItemDto}",
-                OrderId, JsonSerializer.Serialize(itemDto));
+            _logger.LogInformation("CreateOrderItemAsync called for OrderId: {OrderId}", OrderId);
 
-            if (itemDto == null)
+            if (item == null)
             {
-                _logger.LogWarning("CreateOrderItemAsync received null ItemDto for OrderId: {OrderId}", OrderId);
-                throw new ArgumentNullException(nameof(itemDto));
+                _logger.LogWarning("CreateOrderItemAsync received null item for OrderId: {OrderId}", OrderId);
+                throw new ArgumentNullException(nameof(item));
             }
 
             if (_context == null)
@@ -457,477 +397,288 @@ public async Task<OrderDto> UpdateOrderAsync(int orderId, UpdateOrderDto orderDt
                 throw new InvalidOperationException("Adatbázis kapcsolat nem érhető el");
             }
 
-            var Order = await _context.Orders.FirstOrDefaultAsync(q => q.OrderId == OrderId);
-            if (Order == null)
+            var order = await _context.Orders.FirstOrDefaultAsync(q => q.OrderId == OrderId);
+            if (order == null)
             {
                 _logger.LogWarning("Order not found for OrderId: {OrderId}", OrderId);
                 return null;
             }
 
-            var product = await _context.Products.FirstOrDefaultAsync(p => p.ProductId == itemDto.ProductId);
+            var product = await _context.Products.FirstOrDefaultAsync(p => p.ProductId == item.ProductId);
             if (product == null)
             {
-                _logger.LogWarning("Product not found for ProductId: {ProductId}", itemDto.ProductId);
-                throw new ArgumentException($"Érvénytelen ProductId: {itemDto.ProductId}");
+                _logger.LogWarning("Product not found for ProductId: {ProductId}", item.ProductId);
+                throw new ArgumentException($"Érvénytelen ProductId: {item.ProductId}");
             }
 
-            var OrderItem = new OrderItem
+            if (item.VatTypeId <= 0)
             {
-                OrderId = OrderId,
-                ProductId = itemDto.ProductId,
-                Quantity = itemDto.Quantity,
-                UnitPrice = itemDto.UnitPrice,
-                Description = itemDto.Description ?? "", // Ensure empty string if null
-                DiscountPercentage = itemDto.DiscountPercentage,
-                DiscountAmount = itemDto.DiscountAmount
-            };
-
-            _context.OrderItems.Add(OrderItem);
-            await _context.SaveChangesAsync();
-
-            _logger.LogInformation("Created Order item ID: {OrderItemId} for OrderId: {OrderId}", OrderItem.OrderItemId, OrderId);
-            return new OrderItemResponseDto
-            {
-                OrderItemId = OrderItem.OrderItemId,
-                OrderId = OrderItem.OrderId,
-                ProductId = OrderItem.ProductId,
-                Quantity = OrderItem.Quantity,
-                UnitPrice = OrderItem.UnitPrice,
-                DiscountPercentage = OrderItem.DiscountPercentage,
-                DiscountAmount = OrderItem.DiscountAmount
-            };
-        }
-
-public async Task<OrderItemResponseDto> UpdateOrderItemAsync(int orderId, int orderItemId, UpdateOrderItemDto itemDto)
-{
-    _logger.LogInformation("UpdateOrderItemAsync called for OrderId: {OrderId}, OrderItemId: {OrderItemId}, ItemDto: {ItemDto}",
-        orderId, orderItemId, JsonSerializer.Serialize(itemDto));
-
-    if (itemDto == null)
-    {
-        _logger.LogWarning("UpdateOrderItemAsync received null ItemDto for OrderId: {OrderId}", orderId);
-        throw new ArgumentNullException(nameof(itemDto));
-    }
-
-    if (_context == null)
-    {
-        _logger.LogError("Database context is null for UpdateOrderItemAsync OrderId: {OrderId}", orderId);
-        throw new InvalidOperationException("Adatbázis kapcsolat nem érhető el");
-    }
-
-    var orderItem = await _context.OrderItems
-        .FirstOrDefaultAsync(q => q.OrderId == orderId && q.OrderItemId == orderItemId);
-    if (orderItem == null)
-    {
-        _logger.LogWarning("Order item not found for OrderId: {OrderId}, OrderItemId: {OrderItemId}", orderId, orderItemId);
-        return null;
-    }
-
-    // Update fields if provided
-    if (itemDto.ProductId.HasValue)
-    {
-        var product = await _context.Products.FindAsync(itemDto.ProductId.Value);
-        if (product == null)
-        {
-            _logger.LogWarning("Product not found for ProductId: {ProductId}", itemDto.ProductId);
-            throw new ArgumentException($"Érvénytelen ProductId: {itemDto.ProductId}");
-        }
-        orderItem.ProductId = itemDto.ProductId.Value;
-    }
-    if (itemDto.Quantity.HasValue) orderItem.Quantity = itemDto.Quantity.Value;
-    if (itemDto.UnitPrice.HasValue) orderItem.UnitPrice = itemDto.UnitPrice.Value;
-    if (itemDto.Description != null) orderItem.Description = itemDto.Description;
-    if (itemDto.DiscountPercentage.HasValue) orderItem.DiscountPercentage = itemDto.DiscountPercentage;
-    if (itemDto.DiscountAmount.HasValue) orderItem.DiscountAmount = itemDto.DiscountAmount;
-
-    await _context.SaveChangesAsync();
-
-    _logger.LogInformation("Updated Order item ID: {OrderItemId} for OrderId: {OrderId}", orderItemId, orderId);
-
-    return new OrderItemResponseDto
-    {
-        OrderItemId = orderItem.OrderItemId,
-        OrderId = orderItem.OrderId,
-        ProductId = orderItem.ProductId,
-        Quantity = orderItem.Quantity,
-        UnitPrice = orderItem.UnitPrice,
-        Description = orderItem.Description,
-        DiscountPercentage = orderItem.DiscountPercentage,
-        DiscountAmount = orderItem.DiscountAmount
-    };
-}
-
-        public async Task<bool> DeleteOrderItemAsync(int OrderId, int OrderItemId)
-        {
-            var item = await _context.OrderItems
-                .FirstOrDefaultAsync(qi => qi.OrderId == OrderId && qi.OrderItemId == OrderItemId);
-
-            if (item == null)
-            {
-                return false;
+                _logger.LogWarning("Invalid VatTypeId for OrderItem: {VatTypeId}", item.VatTypeId);
+                throw new ArgumentException($"Érvénytelen ÁFA típus azonosító: {item.VatTypeId}");
             }
 
-            _context.OrderItems.Remove(item);
-            await _context.SaveChangesAsync();
-            return true;
-        }
+            var vatType = await _context.VatTypes.FirstOrDefaultAsync(v => v.VatTypeId == item.VatTypeId);
+            if (vatType == null)
+            {
+                _logger.LogWarning("VAT type not found for VatTypeId: {VatTypeId}", item.VatTypeId);
+                throw new ArgumentException($"Érvénytelen ÁFA típus azonosító: {item.VatTypeId}");
+            }
 
-        public async Task<OrderDto> CopyOrderAsync(int sourceOrderId)
-        {
+            using var transaction = await _context.Database.BeginTransactionAsync();
             try
             {
-                _logger.LogInformation("Copying order with ID: {OrderId}", sourceOrderId);
+                item.OrderId = OrderId;
+                item.Description ??= "";
+                item.CreatedDate = DateTime.UtcNow;
+                item.ModifiedDate = DateTime.UtcNow;
+                item.CreatedBy ??= "System";
+                item.ModifiedBy ??= "System";
 
-                var sourceOrder = await GetOrderByIdAsync(sourceOrderId);
-                if (sourceOrder == null)
-                {
-                    _logger.LogWarning("Source order not found with ID: {OrderId}", sourceOrderId);
-                    throw new ArgumentException($"Order with ID {sourceOrderId} not found");
-                }
+                _context.OrderItems.Add(item);
+                await _context.SaveChangesAsync();
 
-                var createOrderDto = MapToCreateOrderDto(sourceOrder);
-                var newOrder = await CreateOrderAsync(createOrderDto);
-                _logger.LogInformation("Copied order {SourceOrderId} to new order {NewOrderId}", sourceOrderId, newOrder.OrderId);
+                await transaction.CommitAsync();
 
-                return newOrder;
+                _logger.LogInformation("Created OrderItem ID: {OrderItemId} for OrderId: {OrderId} with VatTypeId: {VatTypeId}", item.OrderItemId, OrderId, item.VatTypeId);
+
+                return item;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error copying order with ID: {OrderId}", sourceOrderId);
+                await transaction.RollbackAsync();
+                _logger.LogError(ex, "Error creating OrderItem for OrderId: {OrderId}", OrderId);
                 throw;
             }
         }
 
-        public async Task<List<OrderDto>> GetOrdersAsync(string searchTerm, string statusFilter, string sortBy, int skip, int take)
+public async Task<OrderItem?> UpdateOrderItemAsync(int OrderId, int OrderItemId, OrderItem itemUpdate)
+        {
+            _logger.LogInformation("UpdateOrderItemAsync called for OrderId: {OrderId}, OrderItemId: {OrderItemId}", OrderId, OrderItemId);
+
+            if (itemUpdate == null)
+            {
+                _logger.LogWarning("UpdateOrderItemAsync received null itemUpdate for OrderId: {OrderId}, OrderItemId: {OrderItemId}", OrderId, OrderItemId);
+                throw new ArgumentNullException(nameof(itemUpdate));
+            }
+
+            var orderItem = await _context.OrderItems
+                .Include(oi => oi.Product)
+                .FirstOrDefaultAsync(oi => oi.OrderId == OrderId && oi.OrderItemId == OrderItemId);
+
+            if (orderItem == null)
+            {
+                _logger.LogWarning("OrderItem not found for OrderId: {OrderId}, OrderItemId: {OrderItemId}", OrderId, OrderItemId);
+                return null;
+            }
+
+            using var transaction = await _context.Database.BeginTransactionAsync();
+            try
+            {
+                orderItem.ProductId = itemUpdate.ProductId;
+                orderItem.Quantity = itemUpdate.Quantity;
+                orderItem.UnitPrice = itemUpdate.UnitPrice;
+                orderItem.Description = itemUpdate.Description ?? orderItem.Description;
+                orderItem.DiscountAmount = itemUpdate.DiscountAmount ?? orderItem.DiscountAmount;
+                orderItem.DiscountType = itemUpdate.DiscountType ?? orderItem.DiscountType;
+                orderItem.ModifiedBy = itemUpdate.ModifiedBy ?? orderItem.ModifiedBy;
+                orderItem.ModifiedDate = itemUpdate.ModifiedDate ?? DateTime.UtcNow;
+
+                await _context.SaveChangesAsync();
+                await transaction.CommitAsync();
+
+                _logger.LogInformation("Updated OrderItem ID: {OrderItemId} for OrderId: {OrderId}", OrderItemId, OrderId);
+
+                return orderItem;
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                _logger.LogError(ex, "Error updating OrderItem for OrderId: {OrderId}, OrderItemId: {OrderItemId}", OrderId, OrderItemId);
+                throw;
+            }
+        }
+
+public async Task<bool> DeleteOrderItemAsync(int orderId, int orderItemId)
+        {
+            try
+            {
+                var orderItem = await _context.OrderItems
+                    .FirstOrDefaultAsync(oi => oi.OrderId == orderId && oi.OrderItemId == orderItemId);
+
+                if (orderItem == null)
+                {
+                    _logger.LogWarning("Order item not found for OrderId: {OrderId}, OrderItemId: {OrderItemId}", orderId, orderItemId);
+                    var orderItems = await _context.OrderItems
+                        .Where(oi => oi.OrderId == orderId)
+                        .Select(oi => new { oi.OrderItemId, oi.ProductId })
+                        .ToListAsync();
+                    _logger.LogInformation("Available order items for OrderId: {OrderId}: {OrderItems}", orderId, orderItems);
+                    return false;
+                }
+
+                _context.OrderItems.Remove(orderItem);
+                await _context.SaveChangesAsync();
+                _logger.LogInformation("Order item {OrderItemId} deleted successfully for OrderId: {OrderId}", orderItemId, orderId);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error deleting order item {OrderItemId} for OrderId: {OrderId}", orderItemId, orderId);
+                throw;
+            }
+        }
+public async Task<Order> CopyOrderAsync(int orderId)
+{
+    var sourceOrder = await _context.Orders
+        .Include(o => o.OrderItems)
+        .FirstOrDefaultAsync(o => o.OrderId == orderId);
+    if (sourceOrder == null)
+    {
+        _logger.LogWarning("Order not found for OrderId: {OrderId}", orderId);
+        throw new ArgumentException($"Érvénytelen OrderId: {orderId}");
+    }
+
+    _logger.LogInformation("Copying OrderId {OrderId}: PartnerId={PartnerId}, CurrencyId={CurrencyId}, ItemCount={ItemCount}", 
+        orderId, sourceOrder.PartnerId, sourceOrder.CurrencyId, sourceOrder.OrderItems?.Count ?? 0);
+
+    // Validate required fields
+    if (!await _context.Partners.AnyAsync(p => p.PartnerId == sourceOrder.PartnerId))
+    {
+        _logger.LogWarning("Invalid PartnerId: {PartnerId} for OrderId: {OrderId}", sourceOrder.PartnerId, orderId);
+        throw new ArgumentException($"Érvénytelen PartnerId: {sourceOrder.PartnerId}");
+    }
+
+    if (!await _context.Currencies.AnyAsync(c => c.CurrencyId == sourceOrder.CurrencyId))
+    {
+        _logger.LogWarning("Invalid CurrencyId: {CurrencyId} for OrderId: {OrderId}", sourceOrder.CurrencyId, orderId);
+        throw new ArgumentException($"Érvénytelen CurrencyId: {sourceOrder.CurrencyId}");
+    }
+
+    if (sourceOrder.OrderItems == null || !sourceOrder.OrderItems.Any(item => item != null))
+    {
+        _logger.LogWarning("No valid OrderItems for OrderId: {OrderId}", orderId);
+        throw new ArgumentException("Legalább egy érvényes tétel szükséges");
+    }
+
+    var validOrderItems = sourceOrder.OrderItems
+        .Where(item => item != null)
+        .ToList();
+
+    foreach (var item in validOrderItems)
+    {
+        if (!await _context.Products.AnyAsync(p => p.ProductId == item.ProductId))
+        {
+            _logger.LogWarning("Invalid ProductId: {ProductId} for OrderItemId: {OrderItemId} in OrderId: {OrderId}", 
+                item.ProductId, item.OrderItemId, orderId);
+            throw new ArgumentException($"Érvénytelen ProductId: {item.ProductId}");
+        }
+    }
+
+    var newOrder = new Order
+    {
+        PartnerId = sourceOrder.PartnerId,
+        CurrencyId = sourceOrder.CurrencyId,
+        OrderNumber = await GetNextOrderNumberAsync(),
+        OrderDate = sourceOrder.OrderDate,
+        Deadline = sourceOrder.Deadline,
+        Description = sourceOrder.Description,
+        TotalAmount = sourceOrder.TotalAmount,
+        SalesPerson = sourceOrder.SalesPerson,
+        DeliveryDate = sourceOrder.DeliveryDate,
+        DiscountPercentage = sourceOrder.DiscountPercentage,
+        DiscountAmount = sourceOrder.DiscountAmount,
+        CompanyName = sourceOrder.CompanyName,
+        Subject = sourceOrder.Subject,
+        DetailedDescription = sourceOrder.DetailedDescription,
+        CreatedBy = "System",
+        CreatedDate = DateTime.UtcNow,
+        ModifiedBy = "System",
+        ModifiedDate = DateTime.UtcNow,
+        Status = sourceOrder.Status ?? "Draft",
+        SiteId = sourceOrder.SiteId,
+        PaymentTerms = sourceOrder.PaymentTerms,
+        ShippingMethod = sourceOrder.ShippingMethod,
+        OrderType = sourceOrder.OrderType,
+        ReferenceNumber = sourceOrder.ReferenceNumber != null 
+            ? $"{sourceOrder.ReferenceNumber}-COPY-{DateTime.UtcNow.Ticks}" 
+            : null,
+        QuoteId = sourceOrder.QuoteId,
+        OrderItems = validOrderItems.Select(i => new OrderItem
+        {
+            ProductId = i.ProductId,
+            Quantity = i.Quantity,
+            UnitPrice = i.UnitPrice,
+            DiscountAmount = i.DiscountAmount,
+            DiscountType = i.DiscountType,
+            Description = i.Description,
+            VatTypeId = i.VatTypeId,
+            CreatedBy = "System",
+            CreatedDate = DateTime.UtcNow,
+            ModifiedBy = "System",
+            ModifiedDate = DateTime.UtcNow
+        }).ToList()
+    };
+
+    using var transaction = await _context.Database.BeginTransactionAsync();
+    try
+    {
+        _context.Orders.Add(newOrder);
+        await _context.SaveChangesAsync(); // Saves both Order and OrderItems
+        await transaction.CommitAsync();
+
+        var createdOrder = await _context.Orders
+            .Include(o => o.OrderItems)
+            .FirstOrDefaultAsync(o => o.OrderId == newOrder.OrderId);
+        return createdOrder ?? throw new Exception("Failed to retrieve created order");
+    }
+    catch (DbUpdateException ex)
+    {
+        await transaction.RollbackAsync();
+        _logger.LogError(ex, "Database error creating new order for copied OrderId: {OrderId}", orderId);
+        throw new InvalidOperationException($"Adatbázis hiba: {ex.InnerException?.Message ?? ex.Message}", ex);
+    }
+    catch (Exception ex)
+    {
+        await transaction.RollbackAsync();
+        _logger.LogError(ex, "Unexpected error creating new order for copied OrderId: {OrderId}", orderId);
+        throw new InvalidOperationException($"Hiba a másolás során: {ex.Message}", ex);
+    }
+}
+
+
+        public async Task<List<Order>> GetOrdersAsync(string searchTerm, string statusFilter, string sortBy, int skip, int take)
         {
             var query = _context.Orders
                 .Include(o => o.Partner)
+                .Include(o => o.Site)
                 .Include(o => o.Currency)
-                .Include(o => o.OrderItems)
-                    .ThenInclude(oi => oi.Product)
+                .Include(o => o.Quote)
+                .Include(o => o.OrderItems)!
+                .ThenInclude(oi => oi.Product)
                 .AsQueryable();
 
-            if (!string.IsNullOrEmpty(searchTerm))
+            if (!string.IsNullOrWhiteSpace(searchTerm))
             {
-                searchTerm = searchTerm.ToLower();
-                query = query.Where(o => o.OrderNumber.ToLower().Contains(searchTerm) ||
-                                        o.Partner.Name.ToLower().Contains(searchTerm));
+                query = query.Where(o => o.OrderNumber != null && o.OrderNumber.Contains(searchTerm) || o.CompanyName != null && o.CompanyName.Contains(searchTerm));
             }
 
-            if (!string.IsNullOrEmpty(statusFilter) && statusFilter != "all")
+            if (!string.IsNullOrWhiteSpace(statusFilter))
             {
                 query = query.Where(o => o.Status == statusFilter);
             }
 
-            query = sortBy switch
+            string sortByLower = sortBy?.ToLower() ?? "orderdate";
+            query = sortByLower switch
             {
-                "OrderId" => query.OrderByDescending(o => o.OrderId),
-                "ValidityDate" => query.OrderBy(o => o.Deadline),
-                _ => query.OrderByDescending(o => o.OrderDate)
+                "orderdate" => query.OrderBy(o => o.OrderDate),
+                "deadline" => query.OrderBy(o => o.Deadline),
+                _ => query.OrderBy(o => o.OrderId)
             };
 
-            var orders = await query
+            return await query
                 .Skip(skip)
                 .Take(take)
-                .Select(o => new OrderDto
-                {
-                    OrderId = o.OrderId,
-                    OrderNumber = o.OrderNumber,
-                    PartnerId = o.PartnerId,
-                    Partner = new PartnerDto
-                    {
-                        PartnerId = o.Partner.PartnerId,
-                        Name = o.Partner.Name
-                    },
-                    CurrencyId = o.CurrencyId,
-                    Currency = new CurrencyDto
-                    {
-                        CurrencyId = o.Currency.CurrencyId,
-                        CurrencyName = o.Currency.CurrencyName
-                    },
-                    OrderDate = o.OrderDate,
-                    Status = o.Status,
-                    TotalAmount = o.TotalAmount,
-                    SalesPerson = o.SalesPerson,
-                    Deadline = o.Deadline,
-                    Subject = o.Subject,
-                    Description = o.Description,
-                    DetailedDescription = o.DetailedDescription,
-                    DiscountPercentage = o.DiscountPercentage,
-                    DiscountAmount = o.DiscountAmount,
-                    OrderItems = o.OrderItems.Select(i => new OrderItemDto
-                    {
-                        OrderItemId = i.OrderItemId,
-                        OrderId = i.OrderId,
-                        Quantity = i.Quantity,
-                        ProductId = i.ProductId,
-                        Product = i.Product == null ? new ProductDto { ProductId = 0, Name = "" } : new ProductDto
-                        {
-                            ProductId = i.Product.ProductId,
-                            Name = i.Product.Name ?? ""
-                        },
-                        UnitPrice = i.UnitPrice,
-                        Description = i.Description,
-                        DiscountPercentage = i.DiscountPercentage,
-                        DiscountAmount = i.DiscountAmount
-                    }).ToList()
-                })
                 .ToListAsync();
-
-            foreach (var order in orders)
-            {
-                _logger.LogInformation($"Order {order.OrderId}: {order.OrderItems.Count} items");
-            }
-
-            return orders;
-        }
-
-        public async Task<OrderDto> GetOrderAsync(int orderId)
-        {
-            try
-            {
-                _logger.LogInformation("Fetching order with ID: {OrderId}", orderId);
-
-                var order = await _context.Orders
-                    .Include(o => o.OrderItems) // Include related OrderItems
-                    .Where(o => o.OrderId == orderId)
-                    .Select(o => new OrderDto
-                    {
-                        OrderId = o.OrderId,
-                        OrderNumber = o.OrderNumber,
-                        PartnerId = o.PartnerId,
-                        CurrencyId = o.CurrencyId,
-                        SiteId = o.SiteId,
-                        QuoteId = o.QuoteId,
-                        OrderDate = o.OrderDate,
-                        Deadline = o.Deadline,
-                        DeliveryDate = o.DeliveryDate,
-                        ReferenceNumber = o.ReferenceNumber,
-                        OrderType = o.OrderType,
-                        CompanyName = o.CompanyName  ?? "",
-                        TotalAmount = o.TotalAmount,
-                        DiscountPercentage = o.DiscountPercentage,
-                        DiscountAmount = o.DiscountAmount,
-                        PaymentTerms = o.PaymentTerms,
-                        ShippingMethod = o.ShippingMethod,
-                        SalesPerson = o.SalesPerson   ?? "",
-                        Subject = o.Subject,
-                        Description = o.Description,
-                        DetailedDescription = o.DetailedDescription,
-                        Status = o.Status,
-                        CreatedBy = o.CreatedBy,
-                        CreatedDate = o.CreatedDate,
-                        ModifiedBy = o.ModifiedBy,
-                        ModifiedDate = o.ModifiedDate,
-                        OrderItems = o.OrderItems.Select(i => new OrderItemDto
-                        {
-                            OrderItemId = i.OrderItemId,
-                            ProductId = i.ProductId,
-                            Quantity = i.Quantity,
-                            UnitPrice = i.UnitPrice,
-                            DiscountPercentage = i.DiscountPercentage,
-                            DiscountAmount = i.DiscountAmount,
-                            Description = i.Description,
-                            OrderId = i.OrderId
-                        }).ToList()
-                    })
-                    .FirstOrDefaultAsync();
-
-                if (order == null)
-                {
-                    _logger.LogWarning("Order not found with ID: {OrderId}", orderId);
-                }
-                else
-                {
-                    _logger.LogInformation("Retrieved order with ID: {OrderId}", orderId);
-                }
-
-                return order;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error fetching order with ID: {OrderId}", orderId);
-                throw;
-            }
-        }
-
-        public async Task<OrderDto> GetOrderByIdAsync(int orderId)
-        {
-            var order = await _context.Orders
-                .Include(o => o.OrderItems)
-                    .ThenInclude(oi => oi.Product)
-                .Include(o => o.Partner)
-                .Include(o => o.Currency)
-                .Where(o => o.OrderId == orderId)
-                .Select(o => new OrderDto
-                {
-                    OrderId = o.OrderId,
-                    OrderNumber = o.OrderNumber,
-                    PartnerId = o.PartnerId,
-                    Partner = new PartnerDto
-                    {
-                        PartnerId = o.Partner.PartnerId,
-                        Name = o.Partner.Name
-                    },
-                    CurrencyId = o.CurrencyId,
-                    Currency = new CurrencyDto
-                    {
-                        CurrencyId = o.Currency.CurrencyId,
-                        CurrencyName = o.Currency.CurrencyName
-                    },
-                    OrderDate = o.OrderDate,
-                    Status = o.Status,
-                    TotalAmount = o.TotalAmount,
-                    SalesPerson = o.SalesPerson,
-                    Deadline = o.Deadline,
-                    Subject = o.Subject,
-                    Description = o.Description,
-                    DetailedDescription = o.DetailedDescription,
-                    DiscountPercentage = o.DiscountPercentage,
-                    DiscountAmount = o.DiscountAmount,
-                    OrderItems = o.OrderItems.Select(i => new OrderItemDto
-                    {
-                        OrderItemId = i.OrderItemId,
-                        OrderId = i.OrderId,
-                        ProductId = i.ProductId,
-                        Product = i.Product == null ? null : new ProductDto
-                        {
-                            ProductId = i.Product.ProductId,
-                            Name = i.Product.Name
-                        },
-                        Quantity = i.Quantity,
-                        UnitPrice = i.UnitPrice,
-                        Description = i.Description,
-                        DiscountPercentage = i.DiscountPercentage,
-                        DiscountAmount = i.DiscountAmount
-                    }).ToList()
-                })
-                .FirstOrDefaultAsync();
-
-            if (order != null)
-            {
-                _logger.LogInformation($"Order {order.OrderId}: {order.OrderItems.Count} items");
-            }
-            else
-            {
-                _logger.LogWarning($"Order {orderId} not found");
-            }
-
-            return order;
-        }
-
-private OrderDto MapToOrderDto(Order order)
-    {
-        return new OrderDto
-        {
-            OrderId = order.OrderId,
-            OrderNumber = order.OrderNumber,
-            OrderDate = order.OrderDate,
-            Deadline = order.Deadline,
-            Description = order.Description,
-            TotalAmount = order.TotalAmount,
-            SalesPerson = order.SalesPerson,
-            DeliveryDate = order.DeliveryDate,
-            DiscountPercentage = order.DiscountPercentage,
-            DiscountAmount = order.DiscountAmount,
-            CompanyName = order.CompanyName,
-            Subject = order.Subject,
-            DetailedDescription = order.DetailedDescription,
-            CreatedBy = order.CreatedBy,
-            CreatedDate = order.CreatedDate,
-            ModifiedBy = order.ModifiedBy,
-            ModifiedDate = order.ModifiedDate,
-            Status = order.Status ?? "Unknown",
-            PartnerId = order.PartnerId,
-            Partner = order.Partner != null ? new PartnerDto
-            {
-                PartnerId = order.Partner.PartnerId,
-                Name = order.Partner.Name ?? "Unknown",
-                // Add other PartnerDto fields
-            } : null,
-            SiteId = order.SiteId,
-            Site = order.Site != null ? new SiteDto
-            {
-                SiteId = order.Site.SiteId,
-                Address = order.Site.City
-                // Add other SiteDto fields
-            } : null,
-            CurrencyId = order.CurrencyId,
-            Currency = order.Currency != null ? new CurrencyDto
-            {
-                CurrencyId = order.Currency.CurrencyId,
-                CurrencyName = order.Currency.CurrencyName
-                // Add other CurrencyDto fields
-            } : null,
-            PaymentTerms = order.PaymentTerms,
-            ShippingMethod = order.ShippingMethod,
-            OrderType = order.OrderType,
-            OrderItems = order.OrderItems?.Select(oi => new OrderItemDto
-            {
-                OrderItemId = oi.OrderItemId,
-                OrderId = oi.OrderId,
-                ProductId = oi.ProductId,
-                Product = oi.Product != null ? new ProductDto
-                {
-                    ProductId = oi.Product.ProductId,
-                    Name = oi.Product.Name ?? "Unknown",
-                    // Add other ProductDto fields
-                } : null,
-                Quantity = oi.Quantity,
-                UnitPrice = oi.UnitPrice,
-                Description = oi.Description,
-                DiscountPercentage = oi.DiscountPercentage,
-                DiscountAmount = oi.DiscountAmount
-            }).ToList(),
-            ReferenceNumber = order.ReferenceNumber,
-            QuoteId = order.QuoteId,
-            Quote = order.Quote != null ? new QuoteDto
-            {
-                QuoteId = order.Quote.QuoteId
-                // Add other QuoteDto fields
-            } : null
-        };
-    }
-        
-        private CreateOrderDto MapToCreateOrderDto(OrderDto source)
-        {
-            return new CreateOrderDto
-            {
-                PartnerId = source.PartnerId,
-                CurrencyId = source.CurrencyId,
-                SiteId = source.SiteId,
-                QuoteId = source.QuoteId,
-                OrderNumber = null, // Server generates TestOrder-XXXX-YYYY
-                OrderDate = DateTime.UtcNow, // New date
-                Deadline = source.Deadline,
-                DeliveryDate = source.DeliveryDate,
-                ReferenceNumber = source.ReferenceNumber,
-                OrderType = source.OrderType,
-                CompanyName = source.CompanyName,
-                TotalAmount = source.TotalAmount,
-                DiscountPercentage = source.DiscountPercentage,
-                DiscountAmount = source.DiscountAmount,
-                PaymentTerms = source.PaymentTerms,
-                ShippingMethod = source.ShippingMethod,
-                SalesPerson = source.SalesPerson,
-                Subject = source.Subject,
-                Description = source.Description,
-                DetailedDescription = source.DetailedDescription,
-                Status = "Draft", // New orders start as Draft
-                CreatedBy = source.CreatedBy ?? "System",
-                CreatedDate = DateTime.UtcNow,
-                ModifiedBy = source.ModifiedBy,
-                ModifiedDate = DateTime.UtcNow,
-                OrderItems = source.OrderItems?.Select(i => new CreateOrderItemDto
-                {
-                    ProductId = i.ProductId,
-                    Quantity = i.Quantity,
-                    UnitPrice = i.UnitPrice,
-                    DiscountPercentage = i.DiscountPercentage,
-                    DiscountAmount = i.DiscountAmount,
-                    Description = i.Description
-                }).ToList() ?? new List<CreateOrderItemDto>()
-            };
         }
     }
 }

@@ -27,6 +27,41 @@ async function initializeOrderModals() {
         });
 }
 
+window.c92 = window.c92 || {}; // Initialize namespace early
+
+window.c92.copyOrder = async function(orderId) {
+    try {
+        if (!Number.isInteger(Number(orderId)) || orderId <= 0) {
+            throw new Error("Érvénytelen OrderId: Az azonosítónak pozitív egész számnak kell lennie");
+        }
+        window.c92.showToast('Megrendelés másolása...', 'info');
+        const response = await fetch(`/api/orders/copy/${orderId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${localStorage.getItem('token')}`
+            }
+        });
+
+        if (!response.ok) {
+            let errorMessage = 'Nem sikerült a megrendelés másolása';
+            try {
+                const errorData = await response.json();
+                errorMessage = errorData.error || `Hiba: ${response.status} ${response.statusText}`;
+            } catch {
+                errorMessage = `Hiba: ${response.status} ${response.statusText}`;
+            }
+            throw new Error(errorMessage);
+        }
+
+        const newOrder = await response.json();
+        window.c92.showToast(`Megrendelés ${orderId} sikeresen másolva! Új megrendelés ID: ${newOrder.orderId}`, 'success');
+    } catch (error) {
+        console.error('Hiba a megrendelés másolásakor:', error, { orderId });
+        window.c92.showToast(`Nem sikerült a megrendelés másolása: ${error.message}`, 'error');
+    }
+};
+
 async function initializeDeleteOrderModal(orderId) {
     console.log('Initializing delete order modal for orderId:', orderId);
     const modal = document.getElementById(`deleteOrderModal_${orderId}`);
@@ -214,16 +249,24 @@ async function initializeEventListeners(orderId) {
         const orderItems = [];
         for (const row of form.querySelectorAll('.order-item-row')) {
             const productSelect = row.querySelector('.tom-select-product');
+            const vatSelect = row.querySelector('.tom-select-vat');
             const discountTypeId = parseInt(row.dataset.discountTypeId) || 1;
             const unitPrice = parseFloat(row.querySelector('.unit-price')?.value) || 0;
             const productId = parseInt(productSelect?.tomselect?.getValue() || productSelect?.value) || 0;
+            const vatTypeId = parseInt(vatSelect?.tomselect?.getValue() || vatSelect?.dataset.selectedId) || 0;
             if (!productId) {
                 console.error(`Invalid ProductId for row ${row.dataset.itemId}: ${productId}`);
                 window.c92.showToast('error', `Érvénytelen termék azonosító: ${row.dataset.itemId}`);
                 return;
             }
+            if (!vatTypeId) {
+                console.error(`Invalid VatTypeId for row ${row.dataset.itemId}: ${vatTypeId}`);
+                window.c92.showToast('error', `Érvénytelen ÁFA típus azonosító: ${row.dataset.itemId}`);
+                return;
+            }
             const item = {
                 ProductId: productId,
+                VatTypeId: vatTypeId, // Added
                 DiscountType: discountTypeId,
                 Quantity: parseFloat(row.querySelector('.quantity')?.value) || 1,
                 UnitPrice: unitPrice,
@@ -876,9 +919,8 @@ async function addItemRow(orderId) {
             <span class="net-unit-price">0.00</span>
         </td>
         <td>
-            <select name="items[${newItemId}][vatTypeId]" id="tomselect-vat-${newItemId}" class="form-select tom-select-vat" data-selected-id="1" data-selected-text="27%" data-selected-rate="27" autocomplete="off" required>
-                <option value="1" selected>27%</option>
-                <option value="" disabled>-- Válasszon ÁFA típust --</option>
+            <select name="orderItems[${newItemId}][vatTypeId]" id="tomselect-vat-${newItemId}" class="form-select tom-select-vat" data-selected-id="1" data-selected-text="27%" data-selected-rate="27" autocomplete="off" required>
+                <option value="" disabled selected>-- Válasszon ÁFA típust --</option>
             </select>
         </td>
         <td>
@@ -1301,7 +1343,7 @@ function updatePriceFields(select, productId, products) {
     window.calculateOrderTotals(orderId);
 }
 
-async function calculateAllPrices(row, unitPrice, discountTypeId, discountValue, quantity, vatSelect, product) {
+async function calculateAllPrices(row, unitPrice, discountTypeId, discountValue, quantity, vatSelect, product, context = 'order') {
     const itemId = row.dataset.itemId;
     const orderId = row.closest('table').dataset.orderId || 'new';
     const productId = product?.productId || row.querySelector('.tom-select-product')?.tomselect?.getValue();
@@ -1315,8 +1357,26 @@ async function calculateAllPrices(row, unitPrice, discountTypeId, discountValue,
         window.c92.showToast('error', 'Hiányzó ár mezők a sorban.');
         return;
     }
-    const vatTypeId = vatSelect.tomselect?.getValue() || vatSelect.dataset.selectedId || '1';
-    const vatRate = vatSelect.tomselect?.options?.[vatTypeId]?.rate ?? 27;
+    const vatTypeId = vatSelect.tomselect?.getValue() || vatSelect.dataset.selectedId || '';
+    let vatRate = vatSelect.tomselect?.options?.[vatTypeId]?.rate;
+    if (vatRate === undefined || vatRate === null) {
+        console.warn(`VAT rate not found for VatTypeId: ${vatTypeId}, item: ${itemId}, using fallback rate from dataset`);
+        vatRate = parseFloat(vatSelect.dataset.selectedRate) || 0;
+        if (vatRate === 0 && vatTypeId) {
+            console.warn(`Invalid VAT rate (0) for VatTypeId: ${vatTypeId}, item: ${itemId}`);
+            window.c92.showToast('warning', `Érvénytelen ÁFA kulcs a tételhez ${itemId}, 0% használata`);
+        }
+    }
+    // Normalize vatRate: convert percentage (e.g., 27) to decimal (e.g., 0.27)
+    if (vatRate > 1) {
+        console.warn(`VAT rate ${vatRate} appears to be in percentage, converting to decimal for item: ${itemId}`);
+        vatRate = vatRate / 100;
+    }
+    if (vatRate < 0 || isNaN(vatRate)) {
+        console.warn(`Invalid VAT rate: ${vatRate} for VatTypeId: ${vatTypeId}, item: ${itemId}, using 0`);
+        window.c92.showToast('warning', `Érvénytelen ÁFA kulcs a tételhez ${itemId}, 0% használata`);
+        vatRate = 0;
+    }
     let effectiveUnitPrice = parseFloat(unitPrice) || parseFloat(product?.listPrice) || 0;
     if (!effectiveUnitPrice) {
         if (productId === '62044') {
@@ -1343,6 +1403,8 @@ async function calculateAllPrices(row, unitPrice, discountTypeId, discountValue,
         const discountTypeSelect = row.querySelector('.discount-type-id');
         if (discountTypeSelect?.tomselect) {
             discountTypeSelect.tomselect.setValue('1');
+        } else if (discountTypeSelect) {
+            discountTypeSelect.value = '1';
         }
     }
     if (discountTypeId === 3) {
@@ -1357,6 +1419,8 @@ async function calculateAllPrices(row, unitPrice, discountTypeId, discountValue,
                 const discountTypeSelect = row.querySelector('.discount-type-id');
                 if (discountTypeSelect?.tomselect) {
                     discountTypeSelect.tomselect.setValue('1');
+                } else if (discountTypeSelect) {
+                    discountTypeSelect.value = '1';
                 }
             } else {
                 const response = await fetch(`/api/product/partner-price?partnerId=${partnerId}&productId=${productId}`);
@@ -1368,6 +1432,8 @@ async function calculateAllPrices(row, unitPrice, discountTypeId, discountValue,
                     const discountTypeSelect = row.querySelector('.discount-type-id');
                     if (discountTypeSelect?.tomselect) {
                         discountTypeSelect.tomselect.setValue('1');
+                    } else if (discountTypeSelect) {
+                        discountTypeSelect.value = '1';
                     }
                 } else {
                     const productData = await response.json();
@@ -1380,6 +1446,8 @@ async function calculateAllPrices(row, unitPrice, discountTypeId, discountValue,
                         const discountTypeSelect = row.querySelector('.discount-type-id');
                         if (discountTypeSelect?.tomselect) {
                             discountTypeSelect.tomselect.setValue('1');
+                        } else if (discountTypeSelect) {
+                            discountTypeSelect.value = '1';
                         }
                     } else {
                         parsedDiscountAmount = effectiveUnitPrice - partnerPrice;
@@ -1391,6 +1459,8 @@ async function calculateAllPrices(row, unitPrice, discountTypeId, discountValue,
                             const discountTypeSelect = row.querySelector('.discount-type-id');
                             if (discountTypeSelect?.tomselect) {
                                 discountTypeSelect.tomselect.setValue('1');
+                            } else if (discountTypeSelect) {
+                                discountTypeSelect.value = '1';
                             }
                             partnerPrice = null;
                         }
@@ -1405,6 +1475,8 @@ async function calculateAllPrices(row, unitPrice, discountTypeId, discountValue,
             const discountTypeSelect = row.querySelector('.discount-type-id');
             if (discountTypeSelect?.tomselect) {
                 discountTypeSelect.tomselect.setValue('1');
+            } else if (discountTypeSelect) {
+                discountTypeSelect.value = '1';
             }
         }
     }
@@ -1421,7 +1493,7 @@ async function calculateAllPrices(row, unitPrice, discountTypeId, discountValue,
             discountAmountInput.value = '0';
         }
         netPrice = effectiveUnitPrice * (1 - parsedDiscountAmount / 100);
-        row.dataset.discountAmount = (effectiveUnitPrice - netPrice).toFixed(2); // Store monetary discount
+        row.dataset.discountAmount = (effectiveUnitPrice - netPrice).toFixed(2);
     } else if (discountTypeId === 6) {
         parsedDiscountAmount = parseFloat(discountAmountInput.value) || 0;
         if (parsedDiscountAmount < 0) {
@@ -1481,7 +1553,7 @@ async function calculateAllPrices(row, unitPrice, discountTypeId, discountValue,
         discountAmountInput.value = '0';
         row.dataset.discountAmount = '0';
     }
-    const grossPrice = netPrice * (1 + vatRate / 100);
+    const grossPrice = netPrice * (1 + vatRate);
     const totalGrossPrice = grossPrice * quantity;
     const netTotalPrice = netPrice * quantity;
     unitPriceInput.value = effectiveUnitPrice.toFixed(2);
@@ -1489,7 +1561,7 @@ async function calculateAllPrices(row, unitPrice, discountTypeId, discountValue,
     netTotalSpan.textContent = netTotalPrice.toFixed(2);
     grossTotalPriceSpan.textContent = totalGrossPrice.toFixed(2);
     row.dataset.discountTypeId = discountTypeId.toString();
-    console.log(`calculateAllPrices for item ${itemId}: unitPrice=${effectiveUnitPrice.toFixed(2)}, discountTypeId=${discountTypeId}, discountAmount=${parsedDiscountAmount}, partnerPrice=${partnerPrice || 'N/A'}, netPrice=${netPrice.toFixed(2)}, grossPrice=${grossPrice.toFixed(2)}, totalGrossPrice=${totalGrossPrice.toFixed(2)}, vatRate=${vatRate}%`);
+    console.log(`calculateAllPrices for item ${itemId}: unitPrice=${effectiveUnitPrice.toFixed(2)}, discountTypeId=${discountTypeId}, discountAmount=${parsedDiscountAmount}, partnerPrice=${partnerPrice || 'N/A'}, netPrice=${netPrice.toFixed(2)}, grossPrice=${grossPrice.toFixed(2)}, totalGrossPrice=${totalGrossPrice.toFixed(2)}, vatRate=${(vatRate * 100).toFixed(0)}%`);
 }
 
 window.calculateOrderTotals = function(orderId) {
@@ -1537,5 +1609,19 @@ window.calculateOrderTotals = function(orderId) {
 
 document.addEventListener('DOMContentLoaded', () => {
     console.log('DOMContentLoaded, initializing order modals');
+
+    // Attach click handlers to copy buttons
+    document.querySelectorAll('.copy-order-btn').forEach(button => {
+            button.addEventListener('click', function(event) {
+                event.preventDefault();
+                const orderId = this.dataset.orderId;
+                console.log('Copying OrderId:', orderId);
+                this.disabled = true;
+                window.c92.copyOrder(orderId).finally(() => {
+                    this.disabled = false;
+                });
+            });
+        });
+    
     initializeOrderModals();
 });

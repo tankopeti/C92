@@ -1,3 +1,101 @@
-A kereséshez a SELECT FULLTEXTSERVICEPROPERTY('IsFullTextInstalled') AS IsFullTextInstalled; - nak 1-est kell hozni. Ez a fulltextsearch. Az újabb sql servereken alap, ha nem az, frissíteni kell a szervert. Fontos, hogy legyen backup!!!
-brew update
-brew upgrade
+A full text kereséshez: 
+
+docker pull opensearchproject/opensearch:2.5.0
+
+docker run -d \
+  --name opensearch \
+  -p 9200:9200 \
+  -p 9600:9600 \
+  -e "discovery.type=single-node" \
+  -e "OPENSEARCH_INITIAL_ADMIN_PASSWORD=admin" \
+  opensearchproject/opensearch:2.5.0
+
+appsetting.json:
+,
+  "OpenSearch": {
+    "Url": "http://localhost:9200",
+    "Username": "admin",
+    "Password": "admin"
+  }
+
+dotnet add /Users/tp/cloud9.2/Cloud9_2.csproj package NEST --version 7.17.5 (lehet, hogy nem kell az útvonal)
+
+builder.Services.AddScoped<ElasticSearchService>(); (program.cs)
+
+using Nest;
+using Microsoft.EntityFrameworkCore;
+using Cloud9_2.Data;
+using Cloud9_2.Models;
+
+public class ElasticSearchService
+{
+    private readonly ElasticClient _client;
+    private readonly ApplicationDbContext _context;
+
+    public ElasticSearchService(ApplicationDbContext context, IConfiguration configuration)
+    {
+        var url = configuration["OpenSearch:Url"];
+        var settings = new ConnectionSettings(new Uri(url))
+            .BasicAuthentication(configuration["OpenSearch:Username"], configuration["OpenSearch:Password"])
+            .DefaultIndex("documentmetadata");
+        _client = new ElasticClient(settings);
+        _context = context;
+    }
+
+    public async Task IndexMetadata()
+    {
+        var metadata = await _context.DocumentMetadata
+            .Include(dm => dm.Document)
+            .ToListAsync();
+        foreach (var item in metadata)
+        {
+            var document = new
+            {
+                Id = item.ID,
+                DocumentId = item.DocumentId,
+                Key = item.Key,
+                Value = item.Value,
+                FileName = item.Document?.FileName
+            };
+            await _client.IndexDocumentAsync(document);
+        }
+    }
+
+    public async Task<List<dynamic>> Search(string query)
+    {
+        var response = await _client.SearchAsync<dynamic>(s => s
+            .Query(q => q
+                .QueryString(qs => qs
+                    .Query($"*{query}*")
+                )
+            )
+        );
+        return response.Documents.ToList();
+    }
+}
+
+using Microsoft.AspNetCore.Mvc;
+using Cloud9_2.Services;
+
+[Route("api/[controller]")]
+[ApiController]
+public class SearchController : ControllerBase
+{
+    private readonly ElasticSearchService _searchService;
+
+    public SearchController(ElasticSearchService searchService)
+    {
+        _searchService = searchService;
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> Search(string query)
+    {
+        if (string.IsNullOrEmpty(query))
+            return BadRequest("Query is required");
+
+        var results = await _searchService.Search(query);
+        return Ok(results);
+    }
+}
+

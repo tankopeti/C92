@@ -1,0 +1,1 @@
+A kereséshez a SELECT FULLTEXTSERVICEPROPERTY('IsFullTextInstalled') AS IsFullTextInstalled; - nak 1-est kell hozni. Ez a fulltextsearch. Az újabb sql servereken alap, ha nem az, frissíteni kell a szervert. Fontos, hogy legyen backup!!!

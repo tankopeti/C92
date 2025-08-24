@@ -2,7 +2,6 @@ using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using Cloud9_2.Models;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.EntityFrameworkCore;
 
 namespace Cloud9_2.Data
 {
@@ -52,17 +51,118 @@ namespace Cloud9_2.Data
         public DbSet<ProductGroupProduct> ProductGroupProducts { get; set; }
         public DbSet<PartnerProductGroupPrice> PartnerProductGroupPrices { get; set; }
         public DbSet<QuoteItemDiscount> QuoteItemDiscounts { get; set; }
-        public DbSet<ChatMessage> ChatMessages { get; set; }
+        public DbSet<TaskTypePM> TaskTypePMs { get; set; }
+        public DbSet<TaskPM> TaskPMs { get; set; }
+        public DbSet<TaskCommentPM> TaskCommentsPMs { get; set; }
+        public DbSet<TaskAttachmentPM> TaskAttachmentsPMs { get; set; }
+        public DbSet<TaskStatusPM> TaskStatusPMs { get; set; }
+        public DbSet<TaskPriorityPM> TaskPriorityPMs { get; set; }
+        public DbSet<ProjectPM> ProjectPMs { get; set; }
+        public DbSet<ProjectStatusPM> ProjectStatusPMs { get; set; }
+        public DbSet<OrderItemDiscount> OrderItemDiscounts { get; set; } // Added for CS1061
+        public DbSet<DocumentMetadata> DocumentMetadata { get; set; }
+        public DbSet<DocumentLink> DocumentLinks { get; set; }
 
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
+            
+            modelBuilder.Entity<DocumentMetadata>()
+                .HasIndex(m => m.Key);
+
+            modelBuilder.Entity<DocumentMetadata>()
+                .HasIndex(m => m.Value);
+
+
+            modelBuilder.Entity<TaskPM>(entity =>
+            {
+                entity.Property(t => t.IsActive).HasDefaultValue(true);
+
+                // Relationships
+                entity.HasOne(t => t.TaskTypePM)
+                    .WithMany()
+                    .HasForeignKey(t => t.TaskTypePMId);
+
+                entity.HasOne(t => t.ProjectPM)
+                    .WithMany(p => p.Tasks)
+                    .HasForeignKey(t => t.ProjectPMId);
+
+                // Other relationships...
+            });
+
+            modelBuilder.Entity<TaskPM>()
+                .HasOne(t => t.ProjectPM)
+                .WithMany(p => p.Tasks)
+                .HasForeignKey(t => t.ProjectPMId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            modelBuilder.Entity<TaskTypePM>(entity =>
+                {
+                    entity.HasKey(tt => tt.TaskTypePMId);
+                    entity.Property(tt => tt.Name).IsRequired().HasMaxLength(50);
+                });
+
+            modelBuilder.Entity<TaskPM>(entity =>
+            {
+                entity.HasKey(t => t.TaskPMId);
+                entity.Property(t => t.Title).IsRequired().HasMaxLength(100);
+
+                entity.HasOne(t => t.TaskTypePM)
+                      .WithMany(tt => tt.Tasks)
+                      .HasForeignKey(t => t.TaskTypePMId);
+
+                // entity.HasOne(t => t.Project)
+                //       .WithMany(p => p.Tasks)
+                //       .HasForeignKey(t => t.ProjectId);
+
+                entity.HasOne(t => t.CreatedBy)
+                      .WithMany()
+                      .HasForeignKey(t => t.CreatedById);
+
+                entity.HasOne(t => t.AssignedTo)
+                      .WithMany()
+                      .HasForeignKey(t => t.AssignedToId);
+            });
+
+            modelBuilder.Entity<TaskCommentPM>(entity =>
+            {
+                entity.HasKey(tc => tc.TaskCommentPMId);
+
+                entity.HasOne(tc => tc.TaskPM)
+                      .WithMany(t => t.Comments)
+                      .HasForeignKey(tc => tc.TaskPMId);
+
+                entity.HasOne(tc => tc.CreatedBy)
+                      .WithMany()
+                      .HasForeignKey(tc => tc.CreatedById);
+            });
+
+            modelBuilder.Entity<TaskAttachmentPM>(entity =>
+            {
+                entity.HasKey(ta => ta.TaskAttachmentPMId);
+
+                entity.HasOne(ta => ta.TaskPM)
+                      .WithMany(t => t.Attachments)
+                      .HasForeignKey(ta => ta.TaskPMId);
+
+                entity.HasOne(ta => ta.UploadedBy)
+                      .WithMany()
+                      .HasForeignKey(ta => ta.UploadedById);
+            });
 
             // Configure QuoteItemDiscount
             modelBuilder.Entity<QuoteItemDiscount>()
-            .Property(d => d.DiscountType)
-            .HasConversion<string>();
+                .ToTable("QuoteItemDiscount") // Explicitly set table name
+                .HasOne(d => d.QuoteItem)
+                .WithOne(qi => qi.Discount)
+                .HasForeignKey<QuoteItemDiscount>(d => d.QuoteItemId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // Map DiscountType enum to string
+            modelBuilder.Entity<QuoteItemDiscount>()
+                .Property(d => d.DiscountType)
+                .HasConversion<string>();
 
             // Configure PartnerProductPrice
             modelBuilder.Entity<PartnerProductPrice>().ToTable("PartnerProductPrice");
@@ -303,22 +403,12 @@ namespace Cloud9_2.Data
             modelBuilder.Entity<OrderItem>(entity =>
             {
                 entity.HasKey(e => e.OrderItemId);
-                entity.Property(e => e.ItemName)
-                    .HasMaxLength(200);
                 entity.Property(e => e.Description)
                     .HasMaxLength(500);
                 entity.Property(e => e.Quantity)
                     .HasColumnType("decimal(18,4)");
                 entity.Property(e => e.UnitPrice)
                     .HasColumnType("decimal(18,2)");
-                entity.Property(e => e.TotalPrice)
-                    .HasColumnType("decimal(18,2)");
-                entity.Property(e => e.DiscountPercentage)
-                    .HasColumnType("decimal(5,2)");
-                entity.Property(e => e.DiscountAmount)
-                    .HasColumnType("decimal(18,2)");
-                entity.Property(e => e.UnitOfMeasure)
-                    .HasMaxLength(50);
                 entity.Property(e => e.CreatedBy)
                     .HasMaxLength(100)
                     .HasDefaultValue("System");

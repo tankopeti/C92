@@ -58,7 +58,8 @@ window.c92.copyOrder = async function(orderId) {
         window.c92.showToast(`Megrendelés ${orderId} sikeresen másolva! Új megrendelés ID: ${newOrder.orderId}`, 'success');
     } catch (error) {
         console.error('Hiba a megrendelés másolásakor:', error, { orderId });
-        window.c92.showToast(`Nem sikerült a megrendelés másolása: ${error.message}`, 'error');
+        
+        // window.c92.showToast(`Nem sikerült a megrendelés másolása: ${error.message}`, 'error');
     }
 };
 
@@ -1607,6 +1608,47 @@ window.calculateOrderTotals = function(orderId) {
     console.log(`Order totals updated for orderId: ${orderId}`, { totalNet, totalVat, totalGross });
 };
 
+// Render orders table
+window.c92.renderOrderTable = async function() {
+    try {
+        const response = await fetch('/api/orders', {
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${localStorage.getItem('token')}`
+            }
+        });
+        if (!response.ok) throw new Error('Failed to fetch orders');
+        const orders = await response.json();
+        const tableBody = document.querySelector('#ordersTable tbody');
+        if (!tableBody) {
+            console.error('Orders table not found');
+            return;
+        }
+        tableBody.innerHTML = '';
+        orders.forEach(order => {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${order.orderId}</td>
+                <td>${order.orderNumber || ''}</td>
+                <td>${order.orderDate ? new Date(order.orderDate).toLocaleDateString() : ''}</td>
+                <td>${order.companyName || order.partner?.name || ''}</td>
+                <td>${order.totalAmount || '0.00'}</td>
+                <td>${order.status || 'Draft'}</td>
+                <td>
+                    <button onclick="window.c92.viewOrder(${order.orderId})">Megtekintés</button>
+                    <button onclick="window.c92.copyOrder(${order.orderId})">Másolás</button>
+                    <button onclick="window.c92.sendEmail('order', ${order.orderId})">E-mail küldése</button>
+                </td>
+            `;
+            tableBody.appendChild(row);
+        });
+    } catch (error) {
+        console.error('Error rendering order table:', error);
+        window.c92.showToast('Hiba a megrendelések betöltésekor', 'error');
+    }
+};
+
+
 document.addEventListener('DOMContentLoaded', () => {
     console.log('DOMContentLoaded, initializing order modals');
 
@@ -1622,6 +1664,27 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
             });
         });
-    
+
+    document.querySelectorAll(".send-email-btn").forEach(btn => {
+            btn.addEventListener("click", async function (e) {
+                e.preventDefault();
+                const orderId = this.getAttribute("data-order-id");
+
+                const response = await fetch(`/api/orders/${orderId}/send-email`, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    }
+                });
+
+                if (response.ok) {
+                    const result = await response.json();
+                    alert(result.message);
+                } else {
+                    alert("Hiba a mail küldésekor");
+                }
+            });
+        });
+
     initializeOrderModals();
 });

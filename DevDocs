@@ -2,6 +2,12 @@ A full text kereséshez:
 
 docker pull opensearchproject/opensearch:2.5.0
 
+nuget packege opensearch packagek kellenek:
+dotnet add package OpenSearch.Client
+dotnet add package OpenSearch.Net
+http://localhost:9200/
+
+
 docker run -d \
   --name opensearch \
   -p 9200:9200 \

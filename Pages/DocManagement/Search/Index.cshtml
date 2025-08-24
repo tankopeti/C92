@@ -1,0 +1,48 @@
+@page "/DocManagement/Search"
+@model Cloud9_2.Pages.DocManagement.Search.IndexModel
+@using Microsoft.AspNetCore.Mvc.Rendering
+@using System.Globalization
+@using System.Security.Claims
+
+@{
+    var username = User.Identity?.Name ?? "System";
+    Layout = "_Layout";
+    ViewData["Title"] = "Search";
+}
+
+@await Html.PartialAsync("_DocManSidebar")
+
+<div class="right-content google-search-page">
+    <div class="logo-container">
+        Dokumentum keresés
+    </div>
+
+    <!-- Google-like Search Bar -->
+    <div class="search-container">
+        <form method="get" class="search-form" role="search" onsubmit="return false;">
+<div class="search-wrapper position-relative">
+    <input type="text" id="searchBox" class="form-control search-input" placeholder="Search..." autocomplete="off" />
+    <div id="dropdownResults" class="dropdown-results"></div>
+</div>
+
+        </form>
+    </div>
+
+    <!-- Results will be injected here by JS -->
+    <div id="resultsContainer" class="search-results"></div>
+
+    @if (Model.ModelState.ContainsKey("") && Model.ModelState[""].Errors.Any())
+    {
+        <div class="alert alert-danger mt-4">
+            @Model.ModelState[""].Errors.First().ErrorMessage
+        </div>
+    }
+</div>
+
+@section Styles {
+    <link rel="stylesheet" href="/css/Search.css" asp-append-version="true" />
+}
+
+@section Scripts {
+    <script src="/js/search.js" asp-append-version="true"></script>
+}

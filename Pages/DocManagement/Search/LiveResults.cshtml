@@ -1,0 +1,15 @@
+@page
+@model Cloud9_2.Pages.DocManagement.Search.LiveResultsModel
+
+<ul>
+@foreach (var doc in Model.Documents)
+{
+    <li>
+        <strong>@doc.FileName</strong><br />
+        @foreach (var meta in doc.DocumentMetadata)
+        {
+            <span>@meta.Key: @meta.Value</span><br />
+        }
+    </li>
+}
+</ul>

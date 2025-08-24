@@ -12,6 +12,9 @@
         {
             <ul class="nav flex-column">
                 <li class="nav-item">
+                    <a class="nav-link px-3 py-2 @(Html.IsActive("Doc/Search", "DocManagement") ? "active" : "")" asp-area="" asp-page="/DocManagement/Search/Index">
+                        <i class="bi bi-people-fill me-2"></i>Keresés
+                    </a>
                     <a class="nav-link px-3 py-2 @(Html.IsActive("Doc/Index", "DocManagement") ? "active" : "")" asp-area="" asp-page="/DocManagement/Doc/Index">
                         <i class="bi bi-people-fill me-2"></i>Dokumentumok
                     </a>

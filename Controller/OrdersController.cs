@@ -363,38 +363,66 @@ public class OrdersController : ControllerBase
             return StatusCode(500, new { error = "Internal server error" });
         }
     }
-    
-[HttpPost("copy/{orderId}")]
-[Authorize]
-public async Task<ActionResult<Order>> CopyOrder(int orderId)
-{
-    try
-    {
-        if (orderId <= 0)
-        {
-            _logger.LogWarning("Invalid OrderId provided: {OrderId}", orderId);
-            return BadRequest(new { error = "Érvénytelen OrderId: Az azonosítónak pozitív egész számnak kell lennie" });
-        }
 
-        _logger.LogInformation("Copy order request for OrderId: {OrderId}", orderId);
-        var newOrder = await _orderService.CopyOrderAsync(orderId);
-        return Ok(newOrder);
-    }
-    catch (ArgumentException ex)
+    [HttpPost("copy/{orderId}")]
+    [Authorize]
+    public async Task<ActionResult<Order>> CopyOrder(int orderId)
     {
-        _logger.LogWarning("Validation error for OrderId: {OrderId}, Message: {Message}", orderId, ex.Message);
-        return BadRequest(new { error = ex.Message });
+        try
+        {
+            if (orderId <= 0)
+            {
+                _logger.LogWarning("Invalid OrderId provided: {OrderId}", orderId);
+                return BadRequest(new { error = "Érvénytelen OrderId: Az azonosítónak pozitív egész számnak kell lennie" });
+            }
+
+            _logger.LogInformation("Copy order request for OrderId: {OrderId}", orderId);
+            var newOrder = await _orderService.CopyOrderAsync(orderId);
+            return Ok(newOrder);
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning("Validation error for OrderId: {OrderId}, Message: {Message}", orderId, ex.Message);
+            return BadRequest(new { error = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogWarning("Invalid operation for OrderId: {OrderId}, Message: {Message}", orderId, ex.Message);
+            return BadRequest(new { error = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error copying order for OrderId: {OrderId}", orderId);
+            return StatusCode(500, new { error = $"Hiba a megrendelés másolásakor: {ex.Message}" });
+        }
     }
-    catch (InvalidOperationException ex)
+
+    [HttpPost("{id}/send-email")]
+    [Authorize] // optional if you want only logged-in users
+    public async Task<IActionResult> SendOrderEmail(int id)
     {
-        _logger.LogWarning("Invalid operation for OrderId: {OrderId}, Message: {Message}", orderId, ex.Message);
-        return BadRequest(new { error = ex.Message });
+        try
+        {
+            var order = await _orderService.GetOrderByIdAsync(id);
+            if (order == null)
+            {
+                return NotFound(new { message = "Order not found" });
+            }
+
+            // Example: send to partner’s email if available
+            var partner = await _context.Partners.FindAsync(order.PartnerId);
+            var recipient = partner?.Email ?? "fallback@example.com";
+
+            await _orderService.SendOrderEmailAsync(id, recipient);
+
+            return Ok(new { message = $"Email sent to {recipient}" });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error sending email for order {OrderId}", id);
+            return StatusCode(500, new { message = "Error sending email" });
+        }
     }
-    catch (Exception ex)
-    {
-        _logger.LogError(ex, "Error copying order for OrderId: {OrderId}", orderId);
-        return StatusCode(500, new { error = $"Hiba a megrendelés másolásakor: {ex.Message}" });
-    }
-}
-    
+
+
 }

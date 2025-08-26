@@ -1,3 +1,18 @@
+mssql docker db elérés: 
+
+tp@T-MacBook-Air Cloud9.2 % docker exec sqlserver /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P HUmmer512\!\!\! -Q "SELECT name FROM sys.databases" -C
+name                                                                                                                            
+--------------------------------------------------------------------------------------------------------------------------------
+master                                                                                                                          
+tempdb                                                                                                                          
+model                                                                                                                           
+msdb                                                                                                                            
+
+(4 rows affected)
+tp@T-MacBook-Air Cloud9.2 % 
+
+
+
 A full text kereséshez: 
 
 docker pull opensearchproject/opensearch:2.5.0

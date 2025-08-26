@@ -1,4 +1,7 @@
 
+PGPASSWORD=HUmmer512docker pg_dump -h 127.0.0.1 -p 5432 -U postgres -d cloud92postgre > /Users/tp/Projects/Cloud9.2/cloud92postgre_backup.sql
+cloud92postgre-# PGPASSWORD=HUmmer512docker psql -h 127.0.0.1 -p 5432 -U postgres -d cloud92postgre -c "ALTER USER postgres WITH PASSWORD 'HUmmer512!!!"
+
 
 ODBC driver:
 

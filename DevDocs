@@ -1,6 +1,17 @@
 
 
+ODBC driver:
 
+tp@T-MacBook-Air Cloud9.2 % isql -v -k 'DRIVER={ODBC Driver 18 for SQL Server};SERVER=127.0.0.1,1433;DATABASE=Cloud9.2;UID=SA;PWD=HUmmer512!!!;TrustServerCertificate=Yes'
++---------------------------------------+
+| Connected!                            |
+|                                       |
+| sql-statement                         |
+| help [tablename]                      |
+| echo [string]                         |
+| quit                                  |
+|                                       |
++---------------------------------------+
 
 Postgra Migráciü
 

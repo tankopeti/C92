@@ -1,3 +1,17 @@
+
+
+
+
+Postgra Migráciü
+
+Current Status
+
+MSSQL: The Cloud9.2 database is active in the cloud92-sqlserver-1 container, accessible at 127.0.0.1:1433 with user SA and password HUmmer512!!!. You’ve also created a backup (Cloud92PG.bak), but we’ll migrate directly from the live database.
+PostgreSQL: The cloud92postgre database is ready in the postgres container, accessible at 127.0.0.1:5432 with user postgres and password HUmmer512docker.
+
+-----------
+
+
 mssql docker db elérés: 
 
 tp@T-MacBook-Air Cloud9.2 % docker exec sqlserver /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P HUmmer512\!\!\! -Q "SELECT name FROM sys.databases" -C

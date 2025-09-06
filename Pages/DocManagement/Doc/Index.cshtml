@@ -1,66 +1,70 @@
 @page
-@model Cloud9_2.Pages.DocMan.Doc.IndexModel
+@using Cloud9_2.Models
+@using Cloud9_2.Data
+@using Cloud9_2.Services
+@model Cloud9_2.Pages.DocManagement.Doc.IndexModel
+@using System.Globalization
+@using Microsoft.AspNetCore.Antiforgery
+@using Microsoft.AspNetCore.Mvc.Rendering
 @{
+    ViewData["Title"] = "Dokumentumok";
     Layout = "_Layout";
-    ViewData["Title"] = "Dashboard";
+}
+@section Styles {
+    <link rel="stylesheet" href="~/css/Quotes.css" />
+}
+
+@functions {
+    public string GetAntiForgeryToken()
+    {
+        var antiForgery = PageContext.HttpContext.RequestServices.GetService<IAntiforgery>();
+        var tokenSet = antiForgery?.GetAndStoreTokens(PageContext.HttpContext);
+        return tokenSet?.RequestToken ?? string.Empty;
+    }
 }
 
 @await Html.PartialAsync("_DocManSidebar")
 
-<!-- Main Content -->
 <div class="right-content">
-    <!-- Success/Error Messages -->
-    @if (TempData["SuccessMessage"] != null)
-    {
-        <div class="alert alert-success alert-dismissible fade show mb-3" role="alert">
-            @TempData["SuccessMessage"]
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-        </div>
-    }
-    @if (TempData["ErrorMessage"] != null)
-    {
-        <div class="alert alert-danger alert-dismissible fade show mb-3" role="alert">
-            @TempData["ErrorMessage"]
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-        </div>
-    }
-
-    <!-- Fixed Header -->
     <div class="page-header-fixed-top">
+        <!-- Breadcrumb Navigation -->
         <div class="d-flex justify-content-between align-items-center mb-2">
             <nav aria-label="breadcrumb">
                 <ol class="breadcrumb bg-body-tertiary rounded-3 p-2 mb-0">
                     <li class="breadcrumb-item"><a href="../../">Főoldal</a></li>
-                    <li class="breadcrumb-item"><a href="../">Dokumentumok</a></li>
-                    <li class="breadcrumb-item active" aria-current="page">Összes dokumentum</li>
-                    <li class="breadcrumb-item active" aria-current="page">@Model.Sites.Count of @Model.TotalRecords site@(Model.TotalRecords != 1 ? "s" : "") (Page @Model.CurrentPage of @Model.TotalPages)</li>
+                    <li class="breadcrumb-item"><a href="../">CRM Dashboard</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">Dokumentumok</li>
                 </ol>
             </nav>
         </div>
+
+        <!-- Header with Search and Filter/Sort -->
         <div class="d-flex justify-content-between align-items-center mb-3">
             <div class="d-flex align-items-center gap-2">
+                <!-- No new document button -->
             </div>
             <div class="d-flex align-items-center gap-2">
-                <form method="get" asp-page="./Index" class="input-group input-group-sm" style="width: 250px;">
-                    <input type="text" class="form-control" placeholder="Search sites..." id="searchInput" name="searchTerm" value="@Model.SearchTerm">
+                <form method="get" class="input-group input-group-sm" style="width: 250px;">
+                    <input type="text" class="form-control" placeholder="Keresés..." id="searchInput" name="SearchTerm" value="@Model.SearchTerm" autocomplete="off" aria-label="Keresés dokumentumok között">
                     <input type="hidden" name="pageSize" value="@Model.PageSize" />
-                    <button class="btn btn-outline-secondary" type="submit">
+                    <button class="btn btn-outline-secondary" type="submit" aria-label="Keresés indítása">
                         <i class="bi bi-search"></i>
                     </button>
-                    @if (!string.IsNullOrEmpty(Model.SearchTerm))
-                    {
-                        <a href="@Url.Page("./Index")" class="btn btn-outline-danger">
-                            <i class="bi bi-x"></i>
-                        </a>
-                    }
                 </form>
+                <!-- Filter/Sort Dropdown -->
                 <div class="dropdown">
-                    <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown">
-                        <i class="bi bi-funnel me-1"></i>Filter
+                    <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Rendezési és szűrési opciók">
+                        <i class="bi bi-funnel me-1"></i>Rendezés/Szűrés
                     </button>
                     <ul class="dropdown-menu dropdown-menu-end">
-                        <li><a class="dropdown-item" href="#" data-filter="all">All Sites</a></li>
-                        <li><a class="dropdown-item" href="#" data-filter="primary">Primary Sites</a></li>
+                        <li><a class="dropdown-item" href="?SearchTerm=@Model.SearchTerm&PageSize=@Model.PageSize&StatusFilter=all&SortBy=uploaddate">Összes dokumentum (Legújabb elöl)</a></li>
+                        <li><a class="dropdown-item" href="?SearchTerm=@Model.SearchTerm&PageSize=@Model.PageSize&StatusFilter=Beérkezett">Beérkezett</a></li>
+                        <li><a class="dropdown-item" href="?SearchTerm=@Model.SearchTerm&PageSize=@Model.PageSize&StatusFilter=Függőben">Függőben</a></li>
+                        <li><a class="dropdown-item" href="?SearchTerm=@Model.SearchTerm&PageSize=@Model.PageSize&StatusFilter=Elfogadott">Elfogadott</a></li>
+                        <li><a class="dropdown-item" href="?SearchTerm=@Model.SearchTerm&PageSize=@Model.PageSize&StatusFilter=Lezárt">Lezárt</a></li>
+                        <li><a class="dropdown-item" href="?SearchTerm=@Model.SearchTerm&PageSize=@Model.PageSize&StatusFilter=Jóváhagyandó">Jóváhagyandó</a></li>
+                        <li><a class="dropdown-item" href="?SearchTerm=@Model.SearchTerm&PageSize=@Model.PageSize&StatusFilter=all&SortBy=documentid">Rendezés: Dokumentum ID</a></li>
+                        <li><a class="dropdown-item" href="?SearchTerm=@Model.SearchTerm&PageSize=@Model.PageSize&StatusFilter=all&SortBy=filename">Rendezés: Fájlnév</a></li>
                     </ul>
                 </div>
             </div>
@@ -69,14 +73,12 @@
         <!-- Card Grid Header -->
         <div class="card-grid-header">
             <div class="card-grid-row">
-                <div class="card-grid-column col">Azonosító</div>
-                <div class="card-grid-column col">Típus</div>
+                <div class="card-grid-column col">Dokumentum ID</div>
+                <div class="card-grid-column col">Fájlnév</div>
                 <div class="card-grid-column col">Partner</div>
-                <div class="card-grid-column col">Feltöltés dátuma</div>
-                <div class="card-grid-column col">Feladat Határidő</div>
+                <div class="card-grid-column col">Dátum</div>
                 <div class="card-grid-column col">Státusz</div>
-                <div class="card-grid-column col">Felhasználó</div>
-                <div class="card-grid-column col">Link</div>
+                <div class="card-grid-column col">Műveletek</div>
             </div>
         </div>
     </div>
@@ -84,101 +86,83 @@
     <!-- Card Grid Body -->
     <div class="scrollable-card-container">
         <div class="card-grid-body">
-            @if (Model.Sites.Any())
+            @if (Model.Documents.Any())
             {
-                @foreach (var site in Model.Sites)
+                @foreach (var doc in Model.Documents.OrderByDescending(d => d.UploadDate))
                 {
-                    <div class="card partner-card mb-3" data-site-id="@site.SiteId">
+                    <div class="card partner-card mb-3" data-document-id="@doc.DocumentId">
                         <div class="card-body p-2">
-
-                        </div>
-                    </div>
-
-                    <!-- Edit Site Modal -->
-                    <div class="modal fade" id="editSiteModal-@site.SiteId" tabindex="-1"
-                         aria-labelledby="editSiteModalLabel-@site.SiteId" aria-hidden="true">
-                        <div class="modal-dialog modal-dialog-centered">
-                            <div class="modal-content">
-                                <form method="post" asp-page-handler="EditSite">
-                                    <input type="hidden" name="siteId" value="@site.SiteId" />
-                                    <div class="modal-header">
-                                        <h5 class="modal-title" id="editSiteModalLabel-@site.SiteId">
-                                            Edit @site.SiteName
-                                        </h5>
-                                        <button type="button" class="btn-close" data-bs-dismiss="modal"
-                                                aria-label="Close"></button>
+                            <div class="card-grid-row align-items-center">
+                                <div class="card-grid-cell col">
+                                    <div class="document-info">
+                                        <div class="fw-bold">@doc.DocumentId</div>
                                     </div>
-                                    <div class="modal-body">
-                                        <div class="mb-3">
-                                            <label class="form-label">Site Name</label>
-                                            <input type="text" class="form-control" name="siteName"
-                                                   value="@site.SiteName" required>
-                                        </div>
-                                        <div class="mb-3">
-                                            <label class="form-label">Address Line 1</label>
-                                            <input type="text" class="form-control" name="addressLine1"
-                                                   value="@site.AddressLine1">
-                                        </div>
-                                        <div class="mb-3">
-                                            <label class="form-label">Address Line 2</label>
-                                            <input type="text" class="form-control" name="addressLine2"
-                                                   value="@site.AddressLine2">
-                                        </div>
-                                        <div class="mb-3">
-                                            <label class="form-label">City</label>
-                                            <input type="text" class="form-control" name="city"
-                                                   value="@site.City">
-                                        </div>
-                                        <div class="mb-3">
-                                            <label class="form-label">Postal Code</label>
-                                            <input type="text" class="form-control" name="postalCode"
-                                                   value="@site.PostalCode">
-                                        </div>
-                                        <div class="mb-3">
-                                            <label class="form-label">Country</label>
-                                            <input type="text" class="form-control" name="country"
-                                                   value="@site.Country">
-                                        </div>
-                                        <div class="mb-3 form-check">
-                                            <input type="checkbox" class="form-check-input" name="isPrimary"
-                                                   @(site.IsPrimary ? "checked" : "")>
-                                            <label class="form-check-label">Primary Site</label>
-                                        </div>
+                                </div>
+                                <div class="card-grid-cell col">
+                                    <div class="document-filename text-muted small">
+                                        <i class="bi bi-file-earmark me-1"></i>
+                                        <a href="/file/@doc.DocumentId" target="_blank" aria-label="Dokumentum megnyitása: @doc.FileName">
+                                            @(doc.FileName.Length > 40 ? doc.FileName.Substring(0, 40) + "..." : doc.FileName)
+                                        </a>
                                     </div>
-                                    <div class="modal-footer">
-                                        <button type="button" class="btn btn-secondary"
-                                                data-bs-dismiss="modal">Cancel</button>
-                                        <button type="submit" class="btn btn-primary">Save Changes</button>
+                                </div>
+                                <div class="card-grid-cell col">
+                                    <div class="document-partner text-muted small">
+                                        <i class="bi bi-person me-1"></i>@doc.PartnerName
                                     </div>
-                                </form>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Delete Site Modal -->
-                    <div class="modal fade" id="deleteSiteModal-@site.SiteId" tabindex="-1"
-                         aria-labelledby="deleteSiteModalLabel-@site.SiteId" aria-hidden="true">
-                        <div class="modal-dialog modal-dialog-centered">
-                            <div class="modal-content">
-                                <form method="post" asp-page-handler="DeleteSite">
-                                    <input type="hidden" name="siteId" value="@site.SiteId" />
-                                    <div class="modal-header">
-                                        <h5 class="modal-title" id="deleteSiteModalLabel-@site.SiteId">
-                                            Confirm Delete
-                                        </h5>
-                                        <button type="button" class="btn-close" data-bs-dismiss="modal"
-                                                aria-label="Close"></button>
+                                </div>
+                                <div class="card-grid-cell col">
+                                    <div class="document-date text-muted small">
+                                        <i class="bi bi-calendar me-1"></i>@(doc.UploadDate?.ToString("yyyy-MM-dd"))
                                     </div>
-                                    <div class="modal-body">
-                                        <p>Are you sure you want to delete <strong>@site.SiteName</strong>?</p>
-                                        <p class="text-danger">This action cannot be undone.</p>
+                                </div>
+                                <div class="card-grid-cell col">
+                                    <span class="badge bg-secondary">@Model.StatusDisplayNames[doc.Status.ToString()]</span>
+                                </div>
+                                <div class="btn-group btn-group-sm col" role="group">
+                                    <button type="button" class="btn btn-outline-info btn-sm view-document-btn"
+                                            data-bs-toggle="modal"
+                                            data-bs-target="#viewDocumentModal_@doc.DocumentId"
+                                            aria-label="Dokumentum részleteinek megtekintése">
+                                        <i class="bi bi-eye"></i>
+                                    </button>
+                                    <div class="dropdown">
+                                        <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button"
+                                                id="actionsDropdown_@doc.DocumentId"
+                                                data-bs-toggle="dropdown"
+                                                aria-expanded="false"
+                                                aria-label="További műveletek">
+                                            <i class="bi bi-three-dots-vertical"></i>
+                                        </button>
+                                        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="actionsDropdown_@doc.DocumentId">
+                                            <li>
+                                                <form asp-page="./Index" asp-page-handler="UpdateStatus" method="post">
+                                                    <input type="hidden" name="documentId" value="@doc.DocumentId" />
+                                                    <input type="hidden" name="returnUrl" value="@Request.Path@Request.QueryString" />
+                                                    @Html.AntiForgeryToken()
+                                                    <select name="status" class="form-select form-select-sm me-2" onchange="this.form.submit()">
+                                                        <option value="">Státusz módosítása</option>
+                                                        @foreach (var status in Enum.GetValues(typeof(DocumentStatusEnum)))
+                                                        {
+                                                            <option value="@status" selected="@(doc.Status.ToString() == status.ToString())">@Model.StatusDisplayNames[status.ToString()]</option>
+                                                        }
+                                                    </select>
+                                                </form>
+                                            </li>
+                                            <li><hr class="dropdown-divider"></li>
+                                            <li>
+                                                <form asp-page="./Index" asp-page-handler="Delete" method="post" onsubmit="return confirm('Biztosan törli a dokumentumot?');">
+                                                    <input type="hidden" name="documentId" value="@doc.DocumentId" />
+                                                    <input type="hidden" name="returnUrl" value="@Request.Path@Request.QueryString" />
+                                                    @Html.AntiForgeryToken()
+                                                    <button type="submit" class="dropdown-item text-danger">
+                                                        <i class="bi bi-trash me-2"></i>Törlés
+                                                    </button>
+                                                </form>
+                                            </li>
+                                        </ul>
                                     </div>
-                                    <div class="modal-footer">
-                                        <button type="button" class="btn btn-secondary"
-                                                data-bs-dismiss="modal">Cancel</button>
-                                        <button type="submit" class="btn btn-danger">Delete Site</button>
-                                    </div>
-                                </form>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -189,156 +173,56 @@
                 <div class="alert alert-warning text-center mt-3" role="alert">
                     @if (!string.IsNullOrEmpty(Model.SearchTerm))
                     {
-                        @:No sites found matching "@Model.SearchTerm".
+                        @:Nem található dokumentum a "@Model.SearchTerm" keresési kifejezésre az @Model.CurrentPage. oldalon.
+                    }
+                    else if (Model.TotalRecords > 0)
+                    {
+                        @:Nem található dokumentum az @Model.CurrentPage. oldalon, de @Model.TotalRecords dokumentum létezik. Próbáljon másik oldalt vagy szűrőt.
                     }
                     else
                     {
-                        @:No sites found. <a asp-page="Create" class="btn btn-link alert-link p-0 align-baseline">Create the first one?</a>
+                        @:Nem található dokumentum.
                     }
+                    <!-- Debug Info -->
+                    <div class="mt-2 small text-muted">
+                        @* Debug: Page=@Model.CurrentPage, PageSize=@Model.PageSize, TotalRecords=@Model.TotalRecords, DistinctDocumentIdCount=@Model.DistinctDocumentIdCount, SearchTerm="@Model.SearchTerm" *@
+                    </div>
                 </div>
             }
         </div>
     </div>
 
-    <!-- Footer with Pagination -->
-    <footer class="fixed-footer">
-        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
-            <nav aria-label="Sites pagination">
-                <ul class="pagination justify-content-center my-0">
-                    <li class="page-item @(Model.CurrentPage == 1 ? "disabled" : "")">
-                        <a class="page-link" asp-page="./Index" asp-route-pageNumber="@(Model.CurrentPage - 1)" asp-route-pageSize="@Model.PageSize" asp-route-searchTerm="@Model.SearchTerm">Previous</a>
-                    </li>
-                    @{
-                        int startPage = Math.Max(1, Model.CurrentPage - 2);
-                        int endPage = Math.Min(Model.TotalPages, startPage + 4); // Show 5 pages max
-                        if (endPage - startPage + 1 < 5 && startPage > 1) { startPage = Math.Max(1, endPage - 4); }
-                        if (Model.TotalPages > 5 && startPage > 1)
-                        {
-                            <li class="page-item"><a class="page-link" asp-page="./Index" asp-route-pageNumber="1" asp-route-pageSize="@Model.PageSize" asp-route-searchTerm="@Model.SearchTerm">1</a></li>
-                            if (startPage > 2) { <li class="page-item disabled"><span class="page-link">...</span></li> }
-                        }
-                    }
-                    @for (int i = startPage; i <= endPage; i++)
-                    {
-                        <li class="page-item @(i == Model.CurrentPage ? "active" : "")" aria-current="@(i == Model.CurrentPage ? "page" : null)">
-                            <a class="page-link" asp-page="./Index" asp-route-pageNumber="@i" asp-route-pageSize="@Model.PageSize" asp-route-searchTerm="@Model.SearchTerm">@i</a>
-                        </li>
-                    }
-                    @{
-                        if (Model.TotalPages > 5 && endPage < Model.TotalPages)
-                        {
-                            if (endPage < Model.TotalPages - 1) { <li class="page-item disabled"><span class="page-link">...</span></li> }
-                            <li class="page-item"><a class="page-link" asp-page="./Index" asp-route-pageNumber="@Model.TotalPages" asp-route-pageSize="@Model.PageSize" asp-route-searchTerm="@Model.SearchTerm">@Model.TotalPages</a></li>
-                        }
-                    }
-                    <li class="page-item @(Model.CurrentPage == Model.TotalPages || Model.TotalPages == 0 ? "disabled" : "")">
-                        <a class="page-link" asp-page="./Index" asp-route-pageNumber="@(Model.CurrentPage + 1)" asp-route-pageSize="@Model.PageSize" asp-route-searchTerm="@Model.SearchTerm">Next</a>
-                    </li>
-                </ul>
-            </nav>
-            <div class="text-center">
-                <form method="get" asp-page="./Index" class="d-inline-flex align-items-center gap-1">
-                    <label for="pageSize" class="form-label mb-0 small">Per page:</label>
-                    <select id="pageSize" name="pageSize" onchange="this.form.submit()" class="form-select form-select-sm" style="width: auto;">
-                        <option value="10" selected="@(Model.PageSize == 10)">10</option>
-                        <option value="25" selected="@(Model.PageSize == 25)">25</option>
-                        <option value="50" selected="@(Model.PageSize == 50)">50</option>
-                        <option value="100" selected="@(Model.PageSize == 100)">100</option>
-                    </select>
-                    <input type="hidden" name="pageNumber" value="1" />
-                    <input type="hidden" name="searchTerm" value="@Model.SearchTerm" />
-                </form>
-            </div>
-        </div>
-    </footer>
+    <!-- Pagination Footer -->
+    @await Html.PartialAsync("_PaginationFooter", new PaginationViewModel
+    {
+        CurrentPage = Model.CurrentPage,
+        TotalPages = Model.TotalPages,
+        PageSize = Model.PageSize,
+        SearchTerm = Model.SearchTerm,
+        PageRoute = "./Index",
+        EntityName = "Documents"
+    })
+
+    <!-- Modals -->
+    @foreach (var doc in Model.Documents.OrderByDescending(d => d.UploadDate))
+    {
+        @await Html.PartialAsync("_Modals", doc)
+    }
+
+    <form id="antiForgeryForm">
+        @Html.AntiForgeryToken()
+    </form>
+
+    <div id="toastContainer" class="position-fixed bottom-0 end-0 p-3" style="z-index: 1055;"></div>
 </div>
 
+<script src="https://code.jquery.com/jquery-3.6.0.min.js" integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4=" crossorigin="anonymous"></script>
+
+<!-- Tom Select Dependencies -->
+<link href="https://cdn.jsdelivr.net/npm/tom-select@2.4.3/dist/css/tom-select.bootstrap5.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/tom-select@2.4.3/dist/js/tom-select.complete.min.js"></script>
+
 @section Scripts {
-    <script>
-        // Initialize Bootstrap tooltips
-        $(function () {
-            $('[data-bs-toggle="tooltip"]').tooltip();
-        });
-
-        // Form validation for modals
-        document.querySelectorAll('.modal form').forEach(form => {
-            form.addEventListener('submit', function (event) {
-                if (!this.checkValidity()) {
-                    event.preventDefault();
-                    event.stopPropagation();
-                }
-                this.classList.add('was-validated');
-            }, false);
-        });
-
-        document.addEventListener('DOMContentLoaded', function () {
-            // Search form submission
-            const searchForm = document.querySelector('form[method="get"]');
-            if (searchForm) {
-                searchForm.addEventListener('submit', function (e) {
-                    const searchInput = document.getElementById('searchInput');
-                    if (searchInput.value.trim() === '') {
-                        e.preventDefault();
-                        window.location.href = window.location.pathname;
-                    }
-                });
-            }
-
-            // Filter functionality
-            document.querySelectorAll('[data-filter]').forEach(item => {
-                item.addEventListener('click', function (e) {
-                    e.preventDefault();
-                    const filter = this.getAttribute('data-filter');
-                    console.log('Filter by:', filter);
-                });
-            });
-
-            // Dynamic header and thead positioning
-            function updateStickyPositions() {
-                const header = document.querySelector('.page-header-sticky');
-                const spacer = document.querySelector('.page-header-spacer');
-                const thead = document.querySelector('.table thead');
-                if (header && spacer && thead) {
-                    const headerHeight = header.offsetHeight;
-                    const theadHeight = thead.offsetHeight;
-                    spacer.style.height = `${headerHeight + theadHeight}px`;
-                    thead.style.top = `${headerHeight}px`;
-                }
-            }
-
-            updateStickyPositions();
-            window.addEventListener('resize', updateStickyPositions);
-        });
-    </script>
-    <style>
-
-    /* Column widths for header and card cells */
-    .site-name-col { flex: 1 1 20%; min-width: 120px; }
-    .partner-col { flex: 1 1 15%; min-width: 100px; }
-    .address-col { flex: 1 1 30%; min-width: 150px; }
-    .primary-col { flex: 0 0 5%; min-width: 80px; }
-    .created-col { flex: 1 1 15%; min-width: 100px; }
-    .actions-column, .actions-cell { flex: 0 0 auto; width: auto; text-align: right; padding-right: 10px; }
-
-    /* Ensure card row alignment */
-    .card-grid-header .card-grid-row,
-    .partner-card .card-grid-row {
-        display: flex;
-        align-items: center;
-        gap: 1rem;
-    }
-
-    /* Ensure pagination is centered */
-    .fixed-footer .pagination {
-        display: flex;
-        justify-content: center;
-        width: 100%;
-        margin-bottom: 0;
-    }
-
-    .fixed-footer nav {
-        flex-grow: 1;
-        text-align: center;
-    }
-</style>
+    <script src="/js/utils.js"></script>
+    <script src="/js/tomSelectUtils.js"></script>
 }

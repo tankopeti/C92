@@ -1,0 +1,68 @@
+
+@page "{id:int}"
+@model Cloud9_2.Pages.DocManagement.Doc.ViewModel
+@{
+    ViewData["Title"] = "Dokumentum részletei";
+    Layout = "_Layout";
+}
+@section Styles {
+    <link rel="stylesheet" href="~/css/Quotes.css" />
+}
+
+<div class="right-content">
+    <div class="page-header-fixed-top">
+        <!-- Breadcrumb Navigation -->
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb bg-body-tertiary rounded-3 p-2 mb-0">
+                <li class="breadcrumb-item"><a href="../../../">Főoldal</a></li>
+                <li class="breadcrumb-item"><a href="../../">CRM Dashboard</a></li>
+                <li class="breadcrumb-item"><a href="../Index">Dokumentumok</a></li>
+                <li class="breadcrumb-item active" aria-current="page">Dokumentum részletei</li>
+            </ol>
+        </nav>
+    </div>
+
+    <h2 class="mt-3">Dokumentum részletei</h2>
+    @if (Model.Document != null)
+    {
+        <div class="card">
+            <div class="card-body">
+                <dl class="row">
+                    <dt class="col-sm-3">Dokumentum ID</dt>
+                    <dd class="col-sm-9">@Model.Document.DocumentId</dd>
+                    <dt class="col-sm-3">Fájlnév</dt>
+                    <dd class="col-sm-9"><a href="/file/@Model.Document.DocumentId" target="_blank">@Model.Document.FileName</a></dd>
+                    <dt class="col-sm-3">Partner</dt>
+                    <dd class="col-sm-9">@Model.Document.PartnerName</dd>
+                    <dt class="col-sm-3">Feltöltés dátuma</dt>
+                    <dd class="col-sm-9">@(Model.Document.UploadDate?.ToString("yyyy-MM-dd"))</dd>
+                    <dt class="col-sm-3">Státusz</dt>
+                    <dd class="col-sm-9">@Model.StatusDisplayNames[Model.Document.Status.ToString()]</dd>
+                    <dt class="col-sm-3">Feltöltötte</dt>
+                    <dd class="col-sm-9">@Model.Document.UploadedBy</dd>
+                    <dt class="col-sm-3">Dokumentumtípus</dt>
+                    <dd class="col-sm-9">@Model.Document.DocumentTypeName</dd>
+                    @if (Model.Document.DocumentLinks != null && Model.Document.DocumentLinks.Any())
+                    {
+                        <dt class="col-sm-3">Kapcsolódó linkek</dt>
+                        <dd class="col-sm-9">
+                            <ul>
+                                @foreach (var link in Model.Document.DocumentLinks)
+                                {
+                                    <li>@link.ModuleId: @link.RecordId</li>
+                                }
+                            </ul>
+                        </dd>
+                    }
+                </dl>
+                <a href="../Index" class="btn btn-outline-secondary">Vissza</a>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="alert alert-warning mt-3" role="alert">
+            A dokumentum nem található.
+        </div>
+    }
+</div>

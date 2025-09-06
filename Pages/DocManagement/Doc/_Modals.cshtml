@@ -1,0 +1,46 @@
+@model Cloud9_2.Models.DocumentDto
+@using Cloud9_2.Models
+
+<div class="modal fade" id="viewDocumentModal_@Model.DocumentId" tabindex="-1" aria-labelledby="viewDocumentModalLabel_@Model.DocumentId" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="viewDocumentModalLabel_@Model.DocumentId">Dokumentum részletei - @Model.DocumentId</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Bezárás"></button>
+            </div>
+            <div class="modal-body">
+                <dl class="row">
+                    <dt class="col-sm-3">Dokumentum ID</dt>
+                    <dd class="col-sm-9">@Model.DocumentId</dd>
+                    <dt class="col-sm-3">Fájlnév</dt>
+                    <dd class="col-sm-9"><a href="/file/@Model.DocumentId" target="_blank">@Model.FileName</a></dd>
+                    <dt class="col-sm-3">Partner</dt>
+                    <dd class="col-sm-9">@Model.PartnerName</dd>
+                    <dt class="col-sm-3">Feltöltés dátuma</dt>
+                    <dd class="col-sm-9">@(Model.UploadDate?.ToString("yyyy-MM-dd"))</dd>
+                    <dt class="col-sm-3">Státusz</dt>
+                    <dd class="col-sm-9">@Model.StatusDisplayNames[Model.Status.ToString()]</dd>
+                    <dt class="col-sm-3">Feltöltötte</dt>
+                    <dd class="col-sm-9">@Model.UploadedBy</dd>
+                    <dt class="col-sm-3">Dokumentumtípus</dt>
+                    <dd class="col-sm-9">@Model.DocumentTypeName</dd>
+                    @if (Model.DocumentLinks != null && Model.DocumentLinks.Any())
+                    {
+                        <dt class="col-sm-3">Kapcsolódó linkek</dt>
+                        <dd class="col-sm-9">
+                            <ul>
+                                @foreach (var link in Model.DocumentLinks)
+                                {
+                                    <li>@link.ModuleId: @link.RecordId</li>
+                                }
+                            </ul>
+                        </dd>
+                    }
+                </dl>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Bezárás</button>
+            </div>
+        </div>
+    </div>
+</div>

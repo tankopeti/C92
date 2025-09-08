@@ -1,7 +1,6 @@
 using Cloud9_2.Data;
 using Cloud9_2.Models;
 using Cloud9_2.Services;
-using Cloud9_2.Controllers;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -9,6 +8,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 
 namespace Cloud9_2.Pages.DocManagement.Doc
@@ -28,14 +28,25 @@ namespace Cloud9_2.Pages.DocManagement.Doc
         }
 
         public DocumentDto Document { get; set; }
-        public Dictionary<string, string> StatusDisplayNames => new Dictionary<string, string>
+        public IList<DocumentStatusHistory> StatusHistory { get; set; }
+        public IDictionary<string, string> StatusDisplayNames => GetStatusDisplayNames();
+
+        private static IDictionary<string, string> GetStatusDisplayNames()
         {
-            { DocumentStatusEnum.Beérkezett.ToString(), "Beérkezett" },
-            { DocumentStatusEnum.Függőben.ToString(), "Függőben" },
-            { DocumentStatusEnum.Elfogadott.ToString(), "Elfogadott" },
-            { DocumentStatusEnum.Lezárt.ToString(), "Lezárt" },
-            { DocumentStatusEnum.Jóváhagyandó.ToString(), "Jóváhagyandó" }
-        };
+            return Enum.GetValues(typeof(DocumentStatusEnum))
+                .Cast<DocumentStatusEnum>()
+                .ToDictionary(
+                    e => e.ToString(),
+                    e => e switch
+                    {
+                        DocumentStatusEnum.Beérkezett => "Beérkezett",
+                        DocumentStatusEnum.Függőben => "Függőben",
+                        DocumentStatusEnum.Elfogadott => "Elfogadott",
+                        DocumentStatusEnum.Lezárt => "Lezárt",
+                        DocumentStatusEnum.Jóváhagyandó => "Jóváhagyandó",
+                        _ => e.ToString()
+                    });
+        }
 
         public async Task<IActionResult> OnGetAsync(int id)
         {
@@ -44,6 +55,7 @@ namespace Cloud9_2.Pages.DocManagement.Doc
                 var user = await _userManager.GetUserAsync(User);
                 var isAdmin = user != null && (await _userManager.IsInRoleAsync(user, "Admin") || await _userManager.IsInRoleAsync(user, "SuperAdmin"));
 
+                // Fetch DocumentDto
                 Document = await _context.Documents
                     .AsNoTracking()
                     .Include(d => d.DocumentType)
@@ -73,7 +85,8 @@ namespace Cloud9_2.Pages.DocManagement.Doc
                                 DocumentId = l.DocumentId,
                                 ModuleId = l.ModuleID,
                                 RecordId = l.RecordID
-                            }).ToList()
+                            }).ToList(),
+                            // StatusDisplayNames = GetStatusDisplayNames()
                         })
                     .Where(d => d.DocumentId == id && (isAdmin || d.UploadedBy == User.Identity.Name))
                     .FirstOrDefaultAsync();
@@ -84,7 +97,14 @@ namespace Cloud9_2.Pages.DocManagement.Doc
                     return NotFound();
                 }
 
-                _logger.LogInformation("Retrieved Document {DocumentId}", id);
+                // Fetch Status History
+                StatusHistory = await _context.DocumentStatusHistory
+                    .AsNoTracking()
+                    .Where(h => h.DocumentId == id)
+                    .OrderByDescending(h => h.ChangeDate)
+                    .ToListAsync();
+
+                _logger.LogInformation("Retrieved Document {DocumentId} with {HistoryCount} status history entries", id, StatusHistory.Count);
                 return Page();
             }
             catch (Exception ex)

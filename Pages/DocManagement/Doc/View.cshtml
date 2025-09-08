@@ -1,4 +1,3 @@
-
 @page "{id:int}"
 @model Cloud9_2.Pages.DocManagement.Doc.ViewModel
 @{
@@ -27,35 +26,86 @@
     {
         <div class="card">
             <div class="card-body">
-                <dl class="row">
-                    <dt class="col-sm-3">Dokumentum ID</dt>
-                    <dd class="col-sm-9">@Model.Document.DocumentId</dd>
-                    <dt class="col-sm-3">Fájlnév</dt>
-                    <dd class="col-sm-9"><a href="/file/@Model.Document.DocumentId" target="_blank">@Model.Document.FileName</a></dd>
-                    <dt class="col-sm-3">Partner</dt>
-                    <dd class="col-sm-9">@Model.Document.PartnerName</dd>
-                    <dt class="col-sm-3">Feltöltés dátuma</dt>
-                    <dd class="col-sm-9">@(Model.Document.UploadDate?.ToString("yyyy-MM-dd"))</dd>
-                    <dt class="col-sm-3">Státusz</dt>
-                    <dd class="col-sm-9">@Model.StatusDisplayNames[Model.Document.Status.ToString()]</dd>
-                    <dt class="col-sm-3">Feltöltötte</dt>
-                    <dd class="col-sm-9">@Model.Document.UploadedBy</dd>
-                    <dt class="col-sm-3">Dokumentumtípus</dt>
-                    <dd class="col-sm-9">@Model.Document.DocumentTypeName</dd>
-                    @if (Model.Document.DocumentLinks != null && Model.Document.DocumentLinks.Any())
-                    {
-                        <dt class="col-sm-3">Kapcsolódó linkek</dt>
-                        <dd class="col-sm-9">
-                            <ul>
-                                @foreach (var link in Model.Document.DocumentLinks)
-                                {
-                                    <li>@link.ModuleId: @link.RecordId</li>
-                                }
-                            </ul>
-                        </dd>
-                    }
-                </dl>
-                <a href="../Index" class="btn btn-outline-secondary">Vissza</a>
+                <!-- Tab Navigation -->
+                <ul class="nav nav-tabs" id="documentTabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="details-tab" data-bs-toggle="tab" data-bs-target="#details" type="button" role="tab" aria-controls="details" aria-selected="true">Dokumentum részletei</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="changelog-tab" data-bs-toggle="tab" data-bs-target="#changelog" type="button" role="tab" aria-controls="changelog" aria-selected="false">Változási napló</button>
+                    </li>
+                </ul>
+
+                <!-- Tab Content -->
+                <div class="tab-content" id="documentTabsContent">
+                    <!-- Document Details Tab -->
+                    <div class="tab-pane fade show active" id="details" role="tabpanel" aria-labelledby="details-tab">
+                        <dl class="row mt-3">
+                            <dt class="col-sm-3">Dokumentum ID</dt>
+                            <dd class="col-sm-9">@Model.Document.DocumentId</dd>
+                            <dt class="col-sm-3">Fájlnév</dt>
+                            <dd class="col-sm-9"><a href="/file/@Model.Document.DocumentId" target="_blank">@Model.Document.FileName</a></dd>
+                            <dt class="col-sm-3">Partner</dt>
+                            <dd class="col-sm-9">@Model.Document.PartnerName</dd>
+                            <dt class="col-sm-3">Feltöltés dátuma</dt>
+                            <dd class="col-sm-9">@(Model.Document.UploadDate?.ToString("yyyy-MM-dd"))</dd>
+                            <dt class="col-sm-3">Státusz</dt>
+                            <dd class="col-sm-9">@Model.StatusDisplayNames[Model.Document.Status.ToString()]</dd>
+                            <dt class="col-sm-3">Feltöltötte</dt>
+                            <dd class="col-sm-9">@Model.Document.UploadedBy</dd>
+                            <dt class="col-sm-3">Dokumentumtípus</dt>
+                            <dd class="col-sm-9">@Model.Document.DocumentTypeName</dd>
+                            @if (Model.Document.DocumentLinks != null && Model.Document.DocumentLinks.Any())
+                            {
+                                <dt class="col-sm-3">Kapcsolódó linkek</dt>
+                                <dd class="col-sm-9">
+                                    <ul>
+                                        @foreach (var link in Model.Document.DocumentLinks)
+                                        {
+                                            <li>@link.ModuleId: @link.RecordId</li>
+                                        }
+                                    </ul>
+                                </dd>
+                            }
+                        </dl>
+                    </div>
+
+                    <!-- Change Log Tab -->
+                    <div class="tab-pane fade" id="changelog" role="tabpanel" aria-labelledby="changelog-tab">
+                        @if (Model.StatusHistory != null && Model.StatusHistory.Any())
+                        {
+                            <table class="table table-striped mt-3">
+                                <thead>
+                                    <tr>
+                                        <th>Dátum</th>
+                                        <th>Régi státusz</th>
+                                        <th>Új státusz</th>
+                                        <th>Módosította</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var history in Model.StatusHistory)
+                                    {
+                                        <tr>
+                                            <td>@history.ChangeDate.ToString("yyyy-MM-dd HH:mm:ss")</td>
+                                            <td>@(Model.StatusDisplayNames.ContainsKey(history.OldStatus.ToString()) ? Model.StatusDisplayNames[history.OldStatus.ToString()] : history.OldStatus.ToString())</td>
+                                            <td>@(Model.StatusDisplayNames.ContainsKey(history.NewStatus.ToString()) ? Model.StatusDisplayNames[history.NewStatus.ToString()] : history.NewStatus.ToString())</td>
+                                            <td>@history.ChangedBy</td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        }
+                        else
+                        {
+                            <div class="alert alert-info mt-3" role="alert">
+                                Nincs változási napló ehhez a dokumentumhoz.
+                            </div>
+                        }
+                    </div>
+                </div>
+
+                <a href="../Index" class="btn btn-outline-secondary mt-3">Vissza</a>
             </div>
         </div>
     }
@@ -66,3 +116,7 @@
         </div>
     }
 </div>
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+}

@@ -45,6 +45,25 @@ namespace Cloud9_2.Services
         private string GetCurrentUser() =>
             _httpContextAccessor.HttpContext?.User?.Identity?.Name ?? "System";
 
+        private async Task LogStatusChangeAsync(int documentId, DocumentStatusEnum oldStatus, DocumentStatusEnum newStatus)
+        {
+            if (oldStatus == newStatus)
+                return; // No change, no need to log
+
+            var history = new DocumentStatusHistory
+            {
+                DocumentId = documentId,
+                OldStatus = oldStatus,
+                NewStatus = newStatus,
+                ChangeDate = DateTime.UtcNow,
+                ChangedBy = GetCurrentUser()
+            };
+
+            _context.DocumentStatusHistory.Add(history);
+            await _context.SaveChangesAsync();
+            _logger.LogInformation("Logged status change for document {DocumentId} from {OldStatus} to {NewStatus}", documentId, oldStatus, newStatus);
+        }
+
         public async Task<DocumentDto> GetDocumentAsync(int documentId)
         {
             try
@@ -56,6 +75,7 @@ namespace Cloud9_2.Services
                     .AsNoTracking()
                     .Include(d => d.DocumentType)
                     .Include(d => d.DocumentLinks)
+                    .Include(d => d.StatusHistory)
                     .GroupJoin(_context.Partners,
                         d => d.PartnerId,
                         p => p.PartnerId,
@@ -81,7 +101,17 @@ namespace Cloud9_2.Services
                                 DocumentId = l.DocumentId,
                                 ModuleId = l.ModuleID,
                                 RecordId = l.RecordID
+                            }).ToList(),
+                            StatusHistory = d.Document.StatusHistory.Select(h => new DocumentStatusHistoryDto
+                            {
+                                Id = h.Id,
+                                DocumentId = h.DocumentId,
+                                OldStatus = h.OldStatus,
+                                NewStatus = h.NewStatus,
+                                ChangeDate = h.ChangeDate,
+                                ChangedBy = h.ChangedBy
                             }).ToList()
+                            // Remove StatusDisplayNames from here; it's now static in DocumentDto
                         });
 
                 if (!isAdmin)
@@ -96,7 +126,7 @@ namespace Cloud9_2.Services
                     return null;
                 }
 
-                return doc; // Directly return the DocumentDto from the query
+                return doc;
             }
             catch (Exception ex)
             {
@@ -104,6 +134,45 @@ namespace Cloud9_2.Services
                 throw;
             }
         }
+
+        public static DocumentDto MapToDto(Document document, ApplicationDbContext context)
+        {
+            return new DocumentDto
+            {
+                DocumentId = document.DocumentId,
+                FileName = document.FileName,
+                FilePath = document.FilePath,
+                DocumentTypeId = document.DocumentTypeId,
+                DocumentTypeName = document.DocumentType?.Name,
+                UploadDate = document.UploadDate,
+                UploadedBy = document.UploadedBy,
+                SiteId = document.SiteId,
+                PartnerId = document.PartnerId,
+                PartnerName = document.PartnerId.HasValue ? context.Partners
+                    .Where(p => p.PartnerId == document.PartnerId)
+                    .Select(p => p.Name)
+                    .FirstOrDefault() ?? "Unknown" : "N/A",
+                Status = document.Status,
+                DocumentLinks = document.DocumentLinks?.Select(l => new DocumentLinkDto
+                {
+                    Id = l.ID,
+                    DocumentId = l.DocumentId,
+                    ModuleId = l.ModuleID,
+                    RecordId = l.RecordID
+                }).ToList() ?? new List<DocumentLinkDto>(),
+                StatusHistory = document.StatusHistory?.Select(h => new DocumentStatusHistoryDto
+                {
+                    Id = h.Id,
+                    DocumentId = h.DocumentId,
+                    OldStatus = h.OldStatus,
+                    NewStatus = h.NewStatus,
+                    ChangeDate = h.ChangeDate,
+                    ChangedBy = h.ChangedBy
+                }).ToList() ?? new List<DocumentStatusHistoryDto>()
+                // Remove StatusDisplayNames from here; it's now static in DocumentDto
+            };
+        }
+
 
         public async Task<Document> GetDocumentByIdAsync(int documentId)
         {
@@ -288,16 +357,8 @@ namespace Cloud9_2.Services
                 _context.Documents.Add(doc);
                 await _context.SaveChangesAsync();
 
-                var history = new DocumentStatusHistory
-                {
-                    DocumentId = doc.DocumentId,
-                    OldStatus = doc.Status,
-                    NewStatus = doc.Status,
-                    ChangeDate = DateTime.UtcNow,
-                    ChangedBy = GetCurrentUser()
-                };
-                _context.DocumentStatusHistory.Add(history);
-                await _context.SaveChangesAsync();
+                // Log initial status
+                await LogStatusChangeAsync(doc.DocumentId, doc.Status, doc.Status);
 
                 // Fetch the document with related data to create DocumentDto
                 var result = await _context.Documents
@@ -344,6 +405,8 @@ namespace Cloud9_2.Services
 
         public async Task<DocumentDto> UpdateDocumentAsync(int documentId, DocumentDto documentUpdate)
         {
+            if (documentUpdate == null) throw new ArgumentNullException(nameof(documentUpdate));
+
             var user = await _userManager.GetUserAsync(_httpContextAccessor.HttpContext.User);
             var isAdmin = user != null && (await _userManager.IsInRoleAsync(user, "Admin") || await _userManager.IsInRoleAsync(user, "SuperAdmin"));
             var isEditor = user != null && await _userManager.IsInRoleAsync(user, "Editor");
@@ -360,37 +423,29 @@ namespace Cloud9_2.Services
             if (!isAdmin && !isEditor)
             {
                 _logger.LogWarning("User {User} lacks permission to update document {DocumentId}", GetCurrentUser(), documentId);
-                return null;
+                throw new UnauthorizedAccessException("User lacks permission to update documents.");
             }
 
             if (isEditor && doc.UploadedBy != GetCurrentUser())
             {
                 _logger.LogWarning("Editor {User} lacks permission to update document {DocumentId}", GetCurrentUser(), documentId);
-                return null;
+                throw new UnauthorizedAccessException("Editor lacks permission to update this document.");
             }
 
             try
             {
+                // Log status change if applicable
                 if (doc.Status != documentUpdate.Status)
                 {
-                    var history = new DocumentStatusHistory
-                    {
-                        DocumentId = documentId,
-                        OldStatus = doc.Status,
-                        NewStatus = documentUpdate.Status,
-                        ChangeDate = DateTime.UtcNow,
-                        ChangedBy = GetCurrentUser()
-                    };
-                    _context.DocumentStatusHistory.Add(history);
+                    await LogStatusChangeAsync(documentId, doc.Status, documentUpdate.Status);
                 }
 
+                // Update document fields
                 doc.FileName = documentUpdate.FileName ?? doc.FileName;
                 doc.FilePath = documentUpdate.FilePath ?? doc.FilePath;
                 doc.DocumentTypeId = documentUpdate.DocumentTypeId ?? doc.DocumentTypeId;
                 doc.PartnerId = documentUpdate.PartnerId ?? doc.PartnerId;
                 doc.SiteId = documentUpdate.SiteId ?? doc.SiteId;
-                doc.UploadDate = doc.UploadDate ?? DateTime.UtcNow;
-                doc.UploadedBy = GetCurrentUser();
                 doc.Status = documentUpdate.Status;
 
                 await _context.SaveChangesAsync();
@@ -443,7 +498,12 @@ namespace Cloud9_2.Services
             var user = await _userManager.GetUserAsync(_httpContextAccessor.HttpContext.User);
             var isAdmin = user != null && (await _userManager.IsInRoleAsync(user, "Admin") || await _userManager.IsInRoleAsync(user, "SuperAdmin"));
 
-            var doc = await _context.Documents.FirstOrDefaultAsync(d => d.DocumentId == documentId);
+            var doc = await _context.Documents
+                .Include(d => d.DocumentMetadata)
+                .Include(d => d.DocumentLinks)
+                .Include(d => d.StatusHistory)
+                .FirstOrDefaultAsync(d => d.DocumentId == documentId);
+
             if (doc == null)
             {
                 _logger.LogWarning("Document {DocumentId} not found", documentId);
@@ -458,13 +518,22 @@ namespace Cloud9_2.Services
 
             try
             {
+                // Delete related records
+                if (doc.DocumentMetadata?.Any() == true)
+                    _context.DocumentMetadata.RemoveRange(doc.DocumentMetadata);
+                if (doc.DocumentLinks?.Any() == true)
+                    _context.DocumentLinks.RemoveRange(doc.DocumentLinks);
+                if (doc.StatusHistory?.Any() == true)
+                    _context.DocumentStatusHistory.RemoveRange(doc.StatusHistory);
+
                 _context.Documents.Remove(doc);
-                await _context.SaveChangesAsync();
+                var rowsAffected = await _context.SaveChangesAsync();
+                _logger.LogInformation("Deleted document {DocumentId}, rows affected: {RowsAffected}", documentId, rowsAffected);
                 return true;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error deleting document {DocumentId}: {Message}, StackTrace: {StackTrace}", documentId, ex.Message, ex.StackTrace);
+                _logger.LogError(ex, "Error deleting document {DocumentId}: {Message}, InnerException: {InnerException}", documentId, ex.Message, ex.InnerException?.Message);
                 throw;
             }
         }
@@ -477,34 +546,32 @@ namespace Cloud9_2.Services
             return $"TestDocument-{yearDay}-{count + 1:D4}-{randomNum}";
         }
 
-        public static DocumentDto MapToDto(Document document, ApplicationDbContext context)
-        {
-            return new DocumentDto
-            {
-                DocumentId = document.DocumentId,
-                FileName = document.FileName,
-                FilePath = document.FilePath,
-                DocumentTypeId = document.DocumentTypeId,
-                DocumentTypeName = document.DocumentType?.Name,
-                UploadDate = document.UploadDate,
-                UploadedBy = document.UploadedBy,
-                SiteId = document.SiteId,
-                PartnerId = document.PartnerId,
-                PartnerName = document.PartnerId.HasValue ? context.Partners
-                    .Where(p => p.PartnerId == document.PartnerId)
-                    .Select(p => p.Name)
-                    .FirstOrDefault() ?? "Unknown" : "N/A",
-                Status = document.Status,
-                DocumentLinks = document.DocumentLinks?.Select(l => new DocumentLinkDto
-                {
-                    Id = l.ID,
-                    DocumentId = l.DocumentId,
-                    ModuleId = l.ModuleID,
-                    RecordId = l.RecordID
-                }).ToList() ?? new List<DocumentLinkDto>()
-            };
-        }
+        // public static DocumentDto MapToDto(Document document, ApplicationDbContext context)
+        // {
+        //     return new DocumentDto
+        //     {
+        //         DocumentId = document.DocumentId,
+        //         FileName = document.FileName,
+        //         FilePath = document.FilePath,
+        //         DocumentTypeId = document.DocumentTypeId,
+        //         DocumentTypeName = document.DocumentType?.Name,
+        //         UploadDate = document.UploadDate,
+        //         UploadedBy = document.UploadedBy,
+        //         SiteId = document.SiteId,
+        //         PartnerId = document.PartnerId,
+        //         PartnerName = document.PartnerId.HasValue ? context.Partners
+        //             .Where(p => p.PartnerId == document.PartnerId)
+        //             .Select(p => p.Name)
+        //             .FirstOrDefault() ?? "Unknown" : "N/A",
+        //         Status = document.Status,
+        //         DocumentLinks = document.DocumentLinks?.Select(l => new DocumentLinkDto
+        //         {
+        //             Id = l.ID,
+        //             DocumentId = l.DocumentId,
+        //             ModuleId = l.ModuleID,
+        //             RecordId = l.RecordID
+        //         }).ToList() ?? new List<DocumentLinkDto>()
+        //     };
+        // }
     }
-
-
 }

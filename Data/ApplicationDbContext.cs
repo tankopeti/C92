@@ -62,12 +62,52 @@ namespace Cloud9_2.Data
         public DbSet<OrderItemDiscount> OrderItemDiscounts { get; set; } // Added for CS1061
         public DbSet<DocumentMetadata> DocumentMetadata { get; set; }
         public DbSet<DocumentLink> DocumentLinks { get; set; }
+        public DbSet<DocumentStatusHistory> DocumentStatusHistory { get; set; }
 
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
-            
+
+            modelBuilder.Entity<Document>()
+                .HasMany(d => d.DocumentMetadata)
+                .WithOne(m => m.Document)
+                .HasForeignKey(m => m.DocumentId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<Document>()
+                .HasMany(d => d.DocumentLinks)
+                .WithOne(l => l.Document)
+                .HasForeignKey(l => l.DocumentId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<Document>()
+                .HasMany(d => d.StatusHistory)
+                .WithOne(s => s.Document)
+                .HasForeignKey(s => s.DocumentId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<Document>()
+                .Property(d => d.Status)
+                .HasConversion<int>();
+
+            modelBuilder.Entity<DocumentStatusHistory>()
+                .Property(h => h.OldStatus)
+                .HasConversion<int>();
+            modelBuilder.Entity<DocumentStatusHistory>()
+                .Property(h => h.NewStatus)
+                .HasConversion<int>();
+
+            // Configure relationships
+            modelBuilder.Entity<DocumentStatusHistory>()
+                .HasOne(h => h.Document)
+                .WithMany(d => d.StatusHistory)
+                .HasForeignKey(h => h.DocumentId);
+
+            modelBuilder.Entity<Document>()
+                .Property(d => d.Status)
+                .HasConversion<int>();
+
             modelBuilder.Entity<DocumentMetadata>()
                 .HasIndex(m => m.Key);
 

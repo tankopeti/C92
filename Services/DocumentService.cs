@@ -16,7 +16,7 @@ namespace Cloud9_2.Services
         Task<DocumentDto> GetDocumentAsync(int documentId);
         Task<List<DocumentDto>> GetDocumentsAsync(string searchTerm, int? documentTypeId, int? partnerId, int? siteId, DocumentStatusEnum? status, string sortBy, int skip, int take);
         Task<int> GetDocumentsCountAsync(string searchTerm, int? documentTypeId, int? partnerId, int? siteId);
-        Task<DocumentDto> CreateDocumentAsync(DocumentDto documentDto);
+        Task<DocumentDto> CreateDocumentAsync(CreateDocumentDto documentDto); // Updated to use CreateDocumentDto
         Task<DocumentDto> UpdateDocumentAsync(int documentId, DocumentDto documentUpdate);
         Task<bool> DeleteDocumentAsync(int documentId);
         Task<string> GetNextDocumentNumberAsync();
@@ -48,7 +48,7 @@ namespace Cloud9_2.Services
         private async Task LogStatusChangeAsync(int documentId, DocumentStatusEnum oldStatus, DocumentStatusEnum newStatus)
         {
             if (oldStatus == newStatus)
-                return; // No change, no need to log
+                return;
 
             var history = new DocumentStatusHistory
             {
@@ -111,7 +111,6 @@ namespace Cloud9_2.Services
                                 ChangeDate = h.ChangeDate,
                                 ChangedBy = h.ChangedBy
                             }).ToList()
-                            // Remove StatusDisplayNames from here; it's now static in DocumentDto
                         });
 
                 if (!isAdmin)
@@ -169,10 +168,8 @@ namespace Cloud9_2.Services
                     ChangeDate = h.ChangeDate,
                     ChangedBy = h.ChangedBy
                 }).ToList() ?? new List<DocumentStatusHistoryDto>()
-                // Remove StatusDisplayNames from here; it's now static in DocumentDto
             };
         }
-
 
         public async Task<Document> GetDocumentByIdAsync(int documentId)
         {
@@ -208,7 +205,7 @@ namespace Cloud9_2.Services
                     .AsNoTracking()
                     .Include(d => d.DocumentType)
                     .Include(d => d.DocumentLinks)
-                    .Include(d => d.StatusHistory) // Add this line to include StatusHistory
+                    .Include(d => d.StatusHistory)
                     .GroupJoin(_context.Partners,
                         d => d.PartnerId,
                         p => p.PartnerId,
@@ -235,7 +232,7 @@ namespace Cloud9_2.Services
                                 ModuleId = l.ModuleID,
                                 RecordId = l.RecordID
                             }).ToList(),
-                            StatusHistory = d.Document.StatusHistory.Select(h => new DocumentStatusHistoryDto // Add StatusHistory mapping
+                            StatusHistory = d.Document.StatusHistory.Select(h => new DocumentStatusHistoryDto
                             {
                                 Id = h.Id,
                                 DocumentId = h.DocumentId,
@@ -336,7 +333,7 @@ namespace Cloud9_2.Services
             }
         }
 
-        public async Task<DocumentDto> CreateDocumentAsync(DocumentDto documentDto)
+        public async Task<DocumentDto> CreateDocumentAsync(CreateDocumentDto documentDto)
         {
             if (documentDto == null) throw new ArgumentNullException(nameof(documentDto));
 
@@ -375,6 +372,7 @@ namespace Cloud9_2.Services
                     .AsNoTracking()
                     .Include(d => d.DocumentType)
                     .Include(d => d.DocumentLinks)
+                    .Include(d => d.StatusHistory) // Added to ensure StatusHistory is included
                     .GroupJoin(_context.Partners,
                         d => d.PartnerId,
                         p => p.PartnerId,
@@ -400,6 +398,15 @@ namespace Cloud9_2.Services
                                 DocumentId = l.DocumentId,
                                 ModuleId = l.ModuleID,
                                 RecordId = l.RecordID
+                            }).ToList(),
+                            StatusHistory = d.Document.StatusHistory.Select(h => new DocumentStatusHistoryDto
+                            {
+                                Id = h.Id,
+                                DocumentId = h.DocumentId,
+                                OldStatus = h.OldStatus,
+                                NewStatus = h.NewStatus,
+                                ChangeDate = h.ChangeDate,
+                                ChangedBy = h.ChangedBy
                             }).ToList()
                         })
                     .FirstOrDefaultAsync(d => d.DocumentId == doc.DocumentId);
@@ -444,13 +451,11 @@ namespace Cloud9_2.Services
 
             try
             {
-                // Log status change if applicable
                 if (doc.Status != documentUpdate.Status)
                 {
                     await LogStatusChangeAsync(documentId, doc.Status, documentUpdate.Status);
                 }
 
-                // Update document fields
                 doc.FileName = documentUpdate.FileName ?? doc.FileName;
                 doc.FilePath = documentUpdate.FilePath ?? doc.FilePath;
                 doc.DocumentTypeId = documentUpdate.DocumentTypeId ?? doc.DocumentTypeId;
@@ -460,11 +465,11 @@ namespace Cloud9_2.Services
 
                 await _context.SaveChangesAsync();
 
-                // Fetch the updated document with related data to create DocumentDto
                 var result = await _context.Documents
                     .AsNoTracking()
                     .Include(d => d.DocumentType)
                     .Include(d => d.DocumentLinks)
+                    .Include(d => d.StatusHistory) // Added to ensure StatusHistory is included
                     .GroupJoin(_context.Partners,
                         d => d.PartnerId,
                         p => p.PartnerId,
@@ -490,6 +495,15 @@ namespace Cloud9_2.Services
                                 DocumentId = l.DocumentId,
                                 ModuleId = l.ModuleID,
                                 RecordId = l.RecordID
+                            }).ToList(),
+                            StatusHistory = d.Document.StatusHistory.Select(h => new DocumentStatusHistoryDto
+                            {
+                                Id = h.Id,
+                                DocumentId = h.DocumentId,
+                                OldStatus = h.OldStatus,
+                                NewStatus = h.NewStatus,
+                                ChangeDate = h.ChangeDate,
+                                ChangedBy = h.ChangedBy
                             }).ToList()
                         })
                     .FirstOrDefaultAsync(d => d.DocumentId == documentId);
@@ -528,7 +542,6 @@ namespace Cloud9_2.Services
 
             try
             {
-                // Delete related records
                 if (doc.DocumentMetadata?.Any() == true)
                     _context.DocumentMetadata.RemoveRange(doc.DocumentMetadata);
                 if (doc.DocumentLinks?.Any() == true)
@@ -555,33 +568,5 @@ namespace Cloud9_2.Services
             var count = await _context.Documents.CountAsync();
             return $"TestDocument-{yearDay}-{count + 1:D4}-{randomNum}";
         }
-
-        // public static DocumentDto MapToDto(Document document, ApplicationDbContext context)
-        // {
-        //     return new DocumentDto
-        //     {
-        //         DocumentId = document.DocumentId,
-        //         FileName = document.FileName,
-        //         FilePath = document.FilePath,
-        //         DocumentTypeId = document.DocumentTypeId,
-        //         DocumentTypeName = document.DocumentType?.Name,
-        //         UploadDate = document.UploadDate,
-        //         UploadedBy = document.UploadedBy,
-        //         SiteId = document.SiteId,
-        //         PartnerId = document.PartnerId,
-        //         PartnerName = document.PartnerId.HasValue ? context.Partners
-        //             .Where(p => p.PartnerId == document.PartnerId)
-        //             .Select(p => p.Name)
-        //             .FirstOrDefault() ?? "Unknown" : "N/A",
-        //         Status = document.Status,
-        //         DocumentLinks = document.DocumentLinks?.Select(l => new DocumentLinkDto
-        //         {
-        //             Id = l.ID,
-        //             DocumentId = l.DocumentId,
-        //             ModuleId = l.ModuleID,
-        //             RecordId = l.RecordID
-        //         }).ToList() ?? new List<DocumentLinkDto>()
-        //     };
-        // }
     }
 }

@@ -1,4 +1,6 @@
 using System.ComponentModel.DataAnnotations;
+using Microsoft.AspNetCore.Mvc.Rendering;
+using System.Collections.Generic;
 
 namespace Cloud9_2.Models
 {
@@ -71,4 +73,28 @@ namespace Cloud9_2.Models
         public string ModuleId { get; set; }
         public int RecordId { get; set; }
     }
+
+    public class CreateDocumentDto
+    {
+        [Required]
+        public string FileName { get; set; }
+        [Required]
+        public string FilePath { get; set; }
+        public int? DocumentTypeId { get; set; }
+        public int? SiteId { get; set; }
+        public int? PartnerId { get; set; }
+        [Required]
+        public DocumentStatusEnum Status { get; set; }
+    }
+
+    public class DocumentModalViewModel
+    {
+        public DocumentDto? Document { get; set; }
+        public CreateDocumentDto? CreateDocument { get; set; }
+        public List<SelectListItem>? DocumentTypes { get; set; }
+        public List<SelectListItem>? Partners { get; set; }
+        public List<SelectListItem>? Sites { get; set; }
+        public string? NextDocumentNumber { get; set; }
+    }
+    
 }

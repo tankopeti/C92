@@ -1,90 +1,175 @@
-@model Cloud9_2.Models.DocumentDto
+@model Cloud9_2.Models.DocumentModalViewModel
 @using Cloud9_2.Models
+@using System.Globalization
+@using Microsoft.AspNetCore.Mvc.Rendering
 
-<div class="modal fade" id="viewDocumentModal_@Model.DocumentId" tabindex="-1" aria-labelledby="viewDocumentModalLabel_@Model.DocumentId" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="viewDocumentModalLabel_@Model.DocumentId">Dokumentum részletei - @Model.DocumentId</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Bezárás"></button>
-            </div>
-            <div class="modal-body">
-                <ul class="nav nav-tabs" id="documentTab_@Model.DocumentId" role="tablist">
-                    <li class="nav-item" role="presentation">
-                        <button class="nav-link active" id="details-tab_@Model.DocumentId" data-bs-toggle="tab" data-bs-target="#details_@Model.DocumentId" type="button" role="tab" aria-controls="details_@Model.DocumentId" aria-selected="true">Részletek</button>
-                    </li>
-                    <li class="nav-item" role="presentation">
-                        <button class="nav-link" id="history-tab_@Model.DocumentId" data-bs-toggle="tab" data-bs-target="#history_@Model.DocumentId" type="button" role="tab" aria-controls="history_@Model.DocumentId" aria-selected="false">Változási napló</button>
-                    </li>
-                </ul>
-                <div class="tab-content" id="documentTabContent_@Model.DocumentId">
-                    <!-- Details Tab -->
-                    <div class="tab-pane fade show active" id="details_@Model.DocumentId" role="tabpanel" aria-labelledby="details-tab_@Model.DocumentId">
-                        <dl class="row mt-3">
-                            <dt class="col-sm-3">Dokumentum ID</dt>
-                            <dd class="col-sm-9">@Model.DocumentId</dd>
-                            <dt class="col-sm-3">Fájlnév</dt>
-                            <dd class="col-sm-9"><a href="/file/@Model.DocumentId" target="_blank">@Model.FileName</a></dd>
-                            <dt class="col-sm-3">Partner</dt>
-                            <dd class="col-sm-9">@Model.PartnerName</dd>
-                            <dt class="col-sm-3">Feltöltés dátuma</dt>
-                            <dd class="col-sm-9">@(Model.UploadDate?.ToString("yyyy-MM-dd"))</dd>
-                            <dt class="col-sm-3">Státusz</dt>
-                            <dd class="col-sm-9">@DocumentDto.StatusDisplayNames[Model.Status.ToString()]</dd>
-                            <dt class="col-sm-3">Feltöltötte</dt>
-                            <dd class="col-sm-9">@Model.UploadedBy</dd>
-                            <dt class="col-sm-3">Dokumentumtípus</dt>
-                            <dd class="col-sm-9">@Model.DocumentTypeName</dd>
-                            @if (Model.DocumentLinks != null && Model.DocumentLinks.Any())
+@if (Model.Document != null)
+{
+    <!-- View Modal for Existing Document -->
+    <div class="modal fade" id="viewDocumentModal_@Model.Document.DocumentId" tabindex="-1" aria-labelledby="viewDocumentModalLabel_@Model.Document.DocumentId" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="viewDocumentModalLabel_@Model.Document.DocumentId">Dokumentum részletei - @Model.Document.DocumentId</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Bezárás"></button>
+                </div>
+                <div class="modal-body">
+                    <ul class="nav nav-tabs" id="documentTab_@Model.Document.DocumentId" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="details-tab_@Model.Document.DocumentId" data-bs-toggle="tab" data-bs-target="#details_@Model.Document.DocumentId" type="button" role="tab" aria-controls="details_@Model.Document.DocumentId" aria-selected="true">Részletek</button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="history-tab_@Model.Document.DocumentId" data-bs-toggle="tab" data-bs-target="#history_@Model.Document.DocumentId" type="button" role="tab" aria-controls="history_@Model.Document.DocumentId" aria-selected="false">Változási napló</button>
+                        </li>
+                    </ul>
+                    <div class="tab-content" id="documentTabContent_@Model.Document.DocumentId">
+                        <!-- Details Tab -->
+                        <div class="tab-pane fade show active" id="details_@Model.Document.DocumentId" role="tabpanel" aria-labelledby="details-tab_@Model.Document.DocumentId">
+                            <dl class="row mt-3">
+                                <dt class="col-sm-3">Dokumentum ID</dt>
+                                <dd class="col-sm-9">@Model.Document.DocumentId</dd>
+                                <dt class="col-sm-3">Fájlnév</dt>
+                                <dd class="col-sm-9"><a href="/file/@Model.Document.DocumentId" target="_blank">@(Model.Document.FileName ?? "N/A")</a></dd>
+                                <dt class="col-sm-3">Partner</dt>
+                                <dd class="col-sm-9">@(Model.Document.PartnerName ?? "N/A")</dd>
+                                <dt class="col-sm-3">Feltöltés dátuma</dt>
+                                <dd class="col-sm-9">@(Model.Document.UploadDate?.ToString("d MMMM yyyy", CultureInfo.CreateSpecificCulture("hu-HU")) ?? "N/A")</dd>
+                                <dt class="col-sm-3">Státusz</dt>
+                                <dd class="col-sm-9">@(DocumentDto.StatusDisplayNames.ContainsKey(Model.Document.Status.ToString()) ? DocumentDto.StatusDisplayNames[Model.Document.Status.ToString()] : "N/A")</dd>
+                                <dt class="col-sm-3">Feltöltötte</dt>
+                                <dd class="col-sm-9">@(Model.Document.UploadedBy ?? "N/A")</dd>
+                                <dt class="col-sm-3">Dokumentumtípus</dt>
+                                <dd class="col-sm-9">@(Model.Document.DocumentTypeName ?? "N/A")</dd>
+                                @if (Model.Document.DocumentLinks != null && Model.Document.DocumentLinks.Any())
+                                {
+                                    <dt class="col-sm-3">Kapcsolódó linkek</dt>
+                                    <dd class="col-sm-9">
+                                        <ul>
+                                            @foreach (var link in Model.Document.DocumentLinks)
+                                            {
+                                                <li>@(link.ModuleId ?? "N/A"): @(link.RecordId)</li>
+                                            }
+                                        </ul>
+                                    </dd>
+                                }
+                            </dl>
+                        </div>
+                        <!-- History Tab -->
+                        <div class="tab-pane fade" id="history_@Model.Document.DocumentId" role="tabpanel" aria-labelledby="history-tab_@Model.Document.DocumentId">
+                            @if (Model.Document.StatusHistory != null && Model.Document.StatusHistory.Any())
                             {
-                                <dt class="col-sm-3">Kapcsolódó linkek</dt>
-                                <dd class="col-sm-9">
-                                    <ul>
-                                        @foreach (var link in Model.DocumentLinks)
-                                        {
-                                            <li>@link.ModuleId: @link.RecordId</li>
-                                        }
-                                    </ul>
-                                </dd>
-                            }
-                        </dl>
-                    </div>
-                    <!-- History Tab -->
-                    <div class="tab-pane fade" id="history_@Model.DocumentId" role="tabpanel" aria-labelledby="history-tab_@Model.DocumentId">
-                        @if (Model.StatusHistory != null && Model.StatusHistory.Any())
-                        {
-                            <table class="table table-sm table-striped mt-3">
-                                <thead>
-                                    <tr>
-                                        <th>Dátum</th>
-                                        <th>Régi státusz</th>
-                                        <th>Új státusz</th>
-                                        <th>Módosította</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    @foreach (var history in Model.StatusHistory.OrderByDescending(h => h.ChangeDate))
-                                    {
+                                <table class="table table-sm table-striped mt-3">
+                                    <thead>
                                         <tr>
-                                            <td>@history.ChangeDate.ToString("yyyy-MM-dd HH:mm:ss")</td>
-                                            <td>@DocumentDto.StatusDisplayNames[history.OldStatus.ToString()]</td>
-                                            <td>@DocumentDto.StatusDisplayNames[history.NewStatus.ToString()]</td>
-                                            <td>@history.ChangedBy</td>
+                                            <th>Dátum</th>
+                                            <th>Régi státusz</th>
+                                            <th>Új státusz</th>
+                                            <th>Módosította</th>
                                         </tr>
-                                    }
-                                </tbody>
-                            </table>
-                        }
-                        else
-                        {
-                            <p class="mt-3">Nincs változási előzmény ehhez a dokumentumhoz.</p>
-                        }
+                                    </thead>
+                                    <tbody>
+                                        @foreach (var history in Model.Document.StatusHistory.OrderByDescending(h => h.ChangeDate))
+                                        {
+                                            <tr>
+                                                <td>@history.ChangeDate.ToString("d MMMM yyyy HH:mm:ss", CultureInfo.CreateSpecificCulture("hu-HU"))</td>
+                                                <td>@(DocumentDto.StatusDisplayNames.ContainsKey(history.OldStatus.ToString()) ? DocumentDto.StatusDisplayNames[history.OldStatus.ToString()] : "N/A")</td>
+                                                <td>@(DocumentDto.StatusDisplayNames.ContainsKey(history.NewStatus.ToString()) ? DocumentDto.StatusDisplayNames[history.NewStatus.ToString()] : "N/A")</td>
+                                                <td>@(history.ChangedBy ?? "N/A")</td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            }
+                            else
+                            {
+                                <p class="mt-3">Nincs változási előzmény ehhez a dokumentumhoz. Módosítsa a státuszt az előzmények hozzáadásához.</p>
+                            }
+                        </div>
                     </div>
                 </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Bezárás</button>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Bezárás</button>
+                </div>
             </div>
         </div>
     </div>
-</div>
+}
+else
+{
+    <!-- Create Modal for New Document -->
+    <div class="modal fade" id="createDocumentModal" tabindex="-1" aria-labelledby="createDocumentModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="createDocumentModalLabel">Új dokumentum létrehozása</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Bezárás"></button>
+                </div>
+                <div class="modal-body">
+                    @if (ViewData["ErrorMessage"] != null)
+                    {
+                        <div class="alert alert-danger" role="alert">
+                            @ViewData["ErrorMessage"]
+                        </div>
+                    }
+                    <form asp-page="/DocManagement/Doc/Index" asp-page-handler="Create" method="post" enctype="multipart/form-data">
+                        @Html.AntiForgeryToken()
+                        <div class="mb-3">
+                            <label for="FileName" class="form-label">Fájlnév</label>
+                            <input id="FileName" name="CreateDocument.FileName" class="form-control" value="@(Model.CreateDocument?.FileName)" />
+                            <span class="text-danger" asp-validation-for="CreateDocument.FileName"></span>
+                        </div>
+                        <div class="mb-3">
+                            <label for="file" class="form-label">Fájl feltöltés</label>
+                            <input type="file" id="file" name="file" class="form-control" accept=".pdf,.doc,.docx" />
+                            <small class="form-text text-muted">Engedélyezett fájltípusok: PDF, DOC, DOCX</small>
+                        </div>
+                        <div class="mb-3">
+                            <label for="docDocumentTypeId" class="form-label">Dokumentum típus</label>
+                            <select id="docDocumentTypeId" name="CreateDocument.DocumentTypeId" class="form-select" data-tom-select>
+                                <option value="">Válasszon típust</option>
+                                @foreach (var docType in ((DocumentModalViewModel)ViewData["ModalViewModel"])?.DocumentTypes ?? new List<SelectListItem>())
+                                {
+                                    <option value="@docType.Value" selected="@(Model.CreateDocument?.DocumentTypeId.ToString() == docType.Value)">@docType.Text</option>
+                                }
+                            </select>
+                            <span class="text-danger" asp-validation-for="CreateDocument.DocumentTypeId"></span>
+                        </div>
+                        <div class="mb-3">
+                            <label for="docPartnerId" class="form-label">Partner</label>
+                            <select id="docPartnerId" name="CreateDocument.PartnerId" class="form-select" data-tom-select>
+                                <option value="">Válasszon partnert</option>
+                                @foreach (var partner in ((DocumentModalViewModel)ViewData["ModalViewModel"])?.Partners ?? new List<SelectListItem>())
+                                {
+                                    <option value="@partner.Value" selected="@(Model.CreateDocument?.PartnerId.ToString() == partner.Value)">@partner.Text</option>
+                                }
+                            </select>
+                            <span class="text-danger" asp-validation-for="CreateDocument.PartnerId"></span>
+                        </div>
+                        <div class="mb-3">
+                            <label for="docSiteId" class="form-label">Telephely (Site)</label>
+                            <select id="docSiteId" name="CreateDocument.SiteId" class="form-select" data-tom-select disabled>
+                                <option value="">Először válasszon partnert</option>
+                            </select>
+                            <span class="text-danger" asp-validation-for="CreateDocument.SiteId"></span>
+                        </div>
+                        <div class="mb-3">
+                            <label for="Status" class="form-label">Státusz</label>
+                            <select id="Status" name="CreateDocument.Status" class="form-select" asp-items="Html.GetEnumSelectList<DocumentStatusEnum>()">
+                                <option value="">Válasszon státuszt</option>
+                            </select>
+                            <span class="text-danger" asp-validation-for="CreateDocument.Status"></span>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Következő dokumentum szám</label>
+                            <input type="text" class="form-control" value="@(Model.NextDocumentNumber ?? "N/A")" disabled />
+                        </div>
+                        <button type="submit" class="btn btn-primary">Létrehozás</button>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Bezárás</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}

@@ -362,6 +362,36 @@ namespace Cloud9_2.Controllers
             }
             return Ok(site);
         }
+
+        [HttpGet("by-partner/{partnerId}")]
+        [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
+        public async Task<IActionResult> GetSitesByPartner(int partnerId, [FromQuery] string search = "")
+        {
+            try
+            {
+                var sites = await _context.Sites
+                    .AsNoTracking()
+                    .Where(s => s.PartnerId == partnerId && 
+                                (string.IsNullOrEmpty(search) || s.SiteName.Contains(search) || s.AddressLine1.Contains(search)))
+                    .OrderBy(s => s.SiteName)
+                    .Select(s => new
+                    {
+                        id = s.SiteId,
+                        text = s.SiteName + (string.IsNullOrEmpty(s.AddressLine1) ? "" : $" ({s.AddressLine1})")
+                    })
+                    .Take(50) // Limit for performance
+                    .ToListAsync();
+
+                _logger.LogInformation("Fetched {SiteCount} sites for PartnerId {PartnerId}", sites.Count, partnerId);
+                return Ok(sites);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error fetching sites for PartnerId {PartnerId}", partnerId);
+                return StatusCode(500, new { error = "Failed to retrieve sites" });
+            }
+        }
+
     }
 
 }

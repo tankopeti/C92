@@ -208,6 +208,7 @@ namespace Cloud9_2.Services
                     .AsNoTracking()
                     .Include(d => d.DocumentType)
                     .Include(d => d.DocumentLinks)
+                    .Include(d => d.StatusHistory) // Add this line to include StatusHistory
                     .GroupJoin(_context.Partners,
                         d => d.PartnerId,
                         p => p.PartnerId,
@@ -233,6 +234,15 @@ namespace Cloud9_2.Services
                                 DocumentId = l.DocumentId,
                                 ModuleId = l.ModuleID,
                                 RecordId = l.RecordID
+                            }).ToList(),
+                            StatusHistory = d.Document.StatusHistory.Select(h => new DocumentStatusHistoryDto // Add StatusHistory mapping
+                            {
+                                Id = h.Id,
+                                DocumentId = h.DocumentId,
+                                OldStatus = h.OldStatus,
+                                NewStatus = h.NewStatus,
+                                ChangeDate = h.ChangeDate,
+                                ChangedBy = h.ChangedBy
                             }).ToList()
                         });
 

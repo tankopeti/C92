@@ -96,80 +96,91 @@
 }
 else
 {
-    <!-- Create Modal for New Document -->
-    <div class="modal fade" id="createDocumentModal" tabindex="-1" aria-labelledby="createDocumentModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-lg">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="createDocumentModalLabel">Új dokumentum létrehozása</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Bezárás"></button>
-                </div>
-                <div class="modal-body">
-                    @if (ViewData["ErrorMessage"] != null)
-                    {
-                        <div class="alert alert-danger" role="alert">
-                            @ViewData["ErrorMessage"]
-                        </div>
-                    }
-                    <form asp-page="/DocManagement/Doc/Index" asp-page-handler="Create" method="post" enctype="multipart/form-data">
-                        @Html.AntiForgeryToken()
-                        <div class="mb-3">
-                            <label for="FileName" class="form-label">Fájlnév</label>
-                            <input id="FileName" name="CreateDocument.FileName" class="form-control" value="@(Model.CreateDocument?.FileName)" />
-                            <span class="text-danger" asp-validation-for="CreateDocument.FileName"></span>
-                        </div>
-                        <div class="mb-3">
-                            <label for="file" class="form-label">Fájl feltöltés</label>
-                            <input type="file" id="file" name="file" class="form-control" accept=".pdf,.doc,.docx" />
-                            <small class="form-text text-muted">Engedélyezett fájltípusok: PDF, DOC, DOCX</small>
-                        </div>
-                        <div class="mb-3">
-                            <label for="docDocumentTypeId" class="form-label">Dokumentum típus</label>
-                            <select id="docDocumentTypeId" name="CreateDocument.DocumentTypeId" class="form-select" data-tom-select>
-                                <option value="">Válasszon típust</option>
-                                @foreach (var docType in ((DocumentModalViewModel)ViewData["ModalViewModel"])?.DocumentTypes ?? new List<SelectListItem>())
-                                {
-                                    <option value="@docType.Value" selected="@(Model.CreateDocument?.DocumentTypeId.ToString() == docType.Value)">@docType.Text</option>
-                                }
-                            </select>
-                            <span class="text-danger" asp-validation-for="CreateDocument.DocumentTypeId"></span>
-                        </div>
-                        <div class="mb-3">
-                            <label for="docPartnerId" class="form-label">Partner</label>
-                            <select id="docPartnerId" name="CreateDocument.PartnerId" class="form-select" data-tom-select>
-                                <option value="">Válasszon partnert</option>
-                                @foreach (var partner in ((DocumentModalViewModel)ViewData["ModalViewModel"])?.Partners ?? new List<SelectListItem>())
-                                {
-                                    <option value="@partner.Value" selected="@(Model.CreateDocument?.PartnerId.ToString() == partner.Value)">@partner.Text</option>
-                                }
-                            </select>
-                            <span class="text-danger" asp-validation-for="CreateDocument.PartnerId"></span>
-                        </div>
-                        <div class="mb-3">
-                            <label for="docSiteId" class="form-label">Telephely (Site)</label>
-                            <select id="docSiteId" name="CreateDocument.SiteId" class="form-select" data-tom-select disabled>
-                                <option value="">Először válasszon partnert</option>
-                            </select>
-                            <span class="text-danger" asp-validation-for="CreateDocument.SiteId"></span>
-                        </div>
-                        <div class="mb-3">
-                            <label for="Status" class="form-label">Státusz</label>
-                            <select id="Status" name="CreateDocument.Status" class="form-select" asp-items="Html.GetEnumSelectList<DocumentStatusEnum>()">
-                                <option value="">Válasszon státuszt</option>
-                            </select>
-                            <span class="text-danger" asp-validation-for="CreateDocument.Status"></span>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">Következő dokumentum szám</label>
-                            <input type="text" class="form-control" value="@(Model.NextDocumentNumber ?? "N/A")" disabled />
-                        </div>
-                        <button type="submit" class="btn btn-primary">Létrehozás</button>
-                    </form>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Bezárás</button>
-                </div>
+<div class="modal fade" id="createDocumentModal" tabindex="-1" aria-labelledby="createDocumentModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="createDocumentModalLabel">Új dokumentum létrehozása</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Bezárás"></button>
+            </div>
+            <div class="modal-body">
+                @if (ViewData["ErrorMessage"] != null)
+                {
+                    <div class="alert alert-danger" role="alert">
+                        @ViewData["ErrorMessage"]
+                    </div>
+                }
+                @if (TempData["ErrorMessage"] != null)
+                {
+                    <div class="alert alert-danger" role="alert">
+                        @TempData["ErrorMessage"]
+                    </div>
+                }
+                @if (TempData["SuccessMessage"] != null)
+                {
+                    <div class="alert alert-success" role="alert">
+                        @TempData["SuccessMessage"]
+                    </div>
+                }
+                <form asp-page="/DocManagement/Doc/Index" asp-page-handler="Create" method="post" enctype="multipart/form-data">
+                    @Html.AntiForgeryToken()
+                    <div class="mb-3">
+                        <label for="FileName" class="form-label">Fájlnév</label>
+                        <input id="FileName" name="CreateDocument.FileName" class="form-control" value="@(Model.CreateDocument?.FileName)" />
+                        <span class="text-danger" asp-validation-for="CreateDocument.FileName"></span>
+                    </div>
+                    <div class="mb-3">
+                        <label for="file" class="form-label">Fájl feltöltés</label>
+                        <input type="file" id="file" name="file" class="form-control" accept=".pdf,.doc,.docx" required />
+                        <small class="form-text text-muted">Engedélyezett fájltípusok: PDF, DOC, DOCX</small>
+                    </div>
+                    <div class="mb-3">
+                        <label for="docDocumentTypeId" class="form-label">Dokumentum típus</label>
+                        <select id="docDocumentTypeId" name="CreateDocument.DocumentTypeId" class="form-select" data-tom-select required>
+                            <option value="">Válasszon típust</option>
+                            @foreach (var docType in ((DocumentModalViewModel)ViewData["ModalViewModel"])?.DocumentTypes ?? new List<SelectListItem>())
+                            {
+                                <option value="@docType.Value" selected="@(Model.CreateDocument?.DocumentTypeId.ToString() == docType.Value)">@docType.Text</option>
+                            }
+                        </select>
+                        <span class="text-danger" asp-validation-for="CreateDocument.DocumentTypeId"></span>
+                    </div>
+                    <div class="mb-3">
+                        <label for="docPartnerId" class="form-label">Partner</label>
+                        <select id="docPartnerId" name="CreateDocument.PartnerId" class="form-select" data-tom-select>
+                            <option value="">Válasszon partnert</option>
+                            @foreach (var partner in ((DocumentModalViewModel)ViewData["ModalViewModel"])?.Partners ?? new List<SelectListItem>())
+                            {
+                                <option value="@partner.Value" selected="@(Model.CreateDocument?.PartnerId.ToString() == partner.Value)">@partner.Text</option>
+                            }
+                        </select>
+                        <span class="text-danger" asp-validation-for="CreateDocument.PartnerId"></span>
+                    </div>
+                    <div class="mb-3">
+                        <label for="docSiteId" class="form-label">Telephely (Site)</label>
+                        <select id="docSiteId" name="CreateDocument.SiteId" class="form-select" data-tom-select disabled>
+                            <option value="">Először válasszon partnert</option>
+                        </select>
+                        <span class="text-danger" asp-validation-for="CreateDocument.SiteId"></span>
+                    </div>
+                    <div class="mb-3">
+                        <label for="Status" class="form-label">Státusz</label>
+                        <select id="Status" name="CreateDocument.Status" class="form-select" asp-items="Html.GetEnumSelectList<DocumentStatusEnum>()" required>
+                            <option value="">Válasszon státuszt</option>
+                        </select>
+                        <span class="text-danger" asp-validation-for="CreateDocument.Status"></span>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Következő dokumentum szám</label>
+                        <input type="text" class="form-control" value="@(((DocumentModalViewModel)ViewData["ModalViewModel"])?.NextDocumentNumber ?? "N/A")" disabled />
+                    </div>
+                    <button type="submit" class="btn btn-primary">Létrehozás</button>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Bezárás</button>
             </div>
         </div>
     </div>
+</div>
 }

@@ -90,5 +90,9 @@ namespace Cloud9_2.Models
         public bool? IsTaxExempt { get; set; }
 
         public int? PartnerGroupId { get; set; }
+
+        public List<SiteDto> Sites { get; set; } = new List<SiteDto>();
+        public List<ContactDto> Contacts { get; set; } = new List<ContactDto>();
     }
+
 }

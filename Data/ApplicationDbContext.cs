@@ -63,11 +63,17 @@ namespace Cloud9_2.Data
         public DbSet<DocumentMetadata> DocumentMetadata { get; set; }
         public DbSet<DocumentLink> DocumentLinks { get; set; }
         public DbSet<DocumentStatusHistory> DocumentStatusHistory { get; set; }
+        public DbSet<DocumentStatus> DocumentStatuses { get; set; }
 
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
+
+            modelBuilder.Entity<Document>()
+                .HasOne(d => d.DocumentType)
+                .WithMany()
+                .HasForeignKey(d => d.DocumentTypeId);
 
             modelBuilder.Entity<Document>()
                 .HasMany(d => d.DocumentMetadata)

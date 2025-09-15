@@ -50,15 +50,15 @@ namespace Cloud9_2.Pages.CRM.Partners
         public async Task<IActionResult> OnGetAsync(int? pageNumber, int? pageSize, string searchTerm)
         {
 
-            DocumentTypes = await _context.DocumentTypes
-                    .OrderBy(dt => dt.TypeName)
-                    .ToListAsync();
+            // DocumentTypes = await _context.DocumentTypes
+            //         .OrderBy(dt => dt.Name)
+            //         .ToListAsync();
 
             var query = _context.Partners
                     .Include(p => p.Sites)
                     .Include(p => p.Contacts)
                     .Include(p => p.Documents)
-                    .ThenInclude(d => d.DocumentType)
+                    // .ThenInclude(d => d.DocumentType)
                     .AsQueryable();
 
             var user = await _userManager.GetUserAsync(User);

@@ -20,9 +20,10 @@
             </nav>
         </div>
         <div class="d-flex justify-content-between align-items-center mb-3"> <div class="d-flex align-items-center gap-2">
-                <button type="button" class="btn-new" data-bs-toggle="modal" data-bs-target="#newPartnerModal">
-                    <i class="bi bi-plus-circle me-1"></i>New Partner
-                </button>
+<button class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#createPartnerModal">
+  + Új Partner
+</button>
+
             </div>
             <div class="d-flex align-items-center gap-2">
                 <form method="get" asp-page="./Index" class="input-group input-group-sm" style="width: 250px;">
@@ -77,10 +78,9 @@
                                 }
                                 <div class="card-grid-cell actions-cell">
                                     <div class="btn-group btn-group-sm" role="group">
-                                        <button type="button" class="btn btn-outline-info view-partner-btn"
-                                                data-bs-toggle="modal"
-                                                data-bs-target="#viewPartnerModal_@item.PartnerId"
-                                                data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="View Connections">
+                                        <button type="button"
+                                                class="btn btn-outline-info view-partner-btn"
+                                                data-partner-id="@item.PartnerId">
                                             <i class="bi bi-eye"></i>
                                         </button>
                                         <div class="dropdown">
@@ -89,7 +89,15 @@
                                                     data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="More Actions">
                                                 <i class="bi bi-three-dots-vertical"></i> </button>
                                             <ul class="dropdown-menu dropdown-menu-end">
-                                                <li><a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#editPartnerModal_@item.PartnerId"><i class="bi bi-pencil-square me-2"></i>Szerkesztés</a></li>
+                                                <li>
+  <a class="dropdown-item edit-partner-btn" href="#" 
+     data-partner-id="@item.PartnerId" 
+     data-bs-toggle="modal" 
+     data-bs-target="#editPartnerModal">
+     <i class="bi bi-pencil-square me-2"></i>Szerkesztés
+  </a>
+</li>
+
                                                 <li><a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#newSiteModal_@item.PartnerId"><i class="bi bi-geo-alt me-2"></i>Új telephely</a></li>
                                                 <li><a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#newContactModal_@item.PartnerId"><i class="bi bi-person-plus me-2"></i>Új kontakt</a></li>
                                                 <li><a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#newDocumentModal_@item.PartnerId"><i class="bi bi-file-earmark-plus me-2"></i>Új Dokumentum</a></li>
@@ -135,7 +143,7 @@
 </div>
 
 <!-- New Partner Modal with Fixed Width and Height -->
-@await Html.PartialAsync("_NewPartnerModal")
+@await Html.PartialAsync("_Modals")
 
 
 <!-- New Site Modals for Each Partner -->
@@ -280,7 +288,7 @@
                                 <option value="">-- Select Document Type --</option>
                                 @foreach (var type in Model.DocumentTypes)
                                 {
-                                    <option value="@type.DocumentTypeId">@type.TypeName</option>
+                                    <option value="@type.DocumentTypeId">@type.Name</option>
                                 }
                             </select>
                         </div>
@@ -591,132 +599,18 @@
 
 <!-- Delete Partner Confirmation Modal -->
 @await Html.PartialAsync("_DeletePartnerModal")
+<script src="https://code.jquery.com/jquery-3.6.0.min.js" integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4=" crossorigin="anonymous"></script>
+
+<!-- Tom Select Dependencies -->
+<link href="https://cdn.jsdelivr.net/npm/tom-select@2.4.3/dist/css/tom-select.bootstrap5.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/tom-select@2.4.3/dist/js/tom-select.complete.min.js"></script>
 
 @section Scripts {
-    <script>
-// Client-side validation for partner form
-document.querySelector('#newPartnerModal form').addEventListener('submit', function(e) {
-    const form = e.target;
-    const nameInput = form.querySelector('[name="Name"]');
-    
-    if (!nameInput.value.trim()) {
-        e.preventDefault();
-        nameInput.focus();
-        
-        // Bootstrap validation
-        nameInput.classList.add('is-invalid');
-        const feedback = nameInput.nextElementSibling;
-        if (feedback && feedback.classList.contains('invalid-feedback')) {
-            feedback.textContent = 'Name is required';
-        }
-        
-        return false;
-    }
-    
-    return true;
-});
-
-// Reset validation when modal is shown
-$('#newPartnerModal').on('show.bs.modal', function() {
-    $(this).find('.is-invalid').removeClass('is-invalid');
-});
-
-        document.addEventListener('DOMContentLoaded', function () {
-            // Tooltip initialization
-            var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-            tooltipTriggerList.forEach(function (tooltipTriggerEl) {
-                new bootstrap.Tooltip(tooltipTriggerEl);
-            });
-
-            // Form validation
-            var forms = document.querySelectorAll('.needs-validation');
-            Array.prototype.slice.call(forms).forEach(function (form) {
-                form.addEventListener('submit', function (event) {
-                    if (!form.checkValidity()) {
-                        event.preventDefault();
-                        event.stopPropagation();
-                    }
-                    form.classList.add('was-validated');
-                }, false);
-            });
-
-            // Reset contact forms when modal is shown
-            document.querySelectorAll('[data-bs-target^="#newContactModal_"]').forEach(button => {
-                button.addEventListener('click', function() {
-                    const modalId = this.getAttribute('data-bs-target');
-                    const modal = document.querySelector(modalId);
-                    if (modal) {
-                        const form = modal.querySelector('form');
-                        if (form) {
-                            form.classList.remove('was-validated');
-                            form.reset();
-                        }
-                    }
-                });
-            });
-
-            // Delete Modal Logic
-            document.querySelectorAll('[data-bs-target="#deletePartnerModal"]').forEach(button => {
-                button.addEventListener('click', function () {
-                    const partnerId = this.getAttribute('data-partner-id');
-                    const partnerName = this.getAttribute('data-partner-name');
-
-                    console.log(`Clicked - ID: ${partnerId}, Name: ${partnerName}`);
-
-                    if (!partnerId) {
-                        console.error('Partner ID is missing');
-                        return;
-                    }
-
-                    document.getElementById('deletePartnerId').value = partnerId;
-                    document.getElementById('deletePartnerName').textContent = partnerName || 'Unknown Partner';
-
-                    const deleteBtn = document.getElementById('confirmDeleteBtn');
-                    const warning = document.getElementById('deleteWarning');
-                    deleteBtn.disabled = false; // Reset to enabled
-                    warning.style.display = 'none'; // Reset to hidden
-                    warning.textContent = 'This partner cannot be deleted because it is referenced in other records (Sites, Contacts, or Documents).';
-
-                    fetch(`/CRM/Partners/Index?handler=CheckRelatedRecords&id=${partnerId}`, {
-                        method: 'GET',
-                        headers: { 'X-Requested-With': 'XMLHttpRequest' }
-                    })
-                    .then(response => {
-                        if (!response.ok) {
-                            throw new Error(`HTTP error: ${response.status}`);
-                        }
-                        return response.json();
-                    })
-                    .then(data => {
-                        console.log(`Parsed data for ID ${partnerId}:`, data);
-                        if (data.hasRelatedRecords) {
-                            deleteBtn.disabled = true;
-                            warning.style.display = 'block';
-                            console.log(`Partner ${partnerId} has related records - delete disabled`);
-                        } else {
-                            deleteBtn.disabled = false;
-                            warning.style.display = 'none';
-                            console.log(`Partner ${partnerId} has no related records - delete enabled`);
-                        }
-                    })
-                    .catch(error => {
-                        console.error(`Fetch error for ID ${partnerId}:`, error);
-                        deleteBtn.disabled = true;
-                        warning.textContent = 'Error checking related records';
-                        warning.style.display = 'block';
-                    });
-                });
-            });
-
-            // Confirm Delete Action (optional, if button isn't a direct submit)
-            document.getElementById('confirmDeleteBtn').addEventListener('click', function (e) {
-                if (!this.disabled) {
-                    document.getElementById('deletePartnerForm').submit();
-                }
-            });
-        });
-    </script>
-<style>
+    <script src="/js/Partners.js" onerror="alert('Failed to load Partners.js from /js/Partner.js.')"></script>
+    <script src="/js/utils.js"></script>
+    <script src="/js/tomSelectUtils.js"></script>
+    <script src="/js/orderTomSelects.js" onerror="alert('Failed to load orderTomSelects.js from /js/orderTomSelects.js.')"></script>
+}<style>
     /* Page-specific styles to match card-based layout */
     .card-grid-header {
         padding: 0 15px 2px 15px;

@@ -2,12 +2,11 @@
 @model Cloud9_2.Pages.CRM.Sites.IndexModel
 @{
     Layout = "_Layout";
-    ViewData["Title"] = "Dashboard";
+    ViewData["Title"] = "Telephelyek";
 }
 
 @await Html.PartialAsync("_CRMSidebar")
 
-<!-- Main Content -->
 <div class="right-content">
     <!-- Success/Error Messages -->
     @if (TempData["SuccessMessage"] != null)
@@ -25,20 +24,22 @@
         </div>
     }
 
-    <!-- Fixed Header -->
     <div class="page-header-fixed-top">
         <div class="d-flex justify-content-between align-items-center mb-2">
             <nav aria-label="breadcrumb">
                 <ol class="breadcrumb bg-body-tertiary rounded-3 p-2 mb-0">
                     <li class="breadcrumb-item"><a href="../../">Főoldal</a></li>
                     <li class="breadcrumb-item"><a href="../">CRM Dashboard</a></li>
-                    <li class="breadcrumb-item active" aria-current="page">Sites</li>
-                    <li class="breadcrumb-item active" aria-current="page">@Model.Sites.Count of @Model.TotalRecords site@(Model.TotalRecords != 1 ? "s" : "") (Page @Model.CurrentPage of @Model.TotalPages)</li>
+                    <li class="breadcrumb-item active" aria-current="page">Telephelyek</li>
+                    <li class="breadcrumb-item active" aria-current="page">@Model.Sites.Count of @Model.TotalRecords telephely@(Model.TotalRecords != 1 ? "ek" : "") (Page @Model.CurrentPage of @Model.TotalPages)</li>
                 </ol>
             </nav>
         </div>
         <div class="d-flex justify-content-between align-items-center mb-3">
             <div class="d-flex align-items-center gap-2">
+                <button class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#createSiteModal">
+                    + Új Telephely
+                </button>
             </div>
             <div class="d-flex align-items-center gap-2">
                 <form method="get" asp-page="./Index" class="input-group input-group-sm" style="width: 250px;">
@@ -65,223 +66,191 @@
                 </div>
             </div>
         </div>
-
-        <!-- Card Grid Header -->
-        <div class="card-grid-header">
-            <div class="card-grid-row">
-                <div class="card-grid-column site-name-col">Site Name</div>
-                <div class="card-grid-column partner-col">Partner</div>
-                <div class="card-grid-column address-col">Address</div>
-                <div class="card-grid-column primary-col">Primary</div>
-                <div class="card-grid-column created-col">Created</div>
-                <div class="card-grid-column actions-column">Actions</div>
-            </div>
-        </div>
     </div>
 
-    <!-- Card Grid Body -->
-    <div class="scrollable-card-container">
-        <div class="card-grid-body">
-            @if (Model.Sites.Any())
-            {
-                @foreach (var site in Model.Sites)
+    <div class="table-responsive" style="max-height: 70vh; overflow-y: auto;">
+        <table class="table table-striped table-hover">
+            <thead class="sticky-top custom-thead">
+                <tr>
+                    <th class="text-nowrap">Telephely neve</th>
+                    <th class="text-nowrap">Partner</th>
+                    <th class="text-nowrap">Cím 1</th>
+                    <th class="text-nowrap">Cím 2</th>
+                    <th class="text-nowrap">Város</th>
+                    <th class="text-nowrap">Irányítószám</th>
+                    <th class="text-nowrap">Kapcsolattartó 1</th>
+                    <th class="text-nowrap">Kapcsolattartó 2</th>
+                    <th class="text-nowrap">Kapcsolattartó 3</th>
+                    <th class="text-nowrap">Státusz</th>
+                    <th class="text-nowrap">Elsődleges</th>
+                    <th class="text-nowrap">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (Model.Sites.Any())
                 {
-                    <div class="card partner-card mb-3" data-site-id="@site.SiteId">
-                        <div class="card-body p-2">
-                            <div class="card-grid-row align-items-center">
-                                <div class="card-grid-cell site-name-col">
-                                    <div class="fw-bold">@site.SiteName</div>
-                                </div>
-                                <div class="card-grid-cell partner-col">
-                                    @if (site.Partner != null)
-                                    {
-                                        <a asp-page="/CRM/Partners/Index" asp-route-id="@site.PartnerId" class="text-muted small">
-                                            @site.Partner.Name
-                                        </a>
-                                    }
-                                </div>
-                                <div class="card-grid-cell address-col">
-                                    <div class="text-muted small">
-                                        @if (!string.IsNullOrEmpty(site.AddressLine1))
-                                        {
-                                            @site.AddressLine1<span class="d-block"></span>
-                                        }
-                                        @if (!string.IsNullOrEmpty(site.City))
-                                        {
-                                            @site.City
-                                        }
-                                        @if (!string.IsNullOrEmpty(site.PostalCode))
-                                        {
-                                            @:, @site.PostalCode
-                                        }
-                                    </div>
-                                </div>
-                                <div class="card-grid-cell primary-col">
-                                    @if (site.IsPrimary)
-                                    {
-                                        <span class="badge bg-primary">Primary</span>
-                                    }
-                                </div>
-                                <div class="card-grid-cell created-col">
-                                    <div class="text-muted small">@site.CreatedDate</div>
-                                </div>
-                                <div class="card-grid-cell actions-cell">
-                                    <div class="btn-group btn-group-sm" role="group">
-                                        <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal"
-                                                data-bs-target="#editSiteModal-@site.SiteId"
-                                                data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="Edit Site">
-                                            <i class="bi bi-pencil-square"></i>
+                    @foreach (var site in Model.Sites)
+                    {
+                        <tr>
+                            <td class="text-nowrap">
+                                <i class="bi bi-building me-1"></i>
+                                @if (string.IsNullOrEmpty(site.SiteName))
+                                {
+                                    <span class="text-danger">(No Name - SiteId: @site.SiteId)</span>
+                                }
+                                else
+                                {
+                                    @site.SiteName
+                                }
+                            </td>
+                            <td class="text-nowrap">
+                                @if (site.Partner != null && !string.IsNullOrEmpty(site.Partner.Name))
+                                {
+                                    <a asp-page="/CRM/Partners/Index" asp-route-id="@site.PartnerId" class="text-muted">
+                                        <i class="bi bi-person me-1"></i> @site.Partner.Name
+                                    </a>
+                                }
+                                else
+                                {
+                                    <span class="text-warning">No Partner (PartnerId: @site.PartnerId)</span>
+                                }
+                            </td>
+                            <td class="text-nowrap">
+                                <i class="bi bi-geo-alt me-1"></i> @(string.IsNullOrEmpty(site.AddressLine1) ? "-" : site.AddressLine1)
+                            </td>
+                            <td class="text-nowrap">
+                                <i class="bi bi-geo-alt me-1"></i> @(string.IsNullOrEmpty(site.AddressLine2) ? "-" : site.AddressLine2)
+                            </td>
+                            <td class="text-nowrap">
+                                <i class="bi bi-geo-alt me-1"></i> @(string.IsNullOrEmpty(site.City) ? "-" : site.City)
+                            </td>
+                            <td class="text-nowrap">
+                                <i class="bi bi-geo-alt me-1"></i> @(string.IsNullOrEmpty(site.PostalCode) ? "-" : site.PostalCode)
+                            </td>
+                            <td class="text-nowrap">
+                                @(string.IsNullOrEmpty(site.ContactPerson1) ? "-" : site.ContactPerson1)
+                            </td>
+                            <td class="text-nowrap">
+                                @(string.IsNullOrEmpty(site.ContactPerson2) ? "-" : site.ContactPerson2)
+                            </td>
+                            <td class="text-nowrap">
+                                @(string.IsNullOrEmpty(site.ContactPerson3) ? "-" : site.ContactPerson3)
+                            </td>
+                            <td class="text-nowrap">
+                                @if (site.Status != null && !string.IsNullOrEmpty(site.Status.Color))
+                                {
+                                    <span class="badge" style="background-color: @site.Status.Color; color: white;">@site.Status.Name</span>
+                                }
+                                else
+                                {
+                                    <span>-</span>
+                                }
+                            </td>
+                            <td class="text-nowrap">
+                                @if (site.IsPrimary)
+                                {
+                                    <span class="badge bg-primary">Elsődleges</span>
+                                }
+                                else
+                                {
+                                    <span>-</span>
+                                }
+                            </td>
+                            <td>
+                                <div class="btn-group btn-group-sm" role="group">
+                                    <button type="button"
+                                            class="btn btn-outline-info view-site-btn"
+                                            data-site-id="@site.SiteId"
+                                            data-bs-toggle="modal"
+                                            data-bs-target="#viewSiteModal_@site.SiteId">
+                                        <i class="bi bi-eye"></i>
+                                    </button>
+                                    <div class="dropdown">
+                                        <button class="btn btn-outline-secondary dropdown-toggle btn-sm" type="button"
+                                                data-bs-toggle="dropdown" aria-expanded="false"
+                                                data-bs-toggle="tooltip" data-bs-placement="top" title="More Actions">
+                                            <i class="bi bi-three-dots-vertical"></i>
                                         </button>
-                                        <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal"
-                                                data-bs-target="#deleteSiteModal-@site.SiteId"
-                                                data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="Delete Site">
-                                            <i class="bi bi-trash"></i>
-                                        </button>
+                                        <ul class="dropdown-menu dropdown-menu-end">
+                                            <li>
+                                                <a class="dropdown-item edit-site-btn" href="#"
+                                                   data-site-id="@site.SiteId"
+                                                   data-bs-toggle="modal"
+                                                   data-bs-target="#editSiteModal_@site.SiteId">
+                                                    <i class="bi bi-pencil-square me-2"></i>Szerkesztés
+                                                </a>
+                                            </li>
+                                            <li><hr class="dropdown-divider"></li>
+                                            <li>
+                                                <a class="dropdown-item text-danger" href="#"
+                                                   data-bs-toggle="modal"
+                                                   data-bs-target="#deleteSiteModal_@site.SiteId"
+                                                   data-site-id="@site.SiteId"
+                                                   data-site-name="@(string.IsNullOrEmpty(site.SiteName) ? "this site" : site.SiteName)">
+                                                    <i class="bi bi-trash me-2"></i>Törlés
+                                                </a>
+                                            </li>
+                                        </ul>
                                     </div>
                                 </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Edit Site Modal -->
-                    <div class="modal fade" id="editSiteModal-@site.SiteId" tabindex="-1"
-                         aria-labelledby="editSiteModalLabel-@site.SiteId" aria-hidden="true">
-                        <div class="modal-dialog modal-dialog-centered">
-                            <div class="modal-content">
-                                <form method="post" asp-page-handler="EditSite">
-                                    <input type="hidden" name="siteId" value="@site.SiteId" />
-                                    <div class="modal-header">
-                                        <h5 class="modal-title" id="editSiteModalLabel-@site.SiteId">
-                                            Edit @site.SiteName
-                                        </h5>
-                                        <button type="button" class="btn-close" data-bs-dismiss="modal"
-                                                aria-label="Close"></button>
-                                    </div>
-                                    <div class="modal-body">
-                                        <div class="mb-3">
-                                            <label class="form-label">Site Name</label>
-                                            <input type="text" class="form-control" name="siteName"
-                                                   value="@site.SiteName" required>
-                                        </div>
-                                        <div class="mb-3">
-                                            <label class="form-label">Address Line 1</label>
-                                            <input type="text" class="form-control" name="addressLine1"
-                                                   value="@site.AddressLine1">
-                                        </div>
-                                        <div class="mb-3">
-                                            <label class="form-label">Address Line 2</label>
-                                            <input type="text" class="form-control" name="addressLine2"
-                                                   value="@site.AddressLine2">
-                                        </div>
-                                        <div class="mb-3">
-                                            <label class="form-label">City</label>
-                                            <input type="text" class="form-control" name="city"
-                                                   value="@site.City">
-                                        </div>
-                                        <div class="mb-3">
-                                            <label class="form-label">Postal Code</label>
-                                            <input type="text" class="form-control" name="postalCode"
-                                                   value="@site.PostalCode">
-                                        </div>
-                                        <div class="mb-3">
-                                            <label class="form-label">Country</label>
-                                            <input type="text" class="form-control" name="country"
-                                                   value="@site.Country">
-                                        </div>
-                                        <div class="mb-3 form-check">
-                                            <input type="checkbox" class="form-check-input" name="isPrimary"
-                                                   @(site.IsPrimary ? "checked" : "")>
-                                            <label class="form-check-label">Primary Site</label>
-                                        </div>
-                                    </div>
-                                    <div class="modal-footer">
-                                        <button type="button" class="btn btn-secondary"
-                                                data-bs-dismiss="modal">Cancel</button>
-                                        <button type="submit" class="btn btn-primary">Save Changes</button>
-                                    </div>
-                                </form>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Delete Site Modal -->
-                    <div class="modal fade" id="deleteSiteModal-@site.SiteId" tabindex="-1"
-                         aria-labelledby="deleteSiteModalLabel-@site.SiteId" aria-hidden="true">
-                        <div class="modal-dialog modal-dialog-centered">
-                            <div class="modal-content">
-                                <form method="post" asp-page-handler="DeleteSite">
-                                    <input type="hidden" name="siteId" value="@site.SiteId" />
-                                    <div class="modal-header">
-                                        <h5 class="modal-title" id="deleteSiteModalLabel-@site.SiteId">
-                                            Confirm Delete
-                                        </h5>
-                                        <button type="button" class="btn-close" data-bs-dismiss="modal"
-                                                aria-label="Close"></button>
-                                    </div>
-                                    <div class="modal-body">
-                                        <p>Are you sure you want to delete <strong>@site.SiteName</strong>?</p>
-                                        <p class="text-danger">This action cannot be undone.</p>
-                                    </div>
-                                    <div class="modal-footer">
-                                        <button type="button" class="btn btn-secondary"
-                                                data-bs-dismiss="modal">Cancel</button>
-                                        <button type="submit" class="btn btn-danger">Delete Site</button>
-                                    </div>
-                                </form>
-                            </div>
-                        </div>
-                    </div>
+                            </td>
+                        </tr>
+                    }
                 }
-            }
-            else
-            {
-                <div class="alert alert-warning text-center mt-3" role="alert">
-                    @if (!string.IsNullOrEmpty(Model.SearchTerm))
-                    {
-                        @:No sites found matching "@Model.SearchTerm".
-                    }
-                    else
-                    {
-                        @:No sites found. <a asp-page="Create" class="btn btn-link alert-link p-0 align-baseline">Create the first one?</a>
-                    }
-                </div>
-            }
-        </div>
+                else
+                {
+                    <tr>
+                        <td colspan="16" class="text-center">
+                            <div class="alert alert-warning" role="alert">
+                                @if (!string.IsNullOrEmpty(Model.SearchTerm))
+                                {
+                                    @:No sites found matching "@Model.SearchTerm".
+                                }
+                                else
+                                {
+                                    @:No sites found. <button type="button" class="btn btn-link alert-link p-0 align-baseline" data-bs-toggle="modal" data-bs-target="#createSiteModal">Create the first one?</button>
+                                }
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
     </div>
 
-    <!-- Footer with Pagination -->
+    <!-- Inline Pagination -->
     <footer class="fixed-footer">
         <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
             <nav aria-label="Sites pagination">
                 <ul class="pagination justify-content-center my-0">
                     <li class="page-item @(Model.CurrentPage == 1 ? "disabled" : "")">
-                        <a class="page-link" asp-page="./Index" asp-route-pageNumber="@(Model.CurrentPage - 1)" asp-route-pageSize="@Model.PageSize" asp-route-searchTerm="@Model.SearchTerm">Previous</a>
+                        <a class="page-link" asp-page="./Index" asp-route-currentPage="@(Model.CurrentPage - 1)" asp-route-pageSize="@Model.PageSize" asp-route-searchTerm="@Model.SearchTerm">Previous</a>
                     </li>
                     @{
                         int startPage = Math.Max(1, Model.CurrentPage - 2);
-                        int endPage = Math.Min(Model.TotalPages, startPage + 4); // Show 5 pages max
+                        int endPage = Math.Min(Model.TotalPages, startPage + 4);
                         if (endPage - startPage + 1 < 5 && startPage > 1) { startPage = Math.Max(1, endPage - 4); }
                         if (Model.TotalPages > 5 && startPage > 1)
                         {
-                            <li class="page-item"><a class="page-link" asp-page="./Index" asp-route-pageNumber="1" asp-route-pageSize="@Model.PageSize" asp-route-searchTerm="@Model.SearchTerm">1</a></li>
+                            <li class="page-item"><a class="page-link" asp-page="./Index" asp-route-currentPage="1" asp-route-pageSize="@Model.PageSize" asp-route-searchTerm="@Model.SearchTerm">1</a></li>
                             if (startPage > 2) { <li class="page-item disabled"><span class="page-link">...</span></li> }
                         }
                     }
                     @for (int i = startPage; i <= endPage; i++)
                     {
                         <li class="page-item @(i == Model.CurrentPage ? "active" : "")" aria-current="@(i == Model.CurrentPage ? "page" : null)">
-                            <a class="page-link" asp-page="./Index" asp-route-pageNumber="@i" asp-route-pageSize="@Model.PageSize" asp-route-searchTerm="@Model.SearchTerm">@i</a>
+                            <a class="page-link" asp-page="./Index" asp-route-currentPage="@i" asp-route-pageSize="@Model.PageSize" asp-route-searchTerm="@Model.SearchTerm">@i</a>
                         </li>
                     }
                     @{
                         if (Model.TotalPages > 5 && endPage < Model.TotalPages)
                         {
                             if (endPage < Model.TotalPages - 1) { <li class="page-item disabled"><span class="page-link">...</span></li> }
-                            <li class="page-item"><a class="page-link" asp-page="./Index" asp-route-pageNumber="@Model.TotalPages" asp-route-pageSize="@Model.PageSize" asp-route-searchTerm="@Model.SearchTerm">@Model.TotalPages</a></li>
+                            <li class="page-item"><a class="page-link" asp-page="./Index" asp-route-currentPage="@Model.TotalPages" asp-route-pageSize="@Model.PageSize" asp-route-searchTerm="@Model.SearchTerm">@Model.TotalPages</a></li>
                         }
                     }
                     <li class="page-item @(Model.CurrentPage == Model.TotalPages || Model.TotalPages == 0 ? "disabled" : "")">
-                        <a class="page-link" asp-page="./Index" asp-route-pageNumber="@(Model.CurrentPage + 1)" asp-route-pageSize="@Model.PageSize" asp-route-searchTerm="@Model.SearchTerm">Next</a>
+                        <a class="page-link" asp-page="./Index" asp-route-currentPage="@(Model.CurrentPage + 1)" asp-route-pageSize="@Model.PageSize" asp-route-searchTerm="@Model.SearchTerm">Next</a>
                     </li>
                 </ul>
             </nav>
@@ -294,100 +263,391 @@
                         <option value="50" selected="@(Model.PageSize == 50)">50</option>
                         <option value="100" selected="@(Model.PageSize == 100)">100</option>
                     </select>
-                    <input type="hidden" name="pageNumber" value="1" />
+                    <input type="hidden" name="currentPage" value="1" />
                     <input type="hidden" name="searchTerm" value="@Model.SearchTerm" />
                 </form>
             </div>
         </div>
     </footer>
-</div>
 
-@section Scripts {
-    <script>
-        // Initialize Bootstrap tooltips
-        $(function () {
-            $('[data-bs-toggle="tooltip"]').tooltip();
-        });
+    <!-- Modals -->
+    <!-- Create Site Modal -->
+    <div class="modal fade" id="createSiteModal" tabindex="-1" aria-labelledby="createSiteModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <form method="post" asp-page-handler="CreateSite" class="needs-validation" novalidate>
+                    @Html.AntiForgeryToken()
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="createSiteModalLabel">Új Telephely</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label class="form-label">Telephely neve</label>
+                            <input type="text" class="form-control" name="siteName" required>
+                            <div class="invalid-feedback">Site name is required.</div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Partner</label>
+                            <select id="create-partner-select" class="form-select" name="partnerId" required>
+                                <option value="" disabled selected>-- Válasszon partnert --</option>
+                            </select>
+                            <div class="invalid-feedback">Partner is required.</div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Cím 1</label>
+                            <input type="text" class="form-control" name="addressLine1">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Cím 2</label>
+                            <input type="text" class="form-control" name="addressLine2">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Város</label>
+                            <input type="text" class="form-control" name="city">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Állam/Megye</label>
+                            <input type="text" class="form-control" name="state">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Irányítószám</label>
+                            <input type="text" class="form-control" name="postalCode">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Ország</label>
+                            <input type="text" class="form-control" name="country">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Kapcsolattartó 1</label>
+                            <input type="text" class="form-control" name="contactPerson1">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Kapcsolattartó 2</label>
+                            <input type="text" class="form-control" name="contactPerson2">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Kapcsolattartó 3</label>
+                            <input type="text" class="form-control" name="contactPerson3">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Megjegyzés 1</label>
+                            <textarea class="form-control" name="comment1" rows="4"></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Megjegyzés 2</label>
+                            <textarea class="form-control" name="comment2" rows="4"></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Státusz</label>
+                            <select id="create-status-select" class="form-select" name="statusId" required>
+                                <option value="" disabled>-- Válasszon státuszt --</option>
+                                @foreach (var status in Model.Statuses)
+                                {
+                                    <option value="@status.Id" selected="@(status.Id == 1)">@status.Name</option>
+                                }
+                            </select>
+                            <div class="invalid-feedback">Status is required.</div>
+                        </div>
+                        <div class="mb-3 form-check">
+                            <input type="checkbox" class="form-check-input" name="isPrimary">
+                            <label class="form-check-label">Elsődleges Telephely</label>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Mégse</button>
+                        <button type="submit" class="btn btn-primary">Létrehozás</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
 
-        // Form validation for modals
-        document.querySelectorAll('.modal form').forEach(form => {
-            form.addEventListener('submit', function (event) {
-                if (!this.checkValidity()) {
-                    event.preventDefault();
-                    event.stopPropagation();
-                }
-                this.classList.add('was-validated');
-            }, false);
-        });
+    <!-- View Site Modal -->
+    @foreach (var site in Model.Sites)
+    {
+        <div class="modal fade" id="viewSiteModal_@site.SiteId" tabindex="-1" aria-labelledby="viewSiteModalLabel_@site.SiteId" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="viewSiteModalLabel_@site.SiteId">@(string.IsNullOrEmpty(site.SiteName) ? "No Name" : site.SiteName)</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p><strong>Telephely neve:</strong> @(string.IsNullOrEmpty(site.SiteName) ? "-" : site.SiteName)</p>
+                        <p><strong>Partner:</strong> @(site.Partner != null ? site.Partner.Name : $"- (PartnerId: {site.PartnerId})")</p>
+                        <p><strong>Cím 1:</strong> @(string.IsNullOrEmpty(site.AddressLine1) ? "-" : site.AddressLine1)</p>
+                        <p><strong>Cím 2:</strong> @(string.IsNullOrEmpty(site.AddressLine2) ? "-" : site.AddressLine2)</p>
+                        <p><strong>Város:</strong> @(string.IsNullOrEmpty(site.City) ? "-" : site.City)</p>
+                        <p><strong>Állam/Megye:</strong> @(string.IsNullOrEmpty(site.State) ? "-" : site.State)</p>
+                        <p><strong>Irányítószám:</strong> @(string.IsNullOrEmpty(site.PostalCode) ? "-" : site.PostalCode)</p>
+                        <p><strong>Ország:</strong> @(string.IsNullOrEmpty(site.Country) ? "-" : site.Country)</p>
+                        <p><strong>Kapcsolattartó 1:</strong> @(string.IsNullOrEmpty(site.ContactPerson1) ? "-" : site.ContactPerson1)</p>
+                        <p><strong>Kapcsolattartó 2:</strong> @(string.IsNullOrEmpty(site.ContactPerson2) ? "-" : site.ContactPerson2)</p>
+                        <p><strong>Kapcsolattartó 3:</strong> @(string.IsNullOrEmpty(site.ContactPerson3) ? "-" : site.ContactPerson3)</p>
+                        <p><strong>Megjegyzés 1:</strong> @(string.IsNullOrEmpty(site.Comment1) ? "-" : site.Comment1)</p>
+                        <p><strong>Megjegyzés 2:</strong> @(string.IsNullOrEmpty(site.Comment2) ? "-" : site.Comment2)</p>
+                        <p><strong>Státusz:</strong> 
+                            @if (site.Status != null && !string.IsNullOrEmpty(site.Status.Color))
+                            {
+                                <span class="badge" style="background-color: @site.Status.Color; color: white;">@site.Status.Name</span>
+                            }
+                            else
+                            {
+                                <span>-</span>
+                            }
+                        </p>
+                        <p><strong>Elsődleges:</strong> @(site.IsPrimary ? "Igen" : "Nem")</p>
+                        <p><strong>Létrehozva:</strong> @(site.CreatedDate?.ToString("yyyy-MM-dd") ?? "-")</p>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Bezárás</button>
+                    </div>
+                </div>
+            </div>
+        </div>
 
-        document.addEventListener('DOMContentLoaded', function () {
-            // Search form submission
-            const searchForm = document.querySelector('form[method="get"]');
-            if (searchForm) {
-                searchForm.addEventListener('submit', function (e) {
-                    const searchInput = document.getElementById('searchInput');
-                    if (searchInput.value.trim() === '') {
-                        e.preventDefault();
-                        window.location.href = window.location.pathname;
+        <!-- Edit Site Modal -->
+        <div class="modal fade" id="editSiteModal_@site.SiteId" tabindex="-1" aria-labelledby="editSiteModalLabel_@site.SiteId" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                    <form method="post" asp-page-handler="EditSite" class="needs-validation" novalidate>
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="siteId" value="@site.SiteId" />
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="editSiteModalLabel_@site.SiteId">Szerkesztés @(string.IsNullOrEmpty(site.SiteName) ? "Site" : site.SiteName)</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="mb-3">
+                                <label class="form-label">Telephely neve</label>
+                                <input type="text" class="form-control" name="siteName" value="@site.SiteName" required>
+                                <div class="invalid-feedback">Site name is required.</div>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Partner</label>
+                                <select id="edit-partner-select-@site.SiteId" class="form-select" name="partnerId" required data-partner-id="@site.PartnerId">
+                                    <option value="" disabled>-- Válasszon partnert --</option>
+                                    @if (site.Partner != null && !string.IsNullOrEmpty(site.Partner.Name))
+                                    {
+                                        <option value="@site.PartnerId" selected>@site.Partner.Name</option>
+                                    }
+                                </select>
+                                <div class="invalid-feedback">Partner is required.</div>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Cím 1</label>
+                                <input type="text" class="form-control" name="addressLine1" value="@site.AddressLine1">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Cím 2</label>
+                                <input type="text" class="form-control" name="addressLine2" value="@site.AddressLine2">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Város</label>
+                                <input type="text" class="form-control" name="city" value="@site.City">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Állam/Megye</label>
+                                <input type="text" class="form-control" name="state" value="@site.State">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Irányítószám</label>
+                                <input type="text" class="form-control" name="postalCode" value="@site.PostalCode">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Ország</label>
+                                <input type="text" class="form-control" name="country" value="@site.Country">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Kapcsolattartó 1</label>
+                                <input type="text" class="form-control" name="contactPerson1" value="@site.ContactPerson1">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Kapcsolattartó 2</label>
+                                <input type="text" class="form-control" name="contactPerson2" value="@site.ContactPerson2">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Kapcsolattartó 3</label>
+                                <input type="text" class="form-control" name="contactPerson3" value="@site.ContactPerson3">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Megjegyzés 1</label>
+                                <textarea class="form-control" name="comment1" rows="4">@site.Comment1</textarea>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Megjegyzés 2</label>
+                                <textarea class="form-control" name="comment2" rows="4">@site.Comment2</textarea>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Státusz</label>
+                                <select id="edit-status-select-@site.SiteId" class="form-select" name="statusId" required data-status-id="@site.StatusId">
+                                    <option value="" disabled>-- Válasszon státuszt --</option>
+                                    @foreach (var status in Model.Statuses)
+                                    {
+                                        <option value="@status.Id" selected="@(site.StatusId == status.Id)">@status.Name</option>
+                                    }
+                                </select>
+                                <div class="invalid-feedback">Status is required.</div>
+                            </div>
+                            <div class="mb-3 form-check">
+                                <input type="checkbox" class="form-check-input" name="isPrimary" checked="@site.IsPrimary">
+                                <label class="form-check-label">Elsődleges Telephely</label>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Mégse</button>
+                            <button type="submit" class="btn btn-primary">Mentés</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Delete Site Modal -->
+        <div class="modal fade" id="deleteSiteModal_@site.SiteId" tabindex="-1" aria-labelledby="deleteSiteModalLabel_@site.SiteId" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                    <form method="post" asp-page-handler="DeleteSite">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="siteId" value="@site.SiteId" />
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="deleteSiteModalLabel_@site.SiteId">Törlés megerősítése</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body">
+                            <p>Biztosan törölni szeretnéd <strong>@(string.IsNullOrEmpty(site.SiteName) ? "ezt a telephelyet" : site.SiteName)</strong>?</p>
+                            <p class="text-danger">Ez a művelet nem vonható vissza.</p>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Mégse</button>
+                            <button type="submit" class="btn btn-danger">Telephely törlése</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    }
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js" integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4=" crossorigin="anonymous"></script>
+    <link href="https://cdn.jsdelivr.net/npm/tom-select@2.4.3/dist/css/tom-select.bootstrap5.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/tom-select@2.4.3/dist/js/tom-select.complete.min.js"></script>
+
+    @section Scripts {
+        <script src="/js/Sites.js"></script>
+        <script src="/js/utils.js"></script>
+        <script src="/js/tomSelectUtils.js"></script>
+        <script>
+$(function () {
+    $('[data-bs-toggle="tooltip"]').tooltip();
+
+    // Create dictionaries for SiteId to PartnerId mappings (status map not needed for native select)
+    const sitePartnerMap = @Json.Serialize(Model.Sites.ToDictionary(s => s.SiteId, s => s.PartnerId));
+    console.log('sitePartnerMap:', sitePartnerMap);
+
+    // Initialize TomSelect for create modal partner select only
+    window.c92.initializePartnerTomSelect(
+        document.querySelector('#create-partner-select'),
+        'createSiteModal',
+        'site-create',
+        null
+    ).then(tomSelect => {
+        console.log('Create partner select initialized');
+    }).catch(err => {
+        console.error('Failed to initialize create partner select:', err);
+        document.querySelector('#create-partner-select').innerHTML = '<option value="" disabled selected>Nincs elérhető partner</option>';
+    });
+
+    // Initialize TomSelect for edit modal partner selects only
+    $('.modal').on('shown.bs.modal', function (e) {
+        const modal = $(this);
+        const partnerSelect = modal.find('select[name="partnerId"]');
+
+        // Initialize Partner TomSelect
+        if (partnerSelect.length && partnerSelect.attr('id').startsWith('edit-partner-select-')) {
+            const siteId = parseInt(partnerSelect.attr('id').replace('edit-partner-select-', ''), 10);
+            const preselectedPartnerId = sitePartnerMap[siteId] || null;
+            const preselectedPartnerName = partnerSelect.find('option[selected]').text() || `Partner ${preselectedPartnerId}`;
+            console.log(`Modal shown for SiteId: ${siteId}, PreselectedPartnerId: ${preselectedPartnerId}, PreselectedPartnerName: ${preselectedPartnerName}`);
+
+            if (partnerSelect[0].tomselect) {
+                partnerSelect[0].tomselect.destroy();
+                console.log(`Destroyed existing Partner TomSelect for SiteId: ${siteId}`);
+            }
+
+            setTimeout(() => {
+                window.c92.initializePartnerTomSelect(
+                    partnerSelect[0],
+                    `editSiteModal_${siteId}`,
+                    'site-edit',
+                    preselectedPartnerId
+                ).then(tomSelect => {
+                    console.log(`Edit partner select initialized for SiteId: ${siteId}`);
+                    if (preselectedPartnerId) {
+                        tomSelect.addOption({ id: preselectedPartnerId, text: preselectedPartnerName });
+                        tomSelect.setValue(preselectedPartnerId, true);
+                        tomSelect.refreshOptions(false);
+                        console.log(`Set partner value ${preselectedPartnerId} for SiteId: ${siteId}`);
                     }
+                }).catch(err => {
+                    console.error(`Failed to initialize edit partner select for SiteId: ${siteId}`, err);
+                    partnerSelect.html(`<option value="${preselectedPartnerId}" selected>${preselectedPartnerName}</option>`);
                 });
-            }
+            }, 100);
+        }
 
-            // Filter functionality
-            document.querySelectorAll('[data-filter]').forEach(item => {
-                item.addEventListener('click', function (e) {
+        // No TomSelect for status selects; ensure they remain native
+        const statusSelect = modal.find('select[name="statusId"]');
+        if (statusSelect.length && statusSelect.attr('id').startsWith('edit-status-select-')) {
+            const siteId = parseInt(statusSelect.attr('id').replace('edit-status-select-', ''), 10);
+            console.log(`Native status select for SiteId: ${siteId}`);
+            // Ensure no TomSelect instance exists
+            if (statusSelect[0].tomselect) {
+                statusSelect[0].tomselect.destroy();
+                console.log(`Destroyed stray TomSelect on status select for SiteId: ${siteId}`);
+            }
+        }
+    });
+
+    // Form validation for modals
+    document.querySelectorAll('.modal form').forEach(form => {
+        form.addEventListener('submit', function (event) {
+            if (!this.checkValidity()) {
+                event.preventDefault();
+                event.stopPropagation();
+            }
+            this.classList.add('was-validated');
+        }, false);
+    });
+
+    // Search form handling
+    document.addEventListener('DOMContentLoaded', function () {
+        const searchForm = document.querySelector('form[method="get"]');
+        if (searchForm) {
+            searchForm.addEventListener('submit', function (e) {
+                const searchInput = document.getElementById('searchInput');
+                if (searchInput.value.trim() === '') {
                     e.preventDefault();
-                    const filter = this.getAttribute('data-filter');
-                    console.log('Filter by:', filter);
-                });
-            });
-
-            // Dynamic header and thead positioning
-            function updateStickyPositions() {
-                const header = document.querySelector('.page-header-sticky');
-                const spacer = document.querySelector('.page-header-spacer');
-                const thead = document.querySelector('.table thead');
-                if (header && spacer && thead) {
-                    const headerHeight = header.offsetHeight;
-                    const theadHeight = thead.offsetHeight;
-                    spacer.style.height = `${headerHeight + theadHeight}px`;
-                    thead.style.top = `${headerHeight}px`;
+                    window.location.href = window.location.pathname;
                 }
-            }
+            });
+        }
 
-            updateStickyPositions();
-            window.addEventListener('resize', updateStickyPositions);
+        document.querySelectorAll('[data-filter]').forEach(item => {
+            item.addEventListener('click', function (e) {
+                e.preventDefault();
+                const filter = this.getAttribute('data-filter');
+                console.log('Filter by:', filter);
+                // Add actual filter logic here if needed
+            });
         });
-    </script>
-    <style>
+    });
 
-    /* Column widths for header and card cells */
-    .site-name-col { flex: 1 1 20%; min-width: 120px; }
-    .partner-col { flex: 1 1 15%; min-width: 100px; }
-    .address-col { flex: 1 1 30%; min-width: 150px; }
-    .primary-col { flex: 0 0 5%; min-width: 80px; }
-    .created-col { flex: 1 1 15%; min-width: 100px; }
-    .actions-column, .actions-cell { flex: 0 0 auto; width: auto; text-align: right; padding-right: 10px; }
-
-    /* Ensure card row alignment */
-.card-grid-header .card-grid-row,
-.partner-card .card-grid-row {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-}
-
-    /* Ensure pagination is centered */
-    .fixed-footer .pagination {
-        display: flex;
-        justify-content: center;
-        width: 100%;
-        margin-bottom: 0;
+    // Debug clicks on status selects to ensure native behavior
+    $('select[id="create-status-select"], select[id^="edit-status-select-"]').on('click', function (e) {
+        console.log('Native status select clicked:', this.id);
+    });
+});
+        </script>
     }
-
-    .fixed-footer nav {
-        flex-grow: 1;
-        text-align: center;
-    }
-</style>
-}
+</div>

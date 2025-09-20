@@ -25,6 +25,7 @@ namespace Cloud9_2.Pages.CRM.Contacts
         [BindProperty(SupportsGet = true)]
         public string SearchTerm { get; set; }
         public List<Partner> PartnerList { get; set; }
+        public List<Status> StatusList { get; set; }
 
         public IndexModel(ApplicationDbContext context, ILogger<IndexModel> logger)
         {
@@ -41,8 +42,14 @@ namespace Cloud9_2.Pages.CRM.Contacts
             public string LastName { get; set; }
             public string Email { get; set; }
             public string PhoneNumber { get; set; }
+            public string PhoneNumber2 { get; set; }
+            public string Comment { get; set; }
+            public string Comment2 { get; set; }
             public string PartnerName { get; set; }
-            public int PartnerId { get; set; } // Remains int
+            public int PartnerId { get; set; }
+            public int? StatusId { get; set; }
+            public string StatusName { get; set; }
+            public string StatusColor { get; set; }
         }
 
         public async Task OnGetAsync()
@@ -51,6 +58,7 @@ namespace Cloud9_2.Pages.CRM.Contacts
 
             var query = _context.Contacts
                 .Include(c => c.Partner)
+                .Include(c => c.Status)
                 .AsQueryable();
 
             if (!string.IsNullOrEmpty(SearchTerm))
@@ -60,36 +68,92 @@ namespace Cloud9_2.Pages.CRM.Contacts
                     c.LastName.Contains(SearchTerm) ||
                     c.Email.Contains(SearchTerm) ||
                     c.PhoneNumber.Contains(SearchTerm) ||
-                    (c.Partner != null && c.Partner.Name.Contains(SearchTerm)));
+                    c.PhoneNumber2.Contains(SearchTerm) ||
+                    c.Comment.Contains(SearchTerm) ||
+                    c.Comment2.Contains(SearchTerm) ||
+                    (c.Partner != null && c.Partner.Name.Contains(SearchTerm)) ||
+                    (c.Status != null && c.Status.Name.Contains(SearchTerm)));
             }
 
             TotalRecords = await query.CountAsync();
             TotalPages = (int)Math.Ceiling(TotalRecords / (double)PageSize);
 
-            Contacts = await query
-                .Select(c => new ContactViewModel
+            var rawContacts = await query
+                .Select(c => new
                 {
-                    ContactId = c.ContactId,
-                    FirstName = c.FirstName,
-                    LastName = c.LastName,
-                    Email = c.Email,
-                    PhoneNumber = c.PhoneNumber,
+                    c.ContactId,
+                    c.FirstName,
+                    c.LastName,
+                    c.Email,
+                    c.PhoneNumber,
+                    c.PhoneNumber2,
+                    c.Comment,
+                    c.Comment2,
+                    c.PartnerId,
                     PartnerName = c.Partner != null ? c.Partner.Name : null,
-                    PartnerId = c.PartnerId // No change needed
+                    c.StatusId,
+                    StatusName = c.Status != null ? c.Status.Name : null,
+                    StatusColor = c.Status != null ? c.Status.Color : null
                 })
-                .OrderBy(c => c.LastName)
+                .OrderByDescending(c => c.ContactId)
                 .ThenBy(c => c.FirstName)
                 .Skip((PageNumber - 1) * PageSize)
                 .Take(PageSize)
                 .ToListAsync();
 
+            Contacts = rawContacts.Select(c => new ContactViewModel
+            {
+                ContactId = c.ContactId,
+                FirstName = c.FirstName,
+                LastName = c.LastName,
+                Email = c.Email,
+                PhoneNumber = c.PhoneNumber,
+                PhoneNumber2 = c.PhoneNumber2,
+                Comment = c.Comment,
+                Comment2 = c.Comment2,
+                PartnerName = string.IsNullOrEmpty(c.PartnerName) ? "No Partner" : c.PartnerName,
+                PartnerId = c.PartnerId,
+                StatusId = c.StatusId,
+                StatusName = string.IsNullOrEmpty(c.StatusName) ? "No Status" : c.StatusName,
+                StatusColor = c.StatusColor ?? "#000000" // Default to black if no color
+            }).ToList();
+
+            // Debug logging
+            foreach (var contact in rawContacts)
+            {
+                _logger.LogInformation("ContactId: {ContactId}, PartnerId: {PartnerId}, RawPartnerName: {PartnerName}, StatusId: {StatusId}, StatusName: {StatusName}, StatusColor: {StatusColor}",
+                    contact.ContactId, contact.PartnerId, contact.PartnerName ?? "null", contact.StatusId, contact.StatusName ?? "null", contact.StatusColor ?? "null");
+                if (contact.PartnerId > 0 && contact.PartnerName == null)
+                {
+                    _logger.LogWarning("ContactId {ContactId} has PartnerId {PartnerId} but PartnerName is null",
+                        contact.ContactId, contact.PartnerId);
+                }
+                if (contact.StatusId.HasValue && contact.StatusName == null)
+                {
+                    _logger.LogWarning("ContactId {ContactId} has StatusId {StatusId} but StatusName is null",
+                        contact.ContactId, contact.StatusId);
+                }
+            }
+
             PartnerList = await _context.Partners
                 .OrderBy(p => p.Name)
                 .Take(10)
                 .ToListAsync();
+
+            StatusList = await _context.PartnerStatuses
+                .OrderBy(s => s.Name)
+                .Take(10)
+                .ToListAsync();
+
+            _logger.LogInformation("Loaded {Count} partners: {Partners}",
+                PartnerList.Count,
+                string.Join(", ", PartnerList.Select(p => $"PartnerId: {p.PartnerId}, Name: {p.Name ?? "null"}")));
+            _logger.LogInformation("Loaded {Count} statuses: {Statuses}",
+                StatusList.Count,
+                string.Join(", ", StatusList.Select(s => $"StatusId: {s.Id}, Name: {s.Name ?? "null"}, Color: {s.Color ?? "null"}")));
         }
 
-        public async Task<IActionResult> OnPostCreateContactAsync(string firstName, string lastName, string email, string phoneNumber, int? partnerId)
+        public async Task<IActionResult> OnPostCreateContactAsync(string firstName, string lastName, string email, string phoneNumber, string phoneNumber2, string comment, string comment2, int? partnerId, int? statusId)
         {
             var contact = new Contact
             {
@@ -97,7 +161,11 @@ namespace Cloud9_2.Pages.CRM.Contacts
                 LastName = lastName,
                 Email = email,
                 PhoneNumber = phoneNumber,
-                PartnerId = partnerId ?? 0 // Default to 0 if no partner selected
+                PhoneNumber2 = phoneNumber2,
+                Comment = comment,
+                Comment2 = comment2,
+                PartnerId = partnerId ?? 0,
+                StatusId = statusId
             };
 
             try
@@ -116,7 +184,7 @@ namespace Cloud9_2.Pages.CRM.Contacts
             return RedirectToPage();
         }
 
-        public async Task<IActionResult> OnPostEditContactAsync(int contactId, string firstName, string lastName, string email, string phoneNumber)
+        public async Task<IActionResult> OnPostEditContactAsync(int contactId, string firstName, string lastName, string email, string phoneNumber, string phoneNumber2, string comment, string comment2, int? partnerId, int? statusId)
         {
             var contact = await _context.Contacts.FindAsync(contactId);
             if (contact == null)
@@ -128,6 +196,11 @@ namespace Cloud9_2.Pages.CRM.Contacts
             contact.LastName = lastName;
             contact.Email = email;
             contact.PhoneNumber = phoneNumber;
+            contact.PhoneNumber2 = phoneNumber2;
+            contact.Comment = comment;
+            contact.Comment2 = comment2;
+            contact.PartnerId = partnerId ?? 0;
+            contact.StatusId = statusId;
 
             try
             {
@@ -181,15 +254,45 @@ namespace Cloud9_2.Pages.CRM.Contacts
                 .OrderBy(p => p.Name)
                 .Skip((page - 1) * pageSize)
                 .Take(pageSize)
-                .Select(p => new { id = p.PartnerId, text = p.Name })
+                .Select(p => new { id = p.PartnerId, text = p.Name ?? "Unnamed Partner" })
                 .ToListAsync();
 
             var total = await query.CountAsync();
-            _logger.LogInformation("Found {Count} partners, returning {PageSize} for page {Page}", total, partners.Count, page);
+            _logger.LogInformation("Found {Count} partners, returning {PageSize} for page {Page}: {Partners}",
+                total, partners.Count, page, string.Join(", ", partners.Select(p => $"Id: {p.id}, Name: {p.text}")));
 
             return new JsonResult(new
             {
                 results = partners,
+                pagination = new { more = (page * pageSize) < total }
+            });
+        }
+
+        public async Task<IActionResult> OnGetStatuses(string term, int page = 1)
+        {
+            _logger.LogInformation("OnGetStatuses called with term: {Term}, page: {Page}", term, page);
+            const int pageSize = 10;
+            var query = _context.PartnerStatuses.AsQueryable();
+
+            if (!string.IsNullOrEmpty(term))
+            {
+                query = query.Where(s => s.Name.Contains(term, StringComparison.OrdinalIgnoreCase));
+            }
+
+            var statuses = await query
+                .OrderBy(s => s.Name)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .Select(s => new { id = s.Id, text = s.Name ?? "Unnamed Status", color = s.Color })
+                .ToListAsync();
+
+            var total = await query.CountAsync();
+            _logger.LogInformation("Found {Count} statuses, returning {PageSize} for page {Page}: {Statuses}",
+                total, statuses.Count, page, string.Join(", ", statuses.Select(s => $"Id: {s.id}, Name: {s.text}, Color: {s.color ?? "null"}")));
+
+            return new JsonResult(new
+            {
+                results = statuses,
                 pagination = new { more = (page * pageSize) < total }
             });
         }

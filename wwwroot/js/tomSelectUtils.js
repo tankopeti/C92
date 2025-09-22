@@ -1,7 +1,41 @@
 window.c92 = window.c92 || {};
 
 // VAT TomSelect initialization (used by quotes and orders)
-window.c92.initializeVatTomSelect = async function (input, id, context = 'quote') {
+window.c92.vatTypesCache = null;
+
+window.c92.vatTypesCache = null;
+
+async function fetchVatTypes() {
+    if (window.c92.vatTypesCache) {
+        console.log('Using cached VAT types');
+        return window.c92.vatTypesCache;
+    }
+    try {
+        const response = await fetch('/api/vat/types', {
+            headers: {
+                'Content-Type': 'application/json',
+                'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]').value
+            }
+        });
+        if (!response.ok) {
+            throw new Error(`Failed to fetch VAT types: ${response.status} ${response.statusText}`);
+        }
+        const data = await response.json();
+        if (!Array.isArray(data) || data.length === 0) {
+            console.warn('No VAT types returned from API');
+            window.c92.showToast('warning', 'Nincsenek elérhető ÁFA típusok.');
+            return [];
+        }
+        window.c92.vatTypesCache = data;
+        return data;
+    } catch (error) {
+        console.error('Error fetching VAT types:', error);
+        window.c92.showToast('error', 'Hiba az ÁFA típusok betöltése közben: ' + error.message);
+        return [];
+    }
+}
+
+window.c92.initializeVatTomSelect = async function (input, id, options = { context: 'order' }) {
     if (typeof TomSelect === 'undefined') {
         console.error('TomSelect library not loaded');
         window.c92.showToast('error', 'TomSelect könyvtár hiányzik.');
@@ -14,7 +48,6 @@ window.c92.initializeVatTomSelect = async function (input, id, context = 'quote'
         return Promise.reject('VAT select element missing');
     }
 
-    // Skip if already initialized with a valid value
     if (input.tomselect && input.tomselect.getValue()) {
         console.log('VAT select already initialized with value, skipping:', input, 'value:', input.tomselect.getValue());
         return input.tomselect;
@@ -35,38 +68,22 @@ window.c92.initializeVatTomSelect = async function (input, id, context = 'quote'
     input.dataset.tomSelectInitialized = 'true';
 
     try {
-        const response = await fetch('/api/vat/types', {
-            headers: {
-                'Content-Type': 'application/json',
-                'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]').value
-            }
-        });
-        if (!response.ok) {
-            throw new Error(`Failed to fetch VAT types: ${response.status} ${response.statusText}`);
-        }
-        let data = await response.json();
-        if (!Array.isArray(data) || data.length === 0) {
-            console.warn('No VAT types returned from API, using fallback');
-            data = [
-                { vatTypeId: 1, typeName: '27%', rate: 27 },
-                { vatTypeId: 2, typeName: '0%', rate: 0 },
-                { vatTypeId: 3, typeName: '5%', rate: 5 }
-            ];
+        const data = await fetchVatTypes();
+        if (data.length === 0) {
+            input.dataset.tomSelectInitialized = '';
+            return Promise.reject('No VAT types available');
         }
 
-        // Clear existing options and add placeholder
-        input.innerHTML = '<option value="">-- Válasszon ÁFA típust --</option>';
+        input.innerHTML = '<option value="" disabled selected>-- Válasszon ÁFA típust --</option>';
         data.forEach(vat => {
             const option = new Option(vat.typeName, vat.vatTypeId, false, vat.vatTypeId === input.dataset.selectedId);
             option.dataset.rate = vat.rate;
             input.appendChild(option);
         });
 
-        // Get selected values from attributes or DOM
         const selectedId = input.dataset.selectedId || input.value || '';
         const selectedText = (input.dataset.selectedText || '').replace(/ \?\? .*$/, '') || input.querySelector('option[selected]')?.text || '';
-
-        const rowClass = context === 'quote' ? '.quote-item-row' : '.order-item-row';
+        const context = options.context || 'order';
         const calculateTotals = context === 'quote' ? window.calculateQuoteTotals : window.calculateOrderTotals;
 
         const tomSelect = new TomSelect(input, {
@@ -88,7 +105,7 @@ window.c92.initializeVatTomSelect = async function (input, id, context = 'quote'
                     this.addOption({ vatTypeId: selectedId, typeName: selectedText, rate: parseFloat(input.dataset.selectedRate || 0) });
                 }
                 if (selectedId && exists) {
-                    this.setValue(selectedId, true); // Silent update
+                    this.setValue(selectedId, true);
                     hiddenInput.value = selectedId;
                 } else if (data[0]) {
                     this.setValue(data[0].vatTypeId, true);
@@ -99,10 +116,22 @@ window.c92.initializeVatTomSelect = async function (input, id, context = 'quote'
             onChange(value) {
                 console.log('VAT changed, value:', value, 'display:', this.getOption(value)?.typeName, 'context:', context);
                 hiddenInput.value = value || '';
-                const row = input.closest(rowClass);
-                if (!row) {
-                    console.warn('Parent row not found for VAT select:', rowClass);
-                    window.c92.showToast('warning', 'Szülő sor nem található az ÁFA választóhoz.');
+                let row = input.closest('tr');
+                if (!row || (!row.classList.contains('order-item-row') && !row.classList.contains('quote-item-row'))) {
+                    const itemId = input.name.match(/items\[([^\]]+)\]|\.orderItems\[([^\]]+)\]/)?.[1] || input.closest('[data-item-id]')?.dataset.itemId;
+                    if (itemId) {
+                        row = document.querySelector(`tr.order-item-row[data-item-id="${itemId}"], tr.quote-item-row[data-item-id="${itemId}"]`);
+                    }
+                    if (!row) {
+                        console.warn('Parent row not found for VAT select:', input, 'itemId:', itemId, 'context:', context);
+                        window.c92.showToast('warning', 'Szülő sor nem található az ÁFA választóhoz.');
+                        return;
+                    }
+                }
+                const rowClass = context === 'quote' ? 'quote-item-row' : 'order-item-row';
+                if (!row.classList.contains(rowClass)) {
+                    console.warn(`Parent row found but does not match expected class: expected ${rowClass}, found`, row.className);
+                    window.c92.showToast('warning', `Szülő sor osztálya nem megfelelő: ${rowClass} helyett ${row.className}.`);
                     return;
                 }
                 const productSelect = row.querySelector('.tom-select-product');
@@ -110,12 +139,12 @@ window.c92.initializeVatTomSelect = async function (input, id, context = 'quote'
                     const productId = productSelect.value || productSelect.dataset.selectedId;
                     const quantityInput = row.querySelector(context === 'quote' ? '.item-quantity' : '.quantity');
                     const unitPriceInput = row.querySelector(context === 'quote' ? '.item-unit-price' : '.unit-price');
-                    const discountTypeSelect = row.querySelector(context === 'quote' ? '.discount-type-id' : '.discount-type');
-                    const discountAmountInput = row.querySelector('.discount-amount');
-                    window.c92.calculateAllPrices(
+                    const discountTypeSelect = row.querySelector('.discount-type-id');
+                    const discountAmountInput = row.querySelector('.discount-value');
+                    calculateAllPrices( // Changed from OrderUtils.calculateAllPrices
                         row,
                         unitPriceInput?.value || 0,
-                        discountTypeSelect?.value || '1',
+                        parseInt(discountTypeSelect?.value) || 1,
                         discountAmountInput?.value || 0,
                         parseInt(quantityInput?.value) || 1,
                         input,
@@ -127,6 +156,8 @@ window.c92.initializeVatTomSelect = async function (input, id, context = 'quote'
                     } else {
                         console.warn(`Calculate totals function not found for context: ${context}`);
                     }
+                } else {
+                    console.warn('Product select not found in row:', row);
                 }
             },
             onDropdownOpen() {
@@ -137,7 +168,6 @@ window.c92.initializeVatTomSelect = async function (input, id, context = 'quote'
             }
         });
 
-        // Only refresh if no value is set
         if (!tomSelect.getValue()) {
             tomSelect.refreshOptions();
         }
@@ -150,7 +180,6 @@ window.c92.initializeVatTomSelect = async function (input, id, context = 'quote'
         return Promise.reject(error);
     }
 };
-
 
 
 window.c92.initializePartnerTomSelect = async function (partnerSelectElement, contextId, context = 'order') {
@@ -535,11 +564,11 @@ window.c92.initializeProductTomSelect = async function (selectElement, options) 
 
     const context = typeof options === 'string' ? 'quote' : 'order';
     const orderOptions = typeof options === 'object' ? options : {};
+    const orderId = orderOptions.orderId || 'new';
     const quoteId = context === 'quote' ? options : null;
 
     try {
         const url = '/api/Product?search=&skip=0&take=50';
-
         const headers = {
             'Content-Type': 'application/json',
             'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]')?.value
@@ -557,9 +586,15 @@ window.c92.initializeProductTomSelect = async function (selectElement, options) 
         }
         const products = await response.json();
         const mappedProducts = products.map(product => ({
-            value: product.productId, // Changed from product.id to match server response
-            text: product.name
-        }));
+            value: product.productId,
+            text: product.name || product.text || 'Ismeretlen termék',
+            listPrice: product.listPrice || (product.productId === '62044' ? 980 : product.productId === '62056' ? 1000 : 0),
+            volumePrice: product.volumePrice || 0,
+            partnerPrice: product.partnerPrice || null,
+            volumePricing: product.volumePricing || {}
+        })).filter(product => product.text && product.text.trim() !== '');
+
+        console.log('Mapped products:', mappedProducts);
 
         const tomSelectOptions = {
             options: mappedProducts,
@@ -568,26 +603,70 @@ window.c92.initializeProductTomSelect = async function (selectElement, options) 
             searchField: ['text'],
             maxOptions: 50,
             placeholder: context === 'order' ? '-- Válasszon terméket --' : 'Select a product',
-            onChange: function (value) {
-                console.log(`Product selected for ${context}:`, value);
+            onInitialize: function () {
+                selectElement.dataset.tomSelectInitialized = 'true';
+                console.log(`Product TomSelect initialized for ${context}, orderId: ${orderId}`);
+                if (selectElement.dataset.selectedId && selectElement.dataset.selectedText) {
+                    this.addOption({
+                        value: selectElement.dataset.selectedId,
+                        text: selectElement.dataset.selectedText,
+                        listPrice: selectElement.dataset.selectedId === '62044' ? 980 : selectElement.dataset.selectedId === '62056' ? 1000 : 0
+                    });
+                    this.setValue(selectElement.dataset.selectedId);
+                    console.log('Pre-selected product:', selectElement.dataset.selectedId);
+                }
+            },
+            onChange: async function (value) {
+                console.log(`Product selected for ${context}, productId: ${value}, in row:`, selectElement.closest('tr')?.dataset.itemId);
                 if (context === 'order') {
-                    const row = selectElement.closest('tr');
-                    window.calculateTotalPrice(row, true);
-                    window.calculateOrderTotals(orderOptions.orderId || 'new');
+                    const row = selectElement.closest('tr.order-item-row');
+                    if (!row) {
+                        console.error('Row not found for product select:', value);
+                        window.c92.showToast('error', 'Sor nem található a termékhez.');
+                        return;
+                    }
+                    const products = Object.values(this.options).map(opt => ({
+                        productId: opt.value,
+                        listPrice: opt.listPrice || (opt.value === '62044' ? 980 : opt.value === '62056' ? 1000 : 0),
+                        volumePrice: opt.volumePrice || 0,
+                        partnerPrice: opt.partnerPrice || null,
+                        volumePricing: opt.volumePricing || {},
+                        text: opt.text
+                    }));
+                    console.log('Products passed to updatePriceFields:', products);
+                    if (typeof window.updatePriceFields !== 'function') {
+                        console.error('window.updatePriceFields is not defined. Check orders.js load order.');
+                        window.c92.showToast('error', 'Árfrissítési funkció nem található.');
+                        return;
+                    }
+                    try {
+                        await window.updatePriceFields(selectElement, value, products);
+                        if (typeof window.calculateOrderTotals !== 'function') {
+                            console.error('window.calculateOrderTotals is not defined. Check orders.js load order.');
+                            window.c92.showToast('error', 'Összesítő funkció nem található.');
+                            return;
+                        }
+                        window.calculateOrderTotals(orderId);
+                        console.log('Price fields and order totals updated successfully for product:', value);
+                    } catch (error) {
+                        console.error('Error in updatePriceFields for product:', value, error);
+                        window.c92.showToast('error', `Hiba az árak frissítése közben: ${error.message}`);
+                    }
                 } else {
+                    if (typeof window.calculateQuoteTotals !== 'function') {
+                        console.error('window.calculateQuoteTotals is not defined.');
+                        window.c92.showToast('error', 'Árajánlat összesítő funkció nem található.');
+                        return;
+                    }
                     window.calculateQuoteTotals(quoteId);
                 }
             }
         };
 
-        if (selectElement.dataset.selectedId && selectElement.dataset.selectedText) {
-            tomSelectOptions.items = [selectElement.dataset.selectedId];
-        }
-
         const tomSelect = new TomSelect(selectElement, tomSelectOptions);
         selectElement.tomselect = tomSelect;
 
-        console.log(`Product TomSelect initialized for ${context}, tomselect:`, tomSelect, 'value:', tomSelect.getValue());
+        console.log(`Product TomSelect initialized for ${context}, orderId: ${orderId}, value:`, tomSelect.getValue());
         return tomSelect;
     } catch (err) {
         console.error('Failed to initialize product select:', err);
@@ -738,7 +817,7 @@ async function fetchWithRetry(url, options, retries = 3, delay = 1000) {
 
 console.log('Defining window.c92.initializePartnerTomSelect');
 
-window.c92.initializePartnerTomSelect = async function (select, contextId, context = 'order') {
+window.c92.initializePartnerTomSelect = async function (select, contextId, context = 'order', preselectedId = null) {
     console.log('TomSelect Partner Init for context:', context, 'id:', contextId);
 
     if (!select || select.dataset.tomSelectInitialized === 'true') {
@@ -748,7 +827,7 @@ window.c92.initializePartnerTomSelect = async function (select, contextId, conte
 
     let initialOptions = [];
     try {
-        const url = `/api/Partners?search=&skip=0&take=50`;
+        const url = `/api/partners/select?search=`;
         console.log(`Fetching partners from: ${url}`);
         const headers = {
             'Content-Type': 'application/json',
@@ -785,7 +864,7 @@ window.c92.initializePartnerTomSelect = async function (select, contextId, conte
         options: initialOptions,
         load: async function (query, callback) {
             try {
-                const searchUrl = `/api/Partners?search=${encodeURIComponent(query)}&skip=0&take=50`;
+                const searchUrl = `/api/partners/select?search=${encodeURIComponent(query)}`;
                 console.log('Partner Search Query:', searchUrl);
                 const response = await fetchWithRetry(searchUrl, {
                     headers: {
@@ -815,6 +894,12 @@ window.c92.initializePartnerTomSelect = async function (select, contextId, conte
         onInitialize: function () {
             select.dataset.tomSelectInitialized = 'true';
             console.log('Partner TomSelect initialized for context:', contextId);
+
+            // ✅ Preselect partner if provided
+            if (preselectedId) {
+                this.setValue(preselectedId, true);
+                console.log(`Preselected partner set: ${preselectedId}`);
+            }
         },
         onChange: function (value) {
             console.log(`Partner selected for context: ${contextId} (${context}), value: ${value}`);

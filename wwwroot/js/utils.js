@@ -41,3 +41,86 @@ window.c92.showToast = function (type, message) {
         console.error('Toast element not found after appending:', toastId);
     }
 };
+
+window.c92.refreshToken = async function () {
+    try {
+        const response = await fetch('/api/auth/refresh', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]')?.value || ''
+            },
+            credentials: 'include'
+        });
+        if (response.ok) {
+            const data = await response.json();
+            localStorage.setItem('token', data.token);
+            console.log('Token refreshed:', data.token);
+            return data.token;
+        } else {
+            console.error('Token refresh failed:', response.status);
+            localStorage.removeItem('token');
+            return null;
+        }
+    } catch (error) {
+        console.error('Token refresh error:', error);
+        return null;
+    }
+};
+
+// Universal email sending
+window.c92.sendEmail = async function(entityType, id) {
+    try {
+        // Fetch entity to get partner email
+        let toEmail = '';
+        if (entityType === 'order') {
+            const orderResponse = await fetch(`/api/orders/${id}`, {
+                headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+            });
+            if (orderResponse.ok) {
+                const order = await orderResponse.json();
+                toEmail = order.partner?.email || '';
+            }
+        } else if (entityType === 'quote') {
+            const quoteResponse = await fetch(`/api/quotes/${id}`, {
+                headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+            });
+            if (quoteResponse.ok) {
+                const quote = await quoteResponse.json();
+                toEmail = quote.partner?.email || '';
+            }
+        }
+
+        toEmail = prompt('Kérem adja meg a címzett e-mail címét:', toEmail);
+        if (!toEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(toEmail)) {
+            window.c92.showToast('Érvénytelen e-mail cím', 'error');
+            return;
+        }
+
+        window.c92.showToast('E-mail küldése...', 'info');
+        const response = await fetch(`/api/email/send/${entityType}/${id}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${localStorage.getItem('token')}`
+            },
+            body: JSON.stringify({ toEmail })
+        });
+
+        if (!response.ok) {
+            let errorMessage = 'Nem sikerült az e-mail küldése';
+            try {
+                const errorData = await response.json();
+                errorMessage = errorData.error || errorData.title || `Hiba: ${response.status} ${response.statusText}`;
+            } catch {
+                errorMessage = `Hiba: ${response.status} ${response.statusText}`;
+            }
+            throw new Error(errorMessage);
+        }
+
+        window.c92.showToast('E-mail sikeresen elküldve', 'success');
+    } catch (error) {
+        console.error(`Hiba az ${entityType} e-mail küldésekor:`, error, { entityType, id });
+        window.c92.showToast(`Nem sikerült az e-mail küldése: ${error.message}`, 'error');
+    }
+};

@@ -22,7 +22,7 @@ namespace Cloud9_2.Controllers
             _context = context ?? throw new ArgumentNullException(nameof(context));
             _quoteService = quoteService ?? throw new ArgumentNullException(nameof(quoteService));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-            _logger.LogInformation("QuotesController instantiated, Context: {Context}, QuoteService: {QuoteService}", 
+            _logger.LogInformation("QuotesController instantiated, Context: {Context}, QuoteService: {QuoteService}",
                 _context != null ? "Not null" : "Null", _quoteService != null ? "Not null" : "Null");
         }
 
@@ -76,7 +76,7 @@ namespace Cloud9_2.Controllers
         [ProducesResponseType(StatusCodes.Status201Created)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-public async Task<IActionResult> CreateQuote([FromBody] CreateQuoteDto quoteDto)
+        public async Task<IActionResult> CreateQuote([FromBody] CreateQuoteDto quoteDto)
         {
             if (quoteDto == null)
             {
@@ -199,7 +199,7 @@ public async Task<IActionResult> CreateQuote([FromBody] CreateQuoteDto quoteDto)
                 return StatusCode(500, new { error = "Failed to create quote", errorDetails = ex.Message, stackTrace = ex.StackTrace });
             }
         }
-    
+
 
         [HttpGet("{quoteId}")]
         [ProducesResponseType(StatusCodes.Status200OK)]
@@ -360,7 +360,7 @@ public async Task<IActionResult> CreateQuote([FromBody] CreateQuoteDto quoteDto)
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
         public async Task<IActionResult> UpdateQuote(int quoteId, [FromBody] UpdateQuoteDto quoteDto)
         {
-            _logger.LogInformation("UpdateQuote called for QuoteId: {QuoteId}, QuoteDto: {QuoteDto}", 
+            _logger.LogInformation("UpdateQuote called for QuoteId: {QuoteId}, QuoteDto: {QuoteDto}",
                 quoteId, JsonSerializer.Serialize(quoteDto));
 
             if (quoteDto == null)
@@ -377,7 +377,7 @@ public async Task<IActionResult> CreateQuote([FromBody] CreateQuoteDto quoteDto)
                         kvp => kvp.Key,
                         kvp => kvp.Value.Errors.Select(e => e.ErrorMessage).ToArray()
                     );
-                _logger.LogWarning("ModelState validation failed for QuoteId: {QuoteId}, Errors: {Errors}", 
+                _logger.LogWarning("ModelState validation failed for QuoteId: {QuoteId}, Errors: {Errors}",
                     quoteId, JsonSerializer.Serialize(errors));
                 return BadRequest(new { error = "Érvénytelen adatok", details = errors });
             }
@@ -459,7 +459,7 @@ public async Task<IActionResult> CreateQuote([FromBody] CreateQuoteDto quoteDto)
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
         public async Task<IActionResult> CreateQuoteItem(int quoteId, [FromBody] CreateQuoteItemDto itemDto)
         {
-            _logger.LogInformation("CreateQuoteItem called for QuoteId: {QuoteId}, ProductId: {ProductId}, Quantity: {Quantity}", 
+            _logger.LogInformation("CreateQuoteItem called for QuoteId: {QuoteId}, ProductId: {ProductId}, Quantity: {Quantity}",
                 quoteId, itemDto.ProductId, itemDto.Quantity);
 
             if (itemDto == null)
@@ -476,7 +476,7 @@ public async Task<IActionResult> CreateQuote([FromBody] CreateQuoteDto quoteDto)
                         kvp => kvp.Key,
                         kvp => kvp.Value.Errors.Select(e => e.ErrorMessage).ToArray()
                     );
-                _logger.LogWarning("ModelState validation failed for QuoteId: {QuoteId}, Errors: {Errors}", 
+                _logger.LogWarning("ModelState validation failed for QuoteId: {QuoteId}, Errors: {Errors}",
                     quoteId, JsonSerializer.Serialize(errors));
                 return BadRequest(new { error = "Érvénytelen adatok", details = errors });
             }
@@ -530,7 +530,7 @@ public async Task<IActionResult> CreateQuote([FromBody] CreateQuoteDto quoteDto)
                 }
 
                 var result = await _quoteService.CreateQuoteItemAsync(quoteId, itemDto);
-                _logger.LogInformation("Created QuoteItem with ID: {QuoteItemId} for QuoteId: {QuoteId}", 
+                _logger.LogInformation("Created QuoteItem with ID: {QuoteItemId} for QuoteId: {QuoteId}",
                     result.QuoteItemId, quoteId);
                 return CreatedAtAction(nameof(GetQuoteItems), new { quoteId = quoteId }, result);
             }
@@ -553,7 +553,7 @@ public async Task<IActionResult> CreateQuote([FromBody] CreateQuoteDto quoteDto)
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
         public async Task<IActionResult> UpdateQuoteItem(int quoteId, int quoteItemId, [FromBody] UpdateQuoteItemDto itemDto)
         {
-            _logger.LogInformation("UpdateQuoteItem called for QuoteId: {QuoteId}, QuoteItemId: {QuoteItemId}, ItemDto: {ItemDto}", 
+            _logger.LogInformation("UpdateQuoteItem called for QuoteId: {QuoteId}, QuoteItemId: {QuoteItemId}, ItemDto: {ItemDto}",
                 quoteId, quoteItemId, JsonSerializer.Serialize(itemDto));
 
             if (itemDto == null)
@@ -570,7 +570,7 @@ public async Task<IActionResult> CreateQuote([FromBody] CreateQuoteDto quoteDto)
                         kvp => kvp.Key,
                         kvp => kvp.Value.Errors.Select(e => e.ErrorMessage).ToArray()
                     );
-                _logger.LogWarning("ModelState validation failed for QuoteId: {QuoteId}, Errors: {Errors}", 
+                _logger.LogWarning("ModelState validation failed for QuoteId: {QuoteId}, Errors: {Errors}",
                     quoteId, JsonSerializer.Serialize(errors));
                 return BadRequest(new { error = "Érvénytelen adatok", details = errors });
             }
@@ -695,66 +695,67 @@ public async Task<IActionResult> CreateQuote([FromBody] CreateQuoteDto quoteDto)
             }
         }
 
-        [HttpPost("{quoteId}/convert-to-order")]
-        [ProducesResponseType(StatusCodes.Status201Created)]
-        [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        [ProducesResponseType(StatusCodes.Status404NotFound)]
-        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-        public async Task<IActionResult> ConvertQuoteToOrder(int quoteId, [FromBody] ConvertQuoteToOrderDto convertDto)
-        {
-            _logger.LogInformation("Converting quote ID: {QuoteId} to order", quoteId);
+        //     [HttpPost("{quoteId}/convert-to-order")]
+        //     [ProducesResponseType(StatusCodes.Status201Created)]
+        //     [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        //     [ProducesResponseType(StatusCodes.Status404NotFound)]
+        //     [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+        //     public async Task<IActionResult> ConvertQuoteToOrder(int quoteId, [FromBody] ConvertQuoteToOrderDto convertDto)
+        //     {
+        //         _logger.LogInformation("Converting quote ID: {QuoteId} to order", quoteId);
 
-            if (!ModelState.IsValid)
-            {
-                var errors = ModelState
-                    .Where(x => x.Value.Errors.Count > 0)
-                    .ToDictionary(
-                        kvp => kvp.Key,
-                        kvp => kvp.Value.Errors.Select(e => e.ErrorMessage).ToArray()
-                    );
-                _logger.LogWarning("ModelState validation failed for QuoteId: {QuoteId}, Errors: {Errors}", 
-                    quoteId, JsonSerializer.Serialize(errors));
-                return BadRequest(new { error = "Érvénytelen adatok", details = errors });
-            }
+        //         if (!ModelState.IsValid)
+        //         {
+        //             var errors = ModelState
+        //                 .Where(x => x.Value.Errors.Count > 0)
+        //                 .ToDictionary(
+        //                     kvp => kvp.Key,
+        //                     kvp => kvp.Value.Errors.Select(e => e.ErrorMessage).ToArray()
+        //                 );
+        //             _logger.LogWarning("ModelState validation failed for QuoteId: {QuoteId}, Errors: {Errors}", 
+        //                 quoteId, JsonSerializer.Serialize(errors));
+        //             return BadRequest(new { error = "Érvénytelen adatok", details = errors });
+        //         }
 
-            try
-            {
-                if (!await _context.Currencies.AnyAsync(c => c.CurrencyId == convertDto.CurrencyId))
-                {
-                    _logger.LogWarning("Invalid CurrencyId: {CurrencyId}", convertDto.CurrencyId);
-                    return BadRequest(new { error = $"Invalid CurrencyId: {convertDto.CurrencyId}" });
-                }
-                if (convertDto.SiteId.HasValue && !await _context.Sites.AnyAsync(s => s.SiteId == convertDto.SiteId.Value))
-                {
-                    _logger.LogWarning("Invalid SiteId: {SiteId}", convertDto.SiteId);
-                    return BadRequest(new { error = $"Invalid SiteId: {convertDto.SiteId}" });
-                }
+        //         try
+        //         {
+        //             if (!await _context.Currencies.AnyAsync(c => c.CurrencyId == convertDto.CurrencyId))
+        //             {
+        //                 _logger.LogWarning("Invalid CurrencyId: {CurrencyId}", convertDto.CurrencyId);
+        //                 return BadRequest(new { error = $"Invalid CurrencyId: {convertDto.CurrencyId}" });
+        //             }
+        //             if (convertDto.SiteId.HasValue && !await _context.Sites.AnyAsync(s => s.SiteId == convertDto.SiteId.Value))
+        //             {
+        //                 _logger.LogWarning("Invalid SiteId: {SiteId}", convertDto.SiteId);
+        //                 return BadRequest(new { error = $"Invalid SiteId: {convertDto.SiteId}" });
+        //             }
 
-                var userId = User.Identity?.Name ?? "System";
-                var order = await _quoteService.ConvertQuoteToOrderAsync(quoteId, convertDto, userId);
-                _logger.LogInformation("Converted quote ID: {QuoteId} to order ID: {OrderId}", quoteId, order.OrderId);
-                return CreatedAtAction("GetOrder", "Orders", new { orderId = order.OrderId }, order);
-            }
-            catch (KeyNotFoundException ex)
-            {
-                _logger.LogWarning("Quote not found: {QuoteId}", quoteId);
-                return NotFound(new { error = ex.Message });
-            }
-            catch (ArgumentException ex)
-            {
-                _logger.LogWarning("Invalid input for quote ID: {QuoteId}, Error: {Error}", quoteId, ex.Message);
-                return BadRequest(new { error = ex.Message });
-            }
-            catch (InvalidOperationException ex)
-            {
-                _logger.LogWarning("Invalid operation for quote ID: {QuoteId}, Error: {Error}", quoteId, ex.Message);
-                return BadRequest(new { error = ex.Message });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error converting quote ID: {QuoteId}", quoteId);
-                return StatusCode(500, new { error = "Nem sikerült az árajánlat rendeléssé konvertálása: " + ex.Message });
-            }
-        }
+        //             var userId = User.Identity?.Name ?? "System";
+        //             var order = await _quoteService.ConvertQuoteToOrderAsync(quoteId, convertDto, userId);
+        //             _logger.LogInformation("Converted quote ID: {QuoteId} to order ID: {OrderId}", quoteId, order.OrderId);
+        //             return CreatedAtAction("GetOrder", "Orders", new { orderId = order.OrderId }, order);
+        //         }
+        //         catch (KeyNotFoundException ex)
+        //         {
+        //             _logger.LogWarning("Quote not found: {QuoteId}", quoteId);
+        //             return NotFound(new { error = ex.Message });
+        //         }
+        //         catch (ArgumentException ex)
+        //         {
+        //             _logger.LogWarning("Invalid input for quote ID: {QuoteId}, Error: {Error}", quoteId, ex.Message);
+        //             return BadRequest(new { error = ex.Message });
+        //         }
+        //         catch (InvalidOperationException ex)
+        //         {
+        //             _logger.LogWarning("Invalid operation for quote ID: {QuoteId}, Error: {Error}", quoteId, ex.Message);
+        //             return BadRequest(new { error = ex.Message });
+        //         }
+        //         catch (Exception ex)
+        //         {
+        //             _logger.LogError(ex, "Error converting quote ID: {QuoteId}", quoteId);
+        //             return StatusCode(500, new { error = "Nem sikerült az árajánlat rendeléssé konvertálása: " + ex.Message });
+        //         }
+        //     }
+        // 
     }
 }

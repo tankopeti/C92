@@ -1,20 +1,13 @@
-
 @page
 @using Microsoft.AspNetCore.Mvc.Rendering
 @using Cloud9_2.Models
 @using System.Globalization
 @model Cloud9_2.Pages.CRM.Quotes.IndexModel
-@section Styles {
-    <link rel="stylesheet" href="~/css/Quotes.css" />
-}
 @using System.Security.Claims
 @{
-    var username = User.Identity?.Name ?? "System";
-}
-
-
-@{
+    ViewData["Title"] = "Árajánlatok";
     Layout = "_Layout";
+    var username = User.Identity?.Name ?? "System";
 }
 
 @await Html.PartialAsync("_CRMSidebar")
@@ -27,8 +20,8 @@
                 <ol class="breadcrumb bg-body-tertiary rounded-3 p-2 mb-0">
                     <li class="breadcrumb-item"><a href="../../">Főoldal</a></li>
                     <li class="breadcrumb-item"><a href="../">CRM Dashboard</a></li>
-                    <li class="breadcrumb-item active" aria-current="page">Quotes</li>
-                    <li class="breadcrumb-item active" aria-current="page">@Model.Quotes.Count of @Model.TotalRecords quote@(Model.TotalRecords != 1 ? "s" : "") (Page @Model.CurrentPage of @Model.TotalPages)</li>
+                    <li class="breadcrumb-item active" aria-current="page">Árajánlatok</li>
+                    <li class="breadcrumb-item active" aria-current="page">@Model.Quotes.Count of @Model.TotalRecords árajánlat@(Model.TotalRecords != 1 ? "ok" : "") (Page @Model.CurrentPage of @Model.TotalPages)</li>
                 </ol>
             </nav>
         </div>
@@ -36,8 +29,8 @@
         <!-- Header with Buttons and Search -->
         <div class="d-flex justify-content-between align-items-center mb-3">
             <div class="d-flex align-items-center gap-2">
-                <button type="button" id="newQuoteButton" class="btn-new" data-bs-toggle="modal" data-bs-target="#newQuoteModal" aria-label="Új árajánlat létrehozása">
-                    <i class="bi bi-plus-circle me-1"></i>Új árajánlat
+                <button class="btn btn-outline-primary" id="newQuoteButton" data-bs-toggle="modal" data-bs-target="#newQuoteModal" aria-label="Új árajánlat létrehozása">
+                    + Új árajánlat
                 </button>
             </div>
             <div class="d-flex align-items-center gap-2">
@@ -47,155 +40,171 @@
                     <button class="btn btn-outline-secondary" type="submit" aria-label="Keresés indítása">
                         <i class="bi bi-search"></i>
                     </button>
+                    @if (!string.IsNullOrEmpty(Model.SearchTerm))
+                    {
+                        <a href="@Url.Page("./Index")" class="btn btn-outline-danger btn-sm" aria-label="Keresés törlése">
+                            <i class="bi bi-x"></i>
+                        </a>
+                    }
                 </form>
-        <!-- Filter/Sort Dropdown -->
                 <div class="dropdown">
                     <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Rendezési és szűrési opciók">
                         <i class="bi bi-funnel me-1"></i>Rendezés/Szűrés
                     </button>
                     <ul class="dropdown-menu dropdown-menu-end">
-                        <li><a class="dropdown-item active" href="#" data-filter="all" data-sort="QuoteDate">Összes árajánlat (Legújabb elöl)</a></li>
+                        <li><a class="dropdown-item" href="#" data-filter="all" data-sort="QuoteDate">Összes árajánlat (Legújabb elöl)</a></li>
                         <li><a class="dropdown-item" href="#" data-filter="all" data-sort="QuoteId">Rendezés: Árajánlat ID (Csökkenő)</a></li>
-                        <li><a class="dropdown-item" href="#" data-filter="all" data-sort="ValidityDate">Érvényességi dátum</a></li>                    </ul>
+                        <li><a class="dropdown-item" href="#" data-filter="all" data-sort="ValidityDate">Érvényességi dátum</a></li>
+                    </ul>
                 </div>
             </div>
         </div>
 
-        <!-- Card Grid Header -->
-        <div class="card-grid-header">
-            <div class="card-grid-row">
-                <div class="card-grid-column quote-number-col">Ajánlat szám</div>
-                <div class="card-grid-column quote-partner-col">Partner</div>
-                <div class="card-grid-column quote-date-col">Dátum</div>
-                <div class="card-grid-column quote-status-col">Státusz</div>
-                <div class="card-grid-column quote-amount-col">Ajánlat összege</div>
-                <div class="card-grid-column actions-column">Műveletek</div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Card Grid Body -->
-    <div class="scrollable-card-container">
-        <div class="card-grid-body">
-            @if (Model.Quotes.Any())
-            {
-                @foreach (var quote in Model.Quotes)
-                {
-                    <div class="card partner-card mb-3" data-quote-id="@quote.QuoteId">
-                        <div class="card-body p-2">
-                            <div class="card-grid-row align-items-center">
-                                <div class="card-grid-cell quote-number-col">
-                                    <div class="quote-info">
-                                        <div class="fw-bold">@quote.QuoteNumber</div>
-                                    </div>
-                                </div>
-                                <div class="card-grid-cell quote-partner-col">
-                                    <div class="quote-partner text-muted small">
-                                        <i class="bi bi-person me-1"></i>@quote.Partner.Name
-                                    </div>
-                                </div>
-                                <div class="card-grid-cell quote-date-col">
-                                    <div class="quote-date text-muted small">
-                                        <i class="bi bi-calendar me-1"></i>@quote.QuoteDate?.ToString("yyyy-MM-dd")
-                                    </div>
-                                </div>
-                                <div class="card-grid-cell quote-status-col">
+        <!-- Table -->
+        <div class="table-responsive" style="max-height: 70vh; overflow-y: auto;">
+            <table class="table table-striped table-hover">
+                <thead class="sticky-top custom-thead">
+                    <tr>
+                        @foreach (var column in new[] { "QuoteNumber", "Partner", "QuoteDate", "Status", "TotalAmount" })
+                        {
+                            <th class="text-nowrap">@(column == "QuoteNumber" ? "Ajánlat szám" : column == "QuoteDate" ? "Dátum" : column == "TotalAmount" ? "Összeg" : column == "Status" ? "Státusz" : column)</th>
+                        }
+                        <th class="text-nowrap">Műveletek</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (Model.Quotes.Any())
+                    {
+                        @foreach (var quote in Model.Quotes)
+                        {
+                            <tr data-quote-id="@quote.QuoteId">
+                                <td class="text-nowrap"><i class="bi bi-file-earmark-text me-1"></i>@quote.QuoteNumber</td>
+                                <td class="text-nowrap"><i class="bi bi-person me-1"></i>@quote.Partner.Name</td>
+                                <td class="text-nowrap"><i class="bi bi-calendar me-1"></i>@quote.QuoteDate?.ToString("yyyy-MM-dd")</td>
+                                <td class="text-nowrap">
                                     @{
                                         var badgeClass = "badge bg-secondary";
-                                        if (quote.Status == "Tervezet") badgeClass = "badge badge-draft";
-                                        else if (quote.Status == "Elküldve") badgeClass = "badge badge-sent";
-                                        else if (quote.Status == "Elfogadva") badgeClass = "badge badge-accepted";
-                                        else if (quote.Status == "Elutasítva") badgeClass = "badge badge-rejected";
+                                        if (quote.Status == "Tervezet") badgeClass = "badge bg-secondary";
+                                        else if (quote.Status == "Elküldve") badgeClass = "badge bg-primary";
+                                        else if (quote.Status == "Elfogadva") badgeClass = "badge bg-success";
+                                        else if (quote.Status == "Elutasítva") badgeClass = "badge bg-danger";
                                     }
                                     <span class="@badgeClass">@quote.Status</span>
-                                </div>
-                                <div class="card-grid-cell quote-amount-col">
-                                    <div class="quote-amount text-muted small">
-                                        <i class="bi bi-currency-dollar me-1"></i>@quote.TotalAmount?.ToString("C")
-                                    </div>
-                                </div>
-                                <div class="btn-group btn-group-sm" role="group">
-                                    <button type="button" class="btn btn-outline-info btn-sm view-quote-btn"
-                                            data-bs-toggle="modal"
-                                            data-bs-target="#viewQuoteModal_@quote.QuoteId"
-                                            aria-label="Árajánlat részleteinek megtekintése">
-                                        <i class="bi bi-eye"></i>
-                                    </button>
-                                    <div class="dropdown">
-                                        <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button"
-                                                id="actionsDropdown_@quote.QuoteId"
-                                                data-bs-toggle="dropdown" 
-                                                aria-expanded="false"
-                                                aria-label="További műveletek">
-                                            <i class="bi bi-three-dots-vertical"></i>
+                                </td>
+                                <td class="text-nowrap"><i class="bi bi-currency-dollar me-1"></i>@quote.TotalAmount?.ToString("C")</td>
+                                <td>
+                                    <div class="btn-group btn-group-sm" role="group">
+                                        <button type="button"
+                                                class="btn btn-outline-info view-quote-btn"
+                                                data-bs-toggle="modal"
+                                                data-bs-target="#viewQuoteModal_@quote.QuoteId"
+                                                aria-label="Árajánlat részleteinek megtekintése">
+                                            <i class="bi bi-eye"></i>
                                         </button>
-                                        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="actionsDropdown_@quote.QuoteId">
-                                            <li>
-                                            <a 
-                                                class="dropdown-item" 
-                                                href="#" 
-                                                data-bs-toggle="modal" 
-                                                data-bs-target="#editQuoteModal_@quote.QuoteId">
-                                                <i class="bi bi-pencil-square me-2"></i>Szerkesztés
-                                            </a>
-                                            </li>
-                                            <li><a class="dropdown-item copy-quote-btn" href="#" data-quote-id="@quote.QuoteId"><i class="bi bi-copy me-2"></i>Másolás</a></li>                                                <li>
-                                                <a 
-                                                    class="dropdown-item" 
-                                                    href="#" 
-                                                    data-bs-toggle="modal" 
-                                                    data-bs-target="#convertQuoteModal_@quote.QuoteId">
-                                                    <i class="bi bi-arrow-right-circle me-2"></i>Átalakítás rendeléssé
-                                                </a>
-                                            </li>
-                                            <li><hr class="dropdown-divider"></li>
-                                            <li><a class="dropdown-item text-danger" href="#" data-bs-toggle="modal" data-bs-target="#deleteQuoteModal_@quote.QuoteId"><i class="bi bi-trash me-2"></i>Törlés</a></li>
-                                        </ul>
+                                        <div class="dropdown">
+                                            <button class="btn btn-outline-secondary dropdown-toggle btn-sm" type="button"
+                                                    id="actionsDropdown_@quote.QuoteId"
+                                                    data-bs-toggle="dropdown"
+                                                    aria-expanded="false"
+                                                    data-bs-toggle="tooltip"
+                                                    data-bs-placement="top"
+                                                    data-bs-title="További műveletek">
+                                                <i class="bi bi-three-dots-vertical"></i>
+                                            </button>
+                                            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="actionsDropdown_@quote.QuoteId">
+                                                <li>
+                                                    <a class="dropdown-item" href="#"
+                                                       data-bs-toggle="modal"
+                                                       data-bs-target="#editQuoteModal_@quote.QuoteId">
+                                                        <i class="bi bi-pencil-square me-2"></i>Szerkesztés
+                                                    </a>
+                                                </li>
+                                                <li>
+                                                    <a class="dropdown-item copy-quote-btn" href="#"
+                                                       data-quote-id="@quote.QuoteId">
+                                                        <i class="bi bi-copy me-2"></i>Másolás
+                                                    </a>
+                                                </li>
+                                                <li>
+                                                    <a class="dropdown-item" href="#"
+                                                       data-bs-toggle="modal"
+                                                       data-bs-target="#convertQuoteModal_@quote.QuoteId">
+                                                        <i class="bi bi-arrow-right-circle me-2"></i>Átalakítás rendeléssé
+                                                    </a>
+                                                </li>
+                                                <li><hr class="dropdown-divider"></li>
+                                                <li>
+                                                    <a class="dropdown-item text-danger" href="#"
+                                                       data-bs-toggle="modal"
+                                                       data-bs-target="#deleteQuoteModal_@quote.QuoteId"
+                                                       data-quote-id="@quote.QuoteId">
+                                                        <i class="bi bi-trash me-2"></i>Törlés
+                                                    </a>
+                                                </li>
+                                            </ul>
+                                        </div>
                                     </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                }
-            }
-            else
-            {
-                <div class="alert alert-warning text-center mt-3" role="alert">
-                    @if (!string.IsNullOrEmpty(Model.SearchTerm))
-                    {
-                        @:No quotes found matching "@Model.SearchTerm" on page @Model.CurrentPage.
-                    }
-                    else if (Model.TotalRecords > 0)
-                    {
-                        @:No quotes found on page @Model.CurrentPage, but @Model.TotalRecords quotes exist. Try changing the page or adjusting filters.
+                                </td>
+                            </tr>
+                        }
                     }
                     else
                     {
-                        @:No quotes found. <button type="button" class="btn btn-link alert-link p-0 align-baseline" data-bs-toggle="modal" data-bs-target="#newQuoteModal" aria-label="Első árajánlat létrehozása">Create the first one?</button>
+                        <tr>
+                            <td colspan="6" class="text-center">
+                                <div class="alert alert-warning" role="alert">
+                                    @if (!string.IsNullOrEmpty(Model.SearchTerm))
+                                    {
+                                        @:Nincs találat a "@Model.SearchTerm" keresésre az @Model.CurrentPage. oldalon.
+                                    }
+                                    else if (Model.TotalRecords > 0)
+                                    {
+                                        @:Nincs árajánlat az @Model.CurrentPage. oldalon, de @Model.TotalRecords árajánlat létezik. Próbáljon másik oldalt vagy szűrőt.
+                                    }
+                                    else
+                                    {
+                                        @:Nincs árajánlat. <button type="button" class="btn btn-link alert-link p-0 align-baseline" data-bs-toggle="modal" data-bs-target="#newQuoteModal" aria-label="Első árajánlat létrehozása">Hozza létre az elsőt?</button>
+                                    }
+                                    <div class="mt-2 small text-muted">
+                                        Debug: Page=@Model.CurrentPage, PageSize=@Model.PageSize, TotalRecords=@Model.TotalRecords, SearchTerm="@Model.SearchTerm"
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
                     }
-                    <!-- Debug Info -->
-                    <div class="mt-2 small text-muted">
-                        Debug: Page=@Model.CurrentPage, PageSize=@Model.PageSize, TotalRecords=@Model.TotalRecords, SearchTerm="@Model.SearchTerm"
-                    </div>
-                </div>
-            }
+                </tbody>
+            </table>
         </div>
+
+        <!-- Pagination Footer -->
+        @await Html.PartialAsync("_PaginationFooter", new PaginationViewModel
+        {
+            CurrentPage = Model.CurrentPage,
+            TotalPages = Model.TotalPages,
+            PageSize = Model.PageSize,
+            SearchTerm = Model.SearchTerm,
+            PageRoute = "./Index",
+            EntityName = "Quotes"
+        })
     </div>
 
-    <!-- Pagination Footer -->
-    @await Html.PartialAsync("_PaginationFooter", new PaginationViewModel
-    {
-        CurrentPage = Model.CurrentPage,
-        TotalPages = Model.TotalPages,
-        PageSize = Model.PageSize,
-        SearchTerm = Model.SearchTerm,
-        PageRoute = "./Index",
-        EntityName = "Quotes"
-    })
+    <!-- Toast Container -->
+    <div id="toastContainer" class="position-fixed bottom-0 end-0 p-3" style="z-index: 1055;"></div>
 
-
+    <!-- Modals -->
     @await Html.PartialAsync("_Modals")
-<div id="toastContainer" class="position-fixed bottom-0 end-0 p-3" style="z-index: 1055;"></div>
+</div>
+
+<!-- Dependencies -->
+<script src="https://code.jquery.com/jquery-3.6.0.min.js" integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4=" crossorigin="anonymous"></script>
+<link href="https://cdn.jsdelivr.net/npm/tom-select@2.4.3/dist/css/tom-select.bootstrap5.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/tom-select@2.4.3/dist/js/tom-select.complete.min.js"></script>
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js" integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4=" crossorigin="anonymous"></script>
+
+<!-- Tom Select Dependencies -->
+<link href="https://cdn.jsdelivr.net/npm/tom-select@2.4.3/dist/css/tom-select.bootstrap5.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/tom-select@2.4.3/dist/js/tom-select.complete.min.js"></script>
 
 <script src="https://code.jquery.com/jquery-3.6.0.min.js" integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4=" crossorigin="anonymous"></script>
 

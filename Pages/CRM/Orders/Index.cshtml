@@ -5,10 +5,6 @@
 @using Microsoft.AspNetCore.Antiforgery
 @model Cloud9_2.Pages.CRM.Orders.IndexModel
 @using System.Globalization
-@section Styles {
-    <link rel="stylesheet" href="~/css/Orders.css" />
-}
-
 @functions {
     public string GetAntiForgeryToken()
     {
@@ -21,6 +17,7 @@
     ViewData["Title"] = "Rendelések";
     Layout = "_Layout";
 }
+
 @await Html.PartialAsync("_CRMSidebar")
 
 <div class="right-content">
@@ -40,168 +37,257 @@
         <!-- Header with Buttons and Search -->
         <div class="d-flex justify-content-between align-items-center mb-3">
             <div class="d-flex align-items-center gap-2">
-                <button type="button" id="newOrderButton" class="btn-new" data-bs-toggle="modal" data-bs-target="#newOrderModal" aria-label="Új rendelés létrehozása">
-                    <i class="bi bi-plus-circle me-1"></i>Új rendelés
+                <button type="button" id="newOrderButton" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#newOrderModal" aria-label="Új rendelés létrehozása">
+                    + Új rendelés
                 </button>
             </div>
             <div class="d-flex align-items-center gap-2">
-                <form method="get" class="input-group input-group-sm" style="width: 250px;">
+                <form method="get" asp-page="./Index" class="input-group input-group-sm" style="width: 250px;">
                     <input type="text" class="form-control" placeholder="Keresés..." id="searchInput" name="SearchTerm" value="@Model.SearchTerm" autocomplete="off" aria-label="Keresés rendelések között">
                     <input type="hidden" name="pageSize" value="@Model.PageSize" />
                     <button class="btn btn-outline-secondary" type="submit" aria-label="Keresés indítása">
                         <i class="bi bi-search"></i>
                     </button>
+                    @if (!string.IsNullOrEmpty(Model.SearchTerm))
+                    {
+                        <a href="@Url.Page("./Index")" class="btn btn-outline-danger btn-sm" aria-label="Keresés törlése">
+                            <i class="bi bi-x"></i>
+                        </a>
+                    }
                 </form>
-                <!-- Filter/Sort Dropdown -->
                 <div class="dropdown">
                     <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Rendezési és szűrési opciók">
                         <i class="bi bi-funnel me-1"></i>Rendezés/Szűrés
                     </button>
                     <ul class="dropdown-menu dropdown-menu-end">
-                        <li><a class="dropdown-item" href="?SearchTerm=@Model.SearchTerm&PageSize=@Model.PageSize&StatusFilter=all&SortBy=orderdate">Összes rendelés (Legújabb elöl)</a></li>
-                        <li><a class="dropdown-item" href="?SearchTerm=@Model.SearchTerm&PageSize=@Model.PageSize&StatusFilter=all&SortBy=deadline">Rendezés: Határidő</a></li>
-                        <li><a class="dropdown-item" href="?SearchTerm=@Model.SearchTerm&PageSize=@Model.PageSize&StatusFilter=all&SortBy=orderid">Rendezés: Rendelés ID</a></li>
+                        <li><a class="dropdown-item" href="#" data-filter="all" data-sort="orderdate">Összes rendelés (Legújabb elöl)</a></li>
+                        <li><a class="dropdown-item" href="#" data-filter="all" data-sort="deadline">Rendezés: Határidő</a></li>
+                        <li><a class="dropdown-item" href="#" data-filter="all" data-sort="orderid">Rendezés: Rendelés ID</a></li>
                     </ul>
                 </div>
             </div>
         </div>
 
-        <!-- Card Grid Header -->
-        <div class="card-grid-header">
-            <div class="card-grid-row">
-                <div class="card-grid-column col">Rendelésszám</div>
-                <div class="card-grid-column col">Partner</div>
-                <div class="card-grid-column col">Dátum</div>
-                <div class="card-grid-column col">Státusz</div>
-                <div class="card-grid-column col">Rendelés összege</div>
-                <div class="card-grid-column col">Műveletek</div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Card Grid Body -->
-    <div class="scrollable-card-container">
-        <div class="card-grid-body">
-            @if (Model.Orders.Any())
-            {
-                @foreach (var order in Model.Orders)
-                {
-                    <div class="card partner-card mb-3" data-order-id="@order.OrderId">
-                        <div class="card-body p-2">
-                            <div class="card-grid-row align-items-center">
-                                <div class="card-grid-cell col">
-                                    <div class="order-info">
-                                        <div class="fw-bold">@order.OrderNumber</div>
-                                    </div>
-                                </div>
-                                <div class="card-grid-cell col">
-                                    <div class="order-partner text-muted small">
-                                        <i class="bi bi-person me-1"></i>@order.Partner?.Name
-                                    </div>
-                                </div>
-                                <div class="card-grid-cell col">
-                                    <div class="order-date text-muted small">
-                                        <i class="bi bi-calendar me-1"></i>@(order.OrderDate?.ToString("yyyy-MM-dd"))
-                                    </div>
-                                </div>
-                                <div class="card-grid-cell col">
+        <!-- Table -->
+        <div class="table-responsive" style="max-height: 70vh; overflow-y: auto;">
+            <table class="table table-striped table-hover">
+                <thead class="sticky-top custom-thead">
+                    <tr>
+                        @foreach (var column in new[] { "OrderNumber", "Partner", "OrderDate", "Status", "TotalAmount" })
+                        {
+                            <th class="text-nowrap">@(column == "OrderNumber" ? "Rendelésszám" : column == "OrderDate" ? "Dátum" : column == "TotalAmount" ? "Összeg" : column == "Status" ? "Státusz" : column)</th>
+                        }
+                        <th class="text-nowrap">Műveletek</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (Model.Orders.Any())
+                    {
+                        @foreach (var order in Model.Orders.OrderByDescending(o => o.OrderDate))
+                        {
+                            <tr data-order-id="@order.OrderId">
+                                <td class="text-nowrap"><i class="bi bi-file-earmark-text me-1"></i>@order.OrderNumber</td>
+                                <td class="text-nowrap"><i class="bi bi-person me-1"></i>@order.Partner?.Name</td>
+                                <td class="text-nowrap"><i class="bi bi-calendar me-1"></i>@(order.OrderDate?.ToString("yyyy-MM-dd"))</td>
+                                <td class="text-nowrap">
                                     @{
                                         var badgeClass = "badge bg-secondary";
-                                        if (order.Status == "Draft") badgeClass = "badge badge-draft";
-                                        else if (order.Status == "Pending") badgeClass = "badge badge-pending";
-                                        else if (order.Status == "Confirmed") badgeClass = "badge badge-confirmed";
-                                        else if (order.Status == "Shipped") badgeClass = "badge badge-shipped";
-                                        else if (order.Status == "Cancelled") badgeClass = "badge badge-cancelled";
+                                        if (order.Status == "Draft") badgeClass = "badge bg-secondary";
+                                        else if (order.Status == "Pending") badgeClass = "badge bg-warning";
+                                        else if (order.Status == "Confirmed") badgeClass = "badge bg-success";
+                                        else if (order.Status == "Shipped") badgeClass = "badge bg-primary";
+                                        else if (order.Status == "Cancelled") badgeClass = "badge bg-danger";
                                     }
                                     <span class="@badgeClass">@Model.StatusDisplayNames[order.Status]</span>
-                                </div>
-                                <div class="card-grid-cell col">
-                                    <div class="order-amount text-muted small">
-                                        <i class="bi bi-currency-dollar me-1"></i>@(order.TotalAmount?.ToString("C", CultureInfo.GetCultureInfo("hu-HU")))
-                                    </div>
-                                </div>
-                                <div class="btn-group btn-group-sm col" role="group">
-                                    <button type="button" class="btn btn-outline-info btn-sm view-order-btn"
-                                            data-bs-toggle="modal"
-                                            data-bs-target="#viewOrderModal_@order.OrderId"
-                                            aria-label="Rendelés részleteinek megtekintése">
-                                        <i class="bi bi-eye"></i>
-                                    </button>
-                                    <div class="dropdown">
-                                        <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button"
-                                                id="actionsDropdown_@order.OrderId"
-                                                data-bs-toggle="dropdown"
-                                                aria-expanded="false"
-                                                aria-label="További műveletek">
-                                            <i class="bi bi-three-dots-vertical"></i>
+                                </td>
+                                <td class="text-nowrap"><i class="bi bi-currency-dollar me-1"></i>@((order.TotalAmount)?.ToString("C", CultureInfo.GetCultureInfo("hu-HU")))</td>
+                                <td>
+                                    <div class="btn-group btn-group-sm" role="group">
+                                        <button type="button"
+                                                class="btn btn-outline-info view-order-btn"
+                                                data-bs-toggle="modal"
+                                                data-bs-target="#viewOrderModal_@order.OrderId"
+                                                aria-label="Rendelés részleteinek megtekintése">
+                                            <i class="bi bi-eye"></i>
                                         </button>
-                                        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="actionsDropdown_@order.OrderId">
-                                            <li>
-                                                <a class="dropdown-item" href="#"
-                                                   data-bs-toggle="modal"
-                                                   data-bs-target="#editOrderModal_@order.OrderId">
-                                                    <i class="bi bi-pencil-square me-2"></i>Szerkesztés
-                                                </a>
-                                            </li>
-                                            <li><a class="dropdown-item" href="#" onclick="copyOrder(@order.OrderId)"><i class="bi bi-copy me-2"></i>Másolás</a></li>
-                                            <li><hr class="dropdown-divider"></li>
-                                            <li><a class="dropdown-item text-danger" href="#" data-bs-toggle="modal" data-bs-target="#deleteOrderModal_@order.OrderId"><i class="bi bi-trash me-2"></i>Törlés</a></li>
-                                        </ul>
+                                        <div class="dropdown">
+                                            <button class="btn btn-outline-secondary dropdown-toggle btn-sm" type="button"
+                                                    id="actionsDropdown_@order.OrderId"
+                                                    data-bs-toggle="dropdown"
+                                                    aria-expanded="false"
+                                                    data-bs-toggle="tooltip"
+                                                    data-bs-placement="top"
+                                                    data-bs-title="További műveletek">
+                                                <i class="bi bi-three-dots-vertical"></i>
+                                            </button>
+                                            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="actionsDropdown_@order.OrderId">
+                                                <li>
+                                                    <a class="dropdown-item" href="#"
+                                                       data-bs-toggle="modal"
+                                                       data-bs-target="#editOrderModal_@order.OrderId">
+                                                        <i class="bi bi-pencil-square me-2"></i>Szerkesztés
+                                                    </a>
+                                                </li>
+                                                <li>
+                                                    <a class="dropdown-item copy-order-btn" href="#"
+                                                       data-order-id="@order.OrderId">
+                                                        <i class="bi bi-copy me-2"></i>Másolás
+                                                    </a>
+                                                </li>
+                                                <li>
+                                                    <a class="dropdown-item send-email-btn" href="#"
+                                                       data-order-id="@order.OrderId">
+                                                        <i class="bi bi-envelope me-2"></i>Küldés emailben
+                                                    </a>
+                                                </li>
+                                                <li><hr class="dropdown-divider"></li>
+                                                <li>
+                                                    <a class="dropdown-item text-danger" href="#"
+                                                       data-bs-toggle="modal"
+                                                       data-bs-target="#deleteOrderModal_@order.OrderId"
+                                                       data-order-id="@order.OrderId">
+                                                        <i class="bi bi-trash me-2"></i>Törlés
+                                                    </a>
+                                                </li>
+                                            </ul>
+                                        </div>
                                     </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                }
-            }
-            else
-            {
-                <div class="alert alert-warning text-center mt-3" role="alert">
-                    @if (!string.IsNullOrEmpty(Model.SearchTerm))
-                    {
-                        @:No orders found matching "@Model.SearchTerm" on page @Model.CurrentPage.
-                    }
-                    else if (Model.TotalRecords > 0)
-                    {
-                        @:No orders found on page @Model.CurrentPage, but @Model.TotalRecords orders exist. Try changing the page or adjusting filters.
+                                </td>
+                            </tr>
+                        }
                     }
                     else
                     {
-                        @:No orders found. <button type="button" class="btn btn-link alert-link p-0 align-baseline" data-bs-toggle="modal" data-bs-target="#newOrderModal" aria-label="Első rendelés létrehozása">Create the first one?</button>
+                        <tr>
+                            <td colspan="6" class="text-center">
+                                <div class="alert alert-warning" role="alert">
+                                    @if (!string.IsNullOrEmpty(Model.SearchTerm))
+                                    {
+                                        @:Nincs találat a "@Model.SearchTerm" keresésre az @Model.CurrentPage. oldalon.
+                                    }
+                                    else if (Model.TotalRecords > 0)
+                                    {
+                                        @:Nincs rendelés az @Model.CurrentPage. oldalon, de @Model.TotalRecords rendelés létezik. Próbáljon másik oldalt vagy szűrőt.
+                                    }
+                                    else
+                                    {
+                                        @:Nincs rendelés. <button type="button" class="btn btn-link alert-link p-0 align-baseline" data-bs-toggle="modal" data-bs-target="#newOrderModal" aria-label="Első rendelés létrehozása">Hozza létre az elsőt?</button>
+                                    }
+                                    <div class="mt-2 small text-muted">
+                                        Debug: Page=@Model.CurrentPage, PageSize=@Model.PageSize, TotalRecords=@Model.TotalRecords, DistinctOrderIdCount=@Model.DistinctOrderIdCount, SearchTerm="@Model.SearchTerm"
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
                     }
-                    <!-- Debug Info -->
-                    <div class="mt-2 small text-muted">
-                        Debug: Page=@Model.CurrentPage, PageSize=@Model.PageSize, TotalRecords=@Model.TotalRecords, DistinctOrderIdCount=@Model.DistinctOrderIdCount, SearchTerm="@Model.SearchTerm"
-                    </div>
-                </div>
-            }
+                </tbody>
+            </table>
         </div>
+
+        <!-- Pagination Footer -->
+        @await Html.PartialAsync("_PaginationFooter", new PaginationViewModel
+        {
+            CurrentPage = Model.CurrentPage,
+            TotalPages = Model.TotalPages,
+            PageSize = Model.PageSize,
+            SearchTerm = Model.SearchTerm,
+            PageRoute = "./Index",
+            EntityName = "Orders"
+        })
     </div>
 
-    <!-- Pagination Footer -->
-    @await Html.PartialAsync("_PaginationFooter", new PaginationViewModel
-    {
-        CurrentPage = Model.CurrentPage,
-        TotalPages = Model.TotalPages,
-        PageSize = Model.PageSize,
-        SearchTerm = Model.SearchTerm,
-        PageRoute = "./Index",
-        EntityName = "Orders"
-    })
-
+    <!-- Modals -->
     @await Html.PartialAsync("_Modals")
 
+    <!-- Anti-Forgery Form -->
+    <form id="antiForgeryForm">
+        @Html.AntiForgeryToken()
+    </form>
+
+    <!-- Toast Container -->
     <div id="toastContainer" class="position-fixed bottom-0 end-0 p-3" style="z-index: 1055;"></div>
+</div>
 
+<!-- Dependencies -->
 <script src="https://code.jquery.com/jquery-3.6.0.min.js" integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4=" crossorigin="anonymous"></script>
-
-<!-- Tom Select Dependencies -->
 <link href="https://cdn.jsdelivr.net/npm/tom-select@2.4.3/dist/css/tom-select.bootstrap5.css" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/tom-select@2.4.3/dist/js/tom-select.complete.min.js"></script>
 
 @section Scripts {
-    <script src="/js/orders.js" onerror="alert('Failed to load orders.js from /js/orders.js.')"></script>
-    <script src="/js/utils.js"></script>
-    <script src="/js/tomSelectUtils.js"></script>
-    <script src="/js/orderTomSelects.js" onerror="alert('Failed to load orderTomSelects.js from /js/orderTomSelects.js.')"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            // Initialize Tooltips
+            var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+            tooltipTriggerList.forEach(function (tooltipTriggerEl) {
+                new bootstrap.Tooltip(tooltipTriggerEl);
+            });
+
+            // Filter/Sort Dropdown Logic
+            document.querySelectorAll('.dropdown-menu [data-filter]').forEach(item => {
+                item.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    const filter = this.getAttribute('data-filter');
+                    const sort = this.getAttribute('data-sort');
+                    let searchTerm = '@Model.SearchTerm';
+                    let pageSize = '@Model.PageSize';
+                    let url = '/CRM/Orders?pageSize=' + pageSize;
+                    if (filter !== 'all') {
+                        url += '&StatusFilter=' + encodeURIComponent(filter);
+                    }
+                    if (sort) {
+                        url += '&SortBy=' + encodeURIComponent(sort);
+                    }
+                    if (searchTerm) {
+                        url += '&searchTerm=' + encodeURIComponent(searchTerm);
+                    }
+                    window.location.href = url;
+                });
+            });
+
+            // Copy Order Button Logic
+            document.querySelectorAll('.copy-order-btn').forEach(button => {
+                button.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    const orderId = this.getAttribute('data-order-id');
+                    if (!orderId) {
+                        console.error('Order ID not found');
+                        return;
+                    }
+                    // Placeholder for copy functionality
+                    console.log('Copy order with ID:', orderId);
+                    // Note: Actual copy logic should be implemented in orders.js
+                });
+            });
+
+            // Send Email Button Logic
+            document.querySelectorAll('.send-email-btn').forEach(button => {
+                button.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    const orderId = this.getAttribute('data-order-id');
+                    if (!orderId) {
+                        console.error('Order ID not found');
+                        return;
+                    }
+                    // Placeholder for send email functionality
+                    console.log('Send email for order with ID:', orderId);
+                    // Note: Actual send email logic should be implemented in orders.js
+                });
+            });
+        });
+    </script>
+
+    <style>
+        /* Badge styling */
+        .badge {
+            padding: 0.35em 0.65em;
+            font-size: 0.75em;
+            font-weight: 700;
+            line-height: 1;
+            color: #fff;
+            text-align: center;
+            white-space: nowrap;
+            vertical-align: baseline;
+            border-radius: 0.25rem;
+        }
+    </style>
 }

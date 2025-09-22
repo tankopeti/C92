@@ -160,81 +160,102 @@ namespace Cloud9_2.Pages.CRM.Leads
             return RedirectToPage();
         }
 
-        public async Task<IActionResult> OnPostCreatePartnerAsync(
-            int? leadId, string name, string email, string phoneNumber, string alternatePhone,
-            string website, string companyName, string taxId, string intTaxId, string industry,
-            string addressLine1, string addressLine2, string city, string state, string postalCode,
-            string country, string status, DateTime? lastContacted, string notes, string assignedTo,
-            string billingContactName, string billingEmail, string paymentTerms, decimal? creditLimit,
-            string preferredCurrency, bool isTaxExempt, DateTime createdDate, string createdBy)
+public async Task<IActionResult> OnPostCreatePartnerAsync(
+    int? leadId, string name, string email, string phoneNumber, string alternatePhone,
+    string website, string companyName, string taxId, string intTaxId, string industry,
+    string addressLine1, string addressLine2, string city, string state, string postalCode,
+    string country, string status, DateTime? lastContacted, string notes, string assignedTo,
+    string billingContactName, string billingEmail, string paymentTerms, decimal? creditLimit,
+    string preferredCurrency, bool isTaxExempt, DateTime createdDate, string createdBy)
+{
+    if (string.IsNullOrEmpty(name))
+    {
+        TempData["ErrorMessage"] = "Partner name is required!";
+        return RedirectToPage();
+    }
+
+    // Map status string to StatusId
+    int? statusId = null;
+    if (!string.IsNullOrEmpty(status))
+    {
+        var statusEntity = await _context.PartnerStatuses
+            .FirstOrDefaultAsync(s => s.Name == status);
+        if (statusEntity == null)
         {
-            if (string.IsNullOrEmpty(name))
-            {
-                TempData["ErrorMessage"] = "Partner name is required!";
-                return RedirectToPage();
-            }
-
-            var user = await _userManager.GetUserAsync(User);
-            var partner = new Partner
-            {
-                Name = name,
-                Email = email,
-                PhoneNumber = phoneNumber,
-                AlternatePhone = alternatePhone,
-                Website = website,
-                CompanyName = companyName,
-                TaxId = taxId,
-                IntTaxId = intTaxId,
-                Industry = industry,
-                AddressLine1 = addressLine1,
-                AddressLine2 = addressLine2,
-                City = city,
-                State = state,
-                PostalCode = postalCode,
-                Country = country,
-                Status = status ?? "Prospect",
-                LastContacted = lastContacted,
-                Notes = notes,
-                AssignedTo = assignedTo,
-                BillingContactName = billingContactName,
-                BillingEmail = billingEmail,
-                PaymentTerms = paymentTerms,
-                CreditLimit = creditLimit,
-                PreferredCurrency = preferredCurrency,
-                IsTaxExempt = isTaxExempt,
-                CreatedDate = createdDate,
-                CreatedBy = user?.Id ?? createdBy,
-                UpdatedDate = DateTime.UtcNow,
-                UpdatedBy = user?.Id
-            };
-
-            try
-            {
-                _context.Partners.Add(partner);
-                await _context.SaveChangesAsync();
-
-                if (leadId.HasValue)
-                {
-                    var lead = await _context.Leads.FindAsync(leadId.Value);
-                    if (lead != null)
-                    {
-                        lead.PartnerId = partner.PartnerId;
-                        lead.Status = "Qualified";
-                        await _leadService.UpdateLeadAsync(lead, user?.Id);
-                        await _leadService.LogHistoryAsync(lead, user?.Id, "Converted to Partner");
-                    }
-                }
-
-                TempData["SuccessMessage"] = "Partner created successfully!";
-            }
-            catch (DbUpdateException ex)
-            {
-                _logger.LogError(ex, "Error creating partner for LeadId {LeadId}", leadId);
-                TempData["ErrorMessage"] = "Failed to create partner. Please try again.";
-            }
-
+            TempData["ErrorMessage"] = $"Invalid status: {status}. Valid statuses are Active, Inactive, or Prospect.";
             return RedirectToPage();
         }
+        statusId = statusEntity.Id;
+    }
+    else
+    {
+        // Default to "Prospect" (Id = 3)
+        var prospectStatus = await _context.PartnerStatuses
+            .FirstOrDefaultAsync(s => s.Name == "Prospect");
+        statusId = prospectStatus?.Id ?? 3; // Fallback to 3 if not found
+    }
+
+    var user = await _userManager.GetUserAsync(User);
+    var partner = new Partner
+    {
+        Name = name,
+        Email = email,
+        PhoneNumber = phoneNumber,
+        AlternatePhone = alternatePhone,
+        Website = website,
+        CompanyName = companyName,
+        TaxId = taxId,
+        IntTaxId = intTaxId,
+        Industry = industry,
+        AddressLine1 = addressLine1,
+        AddressLine2 = addressLine2,
+        City = city,
+        State = state,
+        PostalCode = postalCode,
+        Country = country,
+        StatusId = statusId,
+        LastContacted = lastContacted,
+        Notes = notes,
+        AssignedTo = assignedTo,
+        BillingContactName = billingContactName,
+        BillingEmail = billingEmail,
+        PaymentTerms = paymentTerms,
+        CreditLimit = creditLimit,
+        PreferredCurrency = preferredCurrency,
+        IsTaxExempt = isTaxExempt,
+        CreatedDate = createdDate,
+        CreatedBy = user?.Id ?? createdBy,
+        UpdatedDate = DateTime.UtcNow,
+        UpdatedBy = user?.Id
+    };
+
+    try
+    {
+        _context.Partners.Add(partner);
+        await _context.SaveChangesAsync();
+
+        if (leadId.HasValue)
+        {
+            var lead = await _context.Leads.FindAsync(leadId.Value);
+            if (lead != null)
+            {
+                lead.PartnerId = partner.PartnerId;
+                lead.Status = "Qualified";
+                await _leadService.UpdateLeadAsync(lead, user?.Id);
+                await _leadService.LogHistoryAsync(lead, user?.Id, "Converted to Partner");
+            }
+        }
+
+        TempData["SuccessMessage"] = "Partner created successfully!";
+    }
+    catch (DbUpdateException ex)
+    {
+        _logger.LogError(ex, "Error creating partner for LeadId {LeadId}", leadId);
+        TempData["ErrorMessage"] = "Failed to create partner. Please try again.";
+    }
+
+    return RedirectToPage();
+}
 
         public async Task<IActionResult> OnGetLeadHistoryAsync(int leadId)
         {

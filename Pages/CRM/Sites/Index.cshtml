@@ -8,21 +8,21 @@
 @await Html.PartialAsync("_CRMSidebar")
 
 <div class="right-content">
-    <!-- Success/Error Messages -->
-    @if (TempData["SuccessMessage"] != null)
-    {
-        <div class="alert alert-success alert-dismissible fade show mb-3" role="alert">
-            @TempData["SuccessMessage"]
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    <!-- Message Modal -->
+    <div class="modal fade" id="messageModal" tabindex="-1" aria-labelledby="messageModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="messageModalLabel"></h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body" id="messageModalBody"></div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Bezárás</button>
+                </div>
+            </div>
         </div>
-    }
-    @if (TempData["ErrorMessage"] != null)
-    {
-        <div class="alert alert-danger alert-dismissible fade show mb-3" role="alert">
-            @TempData["ErrorMessage"]
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-        </div>
-    }
+    </div>
 
     <div class="page-header-fixed-top">
         <div class="d-flex justify-content-between align-items-center mb-2">
@@ -43,7 +43,7 @@
             </div>
             <div class="d-flex align-items-center gap-2">
                 <form method="get" asp-page="./Index" class="input-group input-group-sm" style="width: 250px;">
-                    <input type="text" class="form-control" placeholder="Search sites..." id="searchInput" name="searchTerm" value="@Model.SearchTerm">
+                    <input type="text" class="form-control" placeholder="Telephely keresése..." id="searchInput" name="searchTerm" value="@Model.SearchTerm">
                     <input type="hidden" name="pageSize" value="@Model.PageSize" />
                     <button class="btn btn-outline-secondary" type="submit">
                         <i class="bi bi-search"></i>
@@ -57,11 +57,11 @@
                 </form>
                 <div class="dropdown">
                     <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown">
-                        <i class="bi bi-funnel me-1"></i>Filter
+                        <i class="bi bi-funnel me-1"></i>Szűrő
                     </button>
                     <ul class="dropdown-menu dropdown-menu-end">
-                        <li><a class="dropdown-item" href="#" data-filter="all">All Sites</a></li>
-                        <li><a class="dropdown-item" href="#" data-filter="primary">Primary Sites</a></li>
+                        <li><a class="dropdown-item" href="#" data-filter="all">Összes Telephely</a></li>
+                        <li><a class="dropdown-item" href="#" data-filter="primary">Elsődleges Telephelyek</a></li>
                     </ul>
                 </div>
             </div>
@@ -83,7 +83,7 @@
                     <th class="text-nowrap">Kapcsolattartó 3</th>
                     <th class="text-nowrap">Státusz</th>
                     <th class="text-nowrap">Elsődleges</th>
-                    <th class="text-nowrap">Actions</th>
+                    <th class="text-nowrap">Műveletek</th>
                 </tr>
             </thead>
             <tbody>
@@ -96,7 +96,7 @@
                                 <i class="bi bi-building me-1"></i>
                                 @if (string.IsNullOrEmpty(site.SiteName))
                                 {
-                                    <span class="text-danger">(No Name - SiteId: @site.SiteId)</span>
+                                    <span class="text-danger">(Nincs Név - SiteId: @site.SiteId)</span>
                                 }
                                 else
                                 {
@@ -112,7 +112,7 @@
                                 }
                                 else
                                 {
-                                    <span class="text-warning">No Partner (PartnerId: @site.PartnerId)</span>
+                                    <span class="text-warning">Nincs Partner (PartnerId: @site.PartnerId)</span>
                                 }
                             </td>
                             <td class="text-nowrap">
@@ -168,7 +168,7 @@
                                     <div class="dropdown">
                                         <button class="btn btn-outline-secondary dropdown-toggle btn-sm" type="button"
                                                 data-bs-toggle="dropdown" aria-expanded="false"
-                                                data-bs-toggle="tooltip" data-bs-placement="top" title="More Actions">
+                                                data-bs-toggle="tooltip" data-bs-placement="top" title="További Műveletek">
                                             <i class="bi bi-three-dots-vertical"></i>
                                         </button>
                                         <ul class="dropdown-menu dropdown-menu-end">
@@ -186,7 +186,7 @@
                                                    data-bs-toggle="modal"
                                                    data-bs-target="#deleteSiteModal_@site.SiteId"
                                                    data-site-id="@site.SiteId"
-                                                   data-site-name="@(string.IsNullOrEmpty(site.SiteName) ? "this site" : site.SiteName)">
+                                                   data-site-name="@(string.IsNullOrEmpty(site.SiteName) ? "ezt a telephelyet" : site.SiteName)">
                                                     <i class="bi bi-trash me-2"></i>Törlés
                                                 </a>
                                             </li>
@@ -204,11 +204,11 @@
                             <div class="alert alert-warning" role="alert">
                                 @if (!string.IsNullOrEmpty(Model.SearchTerm))
                                 {
-                                    @:No sites found matching "@Model.SearchTerm".
+                                    @:Nem található telephely a "@Model.SearchTerm" keresésre.
                                 }
                                 else
                                 {
-                                    @:No sites found. <button type="button" class="btn btn-link alert-link p-0 align-baseline" data-bs-toggle="modal" data-bs-target="#createSiteModal">Create the first one?</button>
+                                    @:Nem található telephely. <button type="button" class="btn btn-link alert-link p-0 align-baseline" data-bs-toggle="modal" data-bs-target="#createSiteModal">Hozz létre egyet?</button>
                                 }
                             </div>
                         </td>
@@ -221,10 +221,10 @@
     <!-- Inline Pagination -->
     <footer class="fixed-footer">
         <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
-            <nav aria-label="Sites pagination">
+            <nav aria-label="Telephelyek lapozás">
                 <ul class="pagination justify-content-center my-0">
                     <li class="page-item @(Model.CurrentPage == 1 ? "disabled" : "")">
-                        <a class="page-link" asp-page="./Index" asp-route-currentPage="@(Model.CurrentPage - 1)" asp-route-pageSize="@Model.PageSize" asp-route-searchTerm="@Model.SearchTerm">Previous</a>
+                        <a class="page-link" asp-page="./Index" asp-route-currentPage="@(Model.CurrentPage - 1)" asp-route-pageSize="@Model.PageSize" asp-route-searchTerm="@Model.SearchTerm">Előző</a>
                     </li>
                     @{
                         int startPage = Math.Max(1, Model.CurrentPage - 2);
@@ -250,13 +250,13 @@
                         }
                     }
                     <li class="page-item @(Model.CurrentPage == Model.TotalPages || Model.TotalPages == 0 ? "disabled" : "")">
-                        <a class="page-link" asp-page="./Index" asp-route-currentPage="@(Model.CurrentPage + 1)" asp-route-pageSize="@Model.PageSize" asp-route-searchTerm="@Model.SearchTerm">Next</a>
+                        <a class="page-link" asp-page="./Index" asp-route-currentPage="@(Model.CurrentPage + 1)" asp-route-pageSize="@Model.PageSize" asp-route-searchTerm="@Model.SearchTerm">Következő</a>
                     </li>
                 </ul>
             </nav>
             <div class="text-center">
                 <form method="get" asp-page="./Index" class="d-inline-flex align-items-center gap-1">
-                    <label for="pageSize" class="form-label mb-0 small">Per page:</label>
+                    <label for="pageSize" class="form-label mb-0 small">Oldalanként:</label>
                     <select id="pageSize" name="pageSize" onchange="this.form.submit()" class="form-select form-select-sm" style="width: auto;">
                         <option value="10" selected="@(Model.PageSize == 10)">10</option>
                         <option value="25" selected="@(Model.PageSize == 25)">25</option>
@@ -285,14 +285,14 @@
                         <div class="mb-3">
                             <label class="form-label">Telephely neve</label>
                             <input type="text" class="form-control" name="siteName" required>
-                            <div class="invalid-feedback">Site name is required.</div>
+                            <div class="invalid-feedback">A telephely neve kötelező.</div>
                         </div>
                         <div class="mb-3">
                             <label class="form-label">Partner</label>
                             <select id="create-partner-select" class="form-select" name="partnerId" required>
                                 <option value="" disabled selected>-- Válasszon partnert --</option>
                             </select>
-                            <div class="invalid-feedback">Partner is required.</div>
+                            <div class="invalid-feedback">Partner megadása kötelező.</div>
                         </div>
                         <div class="mb-3">
                             <label class="form-label">Cím 1</label>
@@ -347,10 +347,10 @@
                                     <option value="@status.Id" selected="@(status.Id == 1)">@status.Name</option>
                                 }
                             </select>
-                            <div class="invalid-feedback">Status is required.</div>
+                            <div class="invalid-feedback">Státusz megadása kötelező.</div>
                         </div>
                         <div class="mb-3 form-check">
-                            <input type="checkbox" class="form-check-input" name="isPrimary">
+                            <input type="checkbox" class="form-check-input" name="isPrimary" value="true">
                             <label class="form-check-label">Elsődleges Telephely</label>
                         </div>
                     </div>
@@ -370,7 +370,7 @@
             <div class="modal-dialog modal-dialog-centered">
                 <div class="modal-content">
                     <div class="modal-header">
-                        <h5 class="modal-title" id="viewSiteModalLabel_@site.SiteId">@(string.IsNullOrEmpty(site.SiteName) ? "No Name" : site.SiteName)</h5>
+                        <h5 class="modal-title" id="viewSiteModalLabel_@site.SiteId">@(string.IsNullOrEmpty(site.SiteName) ? "Nincs Név" : site.SiteName)</h5>
                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
                     <div class="modal-body">
@@ -387,7 +387,7 @@
                         <p><strong>Kapcsolattartó 3:</strong> @(string.IsNullOrEmpty(site.ContactPerson3) ? "-" : site.ContactPerson3)</p>
                         <p><strong>Megjegyzés 1:</strong> @(string.IsNullOrEmpty(site.Comment1) ? "-" : site.Comment1)</p>
                         <p><strong>Megjegyzés 2:</strong> @(string.IsNullOrEmpty(site.Comment2) ? "-" : site.Comment2)</p>
-                        <p><strong>Státusz:</strong> 
+                        <p><strong>Státusz:</strong>
                             @if (site.Status != null && !string.IsNullOrEmpty(site.Status.Color))
                             {
                                 <span class="badge" style="background-color: @site.Status.Color; color: white;">@site.Status.Name</span>
@@ -415,14 +415,14 @@
                         @Html.AntiForgeryToken()
                         <input type="hidden" name="siteId" value="@site.SiteId" />
                         <div class="modal-header">
-                            <h5 class="modal-title" id="editSiteModalLabel_@site.SiteId">Szerkesztés @(string.IsNullOrEmpty(site.SiteName) ? "Site" : site.SiteName)</h5>
+                            <h5 class="modal-title" id="editSiteModalLabel_@site.SiteId">Szerkesztés @(string.IsNullOrEmpty(site.SiteName) ? "Telephely" : site.SiteName)</h5>
                             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                         </div>
                         <div class="modal-body">
                             <div class="mb-3">
                                 <label class="form-label">Telephely neve</label>
                                 <input type="text" class="form-control" name="siteName" value="@site.SiteName" required>
-                                <div class="invalid-feedback">Site name is required.</div>
+                                <div class="invalid-feedback">A telephely neve kötelező.</div>
                             </div>
                             <div class="mb-3">
                                 <label class="form-label">Partner</label>
@@ -433,7 +433,7 @@
                                         <option value="@site.PartnerId" selected>@site.Partner.Name</option>
                                     }
                                 </select>
-                                <div class="invalid-feedback">Partner is required.</div>
+                                <div class="invalid-feedback">Partner megadása kötelező.</div>
                             </div>
                             <div class="mb-3">
                                 <label class="form-label">Cím 1</label>
@@ -488,10 +488,10 @@
                                         <option value="@status.Id" selected="@(site.StatusId == status.Id)">@status.Name</option>
                                     }
                                 </select>
-                                <div class="invalid-feedback">Status is required.</div>
+                                <div class="invalid-feedback">Státusz megadása kötelező.</div>
                             </div>
                             <div class="mb-3 form-check">
-                                <input type="checkbox" class="form-check-input" name="isPrimary" checked="@site.IsPrimary">
+                                <input type="checkbox" class="form-check-input" name="isPrimary" value="true" checked="@site.IsPrimary">
                                 <label class="form-check-label">Elsődleges Telephely</label>
                             </div>
                         </div>
@@ -541,11 +541,33 @@
 $(function () {
     $('[data-bs-toggle="tooltip"]').tooltip();
 
-    // Create dictionaries for SiteId to PartnerId mappings (status map not needed for native select)
+    // Show message modal for success or error messages
+    const successMessage = '@Html.Raw(TempData["SuccessMessage"])';
+    const errorMessage = '@Html.Raw(TempData["ErrorMessage"])';
+    if (successMessage || errorMessage) {
+        const modalEl = document.getElementById('messageModal');
+        const modalTitleEl = document.getElementById('messageModalLabel');
+        const modalBodyEl = document.getElementById('messageModalBody');
+        const modal = new bootstrap.Modal(modalEl, { backdrop: 'static', keyboard: true });
+
+        if (successMessage) {
+            modalTitleEl.textContent = 'Siker';
+            modalBodyEl.textContent = successMessage;
+            modalEl.querySelector('.modal-content').classList.add('text-bg-success');
+        } else if (errorMessage) {
+            modalTitleEl.textContent = 'Hiba';
+            modalBodyEl.textContent = errorMessage;
+            modalEl.querySelector('.modal-content').classList.add('text-bg-danger');
+        }
+
+        modal.show();
+    }
+
+    // Create dictionaries for SiteId to PartnerId mappings
     const sitePartnerMap = @Json.Serialize(Model.Sites.ToDictionary(s => s.SiteId, s => s.PartnerId));
     console.log('sitePartnerMap:', sitePartnerMap);
 
-    // Initialize TomSelect for create modal partner select only
+    // Initialize TomSelect for create modal partner select
     window.c92.initializePartnerTomSelect(
         document.querySelector('#create-partner-select'),
         'createSiteModal',
@@ -558,7 +580,7 @@ $(function () {
         document.querySelector('#create-partner-select').innerHTML = '<option value="" disabled selected>Nincs elérhető partner</option>';
     });
 
-    // Initialize TomSelect for edit modal partner selects only
+    // Initialize TomSelect for edit modal partner selects
     $('.modal').on('shown.bs.modal', function (e) {
         const modal = $(this);
         const partnerSelect = modal.find('select[name="partnerId"]');
@@ -596,12 +618,11 @@ $(function () {
             }, 100);
         }
 
-        // No TomSelect for status selects; ensure they remain native
+        // Ensure status selects remain native
         const statusSelect = modal.find('select[name="statusId"]');
         if (statusSelect.length && statusSelect.attr('id').startsWith('edit-status-select-')) {
             const siteId = parseInt(statusSelect.attr('id').replace('edit-status-select-', ''), 10);
             console.log(`Native status select for SiteId: ${siteId}`);
-            // Ensure no TomSelect instance exists
             if (statusSelect[0].tomselect) {
                 statusSelect[0].tomselect.destroy();
                 console.log(`Destroyed stray TomSelect on status select for SiteId: ${siteId}`);
@@ -612,6 +633,8 @@ $(function () {
     // Form validation for modals
     document.querySelectorAll('.modal form').forEach(form => {
         form.addEventListener('submit', function (event) {
+            const formData = new FormData(this);
+            console.log('Form data:', Object.fromEntries(formData));
             if (!this.checkValidity()) {
                 event.preventDefault();
                 event.stopPropagation();
@@ -643,7 +666,7 @@ $(function () {
         });
     });
 
-    // Debug clicks on status selects to ensure native behavior
+    // Debug clicks on status selects
     $('select[id="create-status-select"], select[id^="edit-status-select-"]').on('click', function (e) {
         console.log('Native status select clicked:', this.id);
     });

@@ -41,6 +41,9 @@ namespace Cloud9_2.Pages.CRM.Sites
         public int TotalRecords { get; set; }
         public int TotalPages { get; set; }
 
+        [BindProperty]
+        public bool IsPrimary { get; set; }
+
         public async Task OnGetAsync()
         {
             Partners = await _context.Partners.OrderBy(p => p.Name).ToListAsync();
@@ -83,23 +86,23 @@ namespace Cloud9_2.Pages.CRM.Sites
 
             if (string.IsNullOrEmpty(siteName))
             {
-                _logger.LogWarning("Validation failed: siteName is empty");
-                TempData["ErrorMessage"] = "Site name is required.";
+                _logger.LogWarning("A telephely neve szükséges");
+                TempData["ErrorMessage"] = "A telephely neve szükséges.";
                 return RedirectToPage();
             }
 
             var partner = await _context.Partners.FindAsync(partnerId);
             if (partnerId == 0 || partner == null)
             {
-                _logger.LogWarning("Validation failed: Invalid partnerId={PartnerId}", partnerId);
-                TempData["ErrorMessage"] = "A valid partner is required.";
+                _logger.LogWarning("Létező partner megadása kötelező partnerId={PartnerId}", partnerId);
+                TempData["ErrorMessage"] = "Létező partner megadása kötelező.";
                 return RedirectToPage();
             }
 
             if (await _context.PartnerStatuses.FindAsync(statusId) == null)
             {
-                _logger.LogWarning("Validation failed: Invalid statusId={StatusId}", statusId);
-                TempData["ErrorMessage"] = "A valid status is required.";
+                _logger.LogWarning("Létező státusz megadása kötelező statusId={StatusId}", statusId);
+                TempData["ErrorMessage"] = "Létező státusz megadása kötelező.";
                 return RedirectToPage();
             }
 
@@ -133,13 +136,13 @@ namespace Cloud9_2.Pages.CRM.Sites
             {
                 _context.Sites.Add(site);
                 await _context.SaveChangesAsync();
-                _logger.LogInformation("Site created successfully: SiteId={SiteId}, PartnerId={PartnerId}, PartnerName={PartnerName}", site.SiteId, site.PartnerId, partner.Name);
-                TempData["SuccessMessage"] = "Site created successfully.";
+                _logger.LogInformation("A telephely sikeresen létrehozva: SiteId={SiteId}, PartnerId={PartnerId}, PartnerName={PartnerName}", site.SiteId, site.PartnerId, partner.Name);
+                TempData["SuccessMessage"] = "A telephely sikeresen létrehozva.";
             }
             catch (DbUpdateException ex)
             {
-                _logger.LogError(ex, "Error creating site: {Details}", ex.InnerException?.Message ?? ex.Message);
-                TempData["ErrorMessage"] = $"Error creating site: {ex.InnerException?.Message ?? "Unknown error"}";
+                _logger.LogError(ex, "Hiba a létrehozás során: {Details}", ex.InnerException?.Message ?? ex.Message);
+                TempData["ErrorMessage"] = $"Error creating site: {ex.InnerException?.Message ?? "Ismeretlen hiba"}";
             }
 
             return RedirectToPage();
@@ -160,22 +163,22 @@ namespace Cloud9_2.Pages.CRM.Sites
             if (string.IsNullOrEmpty(siteName))
             {
                 _logger.LogWarning("Validation failed: siteName is empty for SiteId={SiteId}", siteId);
-                TempData["ErrorMessage"] = "Site name is required.";
+                TempData["ErrorMessage"] = "A telephely neve kötelező.";
                 return RedirectToPage();
             }
 
             var partner = await _context.Partners.FindAsync(partnerId);
             if (partnerId == 0 || partner == null)
             {
-                _logger.LogWarning("Validation failed: Invalid partnerId={PartnerId} for SiteId={SiteId}", partnerId, siteId);
-                TempData["ErrorMessage"] = "A valid partner is required.";
+                _logger.LogWarning("Létező partner szükséges partnerId={PartnerId} for SiteId={SiteId}", partnerId, siteId);
+                TempData["ErrorMessage"] = "Létező partner szükséges.";
                 return RedirectToPage();
             }
 
             if (await _context.PartnerStatuses.FindAsync(statusId) == null)
             {
-                _logger.LogWarning("Validation failed: Invalid statusId={StatusId} for SiteId={SiteId}", statusId, siteId);
-                TempData["ErrorMessage"] = "A valid status is required.";
+                _logger.LogWarning("Létező státusz szükséges statusId={StatusId} for SiteId={SiteId}", statusId, siteId);
+                TempData["ErrorMessage"] = "Létező státusz szükséges.";
                 return RedirectToPage();
             }
 
@@ -202,13 +205,13 @@ namespace Cloud9_2.Pages.CRM.Sites
             try
             {
                 await _context.SaveChangesAsync();
-                _logger.LogInformation("Site updated successfully: SiteId={SiteId}, PartnerId={PartnerId}, PartnerName={PartnerName}", siteId, site.PartnerId, partner.Name);
-                TempData["SuccessMessage"] = "Site updated successfully.";
+                _logger.LogInformation("A telephely sikeresen módosítva: SiteId={SiteId}, PartnerId={PartnerId}, PartnerName={PartnerName}", siteId, site.PartnerId, partner.Name);
+                TempData["SuccessMessage"] = "A telephely sikeresen módosítva.";
             }
             catch (DbUpdateException ex)
             {
-                _logger.LogError(ex, "Error updating site: {Details}", ex.InnerException?.Message ?? ex.Message);
-                TempData["ErrorMessage"] = $"Error updating site: {ex.InnerException?.Message ?? "Unknown error"}";
+                _logger.LogError(ex, "Hiba a telephely frissítésekor: {Details}", ex.InnerException?.Message ?? ex.Message);
+                TempData["ErrorMessage"] = $"Hiba a telephely frissítésekor: {ex.InnerException?.Message ?? "Ismeretlen hiba"}";
             }
 
             return RedirectToPage();
@@ -228,13 +231,13 @@ namespace Cloud9_2.Pages.CRM.Sites
             {
                 _context.Sites.Remove(site);
                 await _context.SaveChangesAsync();
-                _logger.LogInformation("Site deleted successfully: SiteId={SiteId}", siteId);
-                TempData["SuccessMessage"] = "Site deleted successfully.";
+                _logger.LogInformation("A telephely sikeresen törölve: SiteId={SiteId}", siteId);
+                TempData["SuccessMessage"] = "A telephely sikeresen törölve.";
             }
             catch (DbUpdateException ex)
             {
-                _logger.LogError(ex, "Error deleting site: {Details}", ex.InnerException?.Message ?? ex.Message);
-                TempData["ErrorMessage"] = $"Error deleting site: {ex.InnerException?.Message ?? "Unknown error"}";
+                _logger.LogError(ex, "Hiba a telephely törlésekor: {Details}", ex.InnerException?.Message ?? ex.Message);
+                TempData["ErrorMessage"] = $"Hiba a telephely törlésekor: {ex.InnerException?.Message ?? "Ismeretlen hiba"}";
             }
 
             return RedirectToPage();

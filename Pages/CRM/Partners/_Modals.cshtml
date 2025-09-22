@@ -4,7 +4,7 @@
     <div class="modal-content rounded-3 shadow-lg">
       <div class="modal-header bg-primary text-white">
         <h5 class="modal-title" id="createPartnerLabel">Új Partner létrehozása</h5>
-        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Bez Learn Moreárás"></button>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Bezárás"></button>
       </div>
 
       <div class="modal-body">
@@ -96,7 +96,13 @@
             </div>
             <div class="col-md-6 mb-3">
               <label for="partnerStatus" class="form-label fw-bold">Státusz</label>
-              <input type="text" class="form-control" id="partnerStatus" name="Status" maxlength="50">
+              <select class="form-control" id="partnerStatus" name="StatusId">
+                <option value="">Válasszon...</option>
+                @foreach (var status in Model.AvailableStatuses)
+                {
+                    <option value="@status.Id">@status.Name</option>
+                }
+              </select>
             </div>
           </div>
 
@@ -178,10 +184,10 @@
                 <h5 class="modal-title" id="editPartnerLabel">Partner szerkesztése</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Bezárás"></button>
             </div>
-
             <div class="modal-body">
                 <form id="editPartnerForm">
-                    <input type="hidden" id="editPartnerId" name="partnerId">
+                    <input type="hidden" id="editPartnerId" name="PartnerId" />
+                    <input type="hidden" name="Documents" value="[]" />
                     <!-- Tab Navigation -->
                     <ul class="nav nav-tabs mb-3" id="editPartnerTabs" role="tablist">
                         <li class="nav-item" role="presentation">
@@ -197,7 +203,6 @@
                             <button class="nav-link" id="documents-edit-tab" data-bs-toggle="tab" data-bs-target="#documents-edit" type="button" role="tab" aria-controls="documents-edit" aria-selected="false">Dokumentumok</button>
                         </li>
                     </ul>
-
                     <!-- Tab Content -->
                     <div class="tab-content" id="editPartnerTabContent">
                         <!-- General Tab -->
@@ -205,11 +210,12 @@
                             <div class="row">
                                 <div class="col-md-6 mb-3">
                                     <label class="form-label fw-bold">Partner neve</label>
-                                    <input type="text" class="form-control" id="editPartnerName" name="name" required>
+                                    <input type="text" class="form-control" id="editPartnerName" name="Name" required oninput="this.value = this.value.trimStart();" />
+                                    <span class="text-danger" data-valmsg-for="Name"></span>
                                 </div>
                                 <div class="col-md-6 mb-3">
                                     <label class="form-label fw-bold">Cégnév</label>
-                                    <input type="text" class="form-control" id="editPartnerCompanyName" name="companyName">
+                                    <input type="text" class="form-control" id="editPartnerCompanyName" name="CompanyName" />
                                 </div>
                             </div>
                             <hr class="my-4">
@@ -217,19 +223,19 @@
                             <div class="row">
                                 <div class="col-md-6 mb-3">
                                     <label class="form-label fw-bold">E-mail</label>
-                                    <input type="email" class="form-control" id="editPartnerEmail" name="email">
+                                    <input type="email" class="form-control" id="editPartnerEmail" name="Email" />
                                 </div>
                                 <div class="col-md-6 mb-3">
                                     <label class="form-label fw-bold">Telefonszám</label>
-                                    <input type="tel" class="form-control" id="editPartnerPhone" name="phoneNumber">
+                                    <input type="tel" class="form-control" id="editPartnerPhone" name="PhoneNumber" />
                                 </div>
                                 <div class="col-md-6 mb-3">
                                     <label class="form-label fw-bold">Másodlagos telefonszám</label>
-                                    <input type="tel" class="form-control" id="editPartnerAlternatePhone" name="alternatePhone">
+                                    <input type="tel" class="form-control" id="editPartnerAlternatePhone" name="AlternatePhone" />
                                 </div>
                                 <div class="col-md-6 mb-3">
                                     <label class="form-label fw-bold">Weboldal</label>
-                                    <input type="url" class="form-control" id="editPartnerWebsite" name="website">
+                                    <input type="url" class="form-control" id="editPartnerWebsite" name="Website" />
                                 </div>
                             </div>
                             <hr class="my-4">
@@ -237,27 +243,27 @@
                             <div class="row">
                                 <div class="col-md-6 mb-3">
                                     <label class="form-label fw-bold">Utca, házszám</label>
-                                    <input type="text" class="form-control" id="editPartnerAddressLine1" name="addressLine1">
+                                    <input type="text" class="form-control" id="editPartnerAddressLine1" name="AddressLine1" />
                                 </div>
                                 <div class="col-md-6 mb-3">
                                     <label class="form-label fw-bold">Kiegészítő cím</label>
-                                    <input type="text" class="form-control" id="editPartnerAddressLine2" name="addressLine2">
+                                    <input type="text" class="form-control" id="editPartnerAddressLine2" name="AddressLine2" />
                                 </div>
                                 <div class="col-md-6 mb-3">
                                     <label class="form-label fw-bold">Város</label>
-                                    <input type="text" class="form-control" id="editPartnerCity" name="city">
+                                    <input type="text" class="form-control" id="editPartnerCity" name="City" />
                                 </div>
                                 <div class="col-md-6 mb-3">
                                     <label class="form-label fw-bold">Megye</label>
-                                    <input type="text" class="form-control" id="editPartnerState" name="state">
+                                    <input type="text" class="form-control" id="editPartnerState" name="State" />
                                 </div>
                                 <div class="col-md-6 mb-3">
                                     <label class="form-label fw-bold">Irányítószám</label>
-                                    <input type="text" class="form-control" id="editPartnerPostalCode" name="postalCode">
+                                    <input type="text" class="form-control" id="editPartnerPostalCode" name="PostalCode" />
                                 </div>
                                 <div class="col-md-6 mb-3">
                                     <label class="form-label fw-bold">Ország</label>
-                                    <input type="text" class="form-control" id="editPartnerCountry" name="country">
+                                    <input type="text" class="form-control" id="editPartnerCountry" name="Country" />
                                 </div>
                             </div>
                             <hr class="my-4">
@@ -265,19 +271,24 @@
                             <div class="row">
                                 <div class="col-md-6 mb-3">
                                     <label class="form-label fw-bold">Adószám</label>
-                                    <input type="text" class="form-control" id="editPartnerTaxId" name="taxId">
+                                    <input type="text" class="form-control" id="editPartnerTaxId" name="TaxId" />
                                 </div>
                                 <div class="col-md-6 mb-3">
                                     <label class="form-label fw-bold">Nemzetközi adószám</label>
-                                    <input type="text" class="form-control" id="editPartnerIntTaxId" name="intTaxId">
+                                    <input type="text" class="form-control" id="editPartnerIntTaxId" name="IntTaxId" />
                                 </div>
                                 <div class="col-md-6 mb-3">
                                     <label class="form-label fw-bold">Iparág</label>
-                                    <input type="text" class="form-control" id="editPartnerIndustry" name="industry">
+                                    <input type="text" class="form-control" id="editPartnerIndustry" name="Industry" />
                                 </div>
                                 <div class="col-md-6 mb-3">
                                     <label class="form-label fw-bold">Státusz</label>
-                                    <input type="text" class="form-control" id="editPartnerStatus" name="status">
+                                    <select class="form-control" id="editPartnerStatus" name="StatusId" required>
+                                        @foreach (var status in Model.AvailableStatuses)
+                                        {
+                                            <option value="@status.Id">@status.Name</option>
+                                        }
+                                    </select>
                                 </div>
                             </div>
                             <hr class="my-4">
@@ -285,27 +296,27 @@
                             <div class="row">
                                 <div class="col-md-6 mb-3">
                                     <label class="form-label fw-bold">Számlázási kapcsolattartó</label>
-                                    <input type="text" class="form-control" id="editPartnerBillingContactName" name="billingContactName">
+                                    <input type="text" class="form-control" id="editPartnerBillingContactName" name="BillingContactName" />
                                 </div>
                                 <div class="col-md-6 mb-3">
                                     <label class="form-label fw-bold">Számlázási e-mail</label>
-                                    <input type="email" class="form-control" id="editPartnerBillingEmail" name="billingEmail">
+                                    <input type="email" class="form-control" id="editPartnerBillingEmail" name="BillingEmail" />
                                 </div>
                                 <div class="col-md-6 mb-3">
                                     <label class="form-label fw-bold">Fizetési feltételek</label>
-                                    <input type="text" class="form-control" id="editPartnerPaymentTerms" name="paymentTerms">
+                                    <input type="text" class="form-control" id="editPartnerPaymentTerms" name="PaymentTerms" />
                                 </div>
                                 <div class="col-md-6 mb-3">
                                     <label class="form-label fw-bold">Kredit limit</label>
-                                    <input type="number" step="0.01" class="form-control" id="editPartnerCreditLimit" name="creditLimit">
+                                    <input type="number" step="0.01" class="form-control" id="editPartnerCreditLimit" name="CreditLimit" />
                                 </div>
                                 <div class="col-md-6 mb-3">
                                     <label class="form-label fw-bold">Előnyben részesített valuta</label>
-                                    <input type="text" class="form-control" id="editPartnerPreferredCurrency" name="preferredCurrency">
+                                    <input type="text" class="form-control" id="editPartnerPreferredCurrency" name="PreferredCurrency" />
                                 </div>
                                 <div class="col-md-6 mb-3">
                                     <label class="form-label fw-bold">Adómentesség</label>
-                                    <select class="form-control" id="editPartnerIsTaxExempt" name="isTaxExempt">
+                                    <select class="form-control" id="editPartnerIsTaxExempt" name="IsTaxExempt">
                                         <option value="false">Nem</option>
                                         <option value="true">Igen</option>
                                     </select>
@@ -316,46 +327,37 @@
                             <div class="row">
                                 <div class="col-md-6 mb-3">
                                     <label class="form-label fw-bold">Értékesítő</label>
-                                    <input type="text" class="form-control" id="editPartnerAssignedTo" name="assignedTo">
+                                    <input type="text" class="form-control" id="editPartnerAssignedTo" name="AssignedTo" />
                                 </div>
                                 <div class="col-md-6 mb-3">
                                     <label class="form-label fw-bold">Partner csoport ID</label>
-                                    <input type="text" class="form-control" id="editPartnerPartnerGroupId" name="partnerGroupId">
+                                    <input type="number" class="form-control" id="editPartnerPartnerGroupId" name="PartnerGroupId" />
                                 </div>
                                 <div class="col-md-6 mb-3">
                                     <label class="form-label fw-bold">Utolsó kapcsolatfelvétel</label>
-                                    <input type="date" class="form-control" id="editPartnerLastContacted" name="lastContacted">
+                                    <input type="date" class="form-control" id="editPartnerLastContacted" name="LastContacted" />
                                 </div>
                                 <div class="col-md-12 mb-3">
                                     <label class="form-label fw-bold">Jegyzetek</label>
-                                    <textarea class="form-control" id="editPartnerNotes" name="notes"></textarea>
+                                    <textarea class="form-control" id="editPartnerNotes" name="Notes"></textarea>
                                 </div>
                             </div>
                             <button type="submit" class="btn btn-primary mt-3">Mentés</button>
                         </div>
                         <!-- Sites Tab -->
                         <div class="tab-pane fade" id="sites-edit" role="tabpanel" aria-labelledby="sites-edit-tab">
-                            <div id="sites-edit-content">
-                                <!-- Dynamic content will be populated by JavaScript -->
-                                <p style="color: red;">Debug: Sites tab loaded</p> <!-- Temporary debug -->
-                            </div>
-                            <button type="button" class="btn btn-success mt-3" id="addSiteBtn">Telephely hozzáadása</button>
+                            <div id="sites-edit-content"></div>
+                            <button type="button" class="btn btn-success mt-3" id="addSiteBtn" onclick="addSite()">Telephely hozzáadása</button>
                         </div>
                         <!-- Contacts Tab -->
                         <div class="tab-pane fade" id="contacts-edit" role="tabpanel" aria-labelledby="contacts-edit-tab">
-                            <div id="contacts-edit-content">
-                                <!-- Dynamic content will be populated by JavaScript -->
-                                <p style="color: red;">Debug: Contacts tab loaded</p> <!-- Temporary debug -->
-                            </div>
-                            <button type="button" class="btn btn-success mt-3" id="addContactBtn">Kapcsolattartó hozzáadása</button>
+                            <div id="contacts-edit-content"></div>
+                            <button type="button" class="btn btn-success mt-3" id="addContactBtn" onclick="addContact()">Kapcsolattartó hozzáadása</button>
                         </div>
                         <!-- Documents Tab -->
                         <div class="tab-pane fade" id="documents-edit" role="tabpanel" aria-labelledby="documents-edit-tab">
-                            <div id="documents-edit-content">
-                                <!-- Dynamic content will be populated by JavaScript -->
-                                <p style="color: red;">Debug: Documents tab loaded</p> <!-- Temporary debug -->
-                            </div>
-                            <button type="button" class="btn btn-success mt-3" id="addDocumentBtn">Dokumentum hozzáadása</button>
+                            <div id="documents-edit-content"></div>
+                            <button type="button" class="btn btn-success mt-3" id="addDocumentBtn" onclick="addDocument()">Dokumentum hozzáadása</button>
                         </div>
                     </div>
                 </form>
@@ -363,6 +365,35 @@
         </div>
     </div>
 </div>
+
+@section Scripts {
+    <script src="~/js/partnerModal.js"></script>
+    <script>
+        $(document).ready(function () {
+            $("#editPartnerForm").validate({
+                rules: {
+                    Name: { required: true, minlength: 1 },
+                    Email: { email: true },
+                    BillingEmail: { email: true },
+                    Website: { url: true },
+                    PreferredCurrency: { rangelength: [3, 3] },
+                    StatusId: { required: true }
+                },
+                messages: {
+                    Name: "A név megadása kötelező",
+                    Email: "Érvénytelen email cím",
+                    BillingEmail: "Érvénytelen számlázási email cím",
+                    Website: "Érvénytelen weboldal URL",
+                    PreferredCurrency: "Az alap valuta pontosan 3 karakter hosszú kell legyen (pl. USD)",
+                    StatusId: "Státusz kiválasztása kötelező"
+                },
+                errorElement: "span",
+                errorClass: "text-danger"
+            });
+        });
+        
+    </script>
+}
 
 
 <!-- View Partner Modal -->
@@ -540,8 +571,162 @@
   </div>
 </div>
 
+<!-- Create Partner Modal -->
+<div class="modal fade" id="createPartnerModal" tabindex="-1" aria-labelledby="createPartnerModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="createPartnerModalLabel">Új Partner</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="createPartnerForm" method="post" asp-page-handler="Create">
+                    <div class="mb-3">
+                        <label for="partnerName" class="form-label">Name</label>
+                        <input type="text" class="form-control" id="partnerName" name="Name" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="partnerEmail" class="form-label">Email</label>
+                        <input type="email" class="form-control" id="partnerEmail" name="Email">
+                    </div>
+                    <!-- Add other fields as needed -->
+                    <button type="submit" class="btn btn-primary">Create</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Dynamic Modals for Each Partner -->
+@foreach (var item in Model.Partners)
+{
 
 
+    <!-- New Site Modal -->
+    <div class="modal fade" id="newSiteModal_@item.PartnerId" tabindex="-1" aria-labelledby="newSiteModalLabel_@item.PartnerId" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="newSiteModalLabel_@item.PartnerId">Új Telephely</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="newSiteForm_@item.PartnerId" method="post" asp-page-handler="NewSite">
+                        <input type="hidden" name="PartnerId" value="@item.PartnerId">
+                        <div class="mb-3">
+                            <label for="siteName_@item.PartnerId" class="form-label">Site Name</label>
+                            <input type="text" class="form-control" id="siteName_@item.PartnerId" name="SiteName" required>
+                        </div>
+                        <!-- Add other fields as needed -->
+                        <button type="submit" class="btn btn-primary">Create</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- New Contact Modal -->
+    <div class="modal fade" id="newContactModal_@item.PartnerId" tabindex="-1" aria-labelledby="newContactModalLabel_@item.PartnerId" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="newContactModalLabel_@item.PartnerId">Új Kontakt</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="newContactForm_@item.PartnerId" method="post" asp-page-handler="NewContact">
+                        <input type="hidden" name="PartnerId" value="@item.PartnerId">
+                        <div class="mb-3">
+                            <label for="contactName_@item.PartnerId" class="form-label">Contact Name</label>
+                            <input type="text" class="form-control" id="contactName_@item.PartnerId" name="ContactName" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="contactEmail_@item.PartnerId" class="form-label">Email</label>
+                            <input type="email" class="form-control" id="contactEmail_@item.PartnerId" name="ContactEmail">
+                        </div>
+                        <!-- Add other fields as needed -->
+                        <button type="submit" class="btn btn-primary">Create</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- New Document Modal -->
+    <div class="modal fade" id="newDocumentModal_@item.PartnerId" tabindex="-1" aria-labelledby="newDocumentModalLabel_@item.PartnerId" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="newDocumentModalLabel_@item.PartnerId">Új Dokumentum</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="newDocumentForm_@item.PartnerId" method="post" asp-page-handler="NewDocument">
+                        <input type="hidden" name="PartnerId" value="@item.PartnerId">
+                        <div class="mb-3">
+                            <label for="documentName_@item.PartnerId" class="form-label">Document Name</label>
+                            <input type="text" class="form-control" id="documentName_@item.PartnerId" name="DocumentName" required>
+                        </div>
+                        <!-- Add other fields as needed -->
+                        <button type="submit" class="btn btn-primary">Create</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<div class="modal fade" id="deletePartnerModal" tabindex="-1" aria-labelledby="deletePartnerModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="deletePartnerModalLabel">Partner törlése</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Biztosan törölni szeretné a(z) <span id="deletePartnerName"></span> partnert?</p>
+                <input type="hidden" id="deletePartnerId">
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Mégse</button>
+                <button type="button" class="btn btn-danger" id="confirmDeletePartnerBtn">Törlés</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+@foreach (var item in Model.Partners)
+{
+    <div class="modal fade" id="changeStatusModal_@item.PartnerId" tabindex="-1" aria-labelledby="changeStatusModalLabel_@item.PartnerId" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="changeStatusModalLabel_@item.PartnerId">Státusz módosítás - @item.Name</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <form asp-page="/CRM/Partners/Index" asp-page-handler="ChangeStatus" method="post">
+                    <div>
+                        <input type="hidden" name="PartnerId" value="@item.PartnerId" />
+                        <div class="mb-3">
+                            <label for="statusSelect_@item.PartnerId" class="form-label"></label>
+                            <select class="form-select" id="statusSelect_@item.PartnerId" name="NewStatusId" required>
+                                @foreach (var status in Model.AvailableStatuses) // Assumes AvailableStatuses is in the model
+                                {
+                                    <option value="@status.Id" selected="@(status.Id == item.Status?.Id)">@status.Name</option>
+                                }
+                            </select>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                        <button type="submit" class="btn btn-primary">Save Changes</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+}
 
 <style>
 .modal-body {

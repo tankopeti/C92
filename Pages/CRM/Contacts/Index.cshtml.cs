@@ -172,12 +172,12 @@ namespace Cloud9_2.Pages.CRM.Contacts
             {
                 _context.Contacts.Add(contact);
                 await _context.SaveChangesAsync();
-                TempData["SuccessMessage"] = "Contact created successfully";
+                TempData["SuccessMessage"] = "Kontakt sikeresen létrehozva";
             }
             catch (DbUpdateException ex)
             {
-                _logger.LogError(ex, "Error creating contact");
-                TempData["ErrorMessage"] = "Error creating contact";
+                _logger.LogError(ex, "Hiba történt a kontakt létrehozása során");
+                TempData["ErrorMessage"] = "Hiba történt a kontakt létrehozása során";
                 return Page();
             }
 
@@ -205,12 +205,12 @@ namespace Cloud9_2.Pages.CRM.Contacts
             try
             {
                 await _context.SaveChangesAsync();
-                TempData["SuccessMessage"] = "Contact updated successfully";
+                TempData["SuccessMessage"] = "Kontakt sikeresen módosítva";
             }
             catch (DbUpdateException ex)
             {
-                _logger.LogError(ex, "Error updating contact");
-                TempData["ErrorMessage"] = "Error updating contact";
+                _logger.LogError(ex, "Hiba történt a kontakt módosítása során");
+                TempData["ErrorMessage"] = "Hiba történt a kontakt módosítása során";
             }
 
             return RedirectToPage();
@@ -228,12 +228,12 @@ namespace Cloud9_2.Pages.CRM.Contacts
             {
                 _context.Contacts.Remove(contact);
                 await _context.SaveChangesAsync();
-                TempData["SuccessMessage"] = "Contact deleted successfully";
+                TempData["SuccessMessage"] = "Kontakt sikeresen törölve";
             }
             catch (DbUpdateException ex)
             {
-                _logger.LogError(ex, "Error deleting contact");
-                TempData["ErrorMessage"] = "Error deleting contact";
+                _logger.LogError(ex, "Hiba történt a kontakt törlése során");
+                TempData["ErrorMessage"] = "Hiba történt a kontakt törlése során";
             }
 
             return RedirectToPage();

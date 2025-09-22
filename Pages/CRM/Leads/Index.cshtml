@@ -28,8 +28,8 @@
         <!-- Header with Buttons and Search -->
         <div class="d-flex justify-content-between align-items-center mb-3">
             <div class="d-flex align-items-center gap-2">
-                <button type="button" class="btn-new" data-bs-toggle="modal" data-bs-target="#newLeadModal">
-                    <i class="bi bi-plus-circle me-1"></i>New Lead
+                <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#newLeadModal">
+                    + Új Lead
                 </button>
             </div>
             <div class="d-flex align-items-center gap-2">
@@ -39,6 +39,12 @@
                     <button class="btn btn-outline-secondary" type="submit">
                         <i class="bi bi-search"></i>
                     </button>
+                    @if (!string.IsNullOrEmpty(Model.SearchTerm))
+                    {
+                        <a href="@Url.Page("./Index")" class="btn btn-outline-danger btn-sm">
+                            <i class="bi bi-x"></i>
+                        </a>
+                    }
                 </form>
                 <div class="dropdown">
                     <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown">
@@ -54,121 +60,133 @@
             </div>
         </div>
 
-        <!-- Card Grid Header -->
-        <div class="card-grid-header">
-            <div class="card-grid-row">
-                <div class="card-grid-column lead-name-col">Name</div>
-                <div class="card-grid-column lead-email-col">Email</div>
-                <div class="card-grid-column lead-phone-col">Phone</div>
-                <div class="card-grid-column lead-company-col">Company</div>
-                <div class="card-grid-column lead-status-col">Status</div>
-                <div class="card-grid-column actions-column">Actions</div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Card Grid Body -->
-    <div class="scrollable-card-container">
-        <div class="card-grid-body">
-            @if (Model.Leads.Any())
-            {
-                @foreach (var lead in Model.Leads)
-                {
-                    <div class="card partner-card mb-3" data-lead-id="@lead.LeadId">
-                        <div class="card-body p-2">
-                            <div class="card-grid-row align-items-center">
-                                <div class="card-grid-cell lead-name-col">
-                                    <div class="lead-info">
-                                        <div class="fw-bold">@lead.FirstName @lead.LastName</div>
-                                    </div>
-                                </div>
-                                <div class="card-grid-cell lead-email-col">
-                                    <div class="lead-email text-muted small">
-                                        <i class="bi bi-envelope me-1"></i>@lead.Email
-                                    </div>
-                                </div>
-                                <div class="card-grid-cell lead-phone-col">
-                                    <div class="lead-phone text-muted small">
-                                        <i class="bi bi-telephone me-1"></i>@lead.PhoneNumber
-                                    </div>
-                                </div>
-                                <div class="card-grid-cell lead-company-col">
-                                    <div class="lead-company text-muted small">
-                                        <i class="bi bi-building me-1"></i>@lead.CompanyName
-                                    </div>
-                                </div>
-                                <div class="card-grid-cell lead-status-col">
+        <!-- Table -->
+        <div class="table-responsive" style="max-height: 70vh; overflow-y: auto;">
+            <table class="table table-striped table-hover">
+                <thead class="sticky-top custom-thead">
+                    <tr>
+                        @foreach (var column in new[] { "Name", "Email", "PhoneNumber", "CompanyName", "Status" })
+                        {
+                            <th class="text-nowrap">@(column == "CompanyName" ? "Company" : column)</th>
+                        }
+                        <th class="text-nowrap">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (Model.Leads.Any())
+                    {
+                        @foreach (var lead in Model.Leads)
+                        {
+                            <tr>
+                                <td class="text-nowrap">@lead.FirstName @lead.LastName</td>
+                                <td class="text-nowrap"><i class="bi bi-envelope me-1"></i>@lead.Email</td>
+                                <td class="text-nowrap"><i class="bi bi-telephone me-1"></i>@lead.PhoneNumber</td>
+                                <td class="text-nowrap"><i class="bi bi-building me-1"></i>@lead.CompanyName</td>
+                                <td class="text-nowrap">
                                     @{
                                         var badgeClass = "badge bg-secondary";
-                                        if (lead.Status == "New") badgeClass = "badge badge-new";
-                                        else if (lead.Status == "Contacted") badgeClass = "badge badge-contacted";
-                                        else if (lead.Status == "Qualified") badgeClass = "badge badge-qualified";
+                                        if (lead.Status == "New") badgeClass = "badge bg-primary";
+                                        else if (lead.Status == "Contacted") badgeClass = "badge bg-warning";
+                                        else if (lead.Status == "Qualified") badgeClass = "badge bg-success";
                                     }
                                     <span class="@badgeClass">@lead.Status</span>
                                     @if (lead.PartnerId.HasValue)
                                     {
                                         <span class="badge bg-success ms-1" title="Converted to Partner">Partner</span>
                                     }
-                                </div>
+                                </td>
+                                <td>
                                     <div class="btn-group btn-group-sm" role="group">
-                                    <button type="button" class="btn btn-outline-info btn-sm view-lead-btn"
-                                            data-bs-toggle="modal"
-                                            data-bs-target="#viewLeadModal_@lead.LeadId"
-                                            data-bs-placement="top"
-                                            data-bs-title="View History"
-                                            onclick="loadHistory(@lead.LeadId); showHistoryTab('@lead.LeadId')">
-                                        <i class="bi bi-clock-history"></i>
-                                    </button>
-                                        
-                                        <!-- Action Dropdown -->
+                                        <button type="button"
+                                                class="btn btn-outline-info view-lead-btn"
+                                                data-lead-id="@lead.LeadId"
+                                                data-bs-toggle="modal"
+                                                data-bs-target="#viewLeadModal_@lead.LeadId"
+                                                data-bs-placement="top"
+                                                data-bs-title="View History"
+                                                onclick="loadHistory(@lead.LeadId); showHistoryTab('@lead.LeadId')">
+                                            <i class="bi bi-clock-history"></i>
+                                        </button>
                                         <div class="dropdown">
-                                            <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button"
+                                            <button class="btn btn-outline-secondary dropdown-toggle btn-sm" type="button"
                                                     id="actionsDropdown_@lead.LeadId"
-                                                    data-bs-toggle="dropdown" 
+                                                    data-bs-toggle="dropdown"
                                                     aria-expanded="false"
+                                                    data-bs-toggle="tooltip"
                                                     data-bs-placement="top"
                                                     data-bs-title="More Actions">
                                                 <i class="bi bi-three-dots-vertical"></i>
                                             </button>
                                             <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="actionsDropdown_@lead.LeadId">
-                                                <li><a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#editLeadModal_@lead.LeadId"><i class="bi bi-pencil-square me-2"></i>Szerkesztés</a></li>
-                                                <li><a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#viewLeadModal_@lead.LeadId" onclick="loadHistory(@lead.LeadId); showHistoryTab('@lead.LeadId')"><i class="bi bi-clock-history me-2"></i>Előzmények</a></li>
-                                                <li><a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#newPartnerModal"
-                                                    data-lead-id="@lead.LeadId"
-                                                    data-lead-firstname="@lead.FirstName"
-                                                    data-lead-lastname="@lead.LastName"
-                                                    data-lead-email="@lead.Email"
-                                                    data-lead-phone="@lead.PhoneNumber"
-                                                    data-lead-company="@lead.CompanyName"
-                                                    data-lead-jobtitle="@lead.JobTitle"
-                                                    data-lead-notes="@lead.Notes"><i class="bi bi-person-plus me-2"></i>Új Partner</a></li>
+                                                <li>
+                                                    <a class="dropdown-item" href="#"
+                                                       data-bs-toggle="modal"
+                                                       data-bs-target="#editLeadModal_@lead.LeadId">
+                                                        <i class="bi bi-pencil-square me-2"></i>Szerkesztés
+                                                    </a>
+                                                </li>
+                                                <li>
+                                                    <a class="dropdown-item" href="#"
+                                                       data-bs-toggle="modal"
+                                                       data-bs-target="#viewLeadModal_@lead.LeadId"
+                                                       onclick="loadHistory(@lead.LeadId); showHistoryTab('@lead.LeadId')">
+                                                        <i class="bi bi-clock-history me-2"></i>Előzmények
+                                                    </a>
+                                                </li>
+                                                <li>
+                                                    <a class="dropdown-item" href="#"
+                                                       data-bs-toggle="modal"
+                                                       data-bs-target="#newPartnerModal"
+                                                       data-lead-id="@lead.LeadId"
+                                                       data-lead-firstname="@lead.FirstName"
+                                                       data-lead-lastname="@lead.LastName"
+                                                       data-lead-email="@lead.Email"
+                                                       data-lead-phone="@lead.PhoneNumber"
+                                                       data-lead-company="@lead.CompanyName"
+                                                       data-lead-jobtitle="@lead.JobTitle"
+                                                       data-lead-notes="@lead.Notes">
+                                                        <i class="bi bi-person-plus me-2"></i>Új Partner
+                                                    </a>
+                                                </li>
                                                 <li><hr class="dropdown-divider"></li>
-                                                <li><a class="dropdown-item text-danger" href="#" data-bs-toggle="modal" data-bs-target="#deleteLeadModal_@lead.LeadId"><i class="bi bi-trash me-2"></i>Törlés</a></li>
+                                                <li>
+                                                    <a class="dropdown-item text-danger" href="#"
+                                                       data-bs-toggle="modal"
+                                                       data-bs-target="#deleteLeadModal_@lead.LeadId"
+                                                       data-lead-id="@lead.LeadId"
+                                                       data-lead-name="@lead.FirstName @lead.LastName">
+                                                        <i class="bi bi-trash me-2"></i>Törlés
+                                                    </a>
+                                                </li>
                                             </ul>
                                         </div>
                                     </div>
-                            </div>
-                        </div>
-                    </div>
-                }
-            }
-            else
-            {
-                <div class="alert alert-warning text-center mt-3" role="alert">
-                    @if (!string.IsNullOrEmpty(Model.SearchTerm))
-                    {
-                        @:No leads found matching "@Model.SearchTerm".
+                                </td>
+                            </tr>
+                        }
                     }
                     else
                     {
-                        @:No leads found. <button type="button" class="btn btn-link alert-link p-0 align-baseline" data-bs-toggle="modal" data-bs-target="#newLeadModal">Create the first one?</button>
+                        <tr>
+                            <td colspan="6" class="text-center">
+                                <div class="alert alert-warning" role="alert">
+                                    @if (!string.IsNullOrEmpty(Model.SearchTerm))
+                                    {
+                                        @:No leads found matching "@Model.SearchTerm".
+                                    }
+                                    else
+                                    {
+                                        @:No leads found. <button type="button" class="btn btn-link alert-link p-0 align-baseline" data-bs-toggle="modal" data-bs-target="#newLeadModal">Create the first one?</button>
+                                    }
+                                </div>
+                            </td>
+                        </tr>
                     }
-                </div>
-            }
+                </tbody>
+            </table>
         </div>
-    </div>
 
-    <!-- Pagination Footer -->
+        <!-- Pagination Footer -->
         @await Html.PartialAsync("_PaginationFooter", new PaginationViewModel
         {
             CurrentPage = Model.CurrentPage,
@@ -178,179 +196,79 @@
             PageRoute = "./Index",
             EntityName = "Leads"
         })
-        </div>
-
-<!-- New Lead Modal -->
-<div class="modal fade" id="newLeadModal" tabindex="-1" aria-labelledby="newLeadModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="newLeadModalLabel">Új Lead</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <form method="post" asp-page-handler="CreateLead" class="needs-validation" novalidate>
-                    <ul class="nav nav-tabs" id="newLeadTabs" role="tablist">
-                        <li class="nav-item" role="presentation">
-                            <button class="nav-link active" id="basic-tab" data-bs-toggle="tab" data-bs-target="#basic" type="button" role="tab" aria-controls="basic" aria-selected="true">Basic Info</button>
-                        </li>
-                        <li class="nav-item" role="presentation">
-                            <button class="nav-link" id="details-tab" data-bs-toggle="tab" data-bs-target="#details" type="button" role="tab" aria-controls="details" aria-selected="false">Details</button>
-                        </li>
-                    </ul>
-                    <div class="tab-content mt-3">
-                        <!-- Basic Info Tab -->
-                        <div class="tab-pane fade show active" id="basic" role="tabpanel" aria-labelledby="basic-tab">
-                            <div class="row g-3">
-                                <div class="col-md-6">
-                                    <label for="newLeadFirstName" class="form-label">Keresztnév <span class="text-danger">*</span></label>
-                                    <input type="text" class="form-control" id="newLeadFirstName" name="firstName" required>
-                                    <div class="invalid-feedback">Keresztnév megadása kötelező.</div>
-                                </div>
-                                <div class="col-md-6">
-                                    <label for="newLeadLastName" class="form-label">Vezetéknév <span class="text-danger">*</span></label>
-                                    <input type="text" class="form-control" id="newLeadLastName" name="lastName" required>
-                                    <div class="invalid-feedback">Vezetéknév megadása kötelező.</div>
-                                </div>
-                                <div class="col-md-6">
-                                    <label for="newLeadEmail" class="form-label">Email</label>
-                                    <input type="email" class="form-control" id="newLeadEmail" name="email">
-                                    <div class="invalid-feedback">Érvényes email cím szükséges.</div>
-                                </div>
-                                <div class="col-md-6">
-                                    <label for="newLeadPhoneNumber" class="form-label">Telefonszám</label>
-                                    <input type="tel" class="form-control" id="newLeadPhoneNumber" name="phoneNumber">
-                                </div>
-                            </div>
-                        </div>
-                        <!-- Details Tab -->
-                        <div class="tab-pane fade" id="details" role="tabpanel" aria-labelledby="details-tab">
-                            <div class="row g-3">
-                                <div class="col-md-6">
-                                    <label for="newLeadCompanyName" class="form-label">Cég</label>
-                                    <input type="text" class="form-control" id="newLeadCompanyName" name="companyName">
-                                </div>
-                                <div class="col-md-6">
-                                    <label for="newLeadJobTitle" class="form-label">Beosztás</label>
-                                    <input type="text" class="form-control" id="newLeadJobTitle" name="jobTitle">
-                                </div>
-                                <div class="col-md-6">
-                                    <label for="newLeadStatus" class="form-label">Státusz</label>
-                                    <select class="form-select" id="newLeadStatus" name="status">
-                                        <option value="New">Új</option>
-                                        <option value="Contacted">Kapcsolatfelvétel</option>
-                                        <option value="Qualified">Minősített</option>
-                                    </select>
-                                </div>
-                                <div class="col-12">
-                                    <label for="newLeadNotes" class="form-label">Jegyzetek</label>
-                                    <textarea class="form-control" id="newLeadNotes" name="notes" rows="4"></textarea>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="mt-3">
-                        <button type="submit" class="btn btn-primary">Lead mentése</button>
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Mégse</button>
-                    </div>
-                </form>
-            </div>
-        </div>
     </div>
-</div>
 
-<!-- Edit Lead Modals -->
-@foreach (var lead in Model.Leads)
-{
-    <div class="modal fade" id="editLeadModal_@lead.LeadId" tabindex="-1" aria-labelledby="editLeadModalLabel_@lead.LeadId" aria-hidden="true">
+    <!-- New Lead Modal -->
+    <div class="modal fade" id="newLeadModal" tabindex="-1" aria-labelledby="newLeadModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title" id="editLeadModalLabel_@lead.LeadId">Edit Lead: @lead.FirstName @lead.LastName</h5>
+                    <h5 class="modal-title" id="newLeadModalLabel">Új Lead</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
-                    <form method="post" asp-page-handler="EditLead" class="needs-validation" novalidate>
-                        <input type="hidden" name="leadId" value="@lead.LeadId" />
-                        <ul class="nav nav-tabs" id="editLeadTabs_@lead.LeadId" role="tablist">
+                    <form method="post" asp-page-handler="CreateLead" class="needs-validation" novalidate>
+                        <ul class="nav nav-tabs" id="newLeadTabs" role="tablist">
                             <li class="nav-item" role="presentation">
-                                <button class="nav-link active" id="basic-tab_@lead.LeadId" data-bs-toggle="tab" data-bs-target="#basic_@lead.LeadId" type="button" role="tab" aria-controls="basic_@lead.LeadId" aria-selected="true">Basic Info</button>
+                                <button class="nav-link active" id="basic-tab" data-bs-toggle="tab" data-bs-target="#basic" type="button" role="tab" aria-controls="basic" aria-selected="true">Basic Info</button>
                             </li>
                             <li class="nav-item" role="presentation">
-                                <button class="nav-link" id="details-tab_@lead.LeadId" data-bs-toggle="tab" data-bs-target="#details_@lead.LeadId" type="button" role="tab" aria-controls="details_@lead.LeadId" aria-selected="false">Details</button>
+                                <button class="nav-link" id="details-tab" data-bs-toggle="tab" data-bs-target="#details" type="button" role="tab" aria-controls="details" aria-selected="false">Details</button>
                             </li>
-                            @if (lead.PartnerId.HasValue)
-                            {
-                                <li class="nav-item" role="presentation">
-                                    <button class="nav-link" id="partner-tab_@lead.LeadId" data-bs-toggle="tab" data-bs-target="#partner_@lead.LeadId" type="button" role="tab" aria-controls="partner_@lead.LeadId" aria-selected="false">Partner</button>
-                                </li>
-                            }
                         </ul>
-                        <div class="tab-content mt-3" id="editLeadTabContent_@lead.LeadId">
+                        <div class="tab-content mt-3">
                             <!-- Basic Info Tab -->
-                            <div class="tab-pane fade show active" id="basic_@lead.LeadId" role="tabpanel" aria-labelledby="basic-tab_@lead.LeadId">
+                            <div class="tab-pane fade show active" id="basic" role="tabpanel" aria-labelledby="basic-tab">
                                 <div class="row g-3">
                                     <div class="col-md-6">
-                                        <label for="editLeadFirstName_@lead.LeadId" class="form-label">Keresztnév <span class="text-danger">*</span></label>
-                                        <input type="text" class="form-control" id="editLeadFirstName_@lead.LeadId" name="firstName" value="@lead.FirstName" required>
+                                        <label for="newLeadFirstName" class="form-label">Keresztnév <span class="text-danger">*</span></label>
+                                        <input type="text" class="form-control" id="newLeadFirstName" name="firstName" required>
                                         <div class="invalid-feedback">Keresztnév megadása kötelező.</div>
                                     </div>
                                     <div class="col-md-6">
-                                        <label for="editLeadLastName_@lead.LeadId" class="form-label">Vezetéknév <span class="text-danger">*</span></label>
-                                        <input type="text" class="form-control" id="editLeadLastName_@lead.LeadId" name="lastName" value="@lead.LastName" required>
+                                        <label for="newLeadLastName" class="form-label">Vezetéknév <span class="text-danger">*</span></label>
+                                        <input type="text" class="form-control" id="newLeadLastName" name="lastName" required>
                                         <div class="invalid-feedback">Vezetéknév megadása kötelező.</div>
                                     </div>
                                     <div class="col-md-6">
-                                        <label for="editLeadEmail_@lead.LeadId" class="form-label">Email</label>
-                                        <input type="email" class="form-control" id="editLeadEmail_@lead.LeadId" name="email" value="@lead.Email">
+                                        <label for="newLeadEmail" class="form-label">Email</label>
+                                        <input type="email" class="form-control" id="newLeadEmail" name="email">
                                         <div class="invalid-feedback">Érvényes email cím szükséges.</div>
                                     </div>
                                     <div class="col-md-6">
-                                        <label for="editLeadPhoneNumber_@lead.LeadId" class="form-label">Telefonszám</label>
-                                        <input type="tel" class="form-control" id="editLeadPhoneNumber_@lead.LeadId" name="phoneNumber" value="@lead.PhoneNumber">
+                                        <label for="newLeadPhoneNumber" class="form-label">Telefonszám</label>
+                                        <input type="tel" class="form-control" id="newLeadPhoneNumber" name="phoneNumber">
                                     </div>
                                 </div>
                             </div>
                             <!-- Details Tab -->
-                            <div class="tab-pane fade" id="details_@lead.LeadId" role="tabpanel" aria-labelledby="details-tab_@lead.LeadId">
+                            <div class="tab-pane fade" id="details" role="tabpanel" aria-labelledby="details-tab">
                                 <div class="row g-3">
                                     <div class="col-md-6">
-                                        <label for="editLeadCompanyName_@lead.LeadId" class="form-label">Cég</label>
-                                        <input type="text" class="form-control" id="editLeadCompanyName_@lead.LeadId" name="companyName" value="@lead.CompanyName">
+                                        <label for="newLeadCompanyName" class="form-label">Cég</label>
+                                        <input type="text" class="form-control" id="newLeadCompanyName" name="companyName">
                                     </div>
                                     <div class="col-md-6">
-                                        <label for="editLeadJobTitle_@lead.LeadId" class="form-label">Beosztás</label>
-                                        <input type="text" class="form-control" id="editLeadJobTitle_@lead.LeadId" name="jobTitle" value="@lead.JobTitle">
+                                        <label for="newLeadJobTitle" class="form-label">Beosztás</label>
+                                        <input type="text" class="form-control" id="newLeadJobTitle" name="jobTitle">
                                     </div>
                                     <div class="col-md-6">
-                                        <label for="editLeadStatus_@lead.LeadId" class="form-label">Státusz</label>
-                                        <select class="form-select" id="editLeadStatus_@lead.LeadId" name="status">
-                                            <option value="New" selected="@(lead.Status == "New")">Új</option>
-                                            <option value="Contacted" selected="@(lead.Status == "Contacted")">Kapcsolatfelvétel</option>
-                                            <option value="Qualified" selected="@(lead.Status == "Qualified")">Minősített</option>
+                                        <label for="newLeadStatus" class="form-label">Státusz</label>
+                                        <select class="form-select" id="newLeadStatus" name="status">
+                                            <option value="New">Új</option>
+                                            <option value="Contacted">Kapcsolatfelvétel</option>
+                                            <option value="Qualified">Minősített</option>
                                         </select>
                                     </div>
                                     <div class="col-12">
-                                        <label for="editLeadNotes_@lead.LeadId" class="form-label">Jegyzetek</label>
-                                        <textarea class="form-control" id="editLeadNotes_@lead.LeadId" name="notes" rows="4">@lead.Notes</textarea>
+                                        <label for="newLeadNotes" class="form-label">Jegyzetek</label>
+                                        <textarea class="form-control" id="newLeadNotes" name="notes" rows="4"></textarea>
                                     </div>
                                 </div>
                             </div>
-                            <!-- Partner Tab (if applicable) -->
-                            @if (lead.PartnerId.HasValue)
-                            {
-                                <div class="tab-pane fade" id="partner_@lead.LeadId" role="tabpanel" aria-labelledby="partner-tab_@lead.LeadId">
-                                    <div class="row g-3">
-                                        <div class="col-md-6">
-                                            <label for="editLeadPartnerId_@lead.LeadId" class="form-label">Partner ID</label>
-                                            <input type="text" class="form-control" id="editLeadPartnerId_@lead.LeadId" value="@lead.PartnerId" disabled>
-                                        </div>
-                                    </div>
-                                </div>
-                            }
                         </div>
                         <div class="mt-3">
-                            <button type="submit" class="btn btn-primary">Változtatások mentése</button>
+                            <button type="submit" class="btn btn-primary">Lead mentése</button>
                             <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Mégse</button>
                         </div>
                     </form>
@@ -358,116 +276,222 @@
             </div>
         </div>
     </div>
-}
 
-<!-- View Lead Modals -->
-@foreach (var lead in Model.Leads)
-{
-    <div class="modal fade" id="viewLeadModal_@lead.LeadId" tabindex="-1" aria-labelledby="viewLeadModalLabel_@lead.LeadId" aria-hidden="true">
-        <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="viewLeadModalLabel_@lead.LeadId">Details for @lead.FirstName @lead.LastName</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+    <!-- Edit Lead Modals -->
+    @foreach (var lead in Model.Leads)
+    {
+        <div class="modal fade" id="editLeadModal_@lead.LeadId" tabindex="-1" aria-labelledby="editLeadModalLabel_@lead.LeadId" aria-hidden="true">
+            <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="editLeadModalLabel_@lead.LeadId">Edit Lead: @lead.FirstName @lead.LastName</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <form method="post" asp-page-handler="EditLead" class="needs-validation" novalidate>
+                            <input type="hidden" name="leadId" value="@lead.LeadId" />
+                            <ul class="nav nav-tabs" id="editLeadTabs_@lead.LeadId" role="tablist">
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link active" id="basic-tab_@lead.LeadId" data-bs-toggle="tab" data-bs-target="#basic_@lead.LeadId" type="button" role="tab" aria-controls="basic_@lead.LeadId" aria-selected="true">Basic Info</button>
+                                </li>
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link" id="details-tab_@lead.LeadId" data-bs-toggle="tab" data-bs-target="#details_@lead.LeadId" type="button" role="tab" aria-controls="details_@lead.LeadId" aria-selected="false">Details</button>
+                                </li>
+                                @if (lead.PartnerId.HasValue)
+                                {
+                                    <li class="nav-item" role="presentation">
+                                        <button class="nav-link" id="partner-tab_@lead.LeadId" data-bs-toggle="tab" data-bs-target="#partner_@lead.LeadId" type="button" role="tab" aria-controls="partner_@lead.LeadId" aria-selected="false">Partner</button>
+                                    </li>
+                                }
+                            </ul>
+                            <div class="tab-content mt-3" id="editLeadTabContent_@lead.LeadId">
+                                <!-- Basic Info Tab -->
+                                <div class="tab-pane fade show active" id="basic_@lead.LeadId" role="tabpanel" aria-labelledby="basic-tab_@lead.LeadId">
+                                    <div class="row g-3">
+                                        <div class="col-md-6">
+                                            <label for="editLeadFirstName_@lead.LeadId" class="form-label">Keresztnév <span class="text-danger">*</span></label>
+                                            <input type="text" class="form-control" id="editLeadFirstName_@lead.LeadId" name="firstName" value="@lead.FirstName" required>
+                                            <div class="invalid-feedback">Keresztnév megadása kötelező.</div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label for="editLeadLastName_@lead.LeadId" class="form-label">Vezetéknév <span class="text-danger">*</span></label>
+                                            <input type="text" class="form-control" id="editLeadLastName_@lead.LeadId" name="lastName" value="@lead.LastName" required>
+                                            <div class="invalid-feedback">Vezetéknév megadása kötelező.</div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label for="editLeadEmail_@lead.LeadId" class="form-label">Email</label>
+                                            <input type="email" class="form-control" id="editLeadEmail_@lead.LeadId" name="email" value="@lead.Email">
+                                            <div class="invalid-feedback">Érvényes email cím szükséges.</div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label for="editLeadPhoneNumber_@lead.LeadId" class="form-label">Telefonszám</label>
+                                            <input type="tel" class="form-control" id="editLeadPhoneNumber_@lead.LeadId" name="phoneNumber" value="@lead.PhoneNumber">
+                                        </div>
+                                    </div>
+                                </div>
+                                <!-- Details Tab -->
+                                <div class="tab-pane fade" id="details_@lead.LeadId" role="tabpanel" aria-labelledby="details-tab_@lead.LeadId">
+                                    <div class="row g-3">
+                                        <div class="col-md-6">
+                                            <label for="editLeadCompanyName_@lead.LeadId" class="form-label">Cég</label>
+                                            <input type="text" class="form-control" id="editLeadCompanyName_@lead.LeadId" name="companyName" value="@lead.CompanyName">
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label for="editLeadJobTitle_@lead.LeadId" class="form-label">Beosztás</label>
+                                            <input type="text" class="form-control" id="editLeadJobTitle_@lead.LeadId" name="jobTitle" value="@lead.JobTitle">
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label for="editLeadStatus_@lead.LeadId" class="form-label">Státusz</label>
+                                            <select class="form-select" id="editLeadStatus_@lead.LeadId" name="status">
+                                                <option value="New" selected="@(lead.Status == "New")">Új</option>
+                                                <option value="CONTACTED" selected="@(lead.Status == "Contacted")">Kapcsolatfelvétel</option>
+                                                <option value="QUALIFIED" selected="@(lead.Status == "Qualified")">Minősített</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-12">
+                                            <label for="editLeadNotes_@lead.LeadId" class="form-label">Jegyzetek</label>
+                                            <textarea class="form-control" id="editLeadNotes_@lead.LeadId" name="notes" rows="4">@lead.Notes</textarea>
+                                        </div>
+                                    </div>
+                                </div>
+                                <!-- Partner Tab (if applicable) -->
+                                @if (lead.PartnerId.HasValue)
+                                {
+                                    <div class="tab-pane fade" id="partner_@lead.LeadId" role="tabpanel" aria-labelledby="partner-tab_@lead.LeadId">
+                                        <div class="row g-3">
+                                            <div class="col-md-6">
+                                                <label for="editLeadPartnerId_@lead.LeadId" class="form-label">Partner ID</label>
+                                                <input type="text" class="form-control" id="editLeadPartnerId_@lead.LeadId" value="@lead.PartnerId" disabled>
+                                            </div>
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+                            <div class="mt-3">
+                                <button type="submit" class="btn btn-primary">Változtatások mentése</button>
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Mégse</button>
+                            </div>
+                        </form>
+                    </div>
                 </div>
-                <div class="modal-body">
-                    <ul class="nav nav-tabs" id="viewLeadTabs_@lead.LeadId" role="tablist">
-                        <li class="nav-item" role="presentation">
-                            <button class="nav-link active" id="info-tab_@lead.LeadId" data-bs-toggle="tab" data-bs-target="#info_@lead.LeadId" type="button" role="tab" aria-controls="info_@lead.LeadId" aria-selected="true">Info</button>
-                        </li>
-                        <li class="nav-item" role="presentation">
-                            <button class="nav-link" id="history-tab_@lead.LeadId" data-bs-toggle="tab" data-bs-target="#history_@lead.LeadId" type="button" role="tab" aria-controls="history_@lead.LeadId" aria-selected="false">History</button>
-                        </li>
-                    </ul>
-                    <div class="tab-content mt-3" id="viewLeadTabContent_@lead.LeadId">
-                        <!-- Info Tab -->
-                        <div class="tab-pane fade show active" id="info_@lead.LeadId" role="tabpanel" aria-labelledby="info-tab_@lead.LeadId">
-                            <table class="table table-sm">
-                                <tbody>
-                                    <tr>
-                                        <th>Név</th>
-                                        <td>@lead.FirstName @lead.LastName</td>
-                                    </tr>
-                                    <tr>
-                                        <th>Email</th>
-                                        <td>@lead.Email</td>
-                                    </tr>
-                                    <tr>
-                                        <th>Telefonszám</th>
-                                        <td>@lead.PhoneNumber</td>
-                                    </tr>
-                                    <tr>
-                                        <th>Cég</th>
-                                        <td>@lead.CompanyName</td>
-                                    </tr>
-                                    <tr>
-                                        <th>Beosztás</th>
-                                        <td>@lead.JobTitle</td>
-                                    </tr>
-                                    <tr>
-                                        <th>Státusz</th>
-                                        <td>@lead.Status</td>
-                                    </tr>
-                                    <tr>
-                                        <th>Jegyzetek</th>
-                                        <td>@lead.Notes</td>
-                                    </tr>
-                                    @if (lead.PartnerId.HasValue)
-                                    {
+            </div>
+        </div>
+    }
+
+    <!-- View Lead Modals -->
+    @foreach (var lead in Model.Leads)
+    {
+        <div class="modal fade" id="viewLeadModal_@lead.LeadId" tabindex="-1" aria-labelledby="viewLeadModalLabel_@lead.LeadId" aria-hidden="true">
+            <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="viewLeadModalLabel_@lead.LeadId">Details for @lead.FirstName @lead.LastName</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <ul class="nav nav-tabs" id="viewLeadTabs_@lead.LeadId" role="tablist">
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link active" id="info-tab_@lead.LeadId" data-bs-toggle="tab" data-bs-target="#info_@lead.LeadId" type="button" role="tab" aria-controls="info_@lead.LeadId" aria-selected="true">Info</button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="history-tab_@lead.LeadId" data-bs-toggle="tab" data-bs-target="#history_@lead.LeadId" type="button" role="tab" aria-controls="history_@lead.LeadId" aria-selected="false">History</button>
+                            </li>
+                        </ul>
+                        <div class="tab-content mt-3" id="viewLeadTabContent_@lead.LeadId">
+                            <!-- Info Tab -->
+                            <div class="tab-pane fade show active" id="info_@lead.LeadId" role="tabpanel" aria-labelledby="info-tab_@lead.LeadId">
+                                <table class="table table-sm">
+                                    <tbody>
                                         <tr>
-                                            <th>Partner ID</th>
-                                            <td>@lead.PartnerId</td>
+                                            <th>Név</th>
+                                            <td>@lead.FirstName @lead.LastName</td>
                                         </tr>
-                                    }
-                                </tbody>
-                            </table>
-                        </div>
-                        <!-- History Tab -->
-                        <div class="tab-pane fade" id="history_@lead.LeadId" role="tabpanel" aria-labelledby="history-tab_@lead.LeadId">
-                            <div id="historyContent_@lead.LeadId">
-                                <p>Előzmények betöltése...</p>
+                                        <tr>
+                                            <th>Email</th>
+                                            <td>@lead.Email</td>
+                                        </tr>
+                                        <tr>
+                                            <th>Telefonszám</th>
+                                            <td>@lead.PhoneNumber</td>
+                                        </tr>
+                                        <tr>
+                                            <th>Cég</th>
+                                            <td>@lead.CompanyName</td>
+                                        </tr>
+                                        <tr>
+                                            <th>Beosztás</th>
+                                            <td>@lead.JobTitle</td>
+                                        </tr>
+                                        <tr>
+                                            <th>Státusz</th>
+                                            <td>@lead.Status</td>
+                                        </tr>
+                                        <tr>
+                                            <th>Jegyzetek</th>
+                                            <td>@lead.Notes</td>
+                                        </tr>
+                                        @if (lead.PartnerId.HasValue)
+                                        {
+                                            <tr>
+                                                <th>Partner ID</th>
+                                                <td>@lead.PartnerId</td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                            <!-- History Tab -->
+                            <div class="tab-pane fade" id="history_@lead.LeadId" role="tabpanel" aria-labelledby="history-tab_@lead.LeadId">
+                                <div id="historyContent_@lead.LeadId">
+                                    <p>Előzmények betöltése...</p>
+                                </div>
                             </div>
                         </div>
                     </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Bezárás</button>
-                </div>
-            </div>
-        </div>
-    </div>
-}
-
-<!-- Delete Lead Modals -->
-@foreach (var lead in Model.Leads)
-{
-    <div class="modal fade" id="deleteLeadModal_@lead.LeadId" tabindex="-1" aria-labelledby="deleteLeadModalLabel_@lead.LeadId" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="deleteLeadModalLabel_@lead.LeadId">Lead törlése</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    <form id="deleteLeadForm_@lead.LeadId" method="post" asp-page-handler="DeleteLead">
-                        <input type="hidden" name="leadId" value="@lead.LeadId" />
-                        <p>Biztosan törölni szeretné a következő leadet: <strong>@lead.FirstName @lead.LastName</strong>?</p>
-                        <div id="deleteWarning_@lead.LeadId" class="alert alert-warning" style="display: none;">
-                            This lead cannot be deleted due to associated records.
-                        </div>
-                    </form>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Mégse</button>
-                    <button type="button" class="btn btn-danger" id="confirmDeleteBtn_@lead.LeadId">Törlés</button>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Bezárás</button>
+                    </div>
                 </div>
             </div>
         </div>
-    </div>
-}
+    }
 
-<!-- New Partner Modal -->
-@await Html.PartialAsync("_NewPartnerModal")
+    <!-- Delete Lead Modals -->
+    @foreach (var lead in Model.Leads)
+    {
+        <div class="modal fade" id="deleteLeadModal_@lead.LeadId" tabindex="-1" aria-labelledby="deleteLeadModalLabel_@lead.LeadId" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="deleteLeadModalLabel_@lead.LeadId">Lead törlése</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="deleteLeadForm_@lead.LeadId" method="post" asp-page-handler="DeleteLead">
+                            <input type="hidden" name="leadId" value="@lead.LeadId" />
+                            <p>Biztosan törölni szeretné a következő leadet: <strong>@lead.FirstName @lead.LastName</strong>?</p>
+                            <div id="deleteWarning_@lead.LeadId" class="alert alert-warning" style="display: none;">
+                                This lead cannot be deleted due to associated records.
+                            </div>
+                        </form>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Mégse</button>
+                        <button type="button" class="btn btn-danger" id="confirmDeleteBtn_@lead.LeadId">Törlés</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+
+    <!-- New Partner Modal -->
+    @await Html.PartialAsync("_NewPartnerModal")
+</div>
+
+<!-- Dependencies -->
+<link href="https://cdn.jsdelivr.net/npm/tom-select@2.4.3/dist/css/tom-select.bootstrap5.css" rel="stylesheet">
+<script src="https://code.jquery.com/jquery-3.6.0.min.js" integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4=" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/tom-select@2.4.3/dist/js/tom-select.complete.min.js"></script>
 
 @section Scripts {
     <script>
@@ -483,6 +507,11 @@
                     $('#historyContent_' + leadId).html('<p>Hiba történt az előzmények betöltése során.</p>');
                 }
             });
+        }
+
+        // Show History Tab
+        function showHistoryTab(leadId) {
+            $('#viewLeadTabs_' + leadId + ' a[href="#history_' + leadId + '"]').tab('show');
         }
 
         // Handle New Partner button click to pre-fill modal
@@ -556,8 +585,8 @@
             // Delete Modal Logic
             document.querySelectorAll('[data-bs-target^="#deleteLeadModal_"]').forEach(button => {
                 button.addEventListener('click', function () {
-                    const leadId = this.closest('.lead-card').getAttribute('data-lead-id');
-                    const leadName = this.closest('.lead-card').querySelector('.lead-name-col .fw-bold').textContent;
+                    const leadId = this.closest('tr').getAttribute('data-lead-id') || $(this).data('lead-id');
+                    const leadName = $(this).data('lead-name');
 
                     if (!leadId) {
                         console.error('Lead ID is missing');
@@ -604,256 +633,19 @@
             });
         });
     </script>
-    
+
     <style>
-        
-[data-theme="dark"] .partner-card {
-        background-color: #2a2a2a;
-        border: 1px solid #444;
-    }
-
-        /* Page-specific styles to match card-based layout */
-        .card-grid-header {
-            padding: 0 15px 2px 15px;
-            margin-top: 0px;
-            background-color: #F1EFEC;
-            border-bottom: 1px solid #dee2e6;
-        }
-
-        .card-grid-row {
-            display: grid;
-            grid-template-columns: 2fr 2fr 1fr 2fr 1fr auto;
-            gap: 10px;
-            align-items: center;
-        }
-
-        .card-grid-column {
-            font-weight: 600;
-            color: #495057;
-            font-size: 0.9rem;
-            text-transform: uppercase;
-        }
-
-        .card-grid-cell {
-            padding: 0 10px;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-        }
-
-        /* Column widths */
-        .lead-name-col { flex: 1 1 20%; min-width: 150px; }
-        .lead-email-col { flex: 1 1 20%; min-width: 150px; }
-        .lead-phone-col { flex: 1 1 15%; min-width: 100px; }
-        .lead-company-col { flex: 1 1 20%; min-width: 150px; }
-        .lead-status-col { flex: 1 1 15%; min-width: 100px; }
-        .actions-column, .actions-cell { flex: 0 0 auto; width: auto; text-align: right; padding-right: 10px; }
-
-        /* Button group styling */
-        .btn-group-sm .btn {
-            padding: 0.2rem 0.5rem;
-            font-size: 0.875rem;
-        }
-
         /* Badge styling */
-        .badge-new {
-            background-color: #007bff;
-        }
-        .badge-contacted {
-            background-color: #ffc107;
-        }
-        .badge-qualified {
-            background-color: #28a745;
-        }
-
-        /* Ensure pagination is centered */
-        .fixed-footer .pagination {
-            display: flex;
-            justify-content: center;
-            width: 100%;
-            margin-bottom: 0;
-        }
-
-        .fixed-footer nav {
-            flex-grow: 1;
+        .badge {
+            padding: 0.35em 0.65em;
+            font-size: 0.75em;
+            font-weight: 700;
+            line-height: 1;
+            color: #fff;
             text-align: center;
-        }
-
-        /* Modal Sizing */
-        .modal-lg {
-            max-width: 1000px !important;
-        }
-
-        /* Consistent Tab Content Styling */
-        #newLeadModal .tab-content,
-        [id^="editLeadModal_"] .tab-content,
-        [id^="viewLeadModal_"] .tab-content {
-            min-width: 0;
-            width: 100%;
-            min-height: 450px;
-            max-height: 65vh;
-            overflow-y: auto;
-            overflow-x: hidden;
-            padding: 1rem;
-            background-color: #fff;
-        }
-
-        /* Consistent Tab Pane Styling */
-        #newLeadModal .tab-pane,
-        [id^="editLeadModal_"] .tab-pane,
-        [id^="viewLeadModal_"] .tab-pane {
-            width: 100%;
-        }
-
-        /* Adjust Modal Body Padding */
-        #newLeadModal .modal-body,
-        [id^="editLeadModal_"] .modal-body,
-        [id^="viewLeadModal_"] .modal-body {
-            padding: 1rem 1rem 0 1rem;
-        }
-
-        /* Remove margin below tabs */
-        #newLeadModal .nav-tabs,
-        [id^="editLeadModal_"] .nav-tabs,
-        [id^="viewLeadModal_"] .nav-tabs {
-            margin-bottom: 0 !important;
-        }
-
-        /* General Table Cell Styling */
-        .table tbody tr td {
-            vertical-align: middle;
-        }
-
-        /* View Modal Specific Content Styling */
-        [id^="viewLeadModal_"] .table {
-            margin-bottom: 0;
-        }
-        [id^="viewLeadModal_"] .tab-pane > p {
-            padding: 1.5rem;
-            text-align: center;
-            color: #6c757d;
-        }
-
-        /* Dark mode overrides */
-        [data-theme="dark"] .card-grid-header {
-            background-color: #2a2a2a;
-            border-bottom: 1px solid #444;
-        }
-
-        [data-theme="dark"] .card-grid-column {
-            color: #b0b0b0;
-        }
-
-        [data-theme="dark"] .lead-card {
-            background-color: #2a2a2a;
-            border: 1px solid #444;
-        }
-
-        [data-theme="dark"] .fixed-footer {
-            background-color: #2a2a2a;
-            border-top: 1px solid #444;
-        }
-
-        [data-theme="dark"] .alert-success {
-            background-color: #2e7d32;
-            border-color: #1b5e20;
-            color: #e0e0e0;
-        }
-
-        [data-theme="dark"] .alert-danger {
-            background-color: #d32f2f;
-            border-color: #b71c1c;
-            color: #e0e0e0;
-        }
-
-        [data-theme="dark"] #newLeadModal .tab-content,
-        [data-theme="dark"] [id^="editLeadModal_"] .tab-content,
-        [data-theme="dark"] [id^="viewLeadModal_"] .tab-content,
-        [data-theme="dark"] [id^="deleteLeadModal_"] .tab-content {
-            background-color: #2a2a2a !important;
-            color: #e0e0e0 !important;
-        }
-
-        [data-theme="dark"] #newLeadModal .tab-pane,
-        [data-theme="dark"] [id^="editLeadModal_"] .tab-pane,
-        [data-theme="dark"] [id^="viewLeadModal_"] .tab-pane,
-        [data-theme="dark"] [id^="deleteLeadModal_"] .tab-pane {
-            color: #e0e0e0 !important;
-        }
-
-        [data-theme="dark"] #newLeadModal .modal-body,
-        [data-theme="dark"] [id^="editLeadModal_"] .modal-body,
-        [data-theme="dark"] [id^="viewLeadModal_"] .modal-body,
-        [data-theme="dark"] [id^="deleteLeadModal_"] .modal-body {
-            background-color: #2a2a2a !important;
-            color: #e0e0e0 !important;
-        }
-
-        [data-theme="dark"] .form-control {
-            background-color: #333333 !important;
-            border-color: #666 !important;
-            color: #e0e0e0 !important;
-        }
-
-        [data-theme="dark"] .form-control:focus {
-            background-color: #333333 !important;
-            border-color: #888 !important;
-            color: #e0e0e0 !important;
-            box-shadow: 0 0 0 0.2rem rgba(100, 100, 100, 0.25) !important;
-        }
-
-        [data-theme="dark"] .form-control::placeholder {
-            color: #aaaaaa !important;
-        }
-
-        [data-theme="dark"] .form-label {
-            color: #e0e0e0 !important;
-        }
-
-        [data-theme="dark"] .modal-title {
-            color: #e0e0e0 !important;
-        }
-
-        [data-theme="dark"] #newLeadModal .nav-tabs,
-        [data-theme="dark"] [id^="editLeadModal_"] .nav-tabs,
-        [data-theme="dark"] [id^="viewLeadModal_"] .nav-tabs {
-            background-color: #2a2a2a !important;
-            border-bottom: 1px solid #444 !important;
-        }
-
-        [data-theme="dark"] #newLeadModal .nav-tabs .nav-link,
-        [data-theme="dark"] [id^="editLeadModal_"] .nav-tabs .nav-link,
-        [data-theme="dark"] [id^="viewLeadModal_"] .nav-tabs .nav-link {
-            color: #b0b0b0 !important;
-        }
-
-        [data-theme="dark"] #newLeadModal .nav-tabs .nav-link:hover,
-        [data-theme="dark"] [id^="editLeadModal_"] .nav-tabs .nav-link:hover,
-        [data-theme="dark"] [id^="viewLeadModal_"] .nav-tabs .nav-link:hover {
-            color: #e0e0e0 !important;
-            background-color: #3a3a3a !important;
-        }
-
-        [data-theme="dark"] #newLeadModal .nav-tabs .nav-link.active,
-        [data-theme="dark"] [id^="editLeadModal_"] .nav-tabs .nav-link.active,
-        [data-theme="dark"] [id^="viewLeadModal_"] .nav-tabs .nav-link.active {
-            color: #e0e0e0 !important;
-            background-color: #3a3a3a !important;
-            border-color: #444 #444 #2a2a2a !important;
-        }
-
-        [data-theme="dark"] [id^="viewLeadModal_"] .tab-pane > p {
-            color: #e0e0e0 !important;
-        }
-
-        [data-theme="dark"] [id^="viewLeadModal_"] .table {
-            color: #e0e0e0 !important;
-        }
-
-        [data-theme="dark"] [id^="viewLeadModal_"] .table th,
-        [data-theme="dark"] [id^="viewLeadModal_"] .table td {
-            border-color: #444 !important;
-            color: #e0e0e0 !important;
+            white-space: nowrap;
+            vertical-align: baseline;
+            border-radius: 0.25rem;
         }
     </style>
 }

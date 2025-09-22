@@ -11,7 +11,7 @@
 {
 
 <!-- Edit Order Modal -->
-@* <div class="modal fade" id="editOrderModal_@order.OrderId" tabindex="-1" aria-labelledby="editOrderModalLabel_@order.OrderId" aria-hidden="true">
+<div class="modal fade" id="editOrderModal_@order.OrderId" tabindex="-1" aria-labelledby="editOrderModalLabel_@order.OrderId" aria-hidden="true">
     <div class="modal-dialog modal-xl">
         <div class="modal-content">
             <div class="modal-header">
@@ -155,11 +155,12 @@
                     </form>
                 </div>
 
-                <!-- Items Tab (unchanged) -->
-                <div class="tab-pane fade" id="items_@order.OrderId" role="tabpanel" aria-labelledby="items-tab_@order.OrderId">
+                <!-- Items Tab -->
+                <div class="tab-pane fade" id="items_@order.OrderId" role="tabpanel" aria-labelledby="items-tab_@order.OrderId"><br>
                     <button type="button" class="btn btn-primary mb-3 add-item-row" data-order-id="@order.OrderId">Tétel hozzáadása</button>
                     <form id="orderItemsForm_@order.OrderId" data-order-id="@order.OrderId">
-                        <input type="hidden" name="__RequestVerificationToken" value=@Html.AntiForgeryToken()/>
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="__RequestVerificationToken" value="@Html.AntiForgeryToken()"/>
                         <table class="table table-sm table-bordered">
                             <thead>
                                 <tr>
@@ -194,19 +195,7 @@
                                         </td>
                                         <td>
                                             <div class="input-group input-group-sm">
-                                                <input type="text" name="@(item.DiscountPercentage != null ? $"orderItems[{item.OrderItemId}].DiscountPercentage" : $"orderItems[{item.OrderItemId}].DiscountAmount")" class="form-control discount-value" value="@(item.DiscountPercentage != null ? item.DiscountPercentage : item.DiscountAmount)" placeholder="pl. 10">
-                                                <select class="form-select discount-type" data-discount-name-prefix="orderItems[@item.OrderItemId]">
-                                                    @if (item.DiscountPercentage != null)
-                                                    {
-                                                        <option value="Percentage" selected>%</option>
-                                                        <option value="Amount">Összeg</option>
-                                                    }
-                                                    else
-                                                    {
-                                                        <option value="Percentage">%</option>
-                                                        <option value="Amount" selected>Összeg</option>
-                                                    }
-                                                </select>
+                                                <input type="text" name="orderItems[@item.OrderItemId].DiscountAmount" class="form-control discount-value" value="@(item.DiscountAmount)" placeholder="pl. 10">
                                             </div>
                                         </td>
                                         <td>
@@ -215,7 +204,7 @@
                                         </td>
                                         <td>
                                             <button type="button" class="btn btn-outline-secondary btn-sm edit-description" data-item-id="@item.OrderItemId"><i class="bi bi-pencil"></i></button>
-                                            <button type="button" class="btn btn-danger btn-sm remove-item-row"><i class="bi bi-trash"></i></button>
+                                            <button type="button" class="btn btn-danger btn-sm remove-item-row" data-item-id="@item.OrderItemId"><i class="bi bi-trash"></i></button>
                                         </td>
                                     </tr>
                                     <tr class="description-row" data-item-id="@item.OrderItemId" style="display: none;">
@@ -230,16 +219,19 @@
                                 }
                                 <!-- Order Total Row -->
                                 <tr class="order-total-row">
+                                    <td colspan="5" class="text-end"><strong>Összesen Nettó:</strong></td>
+                                    <td><span class="order-total-net">0.00</span></td>
                                     <td colspan="3"></td>
-                                    <td><strong>Összesen:</strong></td>
-                                    <td><span class="order-total-amount">0.00</span></td>
-                                    <td></td>
                                 </tr>
-                                <tr class="order-discount-row">
+                                <tr class="order-vat-row">
+                                    <td colspan="5" class="text-end"><strong>Összes ÁFA:</strong></td>
+                                    <td><span class="order-vat-amount">0.00</span></td>
                                     <td colspan="3"></td>
-                                    <td><strong>Kedvezményes ár:</strong></td>
-                                    <td><span class="order-final-total">0.00</span></td>
-                                    <td></td>
+                                </tr>
+                                <tr class="order-gross-row">
+                                    <td colspan="5" class="text-end"><strong>Összesen Bruttó:</strong></td>
+                                    <td><span class="order-gross-amount">0.00</span></td>
+                                    <td colspan="3"></td>
                                 </tr>
                             </tbody>
                         </table>
@@ -249,7 +241,7 @@
         </div>
         <div class="modal-footer">
             <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Bezár</button>
-            <button type="button" class="btn btn-primary save-order" data-order-id="@order.OrderId">Mentés</button>
+            <button type="button" class="btn btn-primary" id="saveOrderBtn_@order.OrderId" data-order-id="@order.OrderId">Mentés</button>
         </div>
     </div>
     </div>
@@ -397,16 +389,7 @@
                                         <td>@(string.IsNullOrEmpty(orderItem.Description) ? "Nincs megadva" : orderItem.Description)</td>
                                         <td>@(orderItem.Quantity > 0 ? orderItem.Quantity.ToString("N2", System.Globalization.CultureInfo.GetCultureInfo("hu-HU")) : "0,00")</td>
                                         <td>@orderItem.UnitPrice.ToString("N2", System.Globalization.CultureInfo.GetCultureInfo("hu-HU")) Ft</td>
-                                        <td>
-                                            @(orderItem.DiscountPercentage.HasValue && orderItem.DiscountPercentage.Value > 0
-                                                ? $"{orderItem.DiscountPercentage.Value:N2}%"
-                                                : orderItem.DiscountAmount.HasValue && orderItem.DiscountAmount.Value > 0
-                                                    ? $"{orderItem.DiscountAmount.Value:N2} Ft"
-                                                    : "0,00")
-                                        </td>
-                                        <td>
-                                            @((orderItem.Quantity * orderItem.UnitPrice - (orderItem.DiscountAmount ?? (orderItem.DiscountPercentage.HasValue ? (orderItem.Quantity * orderItem.UnitPrice * orderItem.DiscountPercentage.Value / 100) : 0))).ToString("N2", System.Globalization.CultureInfo.GetCultureInfo("hu-HU"))) Ft
-                                        </td>
+
                                     </tr>
                                 }
                             }
@@ -426,31 +409,24 @@
         </div>
     </div>
 
-    <!-- Delete Order Modal -->
+<!-- Delete Order Modal -->
     <div class="modal fade" id="deleteOrderModal_@order.OrderId" tabindex="-1" aria-labelledby="deleteOrderModalLabel_@order.OrderId" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title" id="deleteOrderModalLabel_@order.OrderId">Rendelés törlése</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Bezárás"></button>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
-                    <form id="deleteOrderForm_@order.OrderId" method="post">
-                        @Html.AntiForgeryToken()
-                        <input type="hidden" name="orderId" value="@order.OrderId" autocomplete="off" />
-                        <p>Biztosan törölni szeretné a következő rendelést: <strong>@order.OrderNumber</strong>?</p>
-                        <div id="deleteWarning_@order.OrderId" class="alert alert-warning" style="display: none;">
-                            Ez a rendelés nem törölhető, mert kapcsolódó rekordok léteznek.
-                        </div>
-                    </form>
+                    Biztosan törölni szeretné a(z) <strong>@order.OrderNumber</strong> rendelést?
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" aria-label="Mégse">Mégse</button>
-                    <button type="button" class="btn btn-danger confirm-delete-order" data-order-id="@order.OrderId" aria-label="Rendelés törlése">Törlés</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Mégse</button>
+                    <button type="button" class="btn btn-danger delete-order-btn" data-order-id="@order.OrderId">Törlés</button>
                 </div>
             </div>
         </div>
-    </div> *@
+    </div>
 }
 
 <!-- New Order Modal -->
@@ -461,167 +437,161 @@
                 <h5 class="modal-title" id="newOrderModalLabel">Új rendelés létrehozása</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
+
             <div class="modal-body">
                 <!-- Tabs -->
-                <ul class="nav nav-tabs" id="orderTabs_new" role="tablist">
+                <ul class="nav nav-tabs mb-3" id="orderTabs_new" role="tablist">
                     <li class="nav-item" role="presentation">
-                        <button class="nav-link active" id="base-info-tab_new" data-bs-toggle="tab" data-bs-target="#base-info_new" type="button" role="tab" aria-controls="base-info_new" aria-selected="true">Alapadatok</button>
+                        <button class="nav-link active" id="base-info-tab_new" data-bs-toggle="tab" data-bs-target="#base-info_new" type="button" role="tab" aria-controls="base-info_new" aria-selected="true">
+                            Alapadatok
+                        </button>
                     </li>
                     <li class="nav-item" role="presentation">
-                        <button class="nav-link" id="items-tab_new" data-bs-toggle="tab" data-bs-target="#items_new" type="button" role="tab" aria-controls="items_new" aria-selected="false">Tételek</button>
+                        <button class="nav-link" id="items-tab_new" data-bs-toggle="tab" data-bs-target="#items_new" type="button" role="tab" aria-controls="items_new" aria-selected="false">
+                            Tételek
+                        </button>
                     </li>
                 </ul>
+
                 <!-- Tab Content -->
                 <div class="tab-content" id="orderTabContent_new">
                     <!-- Base Info Tab -->
                     <div class="tab-pane fade show active" id="base-info_new" role="tabpanel" aria-labelledby="base-info-tab_new">
                         <form id="orderBaseInfoForm_new">
-                            <!-- Hidden Fields -->
                             <input type="hidden" name="createdBy" value="System">
                             <input type="hidden" name="createdDate" value="@DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss")">
                             <input type="hidden" name="modifiedBy" value="System">
                             <input type="hidden" name="modifiedDate" value="@DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss")">
-                            <!-- General Section -->
-                            <h6 class="mt-3">Általános adatok</h6>
-                            <table class="table table-sm">
-                                <tbody>
-                                    <tr>
-                                        <th>Rendelésszám</th>
-                                        <td><input type="text" class="form-control" name="orderNumber" value="@Model.NextOrderNumber" placeholder="Automatikusan generálódik" readonly></td>
-                                    </tr>
-                                    <tr>
-                                        <th>Rendelés dátuma</th>
-                                        <td><input type="date" class="form-control" name="orderDate" value="@DateTime.Today.ToString("yyyy-MM-dd")" required></td>
-                                    </tr>
-                                    <tr>
-                                        <th>Határidő</th>
-                                        <td><input type="date" class="form-control" name="deadline"></td>
-                                    </tr>
-                                    <tr>
-                                        <th>Szállítási dátum</th>
-                                        <td><input type="date" class="form-control" name="deliveryDate"></td>
-                                    </tr>
-                                    <tr>
-                                        <th>Referenciaszám</th>
-                                        <td><input type="text" class="form-control" name="referenceNumber" maxlength="100"></td>
-                                    </tr>
-                                    <tr>
-                                        <th>Rendelés típusa</th>
-                                        <td><input type="text" class="form-control" name="orderType" maxlength="50"></td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                            <!-- Partner Section -->
-                            <h6>Partner adatok</h6>
-                            <table class="table table-sm">
-                                <tbody>
-                                    <tr>
-                                    <th>Partner</th>
-                                            <td>
-                                                <select name="PartnerId" id="partner-select_new" class="form-select tom-select" autocomplete="off">
-                                                    <option value="">-- Válasszon partnert --</option>
-                                                </select>
-                                            </td>
-                                        </tr>
-                                        <tr>
-                                            <th>Telephely</th>
-                                            <td>
-                                                <select name="SiteId" id="site-select_new" class="form-select tom-select" autocomplete="off">
-                                                    <option value="">-- Válasszon telephelyet --</option>
-                                                </select>
-                                            </td>
-                                        </tr>
-                                    <tr>
-                                        <th>Cég neve</th>
-                                        <td><input type="text" class="form-control" name="companyName" maxlength="100"></td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                            <!-- Financial Section -->
-                            <h6>Pénzügyi adatok</h6>
-                            <table class="table table-sm">
-                                <tbody>
-                                    <tr>
-                                        <th>Pénznem</th>
-                                        <td>
-                                            <select id="currency-select_new" name="currencyId" class="form-select tom-select" data-selected-id="" data-selected-text="" autocomplete="off" required>
-                                                <option value="" disabled selected>-- Válasszon pénznemet --</option>
-                                            </select>
-                                        </td>
-                                    </tr>
-                                    <tr>
-                                        <th>Összesen</th>
-                                        <td><input type="number" step="0.01" class="form-control" name="totalAmount" value="" required></td>
-                                    </tr>
-                                    <tr>
-                                        <th>Kedvezmény %</th>
-                                        <td><input type="number" step="0.1" min="0" max="100" class="form-control" name="discountPercentage"></td>
-                                    </tr>
-                                    <tr>
-                                        <th>Kedvezmény összeg</th>
-                                        <td><input type="number" step="0.01" class="form-control" name="discountAmount"></td>
-                                    </tr>
-                                    <tr>
-                                        <th>Fizetési feltételek</th>
-                                        <td><input type="text" class="form-control" name="paymentTerms" maxlength="100"></td>
-                                    </tr>
-                                    <tr>
-                                        <th>Szállítási mód</th>
-                                        <td><input type="text" class="form-control" name="shippingMethod" maxlength="100"></td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                            <!-- Additional Info Section -->
-                            <h6>További adatok</h6>
-                            <table class="table table-sm">
-                                <tbody>
-                                    <tr>
-                                        <th>Státusz</th>
-                                        <td>
-                                            <select class="form-select" name="status" required>
-                                                @foreach (var status in Model.StatusDisplayNames)
-                                                {
-                                                    <option value="@status.Key" selected="@(status.Key == "Pending" ? "selected" : "")">@status.Value</option>
-                                                }
-                                            </select>
-                                        </td>
-                                    </tr>
-                                    <tr>
-                                        <th>Értékesítő</th>
-                                        <td><input type="text" class="form-control" name="salesPerson" maxlength="100"></td>
-                                    </tr>
-                                    <tr>
-                                        <th>Árajánlat azonosító</th>
-                                        <td>
-                                            <select id="quote-select_new" name="quoteId" class="form-select tom-select" data-selected-id="" data-selected-text="" autocomplete="off">
-                                                <option value="" disabled selected>-- Válasszon árajánlatot --</option>
-                                            </select>
-                                        </td>
-                                    </tr>
-                                    <tr>
-                                        <th>Tárgy</th>
-                                        <td><input type="text" class="form-control" name="subject" maxlength="200"></td>
-                                    </tr>
-                                    <tr>
-                                        <th>Leírás</th>
-                                        <td><textarea class="form-control" name="description" maxlength="500" rows="3"></textarea></td>
-                                    </tr>
-                                    <tr>
-                                        <th>Részletes leírás</th>
-                                        <td><textarea class="form-control" name="detailedDescription" rows="5"></textarea></td>
-                                    </tr>
-                                </tbody>
-                            </table>
+
+                            <div class="row g-3">
+                                <!-- General Section -->
+                                <div class="col-md-6">
+                                    <h6>Általános adatok</h6>
+                                    <div class="mb-2">
+                                        <label class="form-label">Rendelésszám</label>
+                                        <input type="text" class="form-control" name="orderNumber" value="@Model.NextOrderNumber" placeholder="Automatikusan generálódik" readonly>
+                                    </div>
+                                    <div class="mb-2">
+                                        <label class="form-label">Rendelés dátuma</label>
+                                        <input type="date" class="form-control" name="orderDate" value="@DateTime.Today.ToString("yyyy-MM-dd")" required>
+                                    </div>
+                                    <div class="mb-2">
+                                        <label class="form-label">Határidő</label>
+                                        <input type="date" class="form-control" name="deadline">
+                                    </div>
+                                    <div class="mb-2">
+                                        <label class="form-label">Szállítási dátum</label>
+                                        <input type="date" class="form-control" name="deliveryDate">
+                                    </div>
+                                    <div class="mb-2">
+                                        <label class="form-label">Referenciaszám</label>
+                                        <input type="text" class="form-control" name="referenceNumber" maxlength="100">
+                                    </div>
+                                    <div class="mb-2">
+                                        <label class="form-label">Rendelés típusa</label>
+                                        <input type="text" class="form-control" name="orderType" maxlength="50">
+                                    </div>
+                                </div>
+
+                                <!-- Partner Section -->
+                                <div class="col-md-6">
+                                    <h6>Partner adatok</h6>
+                                    <div class="mb-2">
+                                        <label class="form-label">Partner</label>
+                                        <select name="PartnerId" id="partner-select_new" class="form-select tom-select" autocomplete="off">
+                                            <option value="">-- Válasszon partnert --</option>
+                                        </select>
+                                    </div>
+                                    <div class="mb-2">
+                                        <label class="form-label">Telephely</label>
+                                        <select name="SiteId" id="site-select_new" class="form-select tom-select" autocomplete="off">
+                                            <option value="">-- Válasszon telephelyet --</option>
+                                        </select>
+                                    </div>
+                                    <div class="mb-2">
+                                        <label class="form-label">Cég neve</label>
+                                        <input type="text" class="form-control" name="companyName" maxlength="100">
+                                    </div>
+                                </div>
+
+                                <!-- Financial Section -->
+                                <div class="col-md-6">
+                                    <h6>Pénzügyi adatok</h6>
+                                    <div class="mb-2">
+                                        <label class="form-label">Pénznem</label>
+                                        <select id="currency-select_new" name="currencyId" class="form-select tom-select" required>
+                                            <option value="" disabled selected>-- Válasszon pénznemet --</option>
+                                        </select>
+                                    </div>
+                                    <div class="mb-2">
+                                        <label class="form-label">Összesen</label>
+                                        <input type="number" step="0.01" class="form-control" name="totalAmount" value="" required>
+                                    </div>
+                                    <div class="mb-2">
+                                        <label class="form-label">Kedvezmény %</label>
+                                        <input type="number" step="0.1" min="0" max="100" class="form-control" name="discountPercentage">
+                                    </div>
+                                    <div class="mb-2">
+                                        <label class="form-label">Kedvezmény összeg</label>
+                                        <input type="number" step="0.01" class="form-control" name="discountAmount">
+                                    </div>
+                                    <div class="mb-2">
+                                        <label class="form-label">Fizetési feltételek</label>
+                                        <input type="text" class="form-control" name="paymentTerms" maxlength="100">
+                                    </div>
+                                    <div class="mb-2">
+                                        <label class="form-label">Szállítási mód</label>
+                                        <input type="text" class="form-control" name="shippingMethod" maxlength="100">
+                                    </div>
+                                </div>
+
+                                <!-- Additional Info Section -->
+                                <div class="col-md-6">
+                                    <h6>További adatok</h6>
+                                    <div class="mb-2">
+                                        <label class="form-label">Státusz</label>
+                                        <select class="form-select" name="status" required>
+                                            @foreach (var status in Model.StatusDisplayNames)
+                                            {
+                                                <option value="@status.Key" selected="@(status.Key == "Pending" ? "selected" : "")">@status.Value</option>
+                                            }
+                                        </select>
+                                    </div>
+                                    <div class="mb-2">
+                                        <label class="form-label">Értékesítő</label>
+                                        <input type="text" class="form-control" name="salesPerson" maxlength="100">
+                                    </div>
+                                    <div class="mb-2">
+                                        <label class="form-label">Árajánlat azonosító</label>
+                                        <select id="quote-select_new" name="quoteId" class="form-select tom-select">
+                                            <option value="" disabled selected>-- Válasszon árajánlatot --</option>
+                                        </select>
+                                    </div>
+                                    <div class="mb-2">
+                                        <label class="form-label">Tárgy</label>
+                                        <input type="text" class="form-control" name="subject" maxlength="200">
+                                    </div>
+                                    <div class="mb-2">
+                                        <label class="form-label">Leírás</label>
+                                        <textarea class="form-control" name="description" maxlength="500" rows="3"></textarea>
+                                    </div>
+                                    <div class="mb-2">
+                                        <label class="form-label">Részletes leírás</label>
+                                        <textarea class="form-control" name="detailedDescription" rows="5"></textarea>
+                                    </div>
+                                </div>
+                            </div>
                         </form>
                     </div>
+
                     <!-- Items Tab -->
                     <div class="tab-pane fade" id="items_new" role="tabpanel" aria-labelledby="items-tab_new">
                         <button type="button" class="btn btn-primary mb-3 add-item-row" data-order-id="new">Tétel hozzáadása</button>
                         <form id="newOrderForm" method="post" action="/Orders/Create">
-                            <!-- Hidden fields for totals -->
                             <input type="hidden" name="TotalNet" class="order-total-net-input" value="0">
                             <input type="hidden" name="TotalVat" class="order-vat-amount-input" value="0">
                             <input type="hidden" name="TotalGross" class="order-gross-amount-input" value="0">
+
                             <div class="table-responsive">
                                 <table class="table table-sm table-bordered" id="orderItemsTable">
                                     <thead>
@@ -630,7 +600,7 @@
                                             <th style="width: 5%;">Mennyiség</th>
                                             <th style="width: 10%;">Listaár</th>
                                             <th style="width: 10%;">Kedvezmény típus</th>
-                                            <th style="width: 10%;">Kedvezmény összege</th>
+                                            <th style="width: 10%;">Kedvezmény mértéke</th>
                                             <th style="width: 10%;">Nettó egységár</th>
                                             <th style="width: 5%;">ÁFA</th>
                                             <th style="width: 10%;">Nettó összes ár</th>
@@ -639,7 +609,6 @@
                                         </tr>
                                     </thead>
                                     <tbody id="items-tbody_new">
-                                        <!-- Order Total Row -->
                                         <tr class="order-total-row">
                                             <td colspan="5" class="text-end"><strong>Összesen Nettó:</strong></td>
                                             <td><span class="order-total-net">0.00</span></td>
@@ -662,6 +631,7 @@
                     </div>
                 </div>
             </div>
+
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Bezár</button>
                 <button type="button" class="btn btn-primary" id="saveOrderBtn_new">Mentés</button>

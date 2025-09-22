@@ -189,7 +189,7 @@ namespace Cloud9_2.Services
                         discountEntity = new QuoteItemDiscount
                         {
                             QuoteItemId = discountDto.ItemId,
-                            DiscountType = Enum.Parse<DiscountType>(discountDto.DiscountType),
+                            // DiscountType = Enum.Parse<DiscountType>(discountDto.DiscountType),
                             DiscountPercentage = discountDto.DiscountPercentage,
                             DiscountAmount = discountDto.DiscountAmount,
                             BasePrice = discountDto.BasePrice,
@@ -333,7 +333,7 @@ namespace Cloud9_2.Services
                 {
                     case "quote":
                         var quoteDiscount = (QuoteItemDiscount)discountEntity;
-                        quoteDiscount.DiscountType = Enum.Parse<DiscountType>(discountDto.DiscountType);
+                        // quoteDiscount.DiscountType = Enum.Parse<DiscountType>(discountDto.DiscountType);
                         quoteDiscount.DiscountPercentage = discountDto.DiscountPercentage;
                         quoteDiscount.DiscountAmount = discountDto.DiscountAmount;
                         quoteDiscount.BasePrice = discountDto.BasePrice;

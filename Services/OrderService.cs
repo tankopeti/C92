@@ -1,8 +1,4 @@
-using System;
-using System.Linq;
-using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Logging;
 using Cloud9_2.Models;
 using Cloud9_2.Data;
 
@@ -10,7 +6,7 @@ namespace Cloud9_2.Services
 {
 
 
-public interface IOrderService
+    public interface IOrderService
     {
         Task<string> GetNextOrderNumberAsync();
         Task<bool> OrderExistsAsync(int OrderId);
@@ -26,24 +22,46 @@ public interface IOrderService
         Task<Order> CopyOrderAsync(int OrderId);
         Task<List<Order>> GetOrdersAsync(string searchTerm, string statusFilter, string sortBy, int skip, int take);
         Task<OrderDto> GetOrderAsync(int orderId);
+        Task SendOrderEmailAsync(int orderId, string toEmail);
     }
+    
 
 public class OrderService : IOrderService
     {
         private readonly ApplicationDbContext _context;
         private readonly ILogger<OrderService> _logger;
+        private readonly EmailService _emailService;
 
-        public OrderService(ApplicationDbContext context, ILogger<OrderService> logger)
+        public OrderService(ApplicationDbContext context, ILogger<OrderService> logger, EmailService emailService)
         {
             _context = context;
             _logger = logger;
+            _emailService = emailService;
         }
 
-        public async Task<string> GetNextOrderNumberAsync()
+
+//MAILKIT
+public async Task SendOrderEmailAsync(int orderId, string toEmail)
         {
-            var year = DateTime.UtcNow.DayOfYear;
-            var count = await _context.Orders.CountAsync(o => o.OrderNumber != null && o.OrderNumber.Contains($"TestOrder-{year}"));
-            return $"TestOrder-{year}-{count + 1:D4}";
+            var order = await _context.Orders.FindAsync(orderId);
+            if (order == null) return;
+
+            var subject = $"Order {order.OrderNumber} Details";
+            var body = $"A megrendelés száma:  <b>{order.OrderNumber}</b>.";
+
+            var tomail = "tankopeti@gmail.com";
+
+            await _emailService.SendEmailAsync(tomail, subject, body);
+        }
+
+
+public async Task<string> GetNextOrderNumberAsync()
+        {
+            var yearDay = DateTime.UtcNow.DayOfYear;
+            var randomNum = new Random().Next(100, 1000);
+
+            var count = await _context.Orders.CountAsync(o => o.OrderNumber != null && o.OrderNumber.Contains($"TestOrder-{yearDay}"));
+            return $"TestOrder-{yearDay}-{count + 1:D4}-{randomNum}";
         }
 
         public async Task<bool> OrderExistsAsync(int OrderId)
@@ -66,140 +84,151 @@ public class OrderService : IOrderService
         }
 
 public async Task<Order> CreateOrderAsync(Order order)
-{
-    if (order == null)
-    {
-        _logger.LogError("CreateOrderAsync received null order");
-        throw new ArgumentNullException(nameof(order));
-    }
-
-    if (_context == null)
-    {
-        _logger.LogError("Database context is null for CreateOrderAsync");
-        throw new InvalidOperationException("Adatbázis kapcsolat nem érhető el");
-    }
-
-    _logger.LogInformation("Validating order: PartnerId={PartnerId}, CurrencyId={CurrencyId}, SiteId={SiteId}, QuoteId={QuoteId}, OrderNumber={OrderNumber}, Status={Status}, TotalAmount={TotalAmount}", 
-        order.PartnerId, order.CurrencyId, order.SiteId, order.QuoteId, order.OrderNumber, order.Status, order.TotalAmount);
-
-    if (order.PartnerId <= 0 || !await _context.Partners.AnyAsync(p => p.PartnerId == order.PartnerId))
-    {
-        _logger.LogError("Invalid PartnerId: {PartnerId}", order.PartnerId);
-        throw new ArgumentException($"Érvénytelen PartnerId: {order.PartnerId}");
-    }
-
-    if (order.CurrencyId <= 0 || !await _context.Currencies.AnyAsync(c => c.CurrencyId == order.CurrencyId))
-    {
-        _logger.LogError("Invalid CurrencyId: {CurrencyId}", order.CurrencyId);
-        throw new ArgumentException($"Érvénytelen CurrencyId: {order.CurrencyId}");
-    }
-
-    if (order.SiteId.HasValue && !await _context.Sites.AnyAsync(s => s.SiteId == order.SiteId))
-    {
-        _logger.LogError("Invalid SiteId: {SiteId}", order.SiteId);
-        throw new ArgumentException($"Érvénytelen SiteId: {order.SiteId}");
-    }
-
-    if (order.QuoteId.HasValue && !await _context.Quotes.AnyAsync(q => q.QuoteId == order.QuoteId))
-    {
-        _logger.LogError("Invalid QuoteId: {QuoteId}", order.QuoteId);
-        throw new ArgumentException($"Érvénytelen QuoteId: {order.QuoteId}");
-    }
-
-    if (order.OrderItems == null || !order.OrderItems.Any())
-    {
-        _logger.LogError("No order items provided");
-        throw new ArgumentException("Legalább egy tétel szükséges");
-    }
-
-    foreach (var item in order.OrderItems)
-    {
-        _logger.LogInformation("Validating OrderItem: ProductId={ProductId}, VatTypeId={VatTypeId}, OrderItemId={OrderItemId}", 
-            item.ProductId, item.VatTypeId, item.OrderItemId);
-
-        if (item.OrderItemId != 0)
         {
-            _logger.LogWarning("OrderItemId {OrderItemId} provided for new OrderItem, resetting to 0", item.OrderItemId);
-            item.OrderItemId = 0; // Ensure IDENTITY column is not set
-        }
+            if (order == null)
+            {
+                _logger.LogError("CreateOrderAsync received null order");
+                throw new ArgumentNullException(nameof(order));
+            }
 
-        if (item.ProductId <= 0 || !await _context.Products.AnyAsync(p => p.ProductId == item.ProductId))
-        {
-            _logger.LogError("Invalid ProductId in OrderItem: {ProductId}", item.ProductId);
-            throw new ArgumentException($"Érvénytelen ProductId: {item.ProductId}");
-        }
-        if (item.Quantity <= 0)
-        {
-            _logger.LogError("Invalid Quantity in OrderItem: {Quantity}", item.Quantity);
-            throw new ArgumentException($"Érvénytelen mennyiség: {item.Quantity}");
-        }
-        if (item.UnitPrice < 0)
-        {
-            _logger.LogError("Invalid UnitPrice in OrderItem: {UnitPrice}", item.UnitPrice);
-            throw new ArgumentException($"Érvénytelen egységár: {item.UnitPrice}");
-        }
-        if (item.DiscountAmount < 0)
-        {
-            _logger.LogError("Invalid DiscountAmount in OrderItem: {DiscountAmount}", item.DiscountAmount);
-            throw new ArgumentException($"Érvénytelen kedvezmény összeg: {item.DiscountAmount}");
-        }
-        if (item.VatTypeId.HasValue && item.VatTypeId <= 0)
-        {
-            _logger.LogError("Invalid VatTypeId in OrderItem: {VatTypeId}", item.VatTypeId);
-            throw new ArgumentException($"Érvénytelen ÁFA típus azonosító: {item.VatTypeId}");
-        }
-        if (item.VatTypeId.HasValue && !await _context.VatTypes.AnyAsync(v => v.VatTypeId == item.VatTypeId))
-        {
-            _logger.LogError("VAT type not found for VatTypeId: {VatTypeId}", item.VatTypeId);
-            throw new ArgumentException($"Érvénytelen ÁFA típus azonosító: {item.VatTypeId}");
-        }
-    }
+            if (_context == null)
+            {
+                _logger.LogError("Database context is null for CreateOrderAsync");
+                throw new InvalidOperationException("Adatbázis kapcsolat nem érhető el");
+            }
 
-    using var transaction = await _context.Database.BeginTransactionAsync();
-    try
-    {
-        order.OrderNumber = await GetNextOrderNumberAsync(); // Always generate unique OrderNumber
-        order.CreatedDate = DateTime.UtcNow;
-        order.ModifiedDate = DateTime.UtcNow;
-        order.CreatedBy ??= "System";
-        order.ModifiedBy ??= "System";
-        order.Status ??= "Pending";
+            _logger.LogInformation("Validating order: PartnerId={PartnerId}, CurrencyId={CurrencyId}, SiteId={SiteId}, QuoteId={QuoteId}, OrderNumber={OrderNumber}, Status={Status}, TotalAmount={TotalAmount}", 
+                order.PartnerId, order.CurrencyId, order.SiteId, order.QuoteId, order.OrderNumber, order.Status, order.TotalAmount);
 
-        _context.Orders.Add(order);
-        await _context.SaveChangesAsync();
+            // Validate required fields
+            if (order.PartnerId <= 0 || !await _context.Partners.AnyAsync(p => p.PartnerId == order.PartnerId))
+            {
+                _logger.LogError("Invalid PartnerId: {PartnerId}", order.PartnerId);
+                throw new ArgumentException($"Érvénytelen PartnerId: {order.PartnerId}");
+            }
 
-        foreach (var item in order.OrderItems)
-        {
-            item.OrderId = order.OrderId;
-            item.OrderItemId = 0; // Ensure IDENTITY column is not set
-            item.CreatedDate = DateTime.UtcNow;
-            item.ModifiedDate = DateTime.UtcNow;
-            item.CreatedBy ??= "System";
-            item.ModifiedBy ??= "System";
-            _context.OrderItems.Add(item);
+            if (order.CurrencyId <= 0 || !await _context.Currencies.AnyAsync(c => c.CurrencyId == order.CurrencyId))
+            {
+                _logger.LogError("Invalid CurrencyId: {CurrencyId}", order.CurrencyId);
+                throw new ArgumentException($"Érvénytelen CurrencyId: {order.CurrencyId}");
+            }
+
+            if (order.SiteId.HasValue && !await _context.Sites.AnyAsync(s => s.SiteId == order.SiteId))
+            {
+                _logger.LogError("Invalid SiteId: {SiteId}", order.SiteId);
+                throw new ArgumentException($"Érvénytelen SiteId: {order.SiteId}");
+            }
+
+            if (order.QuoteId.HasValue && !await _context.Quotes.AnyAsync(q => q.QuoteId == order.QuoteId))
+            {
+                _logger.LogError("Invalid QuoteId: {QuoteId}", order.QuoteId);
+                throw new ArgumentException($"Érvénytelen QuoteId: {order.QuoteId}");
+            }
+
+            if (order.OrderItems == null || !order.OrderItems.Any(item => item != null))
+            {
+                _logger.LogError("No valid order items provided");
+                throw new ArgumentException("Legalább egy érvényes tétel szükséges");
+            }
+
+            // Check for duplicate ProductIds
+            var productIds = order.OrderItems.Where(item => item != null).Select(item => item.ProductId).ToList();
+            var duplicateProductIds = productIds.GroupBy(id => id).Where(g => g.Count() > 1).Select(g => g.Key).ToList();
+            if (duplicateProductIds.Any())
+            {
+                _logger.LogWarning("Duplicate ProductIds found in OrderItems: {ProductIds}", string.Join(", ", duplicateProductIds));
+                throw new ArgumentException($"Duplikált termék azonosítók: {string.Join(", ", duplicateProductIds)}");
+            }
+
+            foreach (var item in order.OrderItems.Where(item => item != null))
+            {
+                _logger.LogInformation("Validating OrderItem: ProductId={ProductId}, VatTypeId={VatTypeId}, OrderItemId={OrderItemId}", 
+                    item.ProductId, item.VatTypeId, item.OrderItemId);
+
+                if (item.OrderItemId != 0)
+                {
+                    _logger.LogWarning("OrderItemId {OrderItemId} provided for new OrderItem, resetting to 0", item.OrderItemId);
+                    item.OrderItemId = 0; // Ensure IDENTITY column is not set
+                }
+
+                if (item.ProductId <= 0 || !await _context.Products.AnyAsync(p => p.ProductId == item.ProductId))
+                {
+                    _logger.LogError("Invalid ProductId in OrderItem: {ProductId}", item.ProductId);
+                    throw new ArgumentException($"Érvénytelen ProductId: {item.ProductId}");
+                }
+                if (item.Quantity <= 0)
+                {
+                    _logger.LogError("Invalid Quantity in OrderItem: {Quantity}", item.Quantity);
+                    throw new ArgumentException($"Érvénytelen mennyiség: {item.Quantity}");
+                }
+                if (item.UnitPrice < 0)
+                {
+                    _logger.LogError("Invalid UnitPrice in OrderItem: {UnitPrice}", item.UnitPrice);
+                    throw new ArgumentException($"Érvénytelen egységár: {item.UnitPrice}");
+                }
+                if (item.DiscountAmount < 0)
+                {
+                    _logger.LogError("Invalid DiscountAmount in OrderItem: {DiscountAmount}", item.DiscountAmount);
+                    throw new ArgumentException($"Érvénytelen kedvezmény összeg: {item.DiscountAmount}");
+                }
+                if (item.VatTypeId.HasValue && item.VatTypeId <= 0)
+                {
+                    _logger.LogError("Invalid VatTypeId in OrderItem: {VatTypeId}", item.VatTypeId);
+                    throw new ArgumentException($"Érvénytelen ÁFA típus azonosító: {item.VatTypeId}");
+                }
+                if (item.VatTypeId.HasValue && !await _context.VatTypes.AnyAsync(v => v.VatTypeId == item.VatTypeId))
+                {
+                    _logger.LogError("VAT type not found for VatTypeId: {VatTypeId}", item.VatTypeId);
+                    throw new ArgumentException($"Érvénytelen ÁFA típus azonosító: {item.VatTypeId}");
+                }
+
+                // Set audit fields
+                item.CreatedDate = DateTime.UtcNow;
+                item.ModifiedDate = DateTime.UtcNow;
+                item.CreatedBy ??= "System";
+                item.ModifiedBy ??= "System";
+            }
+
+            using var transaction = await _context.Database.BeginTransactionAsync();
+            try
+            {
+                order.OrderNumber = await GetNextOrderNumberAsync();
+                order.CreatedDate = DateTime.UtcNow;
+                order.ModifiedDate = DateTime.UtcNow;
+                order.CreatedBy ??= "System";
+                order.ModifiedBy ??= "System";
+                order.Status ??= "Pending";
+
+                _context.Orders.Add(order);
+                _logger.LogInformation("Saving order with {ItemCount} items, OrderNumber: {OrderNumber}", order.OrderItems.Count, order.OrderNumber);
+                await _context.SaveChangesAsync();
+                await transaction.CommitAsync();
+
+                var createdOrder = await _context.Orders
+                    .Include(o => o.OrderItems)
+                    .FirstOrDefaultAsync(o => o.OrderId == order.OrderId);
+                if (createdOrder == null)
+                {
+                    _logger.LogError("Failed to retrieve created order for OrderId: {OrderId}", order.OrderId);
+                    throw new InvalidOperationException($"Nem sikerült lekérni a létrehozott megrendelést: OrderId {order.OrderId}");
+                }
+
+                _logger.LogInformation("Created order with OrderId: {OrderId}, ItemCount: {ItemCount}", createdOrder.OrderId, createdOrder.OrderItems.Count);
+                return createdOrder;
+            }
+            catch (DbUpdateException ex)
+            {
+                await transaction.RollbackAsync();
+                _logger.LogError(ex, "Database error creating order for PartnerId: {PartnerId}. Details: {Message}", order.PartnerId, ex.InnerException?.Message ?? ex.Message);
+                throw new InvalidOperationException($"Adatbázis hiba a megrendelés létrehozásakor: {ex.InnerException?.Message ?? ex.Message}", ex);
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                _logger.LogError(ex, "Unexpected error creating order for PartnerId: {PartnerId}. Details: {Message}", order.PartnerId, ex.Message);
+                throw new InvalidOperationException($"Hiba a megrendelés létrehozásakor: {ex.Message}", ex);
+            }
         }
-
-        await _context.SaveChangesAsync();
-        await transaction.CommitAsync();
-
-        var createdOrder = await _context.Orders
-            .Include(o => o.OrderItems)
-            .FirstOrDefaultAsync(o => o.OrderId == order.OrderId);
-        return createdOrder ?? throw new Exception("Failed to retrieve created order");
-    }
-    catch (DbUpdateException ex)
-    {
-        await transaction.RollbackAsync();
-        _logger.LogError(ex, "Database error creating order for PartnerId: {PartnerId}", order.PartnerId);
-        throw new InvalidOperationException($"Adatbázis hiba a megrendelés létrehozásakor: {ex.InnerException?.Message ?? ex.Message}", ex);
-    }
-    catch (Exception ex)
-    {
-        await transaction.RollbackAsync();
-        _logger.LogError(ex, "Unexpected error creating order for PartnerId: {PartnerId}", order.PartnerId);
-        throw new InvalidOperationException($"Hiba a megrendelés létrehozásakor: {ex.Message}", ex);
-    }
-}
 
 public async Task<Order> GetOrderByIdAsync(int OrderId)
         {
@@ -646,7 +675,7 @@ public async Task<Order> CopyOrderAsync(int orderId)
 }
 
 
-        public async Task<List<Order>> GetOrdersAsync(string searchTerm, string statusFilter, string sortBy, int skip, int take)
+public async Task<List<Order>> GetOrdersAsync(string searchTerm, string statusFilter, string sortBy, int skip, int take)
         {
             var query = _context.Orders
                 .Include(o => o.Partner)
@@ -668,12 +697,12 @@ public async Task<Order> CopyOrderAsync(int orderId)
             }
 
             string sortByLower = sortBy?.ToLower() ?? "orderdate";
-            query = sortByLower switch
-            {
-                "orderdate" => query.OrderBy(o => o.OrderDate),
-                "deadline" => query.OrderBy(o => o.Deadline),
-                _ => query.OrderBy(o => o.OrderId)
-            };
+                query = sortBy switch
+                {
+                    "OrderId" => query.OrderByDescending(q => q.OrderId),
+                    "ValidityDate" => query.OrderBy(q => q.Deadline),
+                    _ => query.OrderByDescending(q => q.OrderDate)
+                };
 
             return await query
                 .Skip(skip)

@@ -46,12 +46,15 @@ namespace Cloud9_2.Services
         {
             try
             {
+                _logger.LogInformation("Fetching partner {PartnerId}", id);
                 var partner = await _context.Partners
                     .AsNoTracking()
                     .Include(p => p.Sites)
                     .Include(p => p.Contacts)
                     .Include(p => p.Orders)
                     .Include(p => p.Quotes)
+                    .Include(p => p.Documents)
+                    .ThenInclude(d => d.DocumentType)
                     .FirstOrDefaultAsync(p => p.PartnerId == id);
 
                 if (partner == null)
@@ -60,8 +63,18 @@ namespace Cloud9_2.Services
                     return null;
                 }
 
+                _logger.LogInformation("Partner {PartnerId} has {DocumentCount} documents", id, partner.Documents?.Count ?? 0);
+                if (partner.Documents != null)
+                {
+                    foreach (var doc in partner.Documents)
+                    {
+                        _logger.LogInformation("Document raw data: ID={DocumentId}, FileName={FileName}, FilePath={FilePath}, DocumentTypeId={DocumentTypeId}, UploadDate={UploadDate}, Status={Status}, SiteId={SiteId}, PartnerId={PartnerId}",
+                            doc.DocumentId, doc.FileName, doc.FilePath, doc.DocumentTypeId, doc.UploadDate, doc.Status, doc.SiteId, doc.PartnerId);
+                    }
+                }
+
                 var partnerDto = MapToDto(partner);
-                _logger.LogInformation("Fetched partner {PartnerId}: {PartnerName}", id, partner.Name);
+                _logger.LogInformation("Mapped partner {PartnerId} with {DocumentCount} documents in DTO", id, partnerDto.Documents?.Count ?? 0);
                 return partnerDto;
             }
             catch (Exception ex)
@@ -77,20 +90,35 @@ namespace Cloud9_2.Services
             {
                 var query = _context.Partners
                     .AsNoTracking()
+                    .Include(p => p.Status) // Include Status for filtering
                     .Include(p => p.Sites)
                     .Include(p => p.Contacts)
+                    .Include(p => p.Orders)
+                    .Include(p => p.Quotes)
+                    .Include(p => p.Documents)
+                        .ThenInclude(d => d.DocumentType)
                     .AsQueryable();
 
                 if (!string.IsNullOrWhiteSpace(searchTerm))
                 {
-                    query = query.Where(p => p.Name != null && p.Name.Contains(searchTerm) || 
-                                            p.CompanyName != null && p.CompanyName.Contains(searchTerm) ||
-                                            p.Email != null && p.Email.Contains(searchTerm));
+                    query = query.Where(p => (p.Name != null && p.Name.Contains(searchTerm)) ||
+                                            (p.CompanyName != null && p.CompanyName.Contains(searchTerm)) ||
+                                            (p.Email != null && p.Email.Contains(searchTerm)));
                 }
 
                 if (!string.IsNullOrWhiteSpace(statusFilter))
                 {
-                    query = query.Where(p => p.Status == statusFilter);
+                    // Validate statusFilter against PartnerStatuses
+                    var validStatus = await _context.PartnerStatuses.AnyAsync(s => s.Name == statusFilter);
+                    if (!validStatus)
+                    {
+                        _logger.LogWarning($"Invalid status filter: {statusFilter}");
+                        // Optionally return empty list or throw exception
+                        return new List<PartnerDto>();
+                    }
+                    query = query.Where(p => p.Status != null && p.Status.Name == statusFilter);
+                    // Alternative: query = query.Where(p => p.StatusId == _context.PartnerStatuses
+                    //     .Where(s => s.Name == statusFilter).Select(s => s.Id).FirstOrDefault());
                 }
 
                 string sortByLower = sortBy?.ToLower() ?? "createddate";
@@ -117,104 +145,124 @@ namespace Cloud9_2.Services
             }
         }
 
-        public async Task<PartnerDto> CreatePartnerAsync(PartnerDto partnerDto)
+public async Task<PartnerDto> CreatePartnerAsync(PartnerDto partnerDto)
+{
+    if (partnerDto == null)
+    {
+        _logger.LogError("CreatePartnerAsync received null partnerDto");
+        throw new ArgumentNullException(nameof(partnerDto));
+    }
+
+    if (_context == null)
+    {
+        _logger.LogError("Database context is null for CreatePartnerAsync");
+        throw new InvalidOperationException("Adatbázis kapcsolat nem érhető el");
+    }
+
+    _logger.LogInformation("Validating partner: Name={Name}, Email={Email}, StatusId={StatusId}",
+        partnerDto.Name, partnerDto.Email, partnerDto.StatusId);
+
+    // Validate required fields
+    if (string.IsNullOrWhiteSpace(partnerDto.Name))
+    {
+        _logger.LogError("Invalid Name: Name is required");
+        throw new ArgumentException("A név megadása kötelező");
+    }
+
+    // Validate StatusId
+    int? statusId = partnerDto.StatusId;
+    if (statusId.HasValue)
+    {
+        var statusExists = await _context.PartnerStatuses.AnyAsync(s => s.Id == statusId.Value);
+        if (!statusExists)
         {
-            if (partnerDto == null)
-            {
-                _logger.LogError("CreatePartnerAsync received null partnerDto");
-                throw new ArgumentNullException(nameof(partnerDto));
-            }
-
-            if (_context == null)
-            {
-                _logger.LogError("Database context is null for CreatePartnerAsync");
-                throw new InvalidOperationException("Adatbázis kapcsolat nem érhető el");
-            }
-
-            _logger.LogInformation("Validating partner: Name={Name}, Email={Email}, Status={Status}", 
-                partnerDto.Name, partnerDto.Email, partnerDto.Status);
-
-            // Validate required fields
-            if (string.IsNullOrWhiteSpace(partnerDto.Name))
-            {
-                _logger.LogError("Invalid Name: Name is required");
-                throw new ArgumentException("A név megadása kötelező");
-            }
-
-            var currentUser = GetCurrentUser();
-            var currentTime = DateTime.UtcNow;
-
-            var partner = new Partner
-            {
-                Name = partnerDto.Name,
-                Email = partnerDto.Email,
-                PhoneNumber = partnerDto.PhoneNumber,
-                AlternatePhone = partnerDto.AlternatePhone,
-                Website = partnerDto.Website,
-                CompanyName = partnerDto.CompanyName,
-                TaxId = partnerDto.TaxId,
-                IntTaxId = partnerDto.IntTaxId,
-                Industry = partnerDto.Industry,
-                AddressLine1 = partnerDto.AddressLine1,
-                AddressLine2 = partnerDto.AddressLine2,
-                City = partnerDto.City,
-                State = partnerDto.State,
-                PostalCode = partnerDto.PostalCode,
-                Country = partnerDto.Country,
-                Status = partnerDto.Status ?? "Prospect",
-                LastContacted = partnerDto.LastContacted,
-                Notes = partnerDto.Notes,
-                AssignedTo = partnerDto.AssignedTo,
-                BillingContactName = partnerDto.BillingContactName,
-                BillingEmail = partnerDto.BillingEmail,
-                PaymentTerms = partnerDto.PaymentTerms,
-                CreditLimit = partnerDto.CreditLimit,
-                PreferredCurrency = partnerDto.PreferredCurrency,
-                IsTaxExempt = partnerDto.IsTaxExempt ?? false,
-                PartnerGroupId = partnerDto.PartnerGroupId,
-                CreatedDate = currentTime,
-                CreatedBy = currentUser,
-                UpdatedDate = currentTime,
-                UpdatedBy = currentUser
-            };
-
-            using var transaction = await _context.Database.BeginTransactionAsync();
-            try
-            {
-                _context.Partners.Add(partner);
-                _logger.LogInformation("Saving partner: Name={Name}", partner.Name);
-                await _context.SaveChangesAsync();
-                await transaction.CommitAsync();
-
-                var createdPartner = await _context.Partners
-                    .AsNoTracking()
-                    .Include(p => p.Sites)
-                    .Include(p => p.Contacts)
-                    .FirstOrDefaultAsync(p => p.PartnerId == partner.PartnerId);
-
-                if (createdPartner == null)
-                {
-                    _logger.LogError("Failed to retrieve created partner for PartnerId: {PartnerId}", partner.PartnerId);
-                    throw new InvalidOperationException($"Nem sikerült lekérni a létrehozott partnert: PartnerId {partner.PartnerId}");
-                }
-
-                var resultDto = MapToDto(createdPartner);
-                _logger.LogInformation("Created partner with PartnerId: {PartnerId}, Name: {Name}", createdPartner.PartnerId, createdPartner.Name);
-                return resultDto;
-            }
-            catch (DbUpdateException ex)
-            {
-                await transaction.RollbackAsync();
-                _logger.LogError(ex, "Database error creating partner: {Message}", ex.InnerException?.Message ?? ex.Message);
-                throw new InvalidOperationException($"Adatbázis hiba a partner létrehozásakor: {ex.InnerException?.Message ?? ex.Message}", ex);
-            }
-            catch (Exception ex)
-            {
-                await transaction.RollbackAsync();
-                _logger.LogError(ex, "Unexpected error creating partner: {Message}", ex.Message);
-                throw new InvalidOperationException($"Hiba a partner létrehozásakor: {ex.Message}", ex);
-            }
+            _logger.LogError("Invalid StatusId: {StatusId}", statusId);
+            throw new ArgumentException($"Érvénytelen státusz azonosító: {statusId}");
         }
+    }
+    else
+    {
+        // Default to Prospect (Id = 3)
+        var prospectStatus = await _context.PartnerStatuses
+            .FirstOrDefaultAsync(s => s.Name == "Prospect");
+        statusId = prospectStatus?.Id ?? 3; // Fallback to 3
+    }
+
+    var currentUser = GetCurrentUser();
+    var currentTime = DateTime.UtcNow;
+
+    var partner = new Partner
+    {
+        Name = partnerDto.Name,
+        Email = partnerDto.Email,
+        PhoneNumber = partnerDto.PhoneNumber,
+        AlternatePhone = partnerDto.AlternatePhone,
+        Website = partnerDto.Website,
+        CompanyName = partnerDto.CompanyName,
+        TaxId = partnerDto.TaxId,
+        IntTaxId = partnerDto.IntTaxId,
+        Industry = partnerDto.Industry,
+        AddressLine1 = partnerDto.AddressLine1,
+        AddressLine2 = partnerDto.AddressLine2,
+        City = partnerDto.City,
+        State = partnerDto.State,
+        PostalCode = partnerDto.PostalCode,
+        Country = partnerDto.Country,
+        StatusId = statusId,
+        LastContacted = partnerDto.LastContacted,
+        Notes = partnerDto.Notes,
+        AssignedTo = partnerDto.AssignedTo,
+        BillingContactName = partnerDto.BillingContactName,
+        BillingEmail = partnerDto.BillingEmail,
+        PaymentTerms = partnerDto.PaymentTerms,
+        CreditLimit = partnerDto.CreditLimit,
+        PreferredCurrency = partnerDto.PreferredCurrency,
+        IsTaxExempt = partnerDto.IsTaxExempt ?? false,
+        PartnerGroupId = partnerDto.PartnerGroupId,
+        CreatedDate = currentTime,
+        CreatedBy = currentUser,
+        UpdatedDate = currentTime,
+        UpdatedBy = currentUser
+    };
+
+    using var transaction = await _context.Database.BeginTransactionAsync();
+    try
+    {
+        _context.Partners.Add(partner);
+        _logger.LogInformation("Saving partner: Name={Name}", partner.Name);
+        await _context.SaveChangesAsync();
+        await transaction.CommitAsync();
+
+        var createdPartner = await _context.Partners
+            .AsNoTracking()
+            .Include(p => p.Status) // Include Status for DTO
+            .Include(p => p.Sites)
+            .Include(p => p.Contacts)
+            .FirstOrDefaultAsync(p => p.PartnerId == partner.PartnerId);
+
+        if (createdPartner == null)
+        {
+            _logger.LogError("Failed to retrieve created partner for PartnerId: {PartnerId}", partner.PartnerId);
+            throw new InvalidOperationException($"Nem sikerült lekérni a létrehozott partnert: PartnerId {partner.PartnerId}");
+        }
+
+        var resultDto = MapToDto(createdPartner);
+        _logger.LogInformation("Created partner with PartnerId: {PartnerId}, Name: {Name}", createdPartner.PartnerId, createdPartner.Name);
+        return resultDto;
+    }
+    catch (DbUpdateException ex)
+    {
+        await transaction.RollbackAsync();
+        _logger.LogError(ex, "Database error creating partner: {Message}", ex.InnerException?.Message ?? ex.Message);
+        throw new InvalidOperationException($"Adatbázis hiba a partner létrehozásakor: {ex.InnerException?.Message ?? ex.Message}", ex);
+    }
+    catch (Exception ex)
+    {
+        await transaction.RollbackAsync();
+        _logger.LogError(ex, "Unexpected error creating partner: {Message}", ex.Message);
+        throw new InvalidOperationException($"Hiba a partner létrehozásakor: {ex.Message}", ex);
+    }
+}
 
         public async Task<PartnerDto> UpdatePartnerAsync(int partnerId, PartnerDto partnerUpdate)
         {
@@ -227,8 +275,10 @@ namespace Cloud9_2.Services
             }
 
             var partner = await _context.Partners
-                .Include(p => p.Sites)
-                .Include(p => p.Contacts)
+                .Include(p => p.Status)
+                .Include(p => p.Sites).ThenInclude(s => s.Status)
+                .Include(p => p.Contacts).ThenInclude(s => s.Status) 
+                .Include(p => p.Documents)
                 .FirstOrDefaultAsync(p => p.PartnerId == partnerId);
 
             if (partner == null)
@@ -255,7 +305,7 @@ namespace Cloud9_2.Services
                 partner.State = partnerUpdate.State ?? partner.State;
                 partner.PostalCode = partnerUpdate.PostalCode ?? partner.PostalCode;
                 partner.Country = partnerUpdate.Country ?? partner.Country;
-                partner.Status = partnerUpdate.Status ?? partner.Status;
+                partner.StatusId = partnerUpdate.StatusId ?? partner.StatusId; // Use StatusId
                 partner.LastContacted = partnerUpdate.LastContacted ?? partner.LastContacted;
                 partner.Notes = partnerUpdate.Notes ?? partner.Notes;
                 partner.AssignedTo = partnerUpdate.AssignedTo ?? partner.AssignedTo;
@@ -274,6 +324,17 @@ namespace Cloud9_2.Services
                 {
                     _logger.LogError("Invalid Name: Name is required for PartnerId: {PartnerId}", partnerId);
                     throw new ArgumentException("A név megadása kötelező");
+                }
+
+                // Validate StatusId
+                if (partner.StatusId.HasValue)
+                {
+                    var statusExists = await _context.PartnerStatuses.AnyAsync(s => s.Id == partner.StatusId.Value);
+                    if (!statusExists)
+                    {
+                        _logger.LogError("Invalid StatusId: {StatusId} for PartnerId: {PartnerId}", partner.StatusId, partnerId);
+                        throw new ArgumentException($"Érvénytelen státusz azonosító: {partner.StatusId}");
+                    }
                 }
 
                 await _context.SaveChangesAsync();
@@ -475,84 +536,85 @@ namespace Cloud9_2.Services
         {
             try
             {
+                // Find the partner by ID
                 var partner = await _context.Partners
-                    .Include(p => p.Orders)
-                    .Include(p => p.Quotes)
+                    .Include(p => p.Sites)
+                    .Include(p => p.Contacts)
+                    .Include(p => p.Documents)
                     .FirstOrDefaultAsync(p => p.PartnerId == partnerId);
 
                 if (partner == null)
                 {
-                    _logger.LogWarning("Partner {PartnerId} not found for deletion", partnerId);
-                    return false;
+                    return false; // Partner not found
                 }
 
-                if (partner.Orders != null && partner.Orders.Any())
-                {
-                    _logger.LogWarning("Cannot delete partner {PartnerId} due to existing orders", partnerId);
-                    throw new InvalidOperationException("Nem törölhető a partner, mert rendelések vannak hozzárendelve");
-                }
-                if (partner.Quotes != null && partner.Quotes.Any())
-                {
-                    _logger.LogWarning("Cannot delete partner {PartnerId} due to existing quotes", partnerId);
-                    throw new InvalidOperationException("Nem törölhető a partner, mert árajánlatok vannak hozzárendelve");
-                }
+                // Remove related entities first (if required by business logic)
+                _context.Sites.RemoveRange(partner.Sites);
+                _context.Contacts.RemoveRange(partner.Contacts);
+                _context.Documents.RemoveRange(partner.Documents);
 
+                // Remove the partner
                 _context.Partners.Remove(partner);
+
+                // Save changes to the database
                 await _context.SaveChangesAsync();
-                _logger.LogInformation("Partner {PartnerId} deleted successfully", partnerId);
+                
                 return true;
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                _logger.LogError(ex, "Error deleting partner {PartnerId}", partnerId);
-                throw;
+                // Log the exception if needed (logging not implemented here)
+                return false;
             }
         }
 
-        private PartnerDto MapToDto(Partner partner)
+        private PartnerDto MapToDto(Partner p)
         {
             return new PartnerDto
             {
-                PartnerId = partner.PartnerId,
-                Name = partner.Name,
-                Email = partner.Email,
-                PhoneNumber = partner.PhoneNumber,
-                AlternatePhone = partner.AlternatePhone,
-                Website = partner.Website,
-                CompanyName = partner.CompanyName,
-                TaxId = partner.TaxId,
-                IntTaxId = partner.IntTaxId,
-                Industry = partner.Industry,
-                AddressLine1 = partner.AddressLine1,
-                AddressLine2 = partner.AddressLine2,
-                City = partner.City,
-                State = partner.State,
-                PostalCode = partner.PostalCode,
-                Country = partner.Country,
-                Status = partner.Status,
-                LastContacted = partner.LastContacted,
-                Notes = partner.Notes,
-                AssignedTo = partner.AssignedTo,
-                BillingContactName = partner.BillingContactName,
-                BillingEmail = partner.BillingEmail,
-                PaymentTerms = partner.PaymentTerms,
-                CreditLimit = partner.CreditLimit,
-                PreferredCurrency = partner.PreferredCurrency,
-                IsTaxExempt = partner.IsTaxExempt,
-                PartnerGroupId = partner.PartnerGroupId,
-                Sites = partner.Sites?.Select(s => new SiteDto
+                PartnerId = p.PartnerId,
+                Name = p.Name,
+                Email = p.Email,
+                PhoneNumber = p.PhoneNumber,
+                AlternatePhone = p.AlternatePhone,
+                Website = p.Website,
+                CompanyName = p.CompanyName,
+                TaxId = p.TaxId,
+                IntTaxId = p.IntTaxId,
+                Industry = p.Industry,
+                AddressLine1 = p.AddressLine1,
+                AddressLine2 = p.AddressLine2,
+                City = p.City,
+                State = p.State,
+                PostalCode = p.PostalCode,
+                Country = p.Country,
+                LastContacted = p.LastContacted,
+                Notes = p.Notes,
+                AssignedTo = p.AssignedTo,
+                BillingContactName = p.BillingContactName,
+                BillingEmail = p.BillingEmail,
+                PaymentTerms = p.PaymentTerms,
+                CreditLimit = p.CreditLimit,
+                PreferredCurrency = p.PreferredCurrency,
+                IsTaxExempt = p.IsTaxExempt,
+                PartnerGroupId = p.PartnerGroupId,
+                StatusId = p.StatusId,
+                Status = p.Status,
+                Sites = p.Sites.Select(s => new SiteDto
                 {
                     SiteId = s.SiteId,
                     SiteName = s.SiteName,
                     AddressLine1 = s.AddressLine1,
                     AddressLine2 = s.AddressLine2,
                     City = s.City,
+                    Country = s.Country,
                     State = s.State,
                     PostalCode = s.PostalCode,
-                    Country = s.Country,
-                    IsPrimary = s.IsPrimary
-                }).ToList() ?? new List<SiteDto>(),
-                Contacts = partner.Contacts?.Select(c => new ContactDto
+                    IsPrimary = s.IsPrimary,
+                    StatusId = s.StatusId,
+                    Status = s.Status
+                }).ToList(),
+                Contacts = p.Contacts.Select(c => new ContactDto
                 {
                     ContactId = c.ContactId,
                     FirstName = c.FirstName,
@@ -561,9 +623,19 @@ namespace Cloud9_2.Services
                     PhoneNumber = c.PhoneNumber,
                     JobTitle = c.JobTitle,
                     Comment = c.Comment,
-                    IsPrimary = c.IsPrimary
-                }).ToList() ?? new List<ContactDto>()
+                    IsPrimary = c.IsPrimary,
+                    StatusId = c.StatusId,
+                    Status = c.Status
+                }).ToList(),
+                Documents = p.Documents.Select(d => new DocumentDto
+                {
+                    DocumentId = d.DocumentId,
+                    FileName = d.FileName,
+                    FilePath = d.FilePath,
+                    UploadDate = d.UploadDate
+                }).ToList()
             };
         }
+
     }
 }

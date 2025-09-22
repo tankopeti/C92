@@ -63,17 +63,37 @@ namespace Cloud9_2.Data
         public DbSet<DocumentMetadata> DocumentMetadata { get; set; }
         public DbSet<DocumentLink> DocumentLinks { get; set; }
         public DbSet<DocumentStatusHistory> DocumentStatusHistory { get; set; }
-        public DbSet<DocumentStatus> DocumentStatuses { get; set; }
+        public DbSet<Status> PartnerStatuses { get; set; }
 
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
 
-            modelBuilder.Entity<Document>()
-                .HasOne(d => d.DocumentType)
+            modelBuilder.Entity<Status>().ToTable("PartnerStatuses");
+
+            modelBuilder.Entity<PartnerDto>()
+                .HasOne(p => p.Status)
                 .WithMany()
-                .HasForeignKey(d => d.DocumentTypeId);
+                .HasForeignKey(p => p.StatusId);
+
+            modelBuilder.Entity<SiteDto>()
+                .HasOne(s => s.Status)
+                .WithMany()
+                .HasForeignKey(s => s.StatusId);
+
+            modelBuilder.Entity<Site>()
+                .Property(s => s.SiteName)
+                .IsRequired();
+            modelBuilder.Entity<Site>()
+                .Property(s => s.PartnerId)
+                .IsRequired();
+
+            modelBuilder.Entity<Partner>()
+                .HasMany(p => p.Documents)
+                .WithOne() // No navigation property in Document
+                .HasForeignKey(d => d.PartnerId)
+                .OnDelete(DeleteBehavior.Cascade);
 
             modelBuilder.Entity<Document>()
                 .HasMany(d => d.DocumentMetadata)

@@ -63,9 +63,6 @@ namespace Cloud9_2.Models
         public string? Country { get; set; }             // Country
 
         // CRM-Specific Properties
-        
-        [Display(Name = "Státusz")]
-        public string? Status { get; set; }              // e.g., "Active", "Inactive", "Prospect"
 
         [Display(Name = "Utolsó kapcsolat dátuma")]
         public DateTime? LastContacted { get; set; }     // Date of last interaction
@@ -101,6 +98,9 @@ namespace Cloud9_2.Models
 
         [ForeignKey("PartnerGroupId")]
         public PartnerGroup? PartnerGroup { get; set; } // Navigation property
+        [Display(Name = "Státusz")]
+        public int? StatusId { get; set; }
+        public Status? Status { get; set; }
 
         // Audit Fields
 
@@ -131,7 +131,6 @@ namespace Cloud9_2.Models
         public Partner()
         {
             CreatedDate = DateTime.Now;
-            Status = "Prospect";
             IsTaxExempt = false;
             Sites = new List<Site>();
             Contacts = new List<Contact>();

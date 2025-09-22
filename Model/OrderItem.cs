@@ -27,10 +27,8 @@ namespace Cloud9_2.Models
 
         [Required]
         [Display(Name = "Egységár")]
-        [DataType(DataType.Currency)]
         public decimal UnitPrice { get; set; }
 
-        [DataType(DataType.Currency)]
         [Display(Name = "Kedvezmény összeg")]
         public decimal? DiscountAmount { get; set; }
 
@@ -58,6 +56,12 @@ namespace Cloud9_2.Models
         public int ProductId { get; set; }
 
         [ForeignKey("ProductId")]
-        public Product Product { get; set; }
+        public Product? Product { get; set; }
+
+        public int? VatTypeId { get; set; }
+
+        [ForeignKey("VatTypeId")]
+        public VatType? VatType { get; set; }
+
     }
 }

@@ -23,6 +23,7 @@ namespace Cloud9_2.Models
 
     public class DocumentDto
     {
+         [Key]
         public int DocumentId { get; set; }
         public string? FileName { get; set; }
         public string? FilePath { get; set; }
@@ -74,6 +75,12 @@ namespace Cloud9_2.Models
         public int RecordId { get; set; }
     }
 
+    public class MetadataEntry
+    {
+        public string? Key { get; set; }
+        public string? Value { get; set; }
+    }
+
     public class CreateDocumentDto
     {
         [Required]
@@ -85,6 +92,7 @@ namespace Cloud9_2.Models
         public int? PartnerId { get; set; }
         [Required]
         public DocumentStatusEnum Status { get; set; }
+        public List<MetadataEntry>? CustomMetadata { get; set; } = new List<MetadataEntry>();
     }
 
     public class DocumentModalViewModel

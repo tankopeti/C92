@@ -8,6 +8,7 @@ namespace Cloud9_2.Models
 {
     public class PartnerDto
     {
+         [Key]
         public int PartnerId { get; set; }
 
         [Required(ErrorMessage = "A név megadása kötelező")]
@@ -60,8 +61,11 @@ namespace Cloud9_2.Models
         [StringLength(50, ErrorMessage = "Az ország maximum 50 karakter hosszú lehet")]
         public string? Country { get; set; }
 
-        [StringLength(50, ErrorMessage = "A státusz maximum 50 karakter hosszú lehet")]
-        public string? Status { get; set; }
+        [Display(Name = "Státusz")]
+        public int? StatusId { get; set; } // Foreign key, nullable to match original string?
+
+        [ForeignKey("StatusId")]
+        public Status? Status { get; set; } // Navigation property
 
         public DateTime? LastContacted { get; set; }
 
@@ -93,6 +97,7 @@ namespace Cloud9_2.Models
 
         public List<SiteDto> Sites { get; set; } = new List<SiteDto>();
         public List<ContactDto> Contacts { get; set; } = new List<ContactDto>();
+        public List<DocumentDto> Documents { get; set; }
     }
-
+    
 }

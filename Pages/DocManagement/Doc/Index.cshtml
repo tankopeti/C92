@@ -12,6 +12,7 @@
 }
 @section Styles {
     <link rel="stylesheet" href="~/css/Quotes.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 }
 
 @functions {
@@ -33,17 +34,18 @@
                     <li class="breadcrumb-item"><a href="../../">Főoldal</a></li>
                     <li class="breadcrumb-item"><a href="../">CRM Dashboard</a></li>
                     <li class="breadcrumb-item active" aria-current="page">Dokumentumok</li>
+                    <li class="breadcrumb-item active" aria-current="page">@Model.Documents.Count of @Model.TotalRecords dokumentum@(Model.TotalRecords != 1 ? "ok" : "") (Page @Model.CurrentPage of @Model.TotalPages)</li>
                 </ol>
             </nav>
         </div>
         <div class="d-flex justify-content-between align-items-center mb-3">
             <div class="d-flex align-items-center gap-2">
-                <button type="button" id="createDocumentBtn" class="btn-new" data-bs-toggle="modal" data-bs-target="#createDocumentModal" aria-label="Új dokumentum létrehozása">
-                    <i class="bi bi-plus-circle me-1"></i>Új dokumentum
+                <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#createDocumentModal" aria-label="Új dokumentum létrehozása">
+                    + Új Dokumentum
                 </button>
             </div>
             <div class="d-flex align-items-center gap-2">
-                <form method="get" class="input-group input-group-sm" style="width: 250px;">
+                <form method="get" asp-page="./Index" class="input-group input-group-sm" style="width: 250px;">
                     <input type="text" class="form-control" placeholder="Keresés..." id="searchInput" name="SearchTerm" value="@Model.SearchTerm" autocomplete="off" aria-label="Keresés dokumentumok között">
                     <input type="hidden" name="pageSize" value="@Model.PageSize" />
                     <button class="btn btn-outline-secondary" type="submit" aria-label="Keresés indítása">
@@ -67,123 +69,119 @@
                 </div>
             </div>
         </div>
-        <div class="card-grid-header">
-            <div class="card-grid-row">
-                <div class="card-grid-column col">Dokumentum ID</div>
-                <div class="card-grid-column col">Fájlnév</div>
-                <div class="card-grid-column col">Partner</div>
-                <div class="card-grid-column col">Dátum</div>
-                <div class="card-grid-column col">Státusz</div>
-                <div class="card-grid-column col">Műveletek</div>
-            </div>
-        </div>
-    </div>
-    <div class="scrollable-card-container">
-        <div class="card-grid-body">
-            @if (Model.Documents != null && Model.Documents.Any())
-            {
-                @foreach (var doc in Model.Documents)
-                {
-                    <div class="card partner-card mb-3" data-document-id="@doc.DocumentId">
-                        <div class="card-body p-2">
-                            <div class="card-grid-row align-items-center">
-                                <div class="card-grid-cell col">
-                                    <div class="document-info">
-                                        <div class="fw-bold">@doc.DocumentId</div>
-                                    </div>
-                                </div>
-                                <div class="card-grid-cell col">
-                                    <div class="document-filename text-muted small">
-                                        <i class="bi bi-file-earmark me-1"></i>
-                                        <a href="/file/@doc.DocumentId" target="_blank" aria-label="Dokumentum megnyitása: @doc.FileName">
-                                            @(doc.FileName != null && doc.FileName.Length > 40 ? doc.FileName.Substring(0, 40) + "..." : doc.FileName ?? "N/A")
-                                        </a>
-                                    </div>
-                                </div>
-                                <div class="card-grid-cell col">
-                                    <div class="document-partner text-muted small">
-                                        <i class="bi bi-person me-1"></i>@(doc.PartnerName ?? "N/A")
-                                    </div>
-                                </div>
-                                <div class="card-grid-cell col">
-                                    <div class="document-date text-muted small">
-                                        <i class="bi bi-calendar me-1"></i>@(doc.UploadDate?.ToString("d MMMM yyyy", CultureInfo.CreateSpecificCulture("hu-HU")) ?? "N/A")
-                                    </div>
-                                </div>
-                                <div class="card-grid-cell col">
-                                    <span class="badge bg-secondary">@(Model.StatusDisplayNames.ContainsKey(doc.Status.ToString()) ? Model.StatusDisplayNames[doc.Status.ToString()] : "N/A")</span>
-                                </div>
-                                <div class="btn-group btn-group-sm col" role="group">
-                                    <button type="button" class="btn btn-outline-info btn-sm view-document-btn"
-                                            data-bs-toggle="modal"
-                                            data-bs-target="#viewDocumentModal_@doc.DocumentId"
-                                            aria-label="Dokumentum részleteinek megtekintése">
-                                        <i class="bi bi-eye"></i>
-                                    </button>
-                                    <div class="dropdown">
-                                        <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button"
-                                                id="actionsDropdown_@doc.DocumentId"
-                                                data-bs-toggle="dropdown"
-                                                aria-expanded="false"
-                                                aria-label="További műveletek">
-                                            <i class="bi bi-three-dots-vertical"></i>
+
+        <div class="table-responsive" style="max-height: 70vh; overflow-y: auto;">
+            <table class="table table-striped table-hover">
+                <thead class="sticky-top custom-thead">
+                    <tr>
+                        @foreach (var column in new[] { "DocumentId", "FileName", "PartnerName", "UploadDate", "Status" })
+                        {
+                            <th class="text-nowrap">@(column == "DocumentId" ? "Dokumentum ID" : column == "FileName" ? "Fájlnév" : column == "PartnerName" ? "Partner" : column == "UploadDate" ? "Dátum" : "Státusz")</th>
+                        }
+                        <th class="text-nowrap">Műveletek</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (Model.Documents != null && Model.Documents.Any())
+                    {
+                        @foreach (var doc in Model.Documents)
+                        {
+                            <tr>
+                                @foreach (var column in new[] { "DocumentId", "FileName", "PartnerName", "UploadDate", "Status" })
+                                {
+                                    <td class="text-nowrap">
+                                        @switch (column)
+                                        {
+                                            case "DocumentId":
+                                                <i class="bi bi-file-earmark-text me-1"></i> @doc.DocumentId
+                                                break;
+                                            case "FileName":
+                                                <i class="bi bi-file-earmark me-1"></i>
+                                                <a href="/file/@doc.DocumentId" target="_blank" aria-label="Dokumentum megnyitása: @doc.FileName">
+                                                    @(doc.FileName != null && doc.FileName.Length > 40 ? doc.FileName.Substring(0, 40) + "..." : doc.FileName ?? "N/A")
+                                                </a>
+                                                break;
+                                            case "PartnerName":
+                                                <i class="bi bi-person me-1"></i> @(doc.PartnerName ?? "N/A")
+                                                break;
+                                            case "UploadDate":
+                                                <i class="bi bi-calendar me-1"></i> @(doc.UploadDate?.ToString("d MMMM yyyy", CultureInfo.CreateSpecificCulture("hu-HU")) ?? "N/A")
+                                                break;
+                                            case "Status":
+                                                <i class="bi bi-info-circle me-1"></i>
+                                                <span class="badge" style="background-color: @(Model.StatusDisplayNames.ContainsKey(doc.Status.ToString()) ? "#6c757d" : "#6c757d"); color: white">
+                                                    @(Model.StatusDisplayNames.ContainsKey(doc.Status.ToString()) ? Model.StatusDisplayNames[doc.Status.ToString()] : "N/A")
+                                                </span>
+                                                break;
+                                            default:
+                                                @:N/A
+                                                break;
+                                        }
+                                    </td>
+                                }
+                                <td>
+                                    <div class="btn-group btn-group-sm" role="group">
+                                        <button type="button"
+                                                class="btn btn-outline-info view-document-btn"
+                                                data-bs-toggle="modal"
+                                                data-bs-target="#viewDocumentModal_@doc.DocumentId"
+                                                aria-label="Dokumentum részleteinek megtekintése">
+                                            <i class="bi bi-eye"></i>
                                         </button>
-                                        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="actionsDropdown_@doc.DocumentId">
-                                            <li>
-                                                <form asp-page="./Index" asp-page-handler="UpdateStatus" method="post">
-                                                    <input type="hidden" name="documentId" value="@doc.DocumentId" />
-                                                    <input type="hidden" name="returnUrl" value="@Request.Path@Request.QueryString" />
-                                                    @Html.AntiForgeryToken()
-                                                    <select name="status" class="form-select form-select-sm me-2" onchange="this.form.submit()">
-                                                        <option value="">Státusz módosítása</option>
-                                                        @foreach (var status in Enum.GetValues(typeof(DocumentStatusEnum)))
-                                                        {
-                                                            <option value="@status" selected="@(doc.Status.ToString() == status.ToString())">@Model.StatusDisplayNames[status.ToString()]</option>
-                                                        }
-                                                    </select>
-                                                </form>
-                                            </li>
-                                            <li><hr class="dropdown-divider"></li>
-                                            <li>
-                                                <form asp-page="./Index" asp-page-handler="Delete" method="post" onsubmit="return confirm('Biztosan törli a dokumentumot?');">
-                                                    <input type="hidden" name="documentId" value="@doc.DocumentId" />
-                                                    <input type="hidden" name="returnUrl" value="@Request.Path@Request.QueryString" />
-                                                    @Html.AntiForgeryToken()
-                                                    <button type="submit" class="dropdown-item text-danger">
-                                                        <i class="bi bi-trash me-2"></i>Törlés
-                                                    </button>
-                                                </form>
-                                            </li>
-                                        </ul>
+                                        <div class="dropdown">
+                                            <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button"
+                                                    data-bs-toggle="dropdown" aria-expanded="false"
+                                                    aria-label="További műveletek">
+                                                <i class="bi bi-three-dots-vertical"></i>
+                                            </button>
+                                            <ul class="dropdown-menu dropdown-menu-end">
+                                                <li>
+                                                    <a class="dropdown-item change-status-btn" href="#"
+                                                       data-bs-toggle="modal"
+                                                       data-bs-target="#changeStatusModal_@doc.DocumentId"
+                                                       data-document-id="@doc.DocumentId">
+                                                        <i class="bi bi-toggle-on me-2"></i>Státusz módosítás
+                                                    </a>
+                                                </li>
+                                                <li>
+                                                    <form asp-page="./Index" asp-page-handler="Delete" method="post" onsubmit="return confirm('Biztosan törli a dokumentumot?');">
+                                                        <input type="hidden" name="documentId" value="@doc.DocumentId" />
+                                                        <input type="hidden" name="returnUrl" value="@Request.Path@Request.QueryString" />
+                                                        @Html.AntiForgeryToken()
+                                                        <button type="submit" class="dropdown-item text-danger">
+                                                            <i class="bi bi-trash me-2"></i>Törlés
+                                                        </button>
+                                                    </form>
+                                                </li>
+                                            </ul>
+                                        </div>
                                     </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                }
-            }
-            else
-            {
-                <div class="alert alert-warning text-center mt-3" role="alert">
-                    @if (!string.IsNullOrEmpty(Model.SearchTerm))
-                    {
-                        @:Nem található dokumentum a "@Model.SearchTerm" keresési kifejezésre az @Model.CurrentPage. oldalon.
-                    }
-                    else if (Model.TotalRecords > 0)
-                    {
-                        @:Nem található dokumentum az @Model.CurrentPage. oldalon, de @Model.TotalRecords dokumentum létezik. Próbáljon másik oldalt vagy szűrőt.
+                                </td>
+                            </tr>
+                        }
                     }
                     else
                     {
-                        @:Nem található dokumentum.
+                        <tr>
+                            <td colspan="6" class="text-center">
+                                <div class="alert alert-warning" role="alert">
+                                    @if (!string.IsNullOrEmpty(Model.SearchTerm))
+                                    {
+                                        @:Nem található dokumentum a "@Model.SearchTerm" keresési kifejezésre.
+                                    }
+                                    else
+                                    {
+                                        @:Nem található dokumentum. <button type="button" class="btn btn-link alert-link p-0 align-baseline" data-bs-toggle="modal" data-bs-target="#createDocumentModal">Hozzon létre egyet?</button>
+                                    }
+                                </div>
+                            </td>
+                        </tr>
                     }
-                    <div class="mt-2 small text-muted">
-                        @* Debug: Page=@Model.CurrentPage, PageSize=@Model.PageSize, TotalRecords=@Model.TotalRecords, DistinctDocumentIdCount=@Model.DistinctDocumentIdCount, SearchTerm="@Model.SearchTerm" *@
-                    </div>
-                </div>
-            }
+                </tbody>
+            </table>
         </div>
     </div>
+
     @await Html.PartialAsync("_PaginationFooter", new PaginationViewModel
     {
         CurrentPage = Model.CurrentPage,
@@ -193,13 +191,14 @@
         PageRoute = "./Index",
         EntityName = "Documents"
     })
-    <!-- Render Creation Modal -->
+
+    <!-- Render Creation and View Modals -->
     @await Html.PartialAsync("_Modals", ViewData["ModalViewModel"])
-    <!-- Render View Modals for Documents -->
     @foreach (var doc in Model.Documents ?? new List<DocumentDto>())
     {
         @await Html.PartialAsync("_Modals", new DocumentModalViewModel { Document = doc })
     }
+
     <form id="antiForgeryForm">
         @Html.AntiForgeryToken()
     </form>
@@ -216,212 +215,152 @@
     <script src="/js/tomSelectUtils.js"></script>
     <script>
         $(document).ready(function () {
-            // Function to fetch sites for a given partnerId
-            async function fetchSitesForPartner(partnerId) {
-                try {
-                    const searchUrl = `/api/sites/by-partner/${partnerId}?search=`;
-                    console.log(`Fetching sites from: ${searchUrl}`);
-                    const headers = {
-                        'Content-Type': 'application/json',
-                        'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]')?.value
-                    };
-                    const token = localStorage.getItem('token');
-                    if (token) {
-                        headers['Authorization'] = `Bearer ${token}`;
-                    }
-
-                    const response = await fetch(searchUrl, { headers, credentials: 'include' });
-                    if (!response.ok) {
-                        const errorText = await response.text().catch(() => 'Unknown error');
-                        console.error('Fetch sites failed:', { status: response.status, error: errorText, searchUrl });
-                        return [{ id: null, text: response.status === 404 ? 'Telephely API nem elérhető' : 'Nincs találat' }];
-                    }
-
-                    const searchData = await response.json();
-                    console.log('Search sites response:', searchData);
-                    return searchData.map(item => ({
-                        id: item.id,
-                        text: (item.text && item.text.trim() !== '') ? item.text.trim() : `Site ${item.id}`
-                    })).filter(item => item.text && item.text.trim() !== '');
-                } catch (error) {
-                    console.error('Error fetching sites:', error);
-                    window.c92.showToast('error', `Hiba a telephelyek betöltése közben: ${error.message}`);
-                    return [{ id: null, text: 'Hiba a betöltés során' }];
+            // Fallback showToast function
+            window.showToast = window.showToast || function (type, message) {
+                console.log(`Toast [${type}]: ${message}`);
+                const toastContainer = document.getElementById('toastContainer');
+                if (toastContainer) {
+                    const toast = document.createElement('div');
+                    toast.className = `toast align-items-center text-bg-${type === 'success' ? 'success' : 'danger'} border-0`;
+                    toast.setAttribute('role', 'alert');
+                    toast.setAttribute('aria-live', 'assertive');
+                    toast.setAttribute('aria-atomic', 'true');
+                    toast.innerHTML = `
+                        <div class="d-flex">
+                            <div class="toast-body">${message}</div>
+                            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+                        </div>
+                    `;
+                    toastContainer.appendChild(toast);
+                    const bsToast = new bootstrap.Toast(toast);
+                    bsToast.show();
                 }
+            };
+
+            // Initialize TomSelect for DocumentType
+            const docTypeSelect = document.querySelector('#docDocumentTypeId');
+            if (docTypeSelect) {
+                new TomSelect('#docDocumentTypeId', {
+                    maxOptions: 50,
+                    placeholder: 'Válasszon típust'
+                });
             }
 
-            // Initialize TomSelect for Partner dropdown in Create Modal
-            window.c92.initializePartnerTomSelect(
-                document.querySelector('#docPartnerId'),
-                'create',
-                'document'
-            ).then(function (tomSelect) {
-                console.log('Partner TomSelect initialized for create modal:', tomSelect);
-            }).catch(function (error) {
-                console.error('Failed to initialize Partner TomSelect:', error);
-                showToast('error', 'Hiba a partnerek betöltése közben: ' + error.message);
-            });
+            // Initialize TomSelect for Partner
+            const partnerSelect = document.querySelector('#docPartnerId');
+            if (partnerSelect) {
+                new TomSelect('#docPartnerId', {
+                    maxOptions: 50,
+                    placeholder: 'Válasszon partnert'
+                });
+            }
 
-            // Initialize TomSelect for Site dropdown in Create Modal
+            // Initialize TomSelect for Site
             const siteSelect = document.querySelector('#docSiteId');
-            window.c92.initializeSiteTomSelect(
-                siteSelect,
-                'create',
-                'document'
-            ).then(async function (tomSelect) {
-                console.log('Site TomSelect initialized for create modal:', tomSelect);
-                // Override the load function to use the correct endpoint
-                tomSelect.load = async function (query, callback) {
-                    try {
-                        const partnerSelect = document.querySelector('#docPartnerId');
-                        const partnerId = partnerSelect?.value ? parseInt(partnerSelect.value) : null;
-                        if (!partnerId) {
-                            console.log('No partner selected, skipping site fetch');
-                            callback([{ id: null, text: 'Válasszon partnert előbb' }]);
-                            return;
-                        }
+            if (siteSelect) {
+                new TomSelect('#docSiteId', {
+                    maxOptions: 50,
+                    placeholder: 'Válasszon telephelyet'
+                }).disable();
+            }
 
-                        const searchUrl = `/api/sites/by-partner/${partnerId}?search=${encodeURIComponent(query)}`;
-                        console.log(`Searching sites from: ${searchUrl}`);
-                        const headers = {
-                            'Content-Type': 'application/json',
-                            'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]')?.value
-                        };
-                        const token = localStorage.getItem('token');
-                        if (token) {
-                            headers['Authorization'] = `Bearer ${token}`;
-                        }
+            // Initialize TomSelect for Status
+            const statusSelect = document.querySelector('#Status');
+            if (statusSelect) {
+                new TomSelect('#Status', {
+                    maxOptions: 50,
+                    placeholder: 'Válasszon státuszt'
+                });
+            }
 
-                        const response = await fetch(searchUrl, { headers, credentials: 'include' });
-                        if (!response.ok) {
-                            const errorText = await response.text().catch(() => 'Unknown error');
-                            console.error('Fetch sites failed:', { status: response.status, error: errorText, searchUrl });
-                            callback([{ id: null, text: response.status === 404 ? 'Telephely API nem elérhető' : 'Nincs találat' }]);
-                            return;
-                        }
-
-                        const searchData = await response.json();
-                        console.log('Search sites response:', searchData);
-                        const mappedData = searchData.map(item => ({
-                            id: item.id,
-                            text: (item.text && item.text.trim() !== '') ? item.text.trim() : `Site ${item.id}`
-                        })).filter(item => item.text && item.text.trim() !== '');
-                        callback(mappedData.length ? mappedData : [{ id: null, text: 'Nincs találat' }]);
-                    } catch (error) {
-                        console.error('Error searching sites:', error);
-                        window.c92.showToast('error', `Hiba a telephelyek betöltése közben: ${error.message}`);
-                        callback([{ id: null, text: 'Hiba a betöltés során' }]);
+            // Handle Partner change to populate Site dropdown
+            if (partnerSelect && siteSelect) {
+                partnerSelect.addEventListener('change', async function () {
+                    const partnerId = this.value;
+                    console.log('Partner changed, partnerId:', partnerId);
+                    if (siteSelect.tomselect) {
+                        siteSelect.tomselect.destroy();
                     }
-                };
 
-                // Set initial options to avoid incorrect endpoint fetch
-                tomSelect.clearOptions();
-                tomSelect.addOption({ id: null, text: 'Válasszon partnert előbb' });
-                tomSelect.disable();
-            }).catch(function (error) {
-                console.error('Failed to initialize Site TomSelect:', error);
-                showToast('error', 'Hiba a telephelyek betöltése közben: ' + error.message);
-            });
-
-            // Handle Partner change to reinitialize Site dropdown
-            document.querySelector('#docPartnerId').addEventListener('change', async function () {
-                const partnerId = this.value;
-                console.log('Partner changed, partnerId:', partnerId);
-                const siteSelect = document.querySelector('#docSiteId');
-                if (siteSelect.tomselect) {
-                    siteSelect.tomselect.destroy();
-                    siteSelect.dataset.tomSelectInitialized = 'false';
-                }
-
-                if (partnerId) {
-                    // Fetch sites for the selected partner
-                    const initialOptions = await fetchSitesForPartner(partnerId);
-                    console.log('Fetched sites for partner:', initialOptions);
-
-                    // Reinitialize Site TomSelect with fetched options
-                    window.c92.initializeSiteTomSelect(siteSelect, 'create', 'document').then(function (tomSelect) {
-                        // Override load function to use correct endpoint
-                        tomSelect.load = async function (query, callback) {
-                            try {
-                                const partnerId = document.querySelector('#docPartnerId')?.value ? parseInt(document.querySelector('#docPartnerId').value) : null;
-                                if (!partnerId) {
-                                    callback([{ id: null, text: 'Válasszon partnert előbb' }]);
-                                    return;
-                                }
-
-                                const searchUrl = `/api/sites/by-partner/${partnerId}?search=${encodeURIComponent(query)}`;
-                                console.log(`Searching sites from: ${searchUrl}`);
-                                const headers = {
-                                    'Content-Type': 'application/json',
-                                    'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]')?.value
-                                };
-                                const token = localStorage.getItem('token');
-                                if (token) {
-                                    headers['Authorization'] = `Bearer ${token}`;
-                                }
-
-                                const response = await fetch(searchUrl, { headers, credentials: 'include' });
-                                if (!response.ok) {
-                                    const errorText = await response.text().catch(() => 'Unknown error');
-                                    console.error('Fetch sites failed:', { status: response.status, error: errorText, searchUrl });
-                                    callback([{ id: null, text: response.status === 404 ? 'Telephely API nem elérhető' : 'Nincs találat' }]);
-                                    return;
-                                }
-
-                                const searchData = await response.json();
-                                console.log('Search sites response:', searchData);
-                                const mappedData = searchData.map(item => ({
-                                    id: item.id,
-                                    text: (item.text && item.text.trim() !== '') ? item.text.trim() : `Site ${item.id}`
-                                })).filter(item => item.text && item.text.trim() !== '');
-                                callback(mappedData.length ? mappedData : [{ id: null, text: 'Nincs találat' }]);
-                            } catch (error) {
-                                console.error('Error searching sites:', error);
-                                window.c92.showToast('error', `Hiba a telephelyek betöltése közben: ${error.message}`);
-                                callback([{ id: null, text: 'Hiba a betöltés során' }]);
+                    if (partnerId) {
+                        try {
+                            const searchUrl = `/api/sites/by-partner/${partnerId}?search=`;
+                            const headers = {
+                                'Content-Type': 'application/json',
+                                'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]')?.value
+                            };
+                            const response = await fetch(searchUrl, { headers, credentials: 'include' });
+                            if (!response.ok) {
+                                console.error('Fetch sites failed:', response.status);
+                                window.showToast('error', 'Telephelyek betöltése sikertelen');
+                                return;
                             }
-                        };
-
-                        // Set initial options and enable dropdown
-                        tomSelect.clearOptions();
-                        if (initialOptions.length && initialOptions[0].id !== null) {
-                            tomSelect.addOptions(initialOptions);
+                            const sites = await response.json();
+                            const options = sites.map(item => ({
+                                value: item.id,
+                                text: item.text || `Site ${item.id}`
+                            }));
+                            const tomSelect = new TomSelect('#docSiteId', {
+                                maxOptions: 50,
+                                placeholder: 'Válasszon telephelyet',
+                                options: options.length ? options : [{ value: null, text: 'Nincs találat' }]
+                            });
                             tomSelect.enable();
                             siteSelect.disabled = false;
-                            tomSelect.refreshOptions();
-                        } else {
-                            tomSelect.addOption({ id: null, text: 'Nincs találat' });
+                        } catch (error) {
+                            console.error('Error fetching sites:', error);
+                            window.showToast('error', 'Hiba a telephelyek betöltése közben: ' + error.message);
+                            const tomSelect = new TomSelect('#docSiteId', {
+                                maxOptions: 50,
+                                placeholder: 'Válasszon telephelyet',
+                                options: [{ value: null, text: 'Hiba a betöltés során' }]
+                            });
                             tomSelect.disable();
                             siteSelect.disabled = true;
                         }
-                    }).catch(function (error) {
-                        console.error('Failed to reinitialize Site TomSelect:', error);
-                        showToast('error', 'Hiba a telephelyek betöltése közben: ' + error.message);
-                    });
-                } else {
-                    // Clear and disable Site dropdown
-                    window.c92.initializeSiteTomSelect(siteSelect, 'create', 'document').then(function (tomSelect) {
-                        tomSelect.clearOptions();
-                        tomSelect.addOption({ id: null, text: 'Válasszon partnert előbb' });
+                    } else {
+                        const tomSelect = new TomSelect('#docSiteId', {
+                            maxOptions: 50,
+                            placeholder: 'Válasszon telephelyet',
+                            options: [{ value: null, text: 'Válasszon partnert előbb' }]
+                        });
                         tomSelect.disable();
                         siteSelect.disabled = true;
-                    });
-                }
+                    }
+                });
+            }
+
+            // Handle dynamic metadata fields
+            let metadataIndex = 1;
+            $('#add-metadata').click(function () {
+                const newRow = `
+                    <div class="metadata-row mb-2 row">
+                        <div class="col-md-5">
+                            <input type="text" name="CreateDocument.CustomMetadata[${metadataIndex}].Key" class="form-control" placeholder="Kulcs" />
+                        </div>
+                        <div class="col-md-5">
+                            <input type="text" name="CreateDocument.CustomMetadata[${metadataIndex}].Value" class="form-control" placeholder="Érték" />
+                        </div>
+                        <div class="col-md-2">
+                            <button type="button" class="btn btn-danger remove-metadata">Törlés</button>
+                        </div>
+                    </div>`;
+                $('#metadata-container').append(newRow);
+                metadataIndex++;
             });
 
-            // Initialize TomSelect for DocumentType
-            new TomSelect('#docDocumentTypeId', {
-                maxOptions: 50,
-                placeholder: 'Válasszon típust'
+            $('#metadata-container').on('click', '.remove-metadata', function () {
+                $(this).closest('.metadata-row').remove();
             });
 
+            // Show toasts for TempData messages
             @if (TempData["SuccessMessage"] != null)
             {
-                @:showToast('success', '@TempData["SuccessMessage"]');
+                @:window.showToast('success', '@TempData["SuccessMessage"]');
             }
             @if (TempData["ErrorMessage"] != null)
             {
-                @:showToast('error', '@TempData["ErrorMessage"]');
+                @:window.showToast('error', '@TempData["ErrorMessage"]');
             }
         });
     </script>

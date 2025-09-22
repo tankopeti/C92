@@ -1,0 +1,12 @@
+@page
+   @model Cloud9_2.Pages.DocManagement.IndexModel
+
+   <h2>Upload Document</h2>
+   <form method="post" enctype="multipart/form-data">
+       <input type="file" asp-for="FormFile" accept=".pdf" />
+       <button type="submit">Upload</button>
+   </form>
+   @if (!string.IsNullOrEmpty(Model.ErrorMessage))
+   {
+       <p style="color: red;">@Model.ErrorMessage</p>
+   }

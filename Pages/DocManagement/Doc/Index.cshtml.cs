@@ -67,7 +67,6 @@ namespace Cloud9_2.Pages.DocManagement.Doc
 
         public async Task OnGetAsync(int? pageNumber, string? searchTerm, int? pageSize, string? statusFilter, string? sortBy)
         {
-            // Unchanged OnGetAsync implementation
             try
             {
                 SearchTerm = searchTerm ?? string.Empty;
@@ -162,6 +161,36 @@ namespace Cloud9_2.Pages.DocManagement.Doc
 
             var uploadsDir = Path.Combine(_environment.WebRootPath, "Uploads");
             _logger.LogInformation("Uploads directory: {UploadsDir}", uploadsDir);
+
+            var reservedKeys = new HashSet<string> { "FileName", "UploadDate", "Partner", "Status", "UploadedBy" };
+            if (createDocument.CustomMetadata != null)
+            {
+                var uniqueKeys = new HashSet<string>();
+                foreach (var meta in createDocument.CustomMetadata)
+                {
+                    if (string.IsNullOrWhiteSpace(meta.Key) || string.IsNullOrWhiteSpace(meta.Value))
+                    {
+                        _logger.LogWarning("Invalid custom metadata: empty key or value");
+                        ViewData["ErrorMessage"] = "Minden egyéni metaadat kulcsnak és értéknek kitöltöttnek kell lennie.";
+                        return await ReloadModalViewModelAsync(createDocument);
+                    }
+
+                    if (reservedKeys.Contains(meta.Key, StringComparer.OrdinalIgnoreCase))
+                    {
+                        _logger.LogWarning("Custom metadata key '{Key}' is reserved", meta.Key);
+                        ViewData["ErrorMessage"] = $"A '{meta.Key}' kulcs fenntartott, válasszon másik kulcsot.";
+                        return await ReloadModalViewModelAsync(createDocument);
+                    }
+
+                    if (!uniqueKeys.Add(meta.Key))
+                    {
+                        _logger.LogWarning("Duplicate custom metadata key: {Key}", meta.Key);
+                        ViewData["ErrorMessage"] = $"Az '{meta.Key}' kulcs többször szerepel, minden kulcsnak egyedinek kell lennie.";
+                        return await ReloadModalViewModelAsync(createDocument);
+                    }
+                }
+            }
+
             try
             {
                 if (!Directory.Exists(uploadsDir))
@@ -169,6 +198,7 @@ namespace Cloud9_2.Pages.DocManagement.Doc
                     Directory.CreateDirectory(uploadsDir);
                     _logger.LogInformation("Created uploads directory");
                 }
+
                 var fileName = Guid.NewGuid().ToString() + extension;
                 var filePath = Path.Combine(uploadsDir, fileName);
                 using (var stream = new FileStream(filePath, FileMode.Create))
@@ -177,28 +207,58 @@ namespace Cloud9_2.Pages.DocManagement.Doc
                     _logger.LogInformation("File saved to {FilePath}", filePath);
                 }
 
+                var uploadDate = DateTime.UtcNow;
                 var currentUserName = _userManager.GetUserName(User) ?? "System";
+                var partnerName = createDocument.PartnerId.HasValue
+                    ? (await _context.Partners
+                        .Where(p => p.PartnerId == createDocument.PartnerId)
+                        .Select(p => p.Name)
+                        .FirstOrDefaultAsync()) ?? "N/A"
+                    : "N/A";
+
                 var document = new Document
                 {
                     FileName = file.FileName,
                     DocumentTypeId = createDocument.DocumentTypeId,
                     FilePath = $"/Uploads/{fileName}",
-                    UploadDate = DateTime.UtcNow,
+                    UploadDate = uploadDate,
                     PartnerId = createDocument.PartnerId,
                     SiteId = createDocument.SiteId,
                     Status = createDocument.Status,
-                    UploadedBy = _userManager.GetUserName(User) ?? "System",
+                    UploadedBy = currentUserName,
+                    DocumentMetadata = new List<DocumentMetadata>
+            {
+                new DocumentMetadata { Key = "FileName", Value = createDocument.FileName ?? file.FileName },
+                new DocumentMetadata { Key = "UploadDate", Value = uploadDate.ToString("o") },
+                new DocumentMetadata { Key = "Partner", Value = partnerName },
+                new DocumentMetadata { Key = "Status", Value = createDocument.Status.ToString() },
+                new DocumentMetadata { Key = "UploadedBy", Value = currentUserName }
+            },
+                    DocumentLinks = new List<DocumentLink>(),
                     StatusHistory = new List<DocumentStatusHistory>
-                    {
-                        new DocumentStatusHistory
-                        {
-                        NewStatus = createDocument.Status,
-                        ChangeDate = DateTime.UtcNow,
-                        ChangedBy = currentUserName
-                        }
-                    }
-                    
+            {
+                new DocumentStatusHistory
+                {
+                    NewStatus = createDocument.Status,
+                    ChangeDate = uploadDate,
+                    ChangedBy = currentUserName
+                }
+            }
                 };
+
+                // ✅ Add custom metadata
+                if (createDocument.CustomMetadata != null)
+                {
+                    foreach (var meta in createDocument.CustomMetadata)
+                    {
+                        document.DocumentMetadata.Add(new DocumentMetadata
+                        {
+                            Key = meta.Key.Trim(),
+                            Value = meta.Value.Trim()
+                        });
+                    }
+                }
+
                 _context.Documents.Add(document);
                 await _context.SaveChangesAsync();
                 _logger.LogInformation("Saved document {DocumentId}", document.DocumentId);
@@ -213,6 +273,28 @@ namespace Cloud9_2.Pages.DocManagement.Doc
                 return Page();
             }
         }
+
+        private async Task<IActionResult> ReloadModalViewModelAsync(CreateDocumentDto createDocument)
+        {
+            ViewData["ModalViewModel"] = new DocumentModalViewModel
+            {
+                CreateDocument = createDocument ?? new CreateDocumentDto(),
+                DocumentTypes = await _context.DocumentTypes
+                    .AsNoTracking()
+                    .Select(dt => new SelectListItem { Value = dt.DocumentTypeId.ToString(), Text = dt.Name })
+                    .ToListAsync(),
+                Partners = await _context.Partners
+                    .AsNoTracking()
+                    .Select(p => new SelectListItem { Value = p.PartnerId.ToString(), Text = p.Name })
+                    .ToListAsync(),
+                Sites = new List<SelectListItem>(),
+                NextDocumentNumber = await _documentService.GetNextDocumentNumberAsync()
+            };
+            return Page();
+        }
+
+
+
 
         // Other methods (OnPostUpdateStatusAsync, OnPostDeleteAsync, LoadPageDataAsync) remain unchanged
         // For brevity, they are not included here but should be kept as in your original code

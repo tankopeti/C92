@@ -33,7 +33,7 @@
                                 <dt class="col-sm-3">Partner</dt>
                                 <dd class="col-sm-9">@(Model.Document.PartnerName ?? "N/A")</dd>
                                 <dt class="col-sm-3">Feltöltés dátuma</dt>
-                                <dd class="col-sm-9">@(Model.Document.UploadDate?.ToString("d MMMM yyyy", CultureInfo.CreateSpecificCulture("hu-HU")) ?? "N/A")</dd>
+                                <dd class="col-sm-9">@(Model.Document.UploadDate?.ToString("yyy MMM dd hh mm", CultureInfo.CreateSpecificCulture("hu-HU")) ?? "N/A")</dd>
                                 <dt class="col-sm-3">Státusz</dt>
                                 <dd class="col-sm-9">@(DocumentDto.StatusDisplayNames.ContainsKey(Model.Document.Status.ToString()) ? DocumentDto.StatusDisplayNames[Model.Document.Status.ToString()] : "N/A")</dd>
                                 <dt class="col-sm-3">Feltöltötte</dt>
@@ -173,6 +173,24 @@ else
                     <div class="mb-3">
                         <label class="form-label">Következő dokumentum szám</label>
                         <input type="text" class="form-control" value="@(((DocumentModalViewModel)ViewData["ModalViewModel"])?.NextDocumentNumber ?? "N/A")" disabled />
+                    </div>
+                    <!-- Custom Metadata Section -->
+                    <div class="mb-3">
+                        <label class="form-label">Egyéni metaadatok</label>
+                        <div id="metadata-container">
+                            <div class="metadata-row mb-2 row">
+                                <div class="col-md-5">
+                                    <input type="text" name="CreateDocument.CustomMetadata[0].Key" class="form-control" placeholder="Kulcs" />
+                                </div>
+                                <div class="col-md-5">
+                                    <input type="text" name="CreateDocument.CustomMetadata[0].Value" class="form-control" placeholder="Érték" />
+                                </div>
+                                <div class="col-md-2">
+                                    <button type="button" class="btn btn-danger remove-metadata">Törlés</button>
+                                </div>
+                            </div>
+                        </div>
+                        <button type="button" id="add-metadata" class="btn btn-outline-primary mt-2">Új metaadat hozzáadása</button>
                     </div>
                     <button type="submit" class="btn btn-primary">Létrehozás</button>
                 </form>

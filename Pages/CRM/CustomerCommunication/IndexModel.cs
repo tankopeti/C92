@@ -1,31 +1,40 @@
+using Cloud9_2.Data;
 using Cloud9_2.Models;
 using Cloud9_2.Services;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Security.Claims;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.Identity;
 
 namespace Cloud9_2.Pages.CRM.CustomerCommunication
 {
     public class IndexModel : PageModel
     {
         private readonly CustomerCommunicationService _communicationService;
+        private readonly ApplicationDbContext _context;
         private readonly ILogger<IndexModel> _logger;
         private readonly UserManager<ApplicationUser> _userManager;
 
-        public IndexModel(CustomerCommunicationService communicationService, ILogger<IndexModel> logger)
+        public IndexModel(
+            CustomerCommunicationService communicationService,
+            ApplicationDbContext context,
+            ILogger<IndexModel> logger,
+            UserManager<ApplicationUser> userManager)
         {
             _communicationService = communicationService ?? throw new ArgumentNullException(nameof(communicationService));
+            _context = context ?? throw new ArgumentNullException(nameof(context));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+            _userManager = userManager ?? throw new ArgumentNullException(nameof(userManager));
         }
 
         public IList<CustomerCommunicationDto> Communications { get; set; } = new List<CustomerCommunicationDto>();
-        public Dictionary<string, string> StatusDisplayNames { get; set; }
+        public Dictionary<string, string> StatusDisplayNames { get; set; } = new Dictionary<string, string>();
         [BindProperty(SupportsGet = true)]
         public string? SearchTerm { get; set; }
         [BindProperty(SupportsGet = true)]
@@ -58,7 +67,7 @@ namespace Cloud9_2.Pages.CRM.CustomerCommunication
 
                 CurrentPage = Math.Max(1, CurrentPage);
 
-                // Use service to retrieve communications
+                // Fetch communications
                 var allCommunications = await _communicationService.ReviewCommunicationsAsync();
 
                 // Apply filtering
@@ -99,14 +108,10 @@ namespace Cloud9_2.Pages.CRM.CustomerCommunication
                 var skip = (CurrentPage - 1) * PageSize;
                 Communications = query.Skip(skip).Take(PageSize).ToList();
 
-                // Populate status display names
-                StatusDisplayNames = new Dictionary<string, string>
-                {
-                    { "Escalated", "Eskalálva" },
-                    { "InProgress", "Folyamatban" },
-                    { "Open", "Nyitott" },
-                    { "Resolved", "Megoldva" }
-                };
+                // Dynamically populate StatusDisplayNames from CommunicationStatuses
+                StatusDisplayNames = await _context.CommunicationStatuses
+                    .AsNoTracking()
+                    .ToDictionaryAsync(s => s.Name, s => s.Name); // Use Name as both key and value
 
                 _logger.LogInformation("Successfully retrieved {Count} communications for page {CurrentPage}", Communications.Count, CurrentPage);
             }
@@ -121,6 +126,7 @@ namespace Cloud9_2.Pages.CRM.CustomerCommunication
             }
         }
 
+        // Existing OnPost methods remain unchanged
         public async Task<IActionResult> OnPostCreateAsync()
         {
             if (!ModelState.IsValid)
@@ -259,7 +265,6 @@ namespace Cloud9_2.Pages.CRM.CustomerCommunication
             }
             catch (Exception ex)
             {
-                // Log exception
                 return StatusCode(500, new { error = "An unexpected error occurred while adding the post." });
             }
         }
@@ -308,7 +313,7 @@ namespace Cloud9_2.Pages.CRM.CustomerCommunication
             return RedirectToPage(new { SearchTerm, TypeFilter, SortBy, CurrentPage, PageSize });
         }
 
-public async Task<IActionResult> OnPostAssignResponsibleAsync()
+        public async Task<IActionResult> OnPostAssignResponsibleAsync()
         {
             if (!ModelState.IsValid)
                 return Page();

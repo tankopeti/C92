@@ -1,0 +1,282 @@
+@model Cloud9_2.Pages.CRM.CustomerCommunication.IndexModel
+@using Microsoft.AspNetCore.Mvc.Rendering
+@using Cloud9_2.Models
+@using Microsoft.AspNetCore.Authentication
+
+<!-- New Communication Modal -->
+<div class="modal fade" id="newCommunicationModal" tabindex="-1" aria-labelledby="newCommunicationModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="newCommunicationModalLabel">Új kommunikáció hozzáadása</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="communicationForm_new">
+                    @Html.AntiForgeryToken()
+                    <table class="table table-sm mt-3">
+                        <tbody>
+                            <tr>
+                                <th>Típus</th>
+                                <td>
+                                    <select class="form-select tom-select" name="CommunicationTypeId" data-selected-id="" data-selected-text="" required>
+                                        <option value="" disabled selected>-- Válasszon típust --</option>
+                                    </select>
+                                </td>
+                            </tr>
+                            <tr>
+                                <th>Partner</th>
+                                <td>
+                                    <select name="PartnerId" class="form-select tom-select" data-selected-id="" data-selected-text="" autocomplete="off" required>
+                                        <option value="" selected>-- Válasszon partnert --</option>
+                                    </select>
+                                </td>
+                            </tr>
+                            <tr>
+                                <th>Felelős</th>
+                                <td>
+                                    <select name="ResponsibleContactId" class="form-select tom-select" data-selected-id="" data-selected-text="" autocomplete="off" required>
+                                        <option value="" disabled selected>-- Válasszon felelőst --</option>
+                                    </select>
+                                </td>
+                            </tr>
+                            <tr>
+                                <th>Dátum</th>
+                                <td><input type="date" class="form-control" name="Date" value="@DateTime.Today.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture)" required></td>
+                            </tr>
+                            <tr>
+                                <th>Tárgy</th>
+                                <td><input type="text" class="form-control" name="Subject" maxlength="1000" required></td>
+                            </tr>
+                            <tr>
+                                <th>Kezdeti hozzászólás</th>
+                                <td><textarea class="form-control" name="InitialPost" rows="4" maxlength="2000" placeholder="Adja meg az első hozzászólást (opcionális)"></textarea></td>
+                            </tr>
+                            <tr>
+                                <th>Tartalom</th>
+                                <td><textarea class="form-control" name="Note" rows="6" maxlength="2000"></textarea></td>
+                            </tr>
+                            <tr>
+                                <th>Státusz</th>
+                                <td>
+                                    <select class="form-select tom-select" name="StatusId" data-selected-id="" data-selected-text="" required>
+                                        <option value="" disabled selected>-- Válasszon státuszt --</option>
+                                    </select>
+                                </td>
+                            </tr>
+                            <tr>
+                                <th>Megjegyzések</th>
+                                <td><textarea class="form-control" name="Metadata" rows="4" maxlength="1000"></textarea></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Bezár</button>
+                <button type="button" class="btn btn-primary save-communication" data-communication-id="new">Mentés</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit, View, and Delete Communication Modals -->
+@foreach (var communication in Model.Communications)
+{
+    <div class="modal fade" id="editCommunicationModal_@communication.CustomerCommunicationId" tabindex="-1" aria-labelledby="editCommunicationModalLabel_@communication.CustomerCommunicationId" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="editCommunicationModalLabel_@communication.CustomerCommunicationId">Kommunikáció szerkesztése: @communication.Subject</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="communicationForm_@communication.CustomerCommunicationId">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="CustomerCommunicationId" value="@communication.CustomerCommunicationId" />
+                        <table class="table table-sm mt-3">
+                            <tbody>
+                                <tr>
+                                    <th>Típus</th>
+                                    <td>
+                                        <select class="form-select tom-select" name="CommunicationTypeId" data-selected-id="@communication.CommunicationTypeId" data-selected-text="@communication.CommunicationTypeName" required>
+                                            <option value="" disabled selected>-- Válasszon típust --</option>
+                                        </select>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th>Partner</th>
+                                    <td>
+                                        <select class="form-select tom-select" name="PartnerId" data-selected-id="@communication.PartnerId" data-selected-text="@communication.PartnerName" required>
+                                            <option value="" disabled selected>-- Válasszon partnert --</option>
+                                        </select>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th>Felelős</th>
+                                    <td>
+                                        <select class="form-select tom-select" name="ResponsibleContactId" data-selected-id="@communication.AgentId" data-selected-text="@communication.AgentName" required>
+                                            <option value="" disabled selected>-- Válasszon felelőst --</option>
+                                        </select>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th>Dátum</th>
+                                    <td><input type="date" class="form-control" name="Date" value="@(communication.Date.ToString("yyyy-MM-dd"))" required></td>
+                                </tr>
+                                <tr>
+                                    <th>Tárgy</th>
+                                    <td><input type="text" class="form-control" name="Subject" value="@communication.Subject" required maxlength="1000"></td>
+                                </tr>
+                                <tr>
+                                    <th>Tartalom</th>
+                                    <td><textarea class="form-control" name="Note" rows="6" maxlength="2000">@communication.Note</textarea></td>
+                                </tr>
+                                <tr>
+                                    <th>Státusz</th>
+                                    <td>
+                                        <select class="form-select tom-select" name="StatusId" data-selected-id="@communication.StatusId" data-selected-text="@communication.StatusName" required>
+                                            <option value="" disabled selected>-- Válasszon státuszt --</option>
+                                        </select>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th>Megjegyzések</th>
+                                    <td><textarea class="form-control" name="Metadata" rows="4" maxlength="1000">@communication.Metadata</textarea></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Bezár</button>
+                    <button type="button" class="btn btn-primary save-communication" data-communication-id="@communication.CustomerCommunicationId">Mentés</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- View Communication Modal -->
+    <div class="modal fade" id="viewCommunicationModal_@communication.CustomerCommunicationId" tabindex="-1" aria-labelledby="viewCommunicationModalLabel_@communication.CustomerCommunicationId" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="viewCommunicationModalLabel_@communication.CustomerCommunicationId">Részletek: @communication.Subject</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Bezárás"></button>
+                </div>
+                <div class="modal-body">
+                    <table class="table table-sm">
+                        <tbody>
+                            <tr>
+                                <th>Kommunikáció ID</th>
+                                <td>@communication.CustomerCommunicationId</td>
+                            </tr>
+                            <tr>
+                                <th>Típus</th>
+                                <td>@communication.CommunicationTypeName</td>
+                            </tr>
+                            <tr>
+                                <th>Partner</th>
+                                <td>@(string.Join(" ", new[] { communication.FirstName, communication.LastName }.Where(s => !string.IsNullOrEmpty(s))) ?? "Nincs partner megadva")</td>
+                            </tr>
+                            <tr>
+                                <th>Dátum</th>
+                                <td>@(communication.Date.ToString("yyyy-MM-dd") ?? "Nincs megadva")</td>
+                            </tr>
+                            <tr>
+                                <th>Tárgy</th>
+                                <td>@(string.IsNullOrEmpty(communication.Subject) ? "Nincs megadva" : communication.Subject)</td>
+                            </tr>
+                            <tr>
+                                <th>Tartalom</th>
+                                <td>@(string.IsNullOrEmpty(communication.Note) ? "Nincs megadva" : communication.Note)</td>
+                            </tr>
+                            <tr>
+                                <th>Státusz</th>
+                                <td>
+                                    @{
+                                        string displayName = Model.StatusDisplayNames.TryGetValue(communication.StatusName, out var name) ? name : communication.StatusName ?? "Ismeretlen";
+                                    }
+                                    <span class="@(communication.StatusName switch
+                                    {
+                                        "Nyitott" => "badge bg-primary",
+                                        "Folyamatban" => "badge bg-warning",
+                                        "Eskalálva" => "badge bg-danger",
+                                        "Megoldva" => "badge bg-success",
+                                        _ => "badge bg-secondary"
+                                    })">@displayName</span>
+                                </td>
+                            </tr>
+                            <tr>
+                                <th>Felelős</th>
+                                <td>@(string.IsNullOrEmpty(communication.AgentName) ? "Nincs megadva" : communication.AgentName)</td>
+                            </tr>
+                            <tr>
+                                <th>Megjegyzések</th>
+                                <td>@(string.IsNullOrEmpty(communication.Metadata) ? "Nincs megadva" : communication.Metadata)</td>
+                            </tr>
+                            <tr>
+                                <th>Csatolmány</th>
+                                <td>@(string.IsNullOrEmpty(communication.AttachmentPath) ? "Nincs megadva" : communication.AttachmentPath)</td>
+                            </tr>
+                            <tr>
+                                <th>Partner ID</th>
+                                <td>@(communication.PartnerId.HasValue ? communication.PartnerId.ToString() : "Nincs megadva")</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <!-- Communication History -->
+                    <h6 class="mt-3">Kommunikációs előzmények</h6>
+                    <div id="history_@communication.CustomerCommunicationId" class="history-container">
+                        <p class="text-muted">Előzmények betöltése...</p>
+                    </div>
+                    <!-- Add Post Form -->
+                    <h6 class="mt-3">Új hozzászólás</h6>
+                    <form id="addPostForm_@communication.CustomerCommunicationId" class="mt-2">
+                        @Html.AntiForgeryToken()
+                        <div class="mb-3">
+                            <textarea class="form-control" name="Content" rows="3" placeholder="Írja ide a hozzászólást..." required></textarea>
+                        </div>
+                        <button type="button" class="btn btn-primary btn-sm add-post" data-communication-id="@communication.CustomerCommunicationId">Hozzászólás hozzáadása</button>
+                    </form>
+                    <!-- Assign Responsible Form -->
+                    <h6 class="mt-3">Felelős kijelölése</h6>
+                    <form id="assignResponsibleForm_@communication.CustomerCommunicationId" class="mt-2">
+                        @Html.AntiForgeryToken()
+                        <div class="mb-3">
+                            <select name="ResponsibleId" class="form-select tom-select" data-selected-id="" data-selected-text="" autocomplete="off" required>
+                                <option value="" disabled selected>-- Válasszon felelőst --</option>
+                            </select>
+                        </div>
+                        <button type="button" class="btn btn-primary btn-sm assign-responsible" data-communication-id="@communication.CustomerCommunicationId">Felelős kijelölése</button>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Bezárás</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Delete Communication Modal -->
+    <div class="modal fade" id="deleteCommunicationModal_@communication.CustomerCommunicationId" tabindex="-1" aria-labelledby="deleteCommunicationModalLabel_@communication.CustomerCommunicationId" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="deleteCommunicationModalLabel_@communication.CustomerCommunicationId">Kommunikáció törlése</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Biztosan törölni szeretné a kommunikációt: @communication.Subject?</p>
+                    <form id="deleteCommunicationForm_@communication.CustomerCommunicationId">
+                        @Html.AntiForgeryToken()
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Mégse</button>
+                    <button type="button" class="btn btn-danger confirm-delete-communication" data-communication-id="@communication.CustomerCommunicationId">Törlés</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}

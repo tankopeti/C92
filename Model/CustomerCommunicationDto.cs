@@ -85,14 +85,14 @@ public int CustomerCommunicationId { get; set; }
         public string Subject { get; set; } = string.Empty;
         public string? Note { get; set; }
         [Required]
-        public int? ContactId { get; set; }
+        // public int? ContactId { get; set; }
         public string? AgentId { get; set; }
         [Required]
         public int StatusId { get; set; }
         public string? ResponsibleId { get; set; }
         public int? PartnerId { get; set; }
-        public int? LeadId { get; set; }
-        public int? QuoteId { get; set; }
-        public int? OrderId { get; set; }
+        // public int? LeadId { get; set; }
+        // public int? QuoteId { get; set; }
+        // public int? OrderId { get; set; }
     }
 }

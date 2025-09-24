@@ -95,9 +95,9 @@ namespace Cloud9_2.Models
 
         public int? PartnerGroupId { get; set; }
 
-        public List<SiteDto> Sites { get; set; } = new List<SiteDto>();
-        public List<ContactDto> Contacts { get; set; } = new List<ContactDto>();
-        public List<DocumentDto> Documents { get; set; }
+        public List<SiteDto>? Sites { get; set; } = new List<SiteDto>();
+        public List<ContactDto>? Contacts { get; set; } = new List<ContactDto>();
+        public List<DocumentDto>? Documents { get; set; } = new List<DocumentDto>();
     }
     
 }

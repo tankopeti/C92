@@ -26,8 +26,8 @@ namespace Cloud9_2.Services
                 throw new ArgumentException("Invalid CommunicationTypeId");
             if (dto.StatusId <= 0 || !await _context.CommunicationStatuses.AnyAsync(s => s.StatusId == dto.StatusId))
                 throw new ArgumentException("Invalid StatusId");
-            if (!dto.ContactId.HasValue || !await _context.Contacts.AnyAsync(c => c.ContactId == dto.ContactId))
-                throw new ArgumentException("Invalid ContactId");
+            // if (!dto.ContactId.HasValue || !await _context.Contacts.AnyAsync(c => c.ContactId == dto.ContactId))
+            //     throw new ArgumentException("Invalid ContactId");
             if (string.IsNullOrWhiteSpace(dto.Subject))
                 throw new ArgumentException("Subject is required");
             if (dto.Date == default)
@@ -37,10 +37,10 @@ namespace Cloud9_2.Services
                 throw new ArgumentException("Invalid AgentId");
             if (dto.PartnerId.HasValue && !await _context.Partners.AnyAsync(p => p.PartnerId == dto.PartnerId))
                 throw new ArgumentException("Invalid PartnerId");
-            if (dto.LeadId.HasValue && !await _context.Leads.AnyAsync(l => l.LeadId == dto.LeadId))
-                throw new ArgumentException("Invalid LeadId");
-            if (dto.QuoteId.HasValue && !await _context.Quotes.AnyAsync(q => q.QuoteId == dto.QuoteId))
-                throw new ArgumentException("Invalid QuoteId");
+            // if (dto.LeadId.HasValue && !await _context.Leads.AnyAsync(l => l.LeadId == dto.LeadId))
+            //     throw new ArgumentException("Invalid LeadId");
+            // if (dto.QuoteId.HasValue && !await _context.Quotes.AnyAsync(q => q.QuoteId == dto.QuoteId))
+            //     throw new ArgumentException("Invalid QuoteId");
 
             var communication = new CustomerCommunication
             {
@@ -48,15 +48,15 @@ namespace Cloud9_2.Services
                 Date = dto.Date,
                 Subject = dto.Subject,
                 Note = dto.Note,
-                ContactId = dto.ContactId,
+                // ContactId = dto.ContactId,
                 AgentId = dto.AgentId,
                 StatusId = dto.StatusId,
                 AttachmentPath = dto.AttachmentPath,
                 Metadata = dto.Metadata,
-                OrderId = dto.OrderId,
+                // OrderId = dto.OrderId,
                 PartnerId = dto.PartnerId,
-                LeadId = dto.LeadId,
-                QuoteId = dto.QuoteId
+                // LeadId = dto.LeadId,
+                // QuoteId = dto.QuoteId
             };
 
             _context.CustomerCommunications.Add(communication);
@@ -78,8 +78,8 @@ namespace Cloud9_2.Services
                 throw new ArgumentException("Invalid CommunicationTypeId");
             if (dto.StatusId <= 0 || !await _context.CommunicationStatuses.AnyAsync(s => s.StatusId == dto.StatusId))
                 throw new ArgumentException("Invalid StatusId");
-            if (!dto.ContactId.HasValue || !await _context.Contacts.AnyAsync(c => c.ContactId == dto.ContactId))
-                throw new ArgumentException("Invalid ContactId");
+            // if (!dto.ContactId.HasValue || !await _context.Contacts.AnyAsync(c => c.ContactId == dto.ContactId))
+            //     throw new ArgumentException("Invalid ContactId");
             if (string.IsNullOrWhiteSpace(dto.Subject))
                 throw new ArgumentException("Subject is required");
             if (dto.Date == default)
@@ -89,24 +89,24 @@ namespace Cloud9_2.Services
                 throw new ArgumentException("Invalid AgentId");
             if (dto.PartnerId.HasValue && !await _context.Partners.AnyAsync(p => p.PartnerId == dto.PartnerId))
                 throw new ArgumentException("Invalid PartnerId");
-            if (dto.LeadId.HasValue && !await _context.Leads.AnyAsync(l => l.LeadId == dto.LeadId))
-                throw new ArgumentException("Invalid LeadId");
-            if (dto.QuoteId.HasValue && !await _context.Quotes.AnyAsync(q => q.QuoteId == dto.QuoteId))
-                throw new ArgumentException("Invalid QuoteId");
+            // if (dto.LeadId.HasValue && !await _context.Leads.AnyAsync(l => l.LeadId == dto.LeadId))
+            //     throw new ArgumentException("Invalid LeadId");
+            // if (dto.QuoteId.HasValue && !await _context.Quotes.AnyAsync(q => q.QuoteId == dto.QuoteId))
+            //     throw new ArgumentException("Invalid QuoteId");
 
             communication.CommunicationTypeId = dto.CommunicationTypeId;
             communication.Date = dto.Date;
             communication.Subject = dto.Subject;
             communication.Note = dto.Note;
-            communication.ContactId = dto.ContactId;
+            // communication.ContactId = dto.ContactId;
             communication.AgentId = dto.AgentId;
             communication.StatusId = dto.StatusId;
             communication.AttachmentPath = dto.AttachmentPath;
             communication.Metadata = dto.Metadata;
-            communication.OrderId = dto.OrderId;
+            // communication.OrderId = dto.OrderId;
             communication.PartnerId = dto.PartnerId;
-            communication.LeadId = dto.LeadId;
-            communication.QuoteId = dto.QuoteId;
+            // communication.LeadId = dto.LeadId;
+            // communication.QuoteId = dto.QuoteId;
 
             await _context.SaveChangesAsync();
         }
@@ -146,7 +146,7 @@ namespace Cloud9_2.Services
             var query = _context.CustomerCommunications
                 .Include(c => c.CommunicationType)
                 .Include(c => c.Status)
-                .Include(c => c.Contact)
+                // .Include(c => c.Contact)
                 .Include(c => c.Agent)
                 .Include(c => c.Partner) // <-- Add this!
                 .Select(c => new CustomerCommunicationDto
@@ -157,24 +157,24 @@ namespace Cloud9_2.Services
                     Date = c.Date,
                     Subject = c.Subject,
                     Note = c.Note,
-                    ContactId = c.ContactId,
-                    FirstName = c.Contact != null ? c.Contact.FirstName : null,
-                    LastName = c.Contact != null ? c.Contact.LastName : null,
+                    // ContactId = c.ContactId,
+                    // FirstName = c.Contact != null ? c.Contact.FirstName : null,
+                    // LastName = c.Contact != null ? c.Contact.LastName : null,
                     AgentId = c.AgentId,
                     AgentName = c.Agent != null ? c.Agent.UserName : null,
                     StatusId = c.StatusId,
                     StatusName = c.Status.Name,
                     AttachmentPath = c.AttachmentPath,
                     Metadata = c.Metadata,
-                    OrderId = c.OrderId,
+                    // OrderId = c.OrderId,
                     PartnerId = c.PartnerId,
                     PartnerName = c.Partner != null ? c.Partner.Name : null, // <-- Add this line!
-                    LeadId = c.LeadId,
-                    QuoteId = c.QuoteId
+                    // LeadId = c.LeadId,
+                    // QuoteId = c.QuoteId
                 });
 
-            if (orderId.HasValue)
-                query = query.Where(c => c.OrderId == orderId);
+            // if (orderId.HasValue)
+            //     query = query.Where(c => c.OrderId == orderId);
 
             return await query.OrderBy(c => c.Date).ToListAsync();
         }
@@ -240,9 +240,9 @@ public async Task<CustomerCommunicationDto> GetCommunicationHistoryAsync(int com
                     Date = c.Date,
                     Subject = c.Subject,
                     Note = c.Note,
-                    ContactId = c.ContactId,
-                    FirstName = c.Contact != null ? c.Contact.FirstName : null,
-                    LastName = c.Contact != null ? c.Contact.LastName : null,
+                    // ContactId = c.ContactId,
+                    // FirstName = c.Contact != null ? c.Contact.FirstName : null,
+                    // LastName = c.Contact != null ? c.Contact.LastName : null,
                     AgentId = c.AgentId,
                     AgentName = c.Agent != null ? c.Agent.UserName : null,
                     StatusId = c.StatusId,
@@ -250,9 +250,9 @@ public async Task<CustomerCommunicationDto> GetCommunicationHistoryAsync(int com
                     AttachmentPath = c.AttachmentPath,
                     Metadata = c.Metadata,
                     PartnerId = c.PartnerId,
-                    LeadId = c.LeadId,
-                    QuoteId = c.QuoteId,
-                    OrderId = c.OrderId,
+                    // LeadId = c.LeadId,
+                    // QuoteId = c.QuoteId,
+                    // OrderId = c.OrderId,
                     Posts = c.Posts.Select(p => new CommunicationPostDto
                     {
                         CommunicationPostId = p.CommunicationPostId,
@@ -304,16 +304,16 @@ public async Task<CustomerCommunicationDto> GetCommunicationHistoryAsync(int com
             return communication;
         }
 
-        public async Task<List<Contact>> GetContactsAsync(string term)
-        {
-            var query = _context.Contacts.AsQueryable();
-            if (!string.IsNullOrEmpty(term))
-            {
-                term = term.ToLower();
-                query = query.Where(c => c.FirstName.ToLower().Contains(term) || c.LastName.ToLower().Contains(term));
-            }
-            return await query.ToListAsync();
-        }
+        // public async Task<List<Contact>> GetContactsAsync(string term)
+        // {
+        //     var query = _context.Contacts.AsQueryable();
+        //     if (!string.IsNullOrEmpty(term))
+        //     {
+        //         term = term.ToLower();
+        //         query = query.Where(c => c.FirstName.ToLower().Contains(term) || c.LastName.ToLower().Contains(term));
+        //     }
+        //     return await query.ToListAsync();
+        // }
 
 public async Task<List<CustomerCommunication>> GetCommunicationsByUserAsync(string userId)
         {

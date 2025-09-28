@@ -9,6 +9,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Microsoft.AspNetCore.Mvc.Rendering;
 
 namespace Cloud9_2.Pages.CRM.Quotes
 {
@@ -35,6 +36,15 @@ namespace Cloud9_2.Pages.CRM.Quotes
         public string StatusFilter { get; set; }
         public string SortBy { get; set; }
 
+        [BindProperty]
+        public int PartnerId { get; set; }
+        public IEnumerable<SelectListItem> Partners { get; set; } = new List<SelectListItem>();
+        [BindProperty]
+        public int CurrencyId { get; set; }
+        public IEnumerable<SelectListItem> Currencies { get; set; } = new List<SelectListItem>();
+
+
+
         public async Task OnGetAsync(int? pageNumber, string searchTerm, int? pageSize, string statusFilter, string sortBy)
         {
             CurrentPage = pageNumber ?? 1;
@@ -43,7 +53,23 @@ namespace Cloud9_2.Pages.CRM.Quotes
             StatusFilter = statusFilter;
             SortBy = sortBy;
 
-            _logger.LogInformation("Fetching quotes: Page={Page}, PageSize={PageSize}, SearchTerm={SearchTerm}, StatusFilter={StatusFilter}, SortBy={SortBy}", 
+            Partners = _context.Partners
+                        .OrderBy(p => p.Name)
+                        .Select(p => new SelectListItem
+                        {
+                            Value = p.PartnerId.ToString(),
+                            Text = p.TaxId != null ? $"{p.Name} ({p.TaxId})" : p.Name
+                        }).ToList();
+
+            Currencies = _context.Currencies
+                .OrderBy(c => c.CurrencyName)
+                .Select(c => new SelectListItem
+                {
+                    Value = c.CurrencyId.ToString(),
+                    Text = c.CurrencyName
+                }).ToList();
+
+            _logger.LogInformation("Fetching quotes: Page={Page}, PageSize={PageSize}, SearchTerm={SearchTerm}, StatusFilter={StatusFilter}, SortBy={SortBy}",
                 CurrentPage, PageSize, SearchTerm, StatusFilter, SortBy);
 
             IQueryable<Quote> quotesQuery = _context.Quotes
@@ -51,7 +77,7 @@ namespace Cloud9_2.Pages.CRM.Quotes
                 .Include(q => q.QuoteItems)
                 .ThenInclude(qi => qi.Product)
                 .Include(q => q.QuoteItems)
-                    .ThenInclude(qi => qi.VatType);;
+                    .ThenInclude(qi => qi.VatType); ;
 
             if (!string.IsNullOrEmpty(SearchTerm))
             {
@@ -84,7 +110,7 @@ namespace Cloud9_2.Pages.CRM.Quotes
                 .Take(PageSize)
                 .ToListAsync();
 
-            _logger.LogInformation("Retrieved {Count} quotes for page {Page}. TotalRecords={TotalRecords}, TotalPages={TotalPages}, StatusFilter={StatusFilter}, SortBy={SortBy}", 
+            _logger.LogInformation("Retrieved {Count} quotes for page {Page}. TotalRecords={TotalRecords}, TotalPages={TotalPages}, StatusFilter={StatusFilter}, SortBy={SortBy}",
                 Quotes.Count, CurrentPage, TotalRecords, TotalPages, StatusFilter, SortBy);
 
             if (!Quotes.Any() && TotalRecords > 0)
@@ -226,16 +252,16 @@ namespace Cloud9_2.Pages.CRM.Quotes
         }
     }
 
-            public enum QuoteStatus
-        {
-            Folyamatban,
-            Felfüggesztve,
-            Jóváhagyásra_vár,
-            Jóváhagyva,
-            Kiküldve,
-            Elfogadva,
-            Megrendelve,
-            Teljesístve,
-            Lezárva
-        }
+    public enum QuoteStatus
+    {
+        Folyamatban,
+        Felfüggesztve,
+        Jóváhagyásra_vár,
+        Jóváhagyva,
+        Kiküldve,
+        Elfogadva,
+        Megrendelve,
+        Teljesístve,
+        Lezárva
+    }
 }

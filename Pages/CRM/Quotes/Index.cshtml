@@ -196,26 +196,14 @@
 </div>
 
 <!-- Dependencies -->
+<!-- Remove duplicate jQuery and TomSelect includes -->
 <script src="https://code.jquery.com/jquery-3.6.0.min.js" integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4=" crossorigin="anonymous"></script>
-<link href="https://cdn.jsdelivr.net/npm/tom-select@2.4.3/dist/css/tom-select.bootstrap5.css" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/tom-select@2.4.3/dist/js/tom-select.complete.min.js"></script>
-
-<script src="https://code.jquery.com/jquery-3.6.0.min.js" integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4=" crossorigin="anonymous"></script>
-
-<!-- Tom Select Dependencies -->
-<link href="https://cdn.jsdelivr.net/npm/tom-select@2.4.3/dist/css/tom-select.bootstrap5.css" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/tom-select@2.4.3/dist/js/tom-select.complete.min.js"></script>
-
-<script src="https://code.jquery.com/jquery-3.6.0.min.js" integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4=" crossorigin="anonymous"></script>
-
-<!-- Tom Select Dependencies -->
 <link href="https://cdn.jsdelivr.net/npm/tom-select@2.4.3/dist/css/tom-select.bootstrap5.css" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/tom-select@2.4.3/dist/js/tom-select.complete.min.js"></script>
 
 @section Scripts {
-    <script src="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/js/tom-select.complete.min.js"></script>
-    <script src="/js/quotes.js" onerror="alert('Failed to load quotes.js from /js/quotes.js.')"></script>
-    <script src="/js/utils.js"></script>
-    <script src="/js/tomSelectUtils.js"></script>
-    <script src="/js/quoteTomSelect.js" onerror="alert('Failed to load quotes.js from /js/quoteTomSelect.js.')"></script>
+    @* <script src="/js/utils.js"></script> *@
+    <script src="/js/Quotes.js" onerror="alert('Failed to load quotes.js from /js/quotes.js.')"></script>
+    @* <script src="/js/tomSelectUtils.js"></script> *@
+    @* <script src="/js/quoteTomSelect.js" onerror="alert('Failed to load quotes.js from /js/quoteTomSelect.js.')"></script> *@
 }

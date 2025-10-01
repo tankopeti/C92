@@ -146,9 +146,9 @@ namespace Cloud9_2.Services
             var query = _context.CustomerCommunications
                 .Include(c => c.CommunicationType)
                 .Include(c => c.Status)
-                // .Include(c => c.Contact)
                 .Include(c => c.Agent)
-                .Include(c => c.Partner) // <-- Add this!
+                .Include(c => c.Partner)
+                .Include(c => c.ResponsibleHistory) // Include ResponsibleHistory
                 .Select(c => new CustomerCommunicationDto
                 {
                     CustomerCommunicationId = c.CustomerCommunicationId,
@@ -157,20 +157,42 @@ namespace Cloud9_2.Services
                     Date = c.Date,
                     Subject = c.Subject,
                     Note = c.Note,
-                    // ContactId = c.ContactId,
-                    // FirstName = c.Contact != null ? c.Contact.FirstName : null,
-                    // LastName = c.Contact != null ? c.Contact.LastName : null,
                     AgentId = c.AgentId,
                     AgentName = c.Agent != null ? c.Agent.UserName : null,
                     StatusId = c.StatusId,
                     StatusName = c.Status.Name,
                     AttachmentPath = c.AttachmentPath,
                     Metadata = c.Metadata,
-                    // OrderId = c.OrderId,
                     PartnerId = c.PartnerId,
-                    PartnerName = c.Partner != null ? c.Partner.Name : null, // <-- Add this line!
-                    // LeadId = c.LeadId,
-                    // QuoteId = c.QuoteId
+                    PartnerName = c.Partner != null ? c.Partner.Name : null,
+                    Posts = c.Posts.Select(p => new CommunicationPostDto
+                    {
+                        CommunicationPostId = p.CommunicationPostId,
+                        Content = p.Content,
+                        CreatedByName = p.CreatedBy != null ? (p.CreatedBy.UserName ?? p.CreatedBy.Email ?? "Unknown") : "Unknown",
+                        CreatedAt = p.CreatedAt
+                    }).ToList(),
+                    CurrentResponsible = c.ResponsibleHistory
+                        .OrderByDescending(r => r.AssignedAt)
+                        .Select(r => new CommunicationResponsibleDto
+                        {
+                            CommunicationResponsibleId = r.CommunicationResponsibleId,
+                            ResponsibleId = r.ResponsibleId,
+                            ResponsibleName = r.Responsible != null ? (r.Responsible.UserName ?? r.Responsible.Email ?? "Unknown") : "Unknown",
+                            AssignedById = r.AssignedById,
+                            AssignedByName = r.AssignedBy != null ? (r.AssignedBy.UserName ?? r.AssignedBy.Email ?? "Unknown") : "Unknown",
+                            AssignedAt = r.AssignedAt
+                        }).FirstOrDefault(),
+                    ResponsibleHistory = c.ResponsibleHistory
+                        .Select(r => new CommunicationResponsibleDto
+                        {
+                            CommunicationResponsibleId = r.CommunicationResponsibleId,
+                            ResponsibleId = r.ResponsibleId,
+                            ResponsibleName = r.Responsible != null ? (r.Responsible.UserName ?? r.Responsible.Email ?? "Unknown") : "Unknown",
+                            AssignedById = r.AssignedById,
+                            AssignedByName = r.AssignedBy != null ? (r.AssignedBy.UserName ?? r.AssignedBy.Email ?? "Unknown") : "Unknown",
+                            AssignedAt = r.AssignedAt
+                        }).ToList()
                 });
 
             // if (orderId.HasValue)
@@ -228,7 +250,7 @@ namespace Cloud9_2.Services
             await _context.SaveChangesAsync();
         }
 
-public async Task<CustomerCommunicationDto> GetCommunicationHistoryAsync(int communicationId)
+        public async Task<CustomerCommunicationDto> GetCommunicationHistoryAsync(int communicationId)
         {
             var communication = await _context.CustomerCommunications
                 .Where(c => c.CustomerCommunicationId == communicationId)
@@ -240,9 +262,6 @@ public async Task<CustomerCommunicationDto> GetCommunicationHistoryAsync(int com
                     Date = c.Date,
                     Subject = c.Subject,
                     Note = c.Note,
-                    // ContactId = c.ContactId,
-                    // FirstName = c.Contact != null ? c.Contact.FirstName : null,
-                    // LastName = c.Contact != null ? c.Contact.LastName : null,
                     AgentId = c.AgentId,
                     AgentName = c.Agent != null ? c.Agent.UserName : null,
                     StatusId = c.StatusId,
@@ -250,43 +269,45 @@ public async Task<CustomerCommunicationDto> GetCommunicationHistoryAsync(int com
                     AttachmentPath = c.AttachmentPath,
                     Metadata = c.Metadata,
                     PartnerId = c.PartnerId,
-                    // LeadId = c.LeadId,
-                    // QuoteId = c.QuoteId,
-                    // OrderId = c.OrderId,
-                    Posts = c.Posts.Select(p => new CommunicationPostDto
-                    {
-                        CommunicationPostId = p.CommunicationPostId,
-                        Content = p.Content,
-                        CreatedByName = p.CreatedBy != null 
-                            ? (p.CreatedBy.UserName ?? p.CreatedBy.Email ?? "Unknown")
-                            : "Unknown",
-                        CreatedAt = p.CreatedAt
-                    }).ToList(),
+                    Posts = c.Posts
+                        .OrderBy(p => p.CustomerCommunicationId) // Sort posts by CreatedAt (ascending)
+                                                   //.OrderByDescending(p => p.CreatedAt) // Use this for newest first
+                        .Select(p => new CommunicationPostDto
+                        {
+                            CommunicationPostId = p.CommunicationPostId,
+                            Content = p.Content,
+                            CreatedByName = p.CreatedBy != null
+                                ? (p.CreatedBy.UserName ?? p.CreatedBy.Email ?? "Unknown")
+                                : "Unknown",
+                            CreatedAt = p.CreatedAt
+                        }).ToList(),
                     CurrentResponsible = c.ResponsibleHistory
-                        .OrderByDescending(r => r.AssignedAt)
+                        .OrderByDescending(r => r.CustomerCommunicationId) // Keep descending for most recent
                         .Select(r => new CommunicationResponsibleDto
                         {
                             CommunicationResponsibleId = r.CommunicationResponsibleId,
                             ResponsibleId = r.ResponsibleId,
-                            ResponsibleName = r.Responsible != null 
+                            ResponsibleName = r.Responsible != null
                                 ? (r.Responsible.UserName ?? r.Responsible.Email ?? "Unknown")
                                 : "Unknown",
                             AssignedById = r.AssignedById,
-                            AssignedByName = r.AssignedBy != null 
+                            AssignedByName = r.AssignedBy != null
                                 ? (r.AssignedBy.UserName ?? r.AssignedBy.Email ?? "Unknown")
                                 : "Unknown",
                             AssignedAt = r.AssignedAt
                         }).FirstOrDefault(),
                     ResponsibleHistory = c.ResponsibleHistory
+                        .OrderBy(r => r.CustomerCommunicationId) // Sort history by AssignedAt (ascending)
+                                                    //.OrderByDescending(r => r.AssignedAt) // Use this for newest first
                         .Select(r => new CommunicationResponsibleDto
                         {
                             CommunicationResponsibleId = r.CommunicationResponsibleId,
                             ResponsibleId = r.ResponsibleId,
-                            ResponsibleName = r.Responsible != null 
+                            ResponsibleName = r.Responsible != null
                                 ? (r.Responsible.UserName ?? r.Responsible.Email ?? "Unknown")
                                 : "Unknown",
                             AssignedById = r.AssignedById,
-                            AssignedByName = r.AssignedBy != null 
+                            AssignedByName = r.AssignedBy != null
                                 ? (r.AssignedBy.UserName ?? r.AssignedBy.Email ?? "Unknown")
                                 : "Unknown",
                             AssignedAt = r.AssignedAt

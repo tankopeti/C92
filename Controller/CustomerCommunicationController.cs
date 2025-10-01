@@ -20,7 +20,7 @@ namespace Cloud9_2.Controllers
         private readonly CustomerCommunicationService _communicationService; // Inject the service
 
         public CustomerCommunicationController(
-            ApplicationDbContext context, 
+            ApplicationDbContext context,
             ILogger<CustomerCommunicationController> logger,
             CustomerCommunicationService communicationService) // Add to constructor
         {
@@ -30,55 +30,55 @@ namespace Cloud9_2.Controllers
         }
 
         [HttpGet("types")]
-    public async Task<IActionResult> GetCommunicationTypes()
-    {
-        try
+        public async Task<IActionResult> GetCommunicationTypes()
         {
-            var types = await _context.CommunicationTypes
-                .AsNoTracking()
-                .Select(ct => new
-                {
-                    id = ct.CommunicationTypeId,
-                    text = ct.Name
-                })
-                .OrderBy(ct => ct.id)
-                .ToListAsync();
+            try
+            {
+                var types = await _context.CommunicationTypes
+                    .AsNoTracking()
+                    .Select(ct => new
+                    {
+                        id = ct.CommunicationTypeId,
+                        text = ct.Name
+                    })
+                    .OrderBy(ct => ct.id)
+                    .ToListAsync();
 
-            _logger.LogInformation("Fetched {Count} communication types", types.Count);
-            return Ok(types.Any() ? types : new List<object>());
+                _logger.LogInformation("Fetched {Count} communication types", types.Count);
+                return Ok(types.Any() ? types : new List<object>());
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error fetching communication types: {Message}", ex.Message);
+                return StatusCode(500, new { title = "Internal server error", errors = new { General = new[] { $"Failed to retrieve communication types: {ex.Message}" } } });
+            }
         }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error fetching communication types: {Message}", ex.Message);
-            return StatusCode(500, new { title = "Internal server error", errors = new { General = new[] { $"Failed to retrieve communication types: {ex.Message}" } } });
-        }
-    }
 
-    [HttpGet("statuses")]
-    public async Task<IActionResult> GetCommunicationStatuses()
-    {
-        try
+        [HttpGet("statuses")]
+        public async Task<IActionResult> GetCommunicationStatuses()
         {
-            var statuses = await _context.CommunicationStatuses
-                .AsNoTracking()
-                .Select(cs => new
-                {
-                    id = cs.StatusId,
-                    text = cs.Name
-                })
-                .OrderBy(cs => cs.id)
-                .ToListAsync();
+            try
+            {
+                var statuses = await _context.CommunicationStatuses
+                    .AsNoTracking()
+                    .Select(cs => new
+                    {
+                        id = cs.StatusId,
+                        text = cs.Name
+                    })
+                    .OrderBy(cs => cs.id)
+                    .ToListAsync();
 
-            _logger.LogInformation("Fetched {Count} communication statuses", statuses.Count);
-            return Ok(statuses.Any() ? statuses : new List<object>());
+                _logger.LogInformation("Fetched {Count} communication statuses", statuses.Count);
+                return Ok(statuses.Any() ? statuses : new List<object>());
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error fetching communication statuses: {Message}", ex.Message);
+                return StatusCode(500, new { title = "Internal server error", errors = new { General = new[] { $"Failed to retrieve communication statuses: {ex.Message}" } } });
+            }
         }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error fetching communication statuses: {Message}", ex.Message);
-            return StatusCode(500, new { title = "Internal server error", errors = new { General = new[] { $"Failed to retrieve communication statuses: {ex.Message}" } } });
-        }
-    }
-    
+
         // NEW: POST /api/customercommunication (Create)
         [HttpPost]
         public async Task<IActionResult> CreateCommunication([FromBody] CustomerCommunicationDto dto)
@@ -226,20 +226,46 @@ namespace Cloud9_2.Controllers
         {
             try
             {
+                if (!ModelState.IsValid)
+                {
+                    _logger.LogWarning("Model validation failed for AssignResponsible {Id}: {Errors}", id, ModelState);
+                    return BadRequest(new
+                    {
+                        title = "Validation Error",
+                        errors = ModelState.ToDictionary(
+                            kvp => kvp.Key,
+                            kvp => kvp.Value.Errors.Select(e => e.ErrorMessage).ToArray()
+                        )
+                    });
+                }
+
+                if (id <= 0)
+                {
+                    return BadRequest(new { error = "Invalid Communication ID." });
+                }
+
                 var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-                await _communicationService.AssignResponsibleAsync(id, dto.ResponsibleUserId.ToString(), currentUserId ?? ""); // Convert to string if needed
-                return Ok();
+                if (string.IsNullOrEmpty(currentUserId))
+                {
+                    return Unauthorized(new { error = "Current user not authenticated." });
+                }
+
+                await _communicationService.AssignResponsibleAsync(id, dto.ResponsibleUserId, currentUserId);
+                _logger.LogInformation("Responsible assigned for communication {Id} to user {UserId} by {CurrentUserId}", id, dto.ResponsibleUserId, currentUserId);
+                return Ok(new { message = "Responsible assigned successfully." });
             }
             catch (ArgumentException ex)
             {
+                _logger.LogWarning(ex, "Argument error assigning responsible to {Id}", id);
                 return BadRequest(new { error = ex.Message });
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error assigning responsible to {Id}", id);
-                return StatusCode(500, new { error = ex.Message });
+                return StatusCode(500, new { error = "An unexpected error occurred. Please try again later." });
             }
         }
+
 
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteCommunication(int id)
@@ -259,5 +285,14 @@ namespace Cloud9_2.Controllers
                 return StatusCode(500, new { error = ex.Message });
             }
         }
+        
+        [HttpGet]
+        public IActionResult GetUsers()
+        {
+            var users = _context.Users
+                .Select(u => new { Id = u.Id, Name = u.NormalizedUserName })
+                .ToList();
+            return Ok(users); // Returns JSON array
+    }
     }
 }

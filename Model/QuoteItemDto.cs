@@ -45,47 +45,96 @@ namespace Cloud9_2.Models
         public VatTypeDto? VatType { get; set; }
         public int? VolumeThreshold { get; set; }
         public decimal? GrossPrice { get; set; }
+        public int? VatRate { get; set; }
     
     }
     public class CreateQuoteItemDto
     {
+        [Required]
+        [Display(Name = "Tétel azonosító")]
+        public int QuoteItemId { get; set; }
+
+        [Required]
+        [Display(Name = "Termék")]
         public int ProductId { get; set; }
-        public int VatTypeId { get; set; }
-        public VatTypeDto? VatType { get; set; }
-        public string? ItemDescription { get; set; }
+
+        [Required]
+        [Display(Name = "Mennyiség")]
+        [Range(1, int.MaxValue, ErrorMessage = "A mennyiségnek pozitívnak kell lennie")]
         public decimal Quantity { get; set; }
+
+        [Required]
+        [Display(Name = "Listaár")]
+        public decimal ListPrice { get; set; }
+
+        [Required]
+        [Display(Name = "Nettó kedvezményes ár")]
         public decimal NetDiscountedPrice { get; set; }
+
+        [Required]
+        [Display(Name = "Összesen")]
         public decimal TotalPrice { get; set; }
+
+        [Required]
+        [Display(Name = "ÁFA típus")]
+        public int VatTypeId { get; set; }
+
+        [Display(Name = "Kedvezmény típus")]
         public int? DiscountTypeId { get; set; }
-        public DiscountType? DiscountType { get; set; }
-        public decimal? DiscountPercentage { get; set; }
+
+        [Display(Name = "Kedvezmény összeg")]
         public decimal? DiscountAmount { get; set; }
-        public decimal? BasePrice { get; set; }
+
+        [Display(Name = "Partnerár")]
         public decimal? PartnerPrice { get; set; }
-        public int? VolumeThreshold { get; set; }
+
+        [Display(Name = "Mennyiségi ár")]
         public decimal? VolumePrice { get; set; }
-        public decimal? ListPrice { get; set; }
-        public QuoteItemDiscountDto Discount { get; set; }
     }
+
 
     public class UpdateQuoteItemDto
     {
+        [Required]
+        [Display(Name = "Tétel azonosító")]
+        public int QuoteItemId { get; set; }
+
+        [Required]
+        [Display(Name = "Termék")]
         public int ProductId { get; set; }
-        public int VatTypeId { get; set; }
-        public VatTypeDto? VatType { get; set; }
-        public string? ItemDescription { get; set; }
+
+        [Required]
+        [Display(Name = "Mennyiség")]
+        [Range(1, int.MaxValue, ErrorMessage = "A mennyiségnek pozitívnak kell lennie")]
         public decimal Quantity { get; set; }
+
+        [Required]
+        [Display(Name = "Listaár")]
+        public decimal ListPrice { get; set; }
+
+        [Required]
+        [Display(Name = "Nettó kedvezményes ár")]
         public decimal NetDiscountedPrice { get; set; }
+
+        [Required]
+        [Display(Name = "Összesen")]
         public decimal TotalPrice { get; set; }
-        public DiscountType? DiscountType { get; set; }
-        public decimal? DiscountPercentage { get; set; }
-        public decimal? DiscountAmount { get; set; }
-        public decimal? BasePrice { get; set; }
-        public decimal? PartnerPrice { get; set; }
-        public int? VolumeThreshold { get; set; }
-        public decimal? VolumePrice { get; set; }
-        public decimal? ListPrice { get; set; }
+
+        [Required]
+        [Display(Name = "ÁFA típus")]
+        public int VatTypeId { get; set; }
+
+        [Display(Name = "Kedvezmény típus")]
         public int? DiscountTypeId { get; set; }
+
+        [Display(Name = "Kedvezmény összeg")]
+        public decimal? DiscountAmount { get; set; }
+
+        [Display(Name = "Partnerár")]
+        public decimal? PartnerPrice { get; set; }
+
+        [Display(Name = "Mennyiségi ár")]
+        public decimal? VolumePrice { get; set; }
     }
 
     public class QuoteItemResponseDto

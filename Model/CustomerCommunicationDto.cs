@@ -72,9 +72,10 @@ public int CustomerCommunicationId { get; set; }
 
     public class AssignResponsibleDto
     {
-        public int ResponsibleUserId { get; set; }
+        [Required(ErrorMessage = "ResponsibleUserId is required.")]
+        public string ResponsibleUserId { get; set; } // Use string to match ApplicationUser.Id
     }
-
+    
     public class AddCommunicationDto
     {
         [Required]

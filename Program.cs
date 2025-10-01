@@ -26,7 +26,7 @@ using Microsoft.EntityFrameworkCore;
 
   builder.Services.AddScoped<EmailService>();
   builder.Services.AddScoped<IDocumentService, DocumentService>();
-  builder.Services.AddScoped<IQuoteService, QuoteService>();
+  builder.Services.AddScoped<QuoteService>();
   builder.Services.AddScoped<IOrderService, OrderService>();
   builder.Services.AddScoped<CustomerCommunicationService>();
   builder.Services.AddScoped<IPartnerService, PartnerService>();
@@ -38,6 +38,8 @@ using Microsoft.EntityFrameworkCore;
   builder.Services.AddHttpClient();
 
   builder.Services.AddAutoMapper(typeof(OrderProfile));
+  builder.Services.AddAutoMapper(typeof(Program));
+  builder.Services.AddAutoMapper(typeof(MappingProfile));
   builder.Services.AddHttpContextAccessor();
   builder.Services.AddScoped<IUserService, UserService>();
 

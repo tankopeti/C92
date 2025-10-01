@@ -385,49 +385,76 @@
         }
     }
 
-    // Assign Responsible
-    async function assignResponsible(communicationId) {
-        const form = document.getElementById(`assignResponsibleForm_${communicationId}`);
-        if (!form) {
-            console.error('Responsible form not found for communicationId:', communicationId);
-            showToast('Hiba: A felelős kijelölés űrlap nem található.', 'danger');
-            return;
-        }
-        const formData = new FormData(form);
-        const token = form.querySelector('input[name="__RequestVerificationToken"]')?.value;
-        if (!token) {
-            console.error('Anti-forgery token not found');
-            showToast('Hiba: Biztonsági token hiányzik.', 'danger');
-            return;
-        }
-        const data = { ResponsibleUserId: formData.get('ResponsibleId') };
-        if (!data.ResponsibleUserId) {
-            showToast('Kérjük, válasszon ki egy felelőst.', 'danger');
-            return;
-        }
-        try {
-            const response = await fetch(`${API_ENDPOINTS.communication}/${communicationId}/assign-responsible`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'RequestVerificationToken': token,
-                    'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
-                },
-                body: JSON.stringify(data)
-            });
-            if (!response.ok) {
-                const errorText = await response.text();
-                throw new Error(errorText || `Hiba: ${response.status}`);
-            }
-            console.log('Responsible assigned successfully');
-            showToast('Felelős sikeresen kijelölve!', 'success');
-            form.reset();
-            await loadCommunicationHistory(communicationId);
-        } catch (error) {
-            console.error('Responsible assignment error:', error);
-            showToast(`Felelős kijelölése sikertelen: ${error.message}`, 'danger');
-        }
+// Assign Responsible
+async function assignResponsible(communicationId) {
+    const form = document.getElementById(`assignResponsibleForm_${communicationId}`);
+    if (!form) {
+        console.error('Responsible form not found for communicationId:', communicationId);
+        showToast('Hiba: A felelős kijelölés űrlap nem található.', 'danger');
+        return;
     }
+    const select = form.querySelector('select[name="ResponsibleId"]');
+    const responsibleId = select ? select.value.trim() : '';
+    if (!responsibleId) {
+        showToast('Kérjük, válasszon ki egy érvényes felelőst.', 'danger');
+        return;
+    }
+    const token = form.querySelector('input[name="__RequestVerificationToken"]')?.value;
+    if (!token) {
+        console.error('Anti-forgery token not found');
+        showToast('Hiba: Biztonsági token hiányzik.', 'danger');
+        return;
+    }
+    const data = {
+        ResponsibleUserId: responsibleId // Send as string (GUID)
+    };
+    try {
+        const response = await fetch(`${API_ENDPOINTS.communication}/${communicationId}/assign-responsible`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'RequestVerificationToken': token,
+                'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
+            },
+            body: JSON.stringify(data)
+        });
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error('AssignResponsible full response:', errorText);
+            let errorMessage = `Hiba: ${response.status}`;
+            try {
+                const errorJson = JSON.parse(errorText);
+                if (errorJson.errors) {
+                    // Join validation errors into a single message
+                    const validationErrors = Object.values(errorJson.errors).flat().join('; ');
+                    errorMessage = `Érvényesítési hiba: ${validationErrors}`;
+                } else if (errorJson.error || errorJson.title) {
+                    errorMessage = errorJson.error || errorJson.title;
+                } else {
+                    errorMessage = errorText;
+                }
+            } catch (parseErr) {
+                console.error('Failed to parse error JSON:', parseErr);
+                errorMessage = errorText.substring(0, 200) + '...';
+            }
+            if (response.status === 401) {
+                errorMessage = 'Nincs jogosultság. Kérjük, jelentkezzen be újra.';
+                // Optionally redirect: window.location.href = '/login';
+            }
+            throw new Error(errorMessage);
+        }
+        const result = await response.json();
+        console.log('Responsible assigned successfully:', result);
+        showToast(result.message || 'Felelős sikeresen kijelölve!', 'success');
+        form.reset();
+        await loadCommunicationHistory(communicationId);
+        // Optionally reload only the responsible display instead of full page
+        // window.location.reload();
+    } catch (error) {
+        console.error('Responsible assignment error:', error);
+        showToast(`Felelős kijelölése sikertelen: ${error.message}`, 'danger');
+    }
+}
 
     // Delete Communication
     async function deleteCommunication(communicationId) {
@@ -536,8 +563,26 @@
     // Initialize Event Listeners
     document.addEventListener('DOMContentLoaded', () => {
         console.log('Main script loaded');
-
-        // New Communication Modal
+const responsibleSelect = document.querySelector('select[name="ResponsibleId"]');
+    if (responsibleSelect) {
+        new TomSelect(responsibleSelect, {
+            valueField: 'id',
+            labelField: 'text',
+            searchField: 'text',
+            load: function (query, callback) {
+                fetch('/api/users?searchTerm=' + encodeURIComponent(query))
+                    .then(response => response.json())
+                    .then(data => {
+                        callback(data.map(user => ({
+                            id: user.id,
+                            text: user.userName || user.email || 'Unknown'
+                        })));
+                    })
+                    .catch(() => callback());
+            },
+            placeholder: '-- Válasszon felelőst --'
+        });
+    }
         // New Communication Modal
         const newCommunicationModal = document.getElementById('newCommunicationModal');
         if (newCommunicationModal) {

@@ -1,6 +1,8 @@
 @page
 @using Microsoft.AspNetCore.Mvc.Rendering
 @using Cloud9_2.Models
+@using Cloud9_2.Helpers
+@using Cloud9_2.Services
 @using System.Globalization
 @model Cloud9_2.Pages.CRM.Quotes.IndexModel
 @using System.Security.Claims
@@ -91,7 +93,10 @@
                                     }
                                     <span class="@badgeClass">@quote.Status</span>
                                 </td>
-                                <td class="text-nowrap"><i class="bi bi-currency-dollar me-1"></i>@quote.TotalAmount?.ToString("C")</td>
+                                <td class="text-nowrap">
+                                    <i class="bi me-1"></i>
+                                    @quote.TotalAmount?.ToString("C", CurrencyHelper.GetCultureInfoForCurrencyId(quote.CurrencyId, quote.Currency?.Locale))
+                                </td>
                                 <td>
                                     <div class="btn-group btn-group-sm" role="group">
                                         <button type="button"

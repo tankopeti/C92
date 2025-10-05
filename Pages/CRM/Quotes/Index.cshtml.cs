@@ -1,27 +1,30 @@
 using Cloud9_2.Data;
 using Cloud9_2.Models;
-using Cloud9_2.Controllers;
+using Cloud9_2.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Logging;
-using Microsoft.AspNetCore.Mvc.Rendering;
 
 namespace Cloud9_2.Pages.CRM.Quotes
 {
     public class IndexModel : PageModel
     {
         private readonly ApplicationDbContext _context;
+        private readonly QuoteService _quoteService;
         private readonly ILogger<IndexModel> _logger;
 
-        public IndexModel(ApplicationDbContext context, ILogger<IndexModel> logger)
+        public IndexModel(ApplicationDbContext context, QuoteService quoteService, ILogger<IndexModel> logger)
         {
-            _context = context;
-            _logger = logger;
+            _context = context ?? throw new ArgumentNullException(nameof(context));
+            _quoteService = quoteService ?? throw new ArgumentNullException(nameof(quoteService));
+            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
         public IList<Quote> Quotes { get; set; } = new List<Quote>();
@@ -39,11 +42,12 @@ namespace Cloud9_2.Pages.CRM.Quotes
         [BindProperty]
         public int PartnerId { get; set; }
         public IEnumerable<SelectListItem> Partners { get; set; } = new List<SelectListItem>();
+
         [BindProperty]
         public int CurrencyId { get; set; }
         public IEnumerable<SelectListItem> Currencies { get; set; } = new List<SelectListItem>();
 
-
+        public IEnumerable<SelectListItem> VatTypes { get; set; } = new List<SelectListItem>();
 
         public async Task OnGetAsync(int? pageNumber, string searchTerm, int? pageSize, string statusFilter, string sortBy)
         {
@@ -53,21 +57,32 @@ namespace Cloud9_2.Pages.CRM.Quotes
             StatusFilter = statusFilter;
             SortBy = sortBy;
 
-            Partners = _context.Partners
-                        .OrderBy(p => p.Name)
-                        .Select(p => new SelectListItem
-                        {
-                            Value = p.PartnerId.ToString(),
-                            Text = p.TaxId != null ? $"{p.Name} ({p.TaxId})" : p.Name
-                        }).ToList();
+            Partners = await _context.Partners
+                .OrderBy(p => p.Name)
+                .Select(p => new SelectListItem
+                {
+                    Value = p.PartnerId.ToString(),
+                    Text = p.TaxId != null ? $"{p.Name} ({p.TaxId})" : p.Name
+                })
+                .ToListAsync();
 
-            Currencies = _context.Currencies
+            Currencies = await _context.Currencies
                 .OrderBy(c => c.CurrencyName)
                 .Select(c => new SelectListItem
                 {
                     Value = c.CurrencyId.ToString(),
                     Text = c.CurrencyName
-                }).ToList();
+                })
+                .ToListAsync();
+
+            VatTypes = await _context.VatTypes
+                .OrderBy(v => v.Rate)
+                .Select(v => new SelectListItem
+                {
+                    Value = v.VatTypeId.ToString(),
+                    Text = v.FormattedRate
+                })
+                .ToListAsync();
 
             _logger.LogInformation("Fetching quotes: Page={Page}, PageSize={PageSize}, SearchTerm={SearchTerm}, StatusFilter={StatusFilter}, SortBy={SortBy}",
                 CurrentPage, PageSize, SearchTerm, StatusFilter, SortBy);
@@ -75,9 +90,9 @@ namespace Cloud9_2.Pages.CRM.Quotes
             IQueryable<Quote> quotesQuery = _context.Quotes
                 .Include(q => q.Partner)
                 .Include(q => q.QuoteItems)
-                .ThenInclude(qi => qi.Product)
+                    .ThenInclude(qi => qi.Product)
                 .Include(q => q.QuoteItems)
-                    .ThenInclude(qi => qi.VatType); ;
+                    .ThenInclude(qi => qi.VatType);
 
             if (!string.IsNullOrEmpty(SearchTerm))
             {
@@ -87,7 +102,6 @@ namespace Cloud9_2.Pages.CRM.Quotes
                                                     q.Description.Contains(SearchTerm));
             }
 
-            // Apply status filter
             if (!string.IsNullOrEmpty(StatusFilter) && StatusFilter != "all")
             {
                 quotesQuery = quotesQuery.Where(q => q.Status == StatusFilter);
@@ -98,7 +112,7 @@ namespace Cloud9_2.Pages.CRM.Quotes
                 "QuoteId" => quotesQuery.OrderByDescending(q => q.QuoteId),
                 "ValidityDate" => quotesQuery.OrderBy(q => q.ValidityDate).ThenByDescending(q => q.QuoteId),
                 "QuoteDate" => quotesQuery.OrderByDescending(q => q.QuoteDate).ThenByDescending(q => q.QuoteId),
-                _ => quotesQuery.OrderByDescending(q => q.QuoteDate).ThenByDescending(q => q.QuoteId) // Default
+                _ => quotesQuery.OrderByDescending(q => q.QuoteDate).ThenByDescending(q => q.QuoteId)
             };
 
             TotalRecords = await quotesQuery.CountAsync();
@@ -110,14 +124,155 @@ namespace Cloud9_2.Pages.CRM.Quotes
                 .Take(PageSize)
                 .ToListAsync();
 
-            _logger.LogInformation("Retrieved {Count} quotes for page {Page}. TotalRecords={TotalRecords}, TotalPages={TotalPages}, StatusFilter={StatusFilter}, SortBy={SortBy}",
-                Quotes.Count, CurrentPage, TotalRecords, TotalPages, StatusFilter, SortBy);
+            // Generate NextQuoteNumber with validation
+            var lastQuote = await _context.Quotes
+                .OrderByDescending(q => q.QuoteId)
+                .FirstOrDefaultAsync();
+
+            if (lastQuote != null && !string.IsNullOrEmpty(lastQuote.QuoteNumber))
+            {
+                var match = Regex.Match(lastQuote.QuoteNumber, @"^Q(\d+)$");
+                if (match.Success && long.TryParse(match.Groups[1].Value, out var lastNumber))
+                {
+                    NextQuoteNumber = $"Q{(lastNumber + 1).ToString("D6")}";
+                }
+                else
+                {
+                    _logger.LogWarning("Invalid QuoteNumber format for last quote: {QuoteNumber}. Using default.", lastQuote.QuoteNumber);
+                    NextQuoteNumber = "Q000001";
+                }
+            }
+            else
+            {
+                NextQuoteNumber = "Q000001";
+            }
+
+            _logger.LogInformation("Retrieved {Count} quotes for page {Page}. TotalRecords={TotalRecords}, TotalPages={TotalPages}, StatusFilter={StatusFilter}, SortBy={SortBy}, NextQuoteNumber={NextQuoteNumber}",
+                Quotes.Count, CurrentPage, TotalRecords, TotalPages, StatusFilter, SortBy, NextQuoteNumber);
 
             if (!Quotes.Any() && TotalRecords > 0)
             {
                 _logger.LogWarning("No quotes found for page {Page}, but TotalRecords={TotalRecords}. Possible pagination or filter issue.", CurrentPage, TotalRecords);
             }
         }
+
+        public async Task<IActionResult> OnPostCreateQuoteAsync([FromBody] CreateQuoteDto createQuoteDto)
+        {
+            if (!ModelState.IsValid)
+            {
+                var errors = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage);
+                _logger.LogWarning("ModelState errors: {Errors}", string.Join(", ", errors));
+                return BadRequest(new { success = false, message = "Érvénytelen adatok", errors });
+            }
+
+            if (createQuoteDto.PartnerId <= 0)
+            {
+                return BadRequest(new { success = false, message = "Érvénytelen partner azonosító." });
+            }
+
+            if (createQuoteDto.CurrencyId <= 0)
+            {
+                return BadRequest(new { success = false, message = "Érvénytelen pénznem azonosító." });
+            }
+
+            if (string.IsNullOrEmpty(createQuoteDto.Subject?.Trim()))
+            {
+                return BadRequest(new { success = false, message = "A tárgy mező kitöltése kötelező." });
+            }
+
+            if (createQuoteDto.QuoteItems == null || !createQuoteDto.QuoteItems.Any(i => i.ProductId > 0))
+            {
+                return BadRequest(new { success = false, message = "Legalább egy érvényes tétel szükséges (termék megadása kötelező)." });
+            }
+
+            foreach (var item in createQuoteDto.QuoteItems)
+            {
+                if (item.VatTypeId <= 0)
+                {
+                    return BadRequest(new { success = false, message = "Minden tételhez szükséges ÁFA típus." });
+                }
+                if (item.Quantity <= 0)
+                {
+                    return BadRequest(new { success = false, message = "A mennyiségnek pozitívnak kell lennie minden tételhez." });
+                }
+                if (item.ListPrice < 0)
+                {
+                    return BadRequest(new { success = false, message = "A listaár nem lehet negatív." });
+                }
+                if (item.NetDiscountedPrice < 0)
+                {
+                    return BadRequest(new { success = false, message = "A nettó kedvezményes ár nem lehet negatív." });
+                }
+                if (item.TotalPrice < 0)
+                {
+                    return BadRequest(new { success = false, message = "Az összes ár nem lehet negatív." });
+                }
+                if (item.DiscountTypeId.HasValue && !Enum.IsDefined(typeof(DiscountType), item.DiscountTypeId.Value))
+                {
+                    return BadRequest(new { success = false, message = $"Érvénytelen kedvezmény típus a tételhez: {item.ProductId}" });
+                }
+                if (item.DiscountTypeId == 5 && (item.DiscountAmount < 0 || item.DiscountAmount > item.ListPrice * item.Quantity))
+                {
+                    return BadRequest(new { success = false, message = "A kedvezmény százaléknak megfelelő összeg nem lehet negatív vagy nagyobb az összes árnál." });
+                }
+                if (item.DiscountTypeId == 6 && (item.DiscountAmount < 0 || item.DiscountAmount >= item.ListPrice))
+                {
+                    return BadRequest(new { success = false, message = "A kedvezmény összeg nem lehet negatív vagy nagyobb/egyenlő a listaárral." });
+                }
+            }
+
+            try
+            {
+                if (string.IsNullOrEmpty(createQuoteDto.QuoteNumber))
+                {
+                    var lastQuote = await _context.Quotes
+                        .OrderByDescending(q => q.QuoteId)
+                        .FirstOrDefaultAsync();
+                    if (lastQuote != null && !string.IsNullOrEmpty(lastQuote.QuoteNumber))
+                    {
+                        var match = Regex.Match(lastQuote.QuoteNumber, @"^Q(\d+)$");
+                        if (match.Success && long.TryParse(match.Groups[1].Value, out var lastNumber))
+                        {
+                            createQuoteDto.QuoteNumber = $"Q{(lastNumber + 1).ToString("D6")}";
+                        }
+                        else
+                        {
+                            createQuoteDto.QuoteNumber = "Q000001";
+                        }
+                    }
+                    else
+                    {
+                        createQuoteDto.QuoteNumber = "Q000001";
+                    }
+                }
+
+                var quote = await _quoteService.CreateQuoteAsync(createQuoteDto);
+                await LogHistoryAsync(quote.QuoteId, "Created", null, null, null, User.Identity?.Name ?? "System", $"Árajánlat létrehozva: {quote.QuoteNumber}");
+
+                return new JsonResult(new
+                {
+                    success = true,
+                    message = "Árajánlat sikeresen létrehozva",
+                    quoteId = quote.QuoteId,
+                    quoteNumber = quote.QuoteNumber
+                });
+            }
+            catch (InvalidOperationException ioEx)
+            {
+                _logger.LogWarning(ioEx, "Validation error creating quote: {Message}", ioEx.Message);
+                return BadRequest(new { success = false, message = ioEx.Message });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error creating quote: {Message}. Inner: {InnerMessage}", ex.Message, ex.InnerException?.Message);
+                return StatusCode(500, new
+                {
+                    success = false,
+                    message = $"Hiba történt az árajánlat létrehozása közben: {ex.Message}. Részletek: {ex.InnerException?.Message}"
+                });
+            }
+        }
+
 
         public async Task<IActionResult> OnGetProductsAsync(string search)
         {
@@ -182,7 +337,6 @@ namespace Cloud9_2.Pages.CRM.Quotes
             }
         }
 
-        // Helper method to detect changes between two Quote objects
         private List<(string FieldName, string OldValue, string NewValue)> DetectChanges(Quote oldQuote, Quote newQuote)
         {
             var changes = new List<(string FieldName, string OldValue, string NewValue)>();
@@ -208,9 +362,6 @@ namespace Cloud9_2.Pages.CRM.Quotes
             if (oldQuote.DiscountPercentage != newQuote.DiscountPercentage)
                 changes.Add(("DiscountPercentage", oldQuote.DiscountPercentage?.ToString("F2"), newQuote.DiscountPercentage?.ToString("F2")));
 
-            // if (oldQuote.DiscountAmount != newQuote.DiscountAmount)
-            //     changes.Add(("DiscountAmount", oldQuote.DiscountAmount?.ToString("F2"), newQuote.DiscountAmount?.ToString("F2")));
-
             if (oldQuote.CompanyName != newQuote.CompanyName)
                 changes.Add(("CompanyName", oldQuote.CompanyName, newQuote.CompanyName));
 
@@ -232,7 +383,6 @@ namespace Cloud9_2.Pages.CRM.Quotes
             return changes;
         }
 
-        // Helper method to log history
         private async Task LogHistoryAsync(int quoteId, string action, string? fieldName, string? oldValue, string? newValue, string modifiedBy, string comment)
         {
             var history = new QuoteHistory
@@ -261,7 +411,7 @@ namespace Cloud9_2.Pages.CRM.Quotes
         Kiküldve,
         Elfogadva,
         Megrendelve,
-        Teljesístve,
+        Teljesítve,
         Lezárva
     }
 }

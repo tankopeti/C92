@@ -1,6 +1,7 @@
 using AutoMapper;
 using Cloud9_2.Data;
 using Cloud9_2.Models;
+using Cloud9_2.Controllers;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using System;
@@ -23,7 +24,7 @@ namespace Cloud9_2.Services
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
-        public async Task<Quote> CreateQuoteAsync(CreateQuoteDto createQuoteDto)
+        public async Task<Quote> CreateQuoteAsync(CreateQuoteDto createQuoteDto, string createdBy)
         {
             try
             {
@@ -63,12 +64,13 @@ namespace Cloud9_2.Services
                 var quote = _mapper.Map<Quote>(createQuoteDto);
                 quote.CreatedDate = DateTime.UtcNow;
                 quote.ModifiedDate = DateTime.UtcNow;
+                quote.CreatedBy = createdBy; // Use the passed username
                 quote.Status ??= "Folyamatban";
 
                 // Save Quote to get QuoteId
                 _context.Quotes.Add(quote);
                 await _context.SaveChangesAsync();
-                _logger.LogInformation("Quote created with ID {QuoteId}", quote.QuoteId);
+                _logger.LogInformation("Quote created with ID {QuoteId} by {CreatedBy}", quote.QuoteId, createdBy);
 
                 // Map and save QuoteItems
                 if (createQuoteDto.QuoteItems != null && createQuoteDto.QuoteItems.Any())

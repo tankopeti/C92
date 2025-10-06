@@ -25,28 +25,33 @@ namespace Cloud9_2.Controllers
                 .Select(c => new
                 {
                     id = c.CurrencyId,
-                    text = c.CurrencyName
+                    text = c.CurrencyName,
+                    currencyCode = c.CurrencyCode,
+                    locale = c.Locale,
+                    exchangeRate = c.ExchangeRate,
+                    isBaseCurrency = c.IsBaseCurrency
                 })
                 .ToListAsync();
             return Ok(currencies);
         }
 
-        // [HttpGet("{id}")]
-        // public async Task<IActionResult> GetCurrency(int id)
-        // {
-        //     var currency = await _context.Currencies
-        //         .Where(c => c.CurrencyId == id)
-        //         .Select(c => new
-        //         {
-        //             id = c.CurrencyId,
-        //             text = c.CurrencyName
-        //         })
-        //         .FirstOrDefaultAsync();
-        //     if (currency == null)
-        //     {
-        //         return NotFound(new { message = $"Currency with ID {id} not found" });
-        //     }
-        //     return Ok(currency);
-        // }
+        [HttpGet("{id}")]
+        public async Task<IActionResult> GetCurrencyById(int id)
+        {
+            var currency = await _context.Currencies.FindAsync(id);
+            if (currency == null)
+            {
+                return NotFound();
+            }
+            return Ok(new
+            {
+                id = currency.CurrencyId,
+                text = currency.CurrencyName,
+                currencyCode = currency.CurrencyCode,
+                locale = currency.Locale,
+                exchangeRate = currency.ExchangeRate,
+                isBaseCurrency = currency.IsBaseCurrency
+            });
+        }
     }
 }

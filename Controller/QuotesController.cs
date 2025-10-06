@@ -1,9 +1,9 @@
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Mvc;
+using Cloud9_2.Data;
 using Cloud9_2.Models;
 using Cloud9_2.Services;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Mvc;
-using System;
-using System.Collections.Generic;
 using System.Threading.Tasks;
 
 namespace Cloud9_2.Controllers
@@ -14,30 +14,28 @@ namespace Cloud9_2.Controllers
     public class QuotesController : ControllerBase
     {
         private readonly QuoteService _quoteService;
+        private readonly UserManager<ApplicationUser> _userManager;
 
-        public QuotesController(QuoteService quoteService)
+        public QuotesController(QuoteService quoteService, UserManager<ApplicationUser> userManager)
         {
             _quoteService = quoteService ?? throw new ArgumentNullException(nameof(quoteService));
+            _userManager = userManager;
         }
 
         // POST: api/quotes
         [HttpPost]
-        public async Task<IActionResult> CreateQuote([FromBody] CreateQuoteDto createQuoteDto)
+        public async Task<ActionResult<Quote>> CreateQuote([FromBody] CreateQuoteDto createQuoteDto)
         {
-            if (!ModelState.IsValid)
+            // Get the current user's username
+            var user = await _userManager.GetUserAsync(User);
+            if (user == null)
             {
-                return BadRequest(ModelState);
+                return Unauthorized("User not authenticated.");
             }
 
-            try
-            {
-                var quote = await _quoteService.CreateQuoteAsync(createQuoteDto);
-                return CreatedAtAction(nameof(GetQuote), new { id = quote.QuoteId }, quote);
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, $"An error occurred while creating the quote: {ex.Message}");
-            }
+            // Pass the username to the service
+            var quote = await _quoteService.CreateQuoteAsync(createQuoteDto, user.UserName);
+            return CreatedAtAction(nameof(GetQuote), new { id = quote.QuoteId }, quote);
         }
 
         // PUT: api/quotes/{id}

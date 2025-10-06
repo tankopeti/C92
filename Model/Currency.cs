@@ -11,6 +11,12 @@ namespace Cloud9_2.Models
         [Required, StringLength(100)]
         public string? CurrencyName { get; set; }
 
+        [Required, StringLength(3)]
+        public string? CurrencyCode { get; set; }
+
+        [Required, StringLength(10)]
+        public string? Locale { get; set; }
+
         [Required, Range(0, double.MaxValue)]
         public decimal ExchangeRate { get; set; }
 

@@ -20,6 +20,8 @@ namespace Cloud9_2.Models
         [Required(ErrorMessage = "A pénznem azonosító kötelező")]
         [Display(Name = "Pénznem")]
         public int CurrencyId { get; set; }
+        public string CurrencyCode { get; set; } // e.g., "EUR"
+        public string CurrencyLocale { get; set; } // e.g., "de-DE"
 
         [Display(Name = "Pénznem")]
         public CurrencyDto? Currency { get; set; }

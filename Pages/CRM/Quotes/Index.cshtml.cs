@@ -89,6 +89,7 @@ namespace Cloud9_2.Pages.CRM.Quotes
 
             IQueryable<Quote> quotesQuery = _context.Quotes
                 .Include(q => q.Partner)
+                .Include(q => q.Currency)
                 .Include(q => q.QuoteItems)
                     .ThenInclude(qi => qi.Product)
                 .Include(q => q.QuoteItems)
@@ -98,6 +99,7 @@ namespace Cloud9_2.Pages.CRM.Quotes
             {
                 quotesQuery = quotesQuery.Where(q => q.QuoteNumber.Contains(SearchTerm) ||
                                                     q.Subject.Contains(SearchTerm) ||
+                                                    q.Currency.CurrencyName.Contains(SearchTerm) ||
                                                     q.Partner.Name.Contains(SearchTerm) ||
                                                     q.Description.Contains(SearchTerm));
             }
@@ -246,8 +248,12 @@ namespace Cloud9_2.Pages.CRM.Quotes
                     }
                 }
 
-                var quote = await _quoteService.CreateQuoteAsync(createQuoteDto);
-                await LogHistoryAsync(quote.QuoteId, "Created", null, null, null, User.Identity?.Name ?? "System", $"Árajánlat létrehozva: {quote.QuoteNumber}");
+                // Get the current user's username
+                string createdBy = User.Identity?.Name ?? "System";
+
+                // Pass the username to the QuoteService
+                var quote = await _quoteService.CreateQuoteAsync(createQuoteDto, createdBy);
+                await LogHistoryAsync(quote.QuoteId, "Created", null, null, null, $"Árajánlat létrehozva: {quote.QuoteNumber}");
 
                 return new JsonResult(new
                 {
@@ -383,8 +389,11 @@ namespace Cloud9_2.Pages.CRM.Quotes
             return changes;
         }
 
-        private async Task LogHistoryAsync(int quoteId, string action, string? fieldName, string? oldValue, string? newValue, string modifiedBy, string comment)
+        private async Task LogHistoryAsync(int quoteId, string action, string? fieldName, string? oldValue, string? newValue, string comment)
         {
+            // Get the current user's username
+            string modifiedBy = User.Identity?.Name ?? "System";
+
             var history = new QuoteHistory
             {
                 QuoteId = quoteId,

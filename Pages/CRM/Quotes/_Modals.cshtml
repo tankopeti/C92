@@ -47,56 +47,56 @@
                                             <td><input type="date" class="form-control" name="quoteDate"
                                                        value="@(quote.QuoteDate?.ToString("yyyy-MM-dd") ?? "")" required></td>
                                         </tr>
-                                        <tr>
-                                            <th>Partner</th>
-                                            <td>
-                                                <select name="PartnerId" class="form-select" 
-                                                        id="partnerSelect_@quote.QuoteId" 
-                                                        data-selected-id="@(quote.PartnerId.ToString() ?? "")"
-                                                        data-selected-text="@(quote.CompanyName ?? "")"
-                                                        autocomplete="off"
-                                                        required>
-                                                    <option value="">-- Válasszon partnert --</option>
-                                                    @foreach (var partner in Model.Partners)
-                                                    {
-                                                        if (partner.Value == quote.PartnerId.ToString())
-                                                        {
-                                                            <option value="@partner.Value" selected>@partner.Text</option>
-                                                        }
-                                                        else
-                                                        {
-                                                            <option value="@partner.Value">@partner.Text</option>
-                                                        }
-                                                    }
-                                                </select>
-                                                <span asp-validation-for="PartnerId" class="text-danger"></span>
-                                            </td>
-                                        </tr>
-                                        <tr>
-                                            <th>Pénznem</th>
-                                            <td>
-                                                <select name="CurrencyId" class="form-select tom-select" 
-                                                        id="currencySelect_@quote.QuoteId"
-                                                        data-selected-id="@quote.CurrencyId"
-                                                        data-selected-text="@(quote.Currency?.CurrencyName ?? "")"
-                                                        autocomplete="off"
-                                                        required>
-                                                    <option value="">-- Válasszon pénznemet --</option>
-                                                    @foreach (var currency in Model.Currencies)
-                                                    {
-                                                        if (currency.Value == quote.CurrencyId.ToString())
-                                                        {
-                                                            <option value="@currency.Value" selected>@currency.Text</option>
-                                                        }
-                                                        else
-                                                        {
-                                                            <option value="@currency.Value">@currency.Text</option>
-                                                        }
-                                                    }
-                                                </select>
-                                                <span asp-validation-for="CurrencyId" class="text-danger"></span>
-                                            </td>
-                                        </tr>
+<tr>
+    <th>Partner</th>
+    <td>
+        <select name="PartnerId" class="form-select tom-select" 
+                id="partnerSelect_@quote.QuoteId" 
+                data-selected-id="@(quote.PartnerId.ToString() ?? "")"
+                data-selected-text="@(quote.CompanyName ?? "")"
+                autocomplete="off"
+                required>
+            <option value="">-- Válasszon partnert --</option>
+            @foreach (var partner in Model.Partners)
+            {
+                if (partner.Value == quote.PartnerId.ToString())
+                {
+                    <option value="@partner.Value" selected>@partner.Text</option>
+                }
+                else
+                {
+                    <option value="@partner.Value">@partner.Text</option>
+                }
+            }
+        </select>
+        <span asp-validation-for="PartnerId" class="text-danger"></span>
+    </td>
+</tr>
+<tr>
+    <th>Pénznem</th>
+    <td>
+        <select name="CurrencyId" class="form-select tom-select" 
+                id="currencySelect_@quote.QuoteId"
+                data-selected-id="@(quote.CurrencyId.ToString() ?? "")"
+                data-selected-text="@(quote.Currency?.CurrencyName ?? "")"
+                autocomplete="off"
+                required>
+            <option value="">-- Válasszon pénznemet --</option>
+            @foreach (var currency in Model.Currencies)
+            {
+                if (currency.Value == quote.CurrencyId.ToString())
+                {
+                    <option value="@currency.Value" selected>@currency.Text</option>
+                }
+                else
+                {
+                    <option value="@currency.Value">@currency.Text</option>
+                }
+            }
+        </select>
+        <span asp-validation-for="CurrencyId" class="text-danger"></span>
+    </td>
+</tr>
                                         <tr>
                                             <th>Értékesítő</th>
                                             <td><input type="text" class="form-control" name="salesPerson"
@@ -183,11 +183,15 @@
                                             @foreach (var item in quote.QuoteItems)
                                             {
                                                 <tr class="quote-item-row" data-item-id="@item.QuoteItemId">
-                                                    <td>
+                                                <td>
                                                         <select name="quoteItems[@item.QuoteItemId].ProductId"
                                                                 class="form-select tom-select-product"
                                                                 data-selected-id="@item.ProductId"
                                                                 data-selected-text="@(item.Product?.Name ?? "Ismeretlen termék")"
+                                                                data-quote-id="@quote.QuoteId"
+                                                                data-item-id="@item.QuoteItemId"
+                                                                data-partner-id="@(quote.PartnerId.ToString() ?? "")"
+                                                                data-quote-date="@(quote.QuoteDate?.ToString("yyyy-MM-dd") ?? DateTime.Now.ToString("yyyy-MM-dd"))"
                                                                 autocomplete="off" required>
                                                             <option value="@item.ProductId" selected>@(item.Product?.Name ?? "Ismeretlen termék")</option>
                                                             <option value="" disabled>-- Válasszon terméket --</option>
@@ -587,7 +591,7 @@
                                         <tr>
                                             <th>Partner</th>
                                             <td>
-                                                <select name="PartnerId" class="form-select" 
+                                                <select name="PartnerId" class="form-select tom-select" 
                                                         id="partnerSelect_new" 
                                                         data-selected-id=""
                                                         data-selected-text=""

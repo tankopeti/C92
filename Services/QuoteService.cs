@@ -260,28 +260,43 @@ namespace Cloud9_2.Services
             }
         }
 
-        public async Task<bool> DeleteQuoteAsync(int quoteId)
+        public async Task<bool> DeleteQuoteAsync(int id)
         {
             try
             {
-                var quote = await _context.Quotes.FindAsync(quoteId);
+                var quote = await _context.Quotes
+                    .Include(q => q.QuoteItems)
+                    .FirstOrDefaultAsync(q => q.QuoteId == id);
+
                 if (quote == null)
                 {
-                    _logger.LogWarning("Quote with ID {QuoteId} not found", quoteId);
+                    _logger.LogWarning("Quote with ID {QuoteId} not found", id);
                     return false;
                 }
 
+                // Remove associated QuoteItems
+                _context.QuoteItems.RemoveRange(quote.QuoteItems);
+
+                // Remove the quote
                 _context.Quotes.Remove(quote);
+
                 await _context.SaveChangesAsync();
 
-                _logger.LogInformation("Deleted quote with ID {QuoteId}", quoteId);
+                _logger.LogInformation("Deleted quote with ID {QuoteId}", id);
                 return true;
+            }
+            catch (DbUpdateException ex)
+            {
+                _logger.LogError(ex, "Database error deleting quote with ID {QuoteId}: {InnerException}", id, ex.InnerException?.Message);
+                throw new Exception($"Failed to delete quote: {ex.InnerException?.Message ?? ex.Message}");
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error deleting quote with ID {QuoteId}", quoteId);
+                _logger.LogError(ex, "Error deleting quote with ID {QuoteId}", id);
                 throw;
             }
         }
+
+
     }
 }

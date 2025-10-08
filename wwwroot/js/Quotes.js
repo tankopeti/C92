@@ -106,8 +106,8 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 
-    // Handle "Tétel hozzáadása" button click
-    document.addEventListener('click', function (e) {
+    // Handle click events (add item, remove item, edit description, delete quote)
+    document.addEventListener('click', async function (e) {
         if (e.target.closest('.add-item-row')) {
             console.log('Add item clicked for quoteId:', e.target.closest('.add-item-row').getAttribute('data-quote-id')); // Debug
             const button = e.target.closest('.add-item-row');
@@ -223,6 +223,7 @@ document.addEventListener('DOMContentLoaded', function () {
             updateQuoteTotals(quoteId);
         }
 
+        // Handle "Remove Item" button
         if (e.target.closest('.remove-item-row')) {
             const button = e.target.closest('.remove-item-row');
             const itemId = button.getAttribute('data-item-id');
@@ -235,6 +236,7 @@ document.addEventListener('DOMContentLoaded', function () {
             updateQuoteTotals(quoteId);
         }
 
+        // Handle "Edit Description" button
         if (e.target.closest('.edit-description')) {
             const button = e.target.closest('.edit-description');
             const itemId = button.getAttribute('data-item-id');
@@ -243,8 +245,62 @@ document.addEventListener('DOMContentLoaded', function () {
                 descriptionRow.style.display = descriptionRow.style.display === 'none' ? 'table-row' : 'none';
             }
         }
+
+        // Handle "Confirm Delete" button in delete modal
+        if (e.target.closest('.confirm-delete-quote')) {
+            const button = e.target.closest('.confirm-delete-quote');
+            const quoteId = button.getAttribute('data-quote-id');
+            const modal = document.querySelector(`#deleteQuoteModal_${quoteId}`);
+
+            if (!modal) {
+                console.error(`Delete modal not found for quoteId: ${quoteId}`);
+                alert('Hiba történt a törlés során. Kérjük, próbálja újra.');
+                return;
+            }
+
+            console.log('Deleting quote with ID:', quoteId); // Debug
+
+            try {
+                const response = await fetch(`/api/quotes/${quoteId}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Accept': 'application/json'
+                    }
+                });
+
+                let responseData;
+                try {
+                    responseData = await response.json();
+                } catch (jsonError) {
+                    if (response.status === 204) {
+                        // 204 No Content doesn't return a body
+                        responseData = { message: 'Success' };
+                    } else {
+                        const responseText = await response.text();
+                        console.error('Non-JSON response received:', responseText);
+                        throw new Error(`A szerver érvénytelen JSON-t adott vissza: ${responseText.substring(0, 50)}...`);
+                    }
+                }
+
+                if (!response.ok) {
+                    console.error('Error response:', responseData);
+                    const errorMessage = typeof responseData === 'string' ? responseData : responseData.message || `HTTP hiba! Státusz: ${response.status}`;
+                    throw new Error(errorMessage);
+                }
+
+                console.log('Quote deleted successfully:', quoteId);
+                const bsModal = bootstrap.Modal.getInstance(modal);
+                bsModal.hide();
+                showToast('Árajánlat sikeresen törölve!');
+                window.location.reload(); // Or dynamically remove the quote from the UI
+            } catch (error) {
+                console.error('Error deleting quote:', error);
+                showToast(`Hiba történt az árajánlat törlése során: ${error.message}`, true);
+            }
+        }
     });
 
+    // Handle input events
     document.addEventListener('input', function (e) {
         if (e.target.matches('.item-quantity, .discount-value, .discount-type-id, .tom-select-product, .tom-select-vat')) {
             const row = e.target.closest('.quote-item-row');
@@ -259,6 +315,7 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 
+    // Handle dropdown clicks
     document.addEventListener('click', function (e) {
         if (e.target.closest('.tom-select-product, .tom-select-vat')) {
             const select = e.target.closest('select');
@@ -281,14 +338,14 @@ document.addEventListener('DOMContentLoaded', function () {
 
             if (!baseInfoForm || !itemsForm || !modal) {
                 console.error(`Form or modal not found for quoteId: ${quoteId}`);
-                alert('Hiba történt az űrlap betöltése során. Kérjük, próbálja újra.');
+                showToast('Hiba történt az űrlap betöltése során. Kérjük, próbálja újra.', true);
                 return;
             }
 
             if (!baseInfoForm.checkValidity() || !itemsForm.checkValidity()) {
                 baseInfoForm.reportValidity();
                 itemsForm.reportValidity();
-                alert('Kérjük, töltse ki az összes kötelező mezőt.');
+                showToast('Kérjük, töltse ki az összes kötelező mezőt.', true);
                 return;
             }
 
@@ -422,11 +479,11 @@ document.addEventListener('DOMContentLoaded', function () {
                 console.log('Success response:', responseData);
                 const bsModal = bootstrap.Modal.getInstance(modal);
                 bsModal.hide();
-                alert(isNewQuote ? 'Árajánlat sikeresen létrehozva!' : 'Árajánlat sikeresen frissítve!');
+                showToast(isNewQuote ? 'Árajánlat sikeresen létrehozva!' : 'Árajánlat sikeresen frissítve!');
                 window.location.reload();
             } catch (error) {
                 console.error('Error saving quote:', error);
-                alert(`Hiba történt az árajánlat mentése során: ${error.message}`);
+                showToast(`Hiba történt az árajánlat mentése során: ${error.message}`, true);
             } finally {
                 button.disabled = false;
                 button.innerHTML = originalButtonText;
@@ -602,7 +659,7 @@ document.addEventListener('DOMContentLoaded', function () {
                                 }); // Debug
                                 if (listPrice === 0 || product.listPrice == null) {
                                     console.warn('ListPrice is zero or null for existing product:', product.productId, 'Falling back to 0');
-                                    alert('Warning: ListPrice is missing for existing product ' + product.name + '. Check ProductPrices table.');
+                                    showToast('Warning: ListPrice is missing for existing product ' + product.name + '. Check ProductPrices table.', true);
                                 }
                                 listPriceInput.value = listPrice.toFixed(2);
                                 netDiscountedPriceSpan.textContent = netDiscountedPrice.toFixed(2);
@@ -739,10 +796,10 @@ document.addEventListener('DOMContentLoaded', function () {
                         console.warn('PartnerPrice is null for product:', productSelect.tomselect.options[productSelect.value].id, 'PartnerId:', partnerId);
                         if (!partnerId) {
                             console.warn('No partner selected (partnerId is empty). Please select a partner.');
-                            alert('Kérem, válasszon egy partnert az Ügyfélár alkalmazásához.');
+                            showToast('Kérem, válasszon egy partnert az Ügyfélár alkalmazásához.', true);
                         } else {
                             console.warn('No PartnerPrice available for product:', productSelect.tomselect.options[productSelect.value].id, 'PartnerId:', partnerId);
-                            alert('Nincs ügyfélár meghatározva a kiválasztott termékhez (' + productSelect.tomselect.options[productSelect.value].text + ') és partnerhez (ID: ' + partnerId + ').');
+                            showToast('Nincs ügyfélár meghatározva a kiválasztott termékhez (' + productSelect.tomselect.options[productSelect.value].text + ') és partnerhez (ID: ' + partnerId + ').', true);
                         }
                         calculatedDiscountAmount = 0;
                     }
@@ -794,5 +851,23 @@ document.addEventListener('DOMContentLoaded', function () {
         document.querySelector(`#quoteItemsForm_${quoteId} .quote-total-net-input`).value = totalNet.toFixed(2);
         document.querySelector(`#quoteItemsForm_${quoteId} .quote-vat-amount-input`).value = totalVat.toFixed(2);
         document.querySelector(`#quoteItemsForm_${quoteId} .quote-gross-amount-input`).value = totalGross.toFixed(2);
+    }
+
+    // Bootstrap toast notification
+    function showToast(message, isError = false) {
+        const toastContainer = document.createElement('div');
+        toastContainer.className = 'toast-container position-fixed top-0 end-0 p-3';
+        toastContainer.innerHTML = `
+            <div class="toast ${isError ? 'bg-danger' : 'bg-success'} text-white" role="alert" aria-live="assertive" aria-atomic="true">
+                <div class="toast-header">
+                    <strong class="me-auto">${isError ? 'Hiba' : 'Siker'}</strong>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast" aria-label="Close"></button>
+                </div>
+                <div class="toast-body">${message}</div>
+            </div>
+        `;
+        document.body.appendChild(toastContainer);
+        const toast = new bootstrap.Toast(toastContainer.querySelector('.toast'));
+        toast.show();
     }
 });

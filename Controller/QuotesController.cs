@@ -26,30 +26,34 @@ namespace Cloud9_2.Controllers
         [HttpPost]
         public async Task<ActionResult<Quote>> CreateQuote([FromBody] CreateQuoteDto createQuoteDto)
         {
-            // Get the current user's username
-            var user = await _userManager.GetUserAsync(User);
-            if (user == null)
+            try
             {
-                return Unauthorized("User not authenticated.");
-            }
+                var user = await _userManager.GetUserAsync(User);
+                if (user == null)
+                {
+                    return Unauthorized(new { message = "User not authenticated." });
+                }
 
-            // Pass the username to the service
-            var quote = await _quoteService.CreateQuoteAsync(createQuoteDto, user.UserName);
-            return CreatedAtAction(nameof(GetQuote), new { id = quote.QuoteId }, quote);
+                var quote = await _quoteService.CreateQuoteAsync(createQuoteDto, user.UserName);
+                return CreatedAtAction(nameof(GetQuote), new { id = quote.QuoteId }, quote);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = $"An error occurred while creating the quote: {ex.Message}" });
+            }
         }
 
-        // PUT: api/quotes/{id}
         [HttpPut("{id}")]
         public async Task<IActionResult> UpdateQuote(int id, [FromBody] UpdateQuoteDto updateQuoteDto)
         {
             if (id != updateQuoteDto.QuoteId)
             {
-                return BadRequest("Quote ID in the body must match the ID in the URL.");
+                return BadRequest(new { message = "Quote ID in the body must match the ID in the URL." });
             }
 
             if (!ModelState.IsValid)
             {
-                return BadRequest(ModelState);
+                return BadRequest(new { message = "Invalid data provided.", errors = ModelState });
             }
 
             try
@@ -59,13 +63,19 @@ namespace Cloud9_2.Controllers
             }
             catch (KeyNotFoundException ex)
             {
-                return NotFound(ex.Message);
+                return NotFound(new { message = ex.Message });
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { message = ex.Message });
             }
             catch (Exception ex)
             {
-                return StatusCode(500, $"An error occurred while updating the quote: {ex.Message}");
+                return StatusCode(500, new { message = $"An error occurred while updating the quote: {ex.Message}" });
             }
         }
+
+
 
         // GET: api/quotes/{id}
         [HttpGet("{id}")]

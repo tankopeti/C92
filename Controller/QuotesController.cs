@@ -111,7 +111,6 @@ namespace Cloud9_2.Controllers
             }
         }
 
-        // DELETE: api/quotes/{id}
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteQuote(int id)
         {
@@ -120,14 +119,15 @@ namespace Cloud9_2.Controllers
                 var result = await _quoteService.DeleteQuoteAsync(id);
                 if (!result)
                 {
-                    return NotFound($"Quote with ID {id} not found.");
+                    return NotFound(new { message = $"Quote with ID {id} not found." });
                 }
                 return NoContent();
             }
             catch (Exception ex)
             {
-                return StatusCode(500, $"An error occurred while deleting the quote: {ex.Message}");
+                return StatusCode(500, new { message = $"An error occurred while deleting the quote: {ex.Message}" });
             }
         }
+
     }
 }

@@ -39,8 +39,7 @@
 
 
 
-
-
+        
     console.log('TomSelect available:', typeof TomSelect); // Debug TomSelect loading
 
     // Initialize TomSelect for existing rows when modal is shown
@@ -56,6 +55,53 @@
         });
     });
 
+    // Handle partner dropdown change
+    document.addEventListener('change', function (e) {
+        if (e.target.matches('.tom-select')) {
+            const partnerSelect = e.target.closest('#partnerSelect_new');
+            if (partnerSelect) {
+                const quoteId = 'new';
+                const partnerId = partnerSelect.tomselect ? partnerSelect.tomselect.getValue() : partnerSelect.getAttribute('data-selected-id') || '';
+                console.log('Partner changed to partnerId:', partnerId); // Debug
+                // Update data-partner-id on all product dropdowns
+                document.querySelectorAll(`#items-tbody_${quoteId} .tom-select-product`).forEach(productSelect => {
+                    productSelect.setAttribute('data-partner-id', partnerId);
+                    const itemId = productSelect.getAttribute('data-item-id');
+                    const tomSelect = productSelect.tomselect;
+                    if (tomSelect && tomSelect.getValue()) {
+                        // Re-fetch product data for the selected product
+                        const selectedId = tomSelect.getValue();
+                        const selectedText = tomSelect.options[selectedId].text;
+                        const quoteDate = productSelect.getAttribute('data-quote-date') || new Date().toISOString().split('T')[0];
+                        const quantity = parseInt(document.querySelector(`#items-tbody_${quoteId} input[name="quoteItems[${itemId}].Quantity"]`)?.value) || 1;
+                        fetch(`/api/Product?search=${encodeURIComponent(selectedText)}&partnerId=${encodeURIComponent(partnerId)}&quoteDate=${encodeURIComponent(quoteDate)}&quantity=${quantity}`)
+                            .then(response => response.json())
+                            .then(data => {
+                                console.log('Product API response after partner change:', JSON.stringify(data, null, 2)); // Debug
+                                const product = data.find(p => p.productId == selectedId);
+                                if (product) {
+                                    tomSelect.addOption({
+                                        id: product.productId,
+                                        text: product.name,
+                                        listPrice: product.listPrice,
+                                        partnerPrice: product.partnerPrice,
+                                        volumePrice: product.volumePrice,
+                                        unitPrice: product.unitPrice
+                                    });
+                                    tomSelect.setValue(selectedId);
+                                    const row = productSelect.closest('tr');
+                                    const listPriceInput = row.querySelector('.item-list-price');
+                                    const listPrice = product.listPrice != null ? product.listPrice : 0;
+                                    listPriceInput.value = listPrice.toFixed(2);
+                                    updateQuoteTotals(quoteId);
+                                }
+                            });
+                    }
+                });
+            }
+        }
+    });
+
     // Handle "Tétel hozzáadása" button click
     document.addEventListener('click', function (e) {
         if (e.target.closest('.add-item-row')) {
@@ -69,7 +115,7 @@
             }
             // Get partnerId and quoteDate from base info tab
             const partnerSelect = document.querySelector(`#partnerSelect_${quoteId}`);
-            const partnerId = partnerSelect ? partnerSelect.getAttribute('data-selected-id') || '' : '';
+            const partnerId = partnerSelect ? partnerSelect.tomselect ? partnerSelect.tomselect.getValue() : partnerSelect.getAttribute('data-selected-id') || '' : '';
             const modal = document.querySelector(`#editQuoteModal_${quoteId}`) || document.querySelector('#newQuoteModal') || document.querySelector('.modal');
             const quoteDate = modal ? modal.getAttribute('data-quote-date') || new Date().toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
             console.log('Adding row with partnerId:', partnerId, 'quoteDate:', quoteDate); // Debug parameters
@@ -211,13 +257,14 @@
 function initializeTomSelectForRow(quoteId, itemId) {
     const productSelect = document.querySelector(`#items-tbody_${quoteId} select[name="quoteItems[${itemId}].ProductId"]`);
     const vatSelect = document.querySelector(`#items-tbody_${quoteId} select[name="quoteItems[${itemId}].VatTypeId"]`);
-    const partnerId = productSelect ? productSelect.getAttribute('data-partner-id') || '' : '';
+    const partnerSelect = document.querySelector(`#partnerSelect_${quoteId}`);
+    const partnerId = partnerSelect ? partnerSelect.tomselect ? partnerSelect.tomselect.getValue() : partnerSelect.getAttribute('data-selected-id') || '' : '';
     const quoteDate = productSelect ? productSelect.getAttribute('data-quote-date') || new Date().toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
     const quantity = parseInt(document.querySelector(`#items-tbody_${quoteId} input[name="quoteItems[${itemId}].Quantity"]`)?.value) || 1;
 
     // Initialize TomSelect for product dropdown
     if (productSelect && typeof TomSelect !== 'undefined') {
-        console.log('Initializing product TomSelect for quoteId:', quoteId, 'itemId:', itemId, 'quoteDate:', quoteDate); // Debug
+        console.log('Initializing product TomSelect for quoteId:', quoteId, 'itemId:', itemId, 'quoteDate:', quoteDate, 'partnerId:', partnerId); // Debug
         const productTomSelect = new TomSelect(productSelect, {
             create: true,
             sortField: { field: 'text', direction: 'asc' },
@@ -258,6 +305,9 @@ function initializeTomSelectForRow(quoteId, itemId) {
                             }
                             if (product.id === 64151 && product.listPrice !== 980.00) {
                                 console.error('Unexpected ListPrice for ProductId 64151:', product.listPrice, 'Expected: 980.00');
+                            }
+                            if (product.partnerPrice == null && partnerId) {
+                                console.warn('PartnerPrice is null for product:', product.id, 'PartnerId:', partnerId);
                             }
                         });
                         callback(formattedData);
@@ -434,6 +484,9 @@ function initializeTomSelectForRow(quoteId, itemId) {
 // Update quote totals
 function updateQuoteTotals(quoteId) {
     const tbody = document.querySelector(`#items-tbody_${quoteId}`);
+    const partnerSelect = document.querySelector(`#partnerSelect_${quoteId}`);
+    const partnerId = partnerSelect ? partnerSelect.tomselect ? partnerSelect.tomselect.getValue() : partnerSelect.getAttribute('data-selected-id') || '' : '';
+    console.log('Updating totals for quoteId:', quoteId, 'partnerId:', partnerId); // Debug
     let totalNet = 0;
     let totalVat = 0;
     let totalGross = 0;
@@ -443,7 +496,8 @@ function updateQuoteTotals(quoteId) {
         const quantity = parseFloat(row.querySelector('.item-quantity').value) || 0;
         const listPrice = parseFloat(row.querySelector('.item-list-price').value) || 0;
         const discountType = row.querySelector('.discount-type-id').value;
-        const discountAmount = parseFloat(row.querySelector('.discount-value').value) || 0;
+        const discountAmountInput = row.querySelector('.discount-value');
+        const discountAmount = parseFloat(discountAmountInput.value) || 0;
         const vatSelect = row.querySelector('.tom-select-vat');
         const vatRate = vatSelect && vatSelect.tomselect && vatSelect.tomselect.options[vatSelect.value]
             ? parseFloat(vatSelect.tomselect.options[vatSelect.value].rate) || 0
@@ -451,14 +505,46 @@ function updateQuoteTotals(quoteId) {
 
         // Calculate net discounted price
         let netDiscountedPrice = listPrice;
+        let calculatedDiscountAmount = discountAmount;
+
         if (discountType == '5') { // Percentage discount
             netDiscountedPrice = listPrice * (1 - discountAmount / 100);
         } else if (discountType == '6') { // Fixed amount discount
             netDiscountedPrice = listPrice - discountAmount;
         } else if (discountType == '3' && productSelect.tomselect && productSelect.tomselect.options[productSelect.value]) {
-            netDiscountedPrice = productSelect.tomselect.options[productSelect.value].partnerPrice || listPrice;
+            const partnerPrice = productSelect.tomselect.options[productSelect.value].partnerPrice;
+            if (partnerPrice != null) {
+                netDiscountedPrice = partnerPrice;
+                calculatedDiscountAmount = listPrice - partnerPrice;
+                if (calculatedDiscountAmount < 0) calculatedDiscountAmount = 0; // Prevent negative discounts
+                console.log('Ügyfélár applied:', { productId: productSelect.tomselect.options[productSelect.value].id, listPrice, partnerPrice, calculatedDiscountAmount }); // Debug
+            } else {
+                console.warn('PartnerPrice is null for product:', productSelect.tomselect.options[productSelect.value].id, 'PartnerId:', partnerId);
+                if (!partnerId) {
+                    console.warn('No partner selected (partnerId is empty). Please select a partner.');
+                    alert('Kérem, válasszon egy partnert az Ügyfélár alkalmazásához.');
+                } else {
+                    console.warn('No PartnerPrice available for product:', productSelect.tomselect.options[productSelect.value].id, 'PartnerId:', partnerId);
+                    alert('Nincs ügyfélár meghatározva a kiválasztott termékhez (' + productSelect.tomselect.options[productSelect.value].text + ') és partnerhez (ID: ' + partnerId + ').');
+                }
+                calculatedDiscountAmount = 0;
+            }
+            discountAmountInput.value = calculatedDiscountAmount.toFixed(2); // Update Kedvezmény összege
         } else if (discountType == '4' && productSelect.tomselect && productSelect.tomselect.options[productSelect.value]) {
-            netDiscountedPrice = productSelect.tomselect.options[productSelect.value].volumePrice || listPrice;
+            const volumePrice = productSelect.tomselect.options[productSelect.value].volumePrice;
+            if (volumePrice != null) {
+                netDiscountedPrice = volumePrice;
+                calculatedDiscountAmount = listPrice - volumePrice;
+                if (calculatedDiscountAmount < 0) calculatedDiscountAmount = 0; // Prevent negative discounts
+                console.log('Mennyiségi kedvezmény applied:', { productId: productSelect.tomselect.options[productSelect.value].id, listPrice, volumePrice, calculatedDiscountAmount }); // Debug
+            } else {
+                console.warn('VolumePrice is null for product:', productSelect.tomselect.options[productSelect.value].id, 'Falling back to ListPrice');
+                calculatedDiscountAmount = 0;
+            }
+            discountAmountInput.value = calculatedDiscountAmount.toFixed(2); // Update Kedvezmény összege
+        } else {
+            calculatedDiscountAmount = 0;
+            discountAmountInput.value = calculatedDiscountAmount.toFixed(2); // Reset Kedvezmény összege for other types
         }
 
         const rowNetTotal = quantity * netDiscountedPrice;
@@ -489,17 +575,3 @@ function updateQuoteTotals(quoteId) {
     document.querySelector(`#quoteItemsForm_${quoteId} .quote-vat-amount-input`).value = totalVat.toFixed(2);
     document.querySelector(`#quoteItemsForm_${quoteId} .quote-gross-amount-input`).value = totalGross.toFixed(2);
 }
-
-// Fix modal focus trapping
-document.addEventListener('shown.bs.modal', function (e) {
-    const modal = e.target;
-    const dropdowns = modal.querySelectorAll('.tom-select-product, .tom-select-vat');
-    dropdowns.forEach(dropdown => {
-        if (dropdown.tomselect) {
-            dropdown.tomselect.control_input.addEventListener('focus', function () {
-                console.log('Dropdown input focused:', dropdown.className); // Debug
-                dropdown.tomselect.open();
-            });
-        }
-    });
-});

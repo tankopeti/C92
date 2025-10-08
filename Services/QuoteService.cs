@@ -60,8 +60,16 @@ namespace Cloud9_2.Services
                     }
                 }
 
+                // Generate unique QuoteNumber
+                string quoteNumber;
+                do
+                {
+                    quoteNumber = GenerateQuoteNumber(); // Implement your logic, e.g., "Q-YYYYMMDD-XXXX"
+                } while (await _context.Quotes.AnyAsync(q => q.QuoteNumber == quoteNumber));
+
                 // Map DTO to Quote
                 var quote = _mapper.Map<Quote>(createQuoteDto);
+                quote.QuoteNumber = quoteNumber;
                 quote.CreatedDate = DateTime.UtcNow;
                 quote.ModifiedDate = DateTime.UtcNow;
                 quote.CreatedBy = createdBy; // Use the passed username
@@ -100,6 +108,12 @@ namespace Cloud9_2.Services
             }
         }
 
+        private string GenerateQuoteNumber()
+        {
+            // Example: Q-20251008-1234
+            return $"Q-{DateTime.Today:yyyyMMdd}-{new Random().Next(1000, 9999)}";
+        }
+
 
         public async Task<Quote> UpdateQuoteAsync(UpdateQuoteDto updateQuoteDto)
         {
@@ -115,8 +129,78 @@ namespace Cloud9_2.Services
                     throw new KeyNotFoundException($"Quote with ID {updateQuoteDto.QuoteId} not found.");
                 }
 
-                _mapper.Map(updateQuoteDto, quote);
+                // Validate foreign keys
+                if (!await _context.Partners.AnyAsync(p => p.PartnerId == updateQuoteDto.PartnerId))
+                    throw new ArgumentException($"Invalid PartnerId: {updateQuoteDto.PartnerId}");
+                if (!await _context.Currencies.AnyAsync(c => c.CurrencyId == updateQuoteDto.CurrencyId))
+                    throw new ArgumentException($"Invalid CurrencyId: {updateQuoteDto.CurrencyId}");
+                if (updateQuoteDto.QuoteItems != null)
+                {
+                    foreach (var item in updateQuoteDto.QuoteItems)
+                    {
+                        if (!await _context.Products.AnyAsync(p => p.ProductId == item.ProductId))
+                            throw new ArgumentException($"Invalid ProductId: {item.ProductId}");
+                        if (!await _context.VatTypes.AnyAsync(v => v.VatTypeId == item.VatTypeId))
+                            throw new ArgumentException($"Invalid VatTypeId: {item.VatTypeId}");
+                    }
+                }
+
+                // Update quote properties
+                quote.QuoteNumber = string.IsNullOrEmpty(updateQuoteDto.QuoteNumber)
+                    ? $"Q-{DateTime.Today:yyyyMMdd}-{new Random().Next(1000, 9999)}"
+                    : updateQuoteDto.QuoteNumber;
+                quote.QuoteDate = updateQuoteDto.QuoteDate ?? quote.QuoteDate;
+                quote.PartnerId = updateQuoteDto.PartnerId ?? quote.PartnerId;
+                quote.CurrencyId = updateQuoteDto.CurrencyId ?? quote.CurrencyId;
+                quote.SalesPerson = updateQuoteDto.SalesPerson ?? quote.SalesPerson;
+                quote.ValidityDate = updateQuoteDto.ValidityDate ?? quote.ValidityDate;
+                quote.Subject = updateQuoteDto.Subject ?? quote.Subject;
+                quote.Description = updateQuoteDto.Description ?? quote.Description;
+                quote.DetailedDescription = updateQuoteDto.DetailedDescription ?? quote.DetailedDescription;
+                quote.Status = updateQuoteDto.Status ?? quote.Status;
+                quote.DiscountPercentage = updateQuoteDto.DiscountPercentage ?? quote.DiscountPercentage;
+                quote.TotalAmount = updateQuoteDto.TotalAmount ?? quote.TotalAmount;
                 quote.ModifiedDate = DateTime.UtcNow;
+                quote.ModifiedBy = updateQuoteDto.ModifiedBy ?? "System";
+
+                // Handle QuoteItems
+                if (updateQuoteDto.QuoteItems != null)
+                {
+                    // Remove items not in the DTO
+                    var existingItemIds = updateQuoteDto.QuoteItems
+                        .Where(i => i.QuoteItemId > 0)
+                        .Select(i => i.QuoteItemId)
+                        .ToList();
+                    var itemsToRemove = quote.QuoteItems
+                        .Where(i => !existingItemIds.Contains(i.QuoteItemId))
+                        .ToList();
+                    foreach (var item in itemsToRemove)
+                    {
+                        _context.QuoteItems.Remove(item);
+                    }
+
+                    // Add or update items
+                    foreach (var itemDto in updateQuoteDto.QuoteItems)
+                    {
+                        var item = quote.QuoteItems.FirstOrDefault(i => i.QuoteItemId == itemDto.QuoteItemId);
+                        if (item == null)
+                        {
+                            item = new QuoteItem { QuoteId = quote.QuoteId };
+                            _context.QuoteItems.Add(item);
+                            quote.QuoteItems.Add(item);
+                        }
+                        item.ProductId = itemDto.ProductId;
+                        item.Quantity = itemDto.Quantity;
+                        item.ListPrice = itemDto.ListPrice;
+                        item.NetDiscountedPrice = itemDto.NetDiscountedPrice;
+                        item.TotalPrice = itemDto.TotalPrice;
+                        item.VatTypeId = itemDto.VatTypeId;
+                        item.DiscountTypeId = itemDto.DiscountTypeId ?? 1;
+                        item.DiscountAmount = itemDto.DiscountAmount ?? 0;
+                        item.PartnerPrice = itemDto.PartnerPrice;
+                        item.VolumePrice = itemDto.VolumePrice;
+                    }
+                }
 
                 await _context.SaveChangesAsync();
 
@@ -129,6 +213,7 @@ namespace Cloud9_2.Services
                 throw;
             }
         }
+
 
         public async Task<Quote> GetQuoteByIdAsync(int quoteId)
         {

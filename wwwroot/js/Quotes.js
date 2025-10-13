@@ -1,5 +1,6 @@
+// Line 1: Start of DOMContentLoaded event listener
 document.addEventListener('DOMContentLoaded', function () {
-    // Initialize TomSelect on elements with class 'tom-select'
+    // Line 2-28: Initialize TomSelect for partner and currency dropdowns
     document.querySelectorAll('.tom-select').forEach(function (select) {
         const selectedId = select.getAttribute('data-selected-id');
         const selectedText = select.getAttribute('data-selected-text');
@@ -37,7 +38,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     console.log('TomSelect available:', typeof TomSelect); // Debug TomSelect loading
 
-    // Initialize TomSelect for existing rows when modal is shown
+    // Line 30-42: Initialize TomSelect for rows when modal is shown
     document.querySelectorAll('.modal').forEach(modal => {
         modal.addEventListener('shown.bs.modal', function () {
             const quoteId = this.id.split('_')[1] || 'new';
@@ -52,7 +53,7 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     });
 
-    // Handle partner dropdown change
+    // Line 44-79: Handle partner dropdown change
     document.addEventListener('change', function (e) {
         if (e.target.matches('.tom-select')) {
             const partnerSelect = e.target.closest('#partnerSelect_new') || e.target.closest(`#partnerSelect_${e.target.id.split('_')[1]}`);
@@ -97,7 +98,7 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 
-    // Handle total discount change
+    // Line 81-88: Handle total discount change
     document.addEventListener('input', function (e) {
         if (e.target.matches('.total-discount-input')) {
             const quoteId = e.target.closest('form').id.split('_')[1] || 'new';
@@ -106,7 +107,7 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 
-    // Handle click events (add item, remove item, edit description, delete quote)
+    // Line 90-218: Handle click events (add item, remove item, edit description, delete quote)
     document.addEventListener('click', async function (e) {
         if (e.target.closest('.add-item-row')) {
             console.log('Add item clicked for quoteId:', e.target.closest('.add-item-row').getAttribute('data-quote-id')); // Debug
@@ -223,7 +224,6 @@ document.addEventListener('DOMContentLoaded', function () {
             updateQuoteTotals(quoteId);
         }
 
-        // Handle "Remove Item" button
         if (e.target.closest('.remove-item-row')) {
             const button = e.target.closest('.remove-item-row');
             const itemId = button.getAttribute('data-item-id');
@@ -236,7 +236,6 @@ document.addEventListener('DOMContentLoaded', function () {
             updateQuoteTotals(quoteId);
         }
 
-        // Handle "Edit Description" button
         if (e.target.closest('.edit-description')) {
             const button = e.target.closest('.edit-description');
             const itemId = button.getAttribute('data-item-id');
@@ -246,7 +245,6 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         }
 
-        // Handle "Confirm Delete" button in delete modal
         if (e.target.closest('.confirm-delete-quote')) {
             const button = e.target.closest('.confirm-delete-quote');
             const quoteId = button.getAttribute('data-quote-id');
@@ -254,7 +252,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
             if (!modal) {
                 console.error(`Delete modal not found for quoteId: ${quoteId}`);
-                alert('Hiba történt a törlés során. Kérjük, próbálja újra.');
+                showToast('Hiba történt a törlés során. Kérjük, próbálja újra.', true);
                 return;
             }
 
@@ -273,7 +271,6 @@ document.addEventListener('DOMContentLoaded', function () {
                     responseData = await response.json();
                 } catch (jsonError) {
                     if (response.status === 204) {
-                        // 204 No Content doesn't return a body
                         responseData = { message: 'Success' };
                     } else {
                         const responseText = await response.text();
@@ -292,7 +289,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 const bsModal = bootstrap.Modal.getInstance(modal);
                 bsModal.hide();
                 showToast('Árajánlat sikeresen törölve!');
-                window.location.reload(); // Or dynamically remove the quote from the UI
+                window.location.reload();
             } catch (error) {
                 console.error('Error deleting quote:', error);
                 showToast(`Hiba történt az árajánlat törlése során: ${error.message}`, true);
@@ -300,7 +297,7 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 
-    // Handle input events
+    // Line 220-234: Handle input events
     document.addEventListener('input', function (e) {
         if (e.target.matches('.item-quantity, .discount-value, .discount-type-id, .tom-select-product, .tom-select-vat')) {
             const row = e.target.closest('.quote-item-row');
@@ -315,7 +312,7 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 
-    // Handle dropdown clicks
+    // Line 236-245: Handle dropdown clicks
     document.addEventListener('click', function (e) {
         if (e.target.closest('.tom-select-product, .tom-select-vat')) {
             const select = e.target.closest('select');
@@ -326,7 +323,7 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 
-    // Handle "Save" button click for both New and Edit Quote modals
+    // Line 247-375: Handle save button for new/edit quote modals
     document.querySelectorAll('.save-quote').forEach(button => {
         button.addEventListener('click', async function () {
             const quoteId = this.getAttribute('data-quote-id');
@@ -367,7 +364,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 DetailedDescription: baseInfoData.get('detailedDescription') || '',
                 Status: baseInfoData.get('status') || 'Draft',
                 DiscountPercentage: parseFloat(baseInfoData.get('TotalDiscount')) || 0,
-                TotalAmount: 0, // Will be calculated from QuoteItems
+                TotalAmount: 0,
                 QuoteItems: []
             };
 
@@ -384,7 +381,8 @@ document.addEventListener('DOMContentLoaded', function () {
                 const quantity = parseFloat(row.querySelector(`input[name="quoteItems[${itemId}].Quantity"]`).value) || 0;
                 const listPrice = parseFloat(row.querySelector(`input[name="quoteItems[${itemId}].ListPrice"]`).value) || 0;
                 const discountType = parseInt(row.querySelector(`select[name="quoteItems[${itemId}].DiscountTypeId"]`).value) || 1;
-                const discountAmount = parseFloat(row.querySelector(`input[name="quoteItems[${itemId}].DiscountAmount"]`).value) || 0;
+                const discountAmountInput = row.querySelector(`input[name="quoteItems[${itemId}].DiscountAmount"]`);
+                let discountAmount = parseFloat(discountAmountInput.value) || 0;
                 const vatRate = vatSelect && vatSelect.tomselect && vatSelect.tomselect.options[vatSelect.value]
                     ? parseFloat(vatSelect.tomselect.options[vatSelect.value].rate) || 0
                     : 0;
@@ -398,8 +396,14 @@ document.addEventListener('DOMContentLoaded', function () {
                         netDiscountedPrice = listPrice - discountAmount;
                     } else if (discountType == 3 && productSelect.tomselect && productSelect.tomselect.options[productSelect.value]) {
                         netDiscountedPrice = productSelect.tomselect.options[productSelect.value].partnerPrice || listPrice;
+                        discountAmount = listPrice - netDiscountedPrice;
+                        if (discountAmount < 0) discountAmount = 0;
+                        discountAmountInput.value = discountAmount.toFixed(2);
                     } else if (discountType == 4 && productSelect.tomselect && productSelect.tomselect.options[productSelect.value]) {
                         netDiscountedPrice = productSelect.tomselect.options[productSelect.value].volumePrice || listPrice;
+                        discountAmount = listPrice - netDiscountedPrice;
+                        if (discountAmount < 0) discountAmount = 0;
+                        discountAmountInput.value = discountAmount.toFixed(2);
                     }
                 }
                 const totalPrice = quantity * netDiscountedPrice * (1 + vatRate / 100);
@@ -491,6 +495,7 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     });
 
+    // Line 377-396: Update discount field state
     function updateDiscountFieldState(quoteId) {
         const totalDiscountInput = document.querySelector(`#quoteItemsForm_${quoteId} .total-discount-input`);
         const totalDiscount = parseFloat(totalDiscountInput.value) || 0;
@@ -510,13 +515,21 @@ document.addEventListener('DOMContentLoaded', function () {
         console.log('Discount field state updated for quoteId:', quoteId, 'totalDiscount:', totalDiscount); // Debug
     }
 
+    // Line 398-651: Initialize TomSelect for product and VAT dropdowns
     function initializeTomSelectForRow(quoteId, itemId) {
+        console.log('initializeTomSelectForRow called for quoteId:', quoteId, 'itemId:', itemId); // Debug
         const productSelect = document.querySelector(`#items-tbody_${quoteId} select[name="quoteItems[${itemId}].ProductId"]`);
         const vatSelect = document.querySelector(`#items-tbody_${quoteId} select[name="quoteItems[${itemId}].VatTypeId"]`);
         const partnerSelect = document.querySelector(`#partnerSelect_${quoteId}`);
         const partnerId = partnerSelect ? partnerSelect.tomselect ? partnerSelect.tomselect.getValue() : partnerSelect.getAttribute('data-selected-id') || '' : '';
         const quoteDate = productSelect ? productSelect.getAttribute('data-quote-date') || new Date().toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
         const quantity = parseInt(document.querySelector(`#items-tbody_${quoteId} input[name="quoteItems[${itemId}].Quantity"]`)?.value) || 1;
+        const row = document.querySelector(`#items-tbody_${quoteId} .quote-item-row[data-item-id="${itemId}"]`);
+        const discountTypeSelect = row.querySelector('.discount-type-id');
+        const discountType = parseInt(discountTypeSelect.value) || 1; // Read from dropdown
+        const discountAmountInput = row.querySelector('.discount-value');
+        let discountAmount = parseFloat(discountAmountInput.value) || parseFloat(row.getAttribute('data-discount-amount')) || 0;
+        console.log('DiscountTypeId for itemId:', itemId, 'is:', discountType, 'initial DiscountAmount:', discountAmount); // Debug
 
         if (productSelect && typeof TomSelect !== 'undefined') {
             console.log('Initializing product TomSelect for quoteId:', quoteId, 'itemId:', itemId, 'quoteDate:', quoteDate, 'partnerId:', partnerId); // Debug
@@ -592,10 +605,11 @@ document.addEventListener('DOMContentLoaded', function () {
                                 if (product) {
                                     const listPriceInput = row.querySelector('.item-list-price');
                                     const netDiscountedPriceSpan = row.querySelector('.item-net-discounted-price');
+                                    const discountAmountInput = row.querySelector('.discount-value');
                                     const listPrice = product.listPrice != null ? product.listPrice : 0;
                                     const discountType = parseInt(row.querySelector('.discount-type-id').value) || 1;
-                                    const discountAmount = parseFloat(row.querySelector('.discount-value').value) || 0;
                                     let netDiscountedPrice = listPrice;
+                                    let discountAmount = parseFloat(discountAmountInput.value) || 0;
 
                                     if (discountType == 5) {
                                         netDiscountedPrice = listPrice * (1 - discountAmount / 100);
@@ -603,8 +617,14 @@ document.addEventListener('DOMContentLoaded', function () {
                                         netDiscountedPrice = listPrice - discountAmount;
                                     } else if (discountType == 3) {
                                         netDiscountedPrice = product.partnerPrice || listPrice;
+                                        discountAmount = listPrice - netDiscountedPrice;
+                                        if (discountAmount < 0) discountAmount = 0;
+                                        discountAmountInput.value = discountAmount.toFixed(2);
                                     } else if (discountType == 4) {
                                         netDiscountedPrice = product.volumePrice || listPrice;
+                                        discountAmount = listPrice - netDiscountedPrice;
+                                        if (discountAmount < 0) discountAmount = 0;
+                                        discountAmountInput.value = discountAmount.toFixed(2);
                                     }
 
                                     listPriceInput.value = listPrice.toFixed(2);
@@ -634,10 +654,10 @@ document.addEventListener('DOMContentLoaded', function () {
                                 const row = productSelect.closest('tr');
                                 const listPriceInput = row.querySelector('.item-list-price');
                                 const netDiscountedPriceSpan = row.querySelector('.item-net-discounted-price');
+                                const discountAmountInput = row.querySelector('.discount-value');
                                 const listPrice = product.listPrice != null ? product.listPrice : 0;
-                                const discountType = parseInt(row.querySelector('.discount-type-id').value) || 1;
-                                const discountAmount = parseFloat(row.querySelector('.discount-value').value) || 0;
                                 let netDiscountedPrice = listPrice;
+                                let discountAmount = parseFloat(discountAmountInput.value) || 0;
 
                                 if (discountType == 5) {
                                     netDiscountedPrice = listPrice * (1 - discountAmount / 100);
@@ -645,8 +665,14 @@ document.addEventListener('DOMContentLoaded', function () {
                                     netDiscountedPrice = listPrice - discountAmount;
                                 } else if (discountType == 3) {
                                     netDiscountedPrice = product.partnerPrice || listPrice;
+                                    discountAmount = listPrice - netDiscountedPrice;
+                                    if (discountAmount < 0) discountAmount = 0;
+                                    discountAmountInput.value = discountAmount.toFixed(2);
                                 } else if (discountType == 4) {
                                     netDiscountedPrice = product.volumePrice || listPrice;
+                                    discountAmount = listPrice - netDiscountedPrice;
+                                    if (discountAmount < 0) discountAmount = 0;
+                                    discountAmountInput.value = discountAmount.toFixed(2);
                                 }
 
                                 console.log('Setting initial prices for product:', { 
@@ -655,7 +681,10 @@ document.addEventListener('DOMContentLoaded', function () {
                                     listPrice: product.listPrice, 
                                     unitPrice: product.unitPrice, 
                                     partnerPrice: product.partnerPrice, 
-                                    volumePrice: product.volumePrice 
+                                    volumePrice: product.volumePrice,
+                                    discountType,
+                                    discountAmount,
+                                    netDiscountedPrice
                                 }); // Debug
                                 if (listPrice === 0 || product.listPrice == null) {
                                     console.warn('ListPrice is zero or null for existing product:', product.productId, 'Falling back to 0');
@@ -754,7 +783,9 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
+    // Line 653-744: Update quote totals
     function updateQuoteTotals(quoteId) {
+        console.log('updateQuoteTotals called for quoteId:', quoteId); // Debug
         const tbody = document.querySelector(`#items-tbody_${quoteId}`);
         const partnerSelect = document.querySelector(`#partnerSelect_${quoteId}`);
         const partnerId = partnerSelect ? partnerSelect.tomselect ? partnerSelect.tomselect.getValue() : partnerSelect.getAttribute('data-selected-id') || '' : '';
@@ -769,29 +800,32 @@ document.addEventListener('DOMContentLoaded', function () {
             const productSelect = row.querySelector('.tom-select-product');
             const quantity = parseFloat(row.querySelector('.item-quantity').value) || 0;
             const listPrice = parseFloat(row.querySelector('.item-list-price').value) || 0;
-            const discountType = row.querySelector('.discount-type-id').value;
+            const discountTypeSelect = row.querySelector('.discount-type-id');
+            const discountType = parseInt(discountTypeSelect.value) || 1;
             const discountAmountInput = row.querySelector('.discount-value');
-            const discountAmount = parseFloat(discountAmountInput.value) || 0;
+            let discountAmount = parseFloat(discountAmountInput.value) || parseFloat(row.getAttribute('data-discount-amount')) || 0;
             const vatSelect = row.querySelector('.tom-select-vat');
             const vatRate = vatSelect && vatSelect.tomselect && vatSelect.tomselect.options[vatSelect.value]
                 ? parseFloat(vatSelect.tomselect.options[vatSelect.value].rate) || 0
                 : 0;
+            console.log('Processing row for itemId:', row.getAttribute('data-item-id'), 'discountType:', discountType, 'discountAmount:', discountAmount); // Debug
 
             let netDiscountedPrice = listPrice;
             let calculatedDiscountAmount = discountAmount;
 
             if (totalDiscount === 0) {
-                if (discountType == '5') {
+                if (discountType == 5) {
                     netDiscountedPrice = listPrice * (1 - discountAmount / 100);
-                } else if (discountType == '6') {
+                } else if (discountType == 6) {
                     netDiscountedPrice = listPrice - discountAmount;
-                } else if (discountType == '3' && productSelect.tomselect && productSelect.tomselect.options[productSelect.value]) {
+                } else if (discountType == 3 && productSelect.tomselect && productSelect.tomselect.options[productSelect.value]) {
                     const partnerPrice = productSelect.tomselect.options[productSelect.value].partnerPrice;
                     if (partnerPrice != null) {
                         netDiscountedPrice = partnerPrice;
                         calculatedDiscountAmount = listPrice - partnerPrice;
                         if (calculatedDiscountAmount < 0) calculatedDiscountAmount = 0;
                         console.log('Ügyfélár applied:', { productId: productSelect.tomselect.options[productSelect.value].id, listPrice, partnerPrice, calculatedDiscountAmount }); // Debug
+                        discountAmountInput.value = calculatedDiscountAmount.toFixed(2);
                     } else {
                         console.warn('PartnerPrice is null for product:', productSelect.tomselect.options[productSelect.value].id, 'PartnerId:', partnerId);
                         if (!partnerId) {
@@ -802,20 +836,21 @@ document.addEventListener('DOMContentLoaded', function () {
                             showToast('Nincs ügyfélár meghatározva a kiválasztott termékhez (' + productSelect.tomselect.options[productSelect.value].text + ') és partnerhez (ID: ' + partnerId + ').', true);
                         }
                         calculatedDiscountAmount = 0;
+                        discountAmountInput.value = calculatedDiscountAmount.toFixed(2);
                     }
-                    discountAmountInput.value = calculatedDiscountAmount.toFixed(2);
-                } else if (discountType == '4' && productSelect.tomselect && productSelect.tomselect.options[productSelect.value]) {
+                } else if (discountType == 4 && productSelect.tomselect && productSelect.tomselect.options[productSelect.value]) {
                     const volumePrice = productSelect.tomselect.options[productSelect.value].volumePrice;
                     if (volumePrice != null) {
                         netDiscountedPrice = volumePrice;
                         calculatedDiscountAmount = listPrice - volumePrice;
                         if (calculatedDiscountAmount < 0) calculatedDiscountAmount = 0;
                         console.log('Mennyiségi kedvezmény applied:', { productId: productSelect.tomselect.options[productSelect.value].id, listPrice, volumePrice, calculatedDiscountAmount }); // Debug
+                        discountAmountInput.value = calculatedDiscountAmount.toFixed(2);
                     } else {
                         console.warn('VolumePrice is null for product:', productSelect.tomselect.options[productSelect.value].id, 'Falling back to ListPrice');
                         calculatedDiscountAmount = 0;
+                        discountAmountInput.value = calculatedDiscountAmount.toFixed(2);
                     }
-                    discountAmountInput.value = calculatedDiscountAmount.toFixed(2);
                 } else {
                     calculatedDiscountAmount = 0;
                     discountAmountInput.value = calculatedDiscountAmount.toFixed(2);
@@ -853,7 +888,7 @@ document.addEventListener('DOMContentLoaded', function () {
         document.querySelector(`#quoteItemsForm_${quoteId} .quote-gross-amount-input`).value = totalGross.toFixed(2);
     }
 
-    // Bootstrap toast notification
+    // Line 746-764: Toast notification function
     function showToast(message, isError = false) {
         const toastContainer = document.createElement('div');
         toastContainer.className = 'toast-container position-fixed top-0 end-0 p-3';
@@ -870,4 +905,4 @@ document.addEventListener('DOMContentLoaded', function () {
         const toast = new bootstrap.Toast(toastContainer.querySelector('.toast'));
         toast.show();
     }
-});
+}); // Line 764: End of DOMContentLoaded

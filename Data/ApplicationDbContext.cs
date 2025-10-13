@@ -64,13 +64,268 @@ namespace Cloud9_2.Data
         public DbSet<DocumentLink> DocumentLinks { get; set; }
         public DbSet<DocumentStatusHistory> DocumentStatusHistory { get; set; }
         public DbSet<Status> PartnerStatuses { get; set; }
+        public DbSet<Status> Statuses { get; set; }
+        public DbSet<OrderShippingMethod> OrderShippingMethods { get; set; }
+        public DbSet<PaymentTerm> PaymentTerms { get; set; }
 
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
 
+                        // Order configuration
+            modelBuilder.Entity<Order>(entity =>
+            {
+                entity.HasKey(e => e.OrderId);
+
+                entity.Property(e => e.OrderNumber)
+                    .HasMaxLength(100);
+
+                entity.Property(e => e.OrderDate)
+                    .HasColumnType("date");
+
+                entity.Property(e => e.Deadline)
+                    .HasColumnType("date");
+
+                entity.Property(e => e.Description)
+                    .HasMaxLength(500);
+
+                entity.Property(e => e.TotalAmount)
+                    .HasColumnType("decimal(18,2)");
+
+                entity.Property(e => e.SalesPerson)
+                    .HasMaxLength(100);
+
+                entity.Property(e => e.DeliveryDate)
+                    .HasColumnType("date");
+
+                entity.Property(e => e.PlannedDelivery)
+                    .HasColumnType("datetime");
+
+                entity.Property(e => e.DiscountPercentage)
+                    .HasColumnType("decimal(5,2)");
+
+                entity.Property(e => e.DiscountAmount)
+                    .HasColumnType("decimal(18,2)");
+
+                entity.Property(e => e.CompanyName)
+                    .HasMaxLength(100);
+
+                entity.Property(e => e.Subject)
+                    .HasMaxLength(200);
+
+                entity.Property(e => e.CreatedBy)
+                    .HasMaxLength(100)
+                    .HasDefaultValue("System");
+
+                entity.Property(e => e.CreatedDate)
+                    .HasColumnType("datetime")
+                    .HasDefaultValueSql("GETUTCDATE()");
+
+                entity.Property(e => e.ModifiedBy)
+                    .HasMaxLength(100)
+                    .HasDefaultValue("System");
+
+                entity.Property(e => e.ModifiedDate)
+                    .HasColumnType("datetime")
+                    .HasDefaultValueSql("GETUTCDATE()");
+
+                entity.Property(e => e.Status)
+                    .HasMaxLength(50)
+                    .HasDefaultValue("Pending");
+
+                entity.Property(e => e.OrderType)
+                    .HasMaxLength(50);
+
+                entity.Property(e => e.ReferenceNumber)
+                    .HasMaxLength(100);
+
+                // Relationships
+                entity.HasOne(e => e.Partner)
+                    .WithMany()
+                    .HasForeignKey(e => e.PartnerId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(e => e.Site)
+                    .WithMany()
+                    .HasForeignKey(e => e.SiteId)
+                    .OnDelete(DeleteBehavior.SetNull);
+
+                entity.HasOne(e => e.Currency)
+                    .WithMany()
+                    .HasForeignKey(e => e.CurrencyId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(e => e.Quote)
+                    .WithMany()
+                    .HasForeignKey(e => e.QuoteId)
+                    .OnDelete(DeleteBehavior.SetNull);
+
+                entity.HasOne(e => e.ShippingMethod)
+                    .WithMany(sm => sm.Orders)
+                    .HasForeignKey(e => e.ShippingMethodId)
+                    .OnDelete(DeleteBehavior.SetNull);
+
+                entity.HasOne(e => e.PaymentTerm)
+                    .WithMany(pt => pt.Orders)
+                    .HasForeignKey(e => e.PaymentTermId)
+                    .OnDelete(DeleteBehavior.SetNull);
+                    
+            });
+
+            // OrderItem configuration
+            modelBuilder.Entity<OrderItem>(entity =>
+            {
+                entity.HasKey(e => e.OrderItemId);
+
+                entity.Property(e => e.Description)
+                    .HasMaxLength(500);
+
+                entity.Property(e => e.Quantity)
+                    .HasColumnType("decimal(18,4)");
+
+                entity.Property(e => e.UnitPrice)
+                    .HasColumnType("decimal(18,2)");
+
+                entity.Property(e => e.DiscountAmount)
+                    .HasColumnType("decimal(18,2)");
+
+                entity.Property(e => e.CreatedBy)
+                    .HasMaxLength(100)
+                    .HasDefaultValue("System");
+
+                entity.Property(e => e.CreatedDate)
+                    .HasColumnType("datetime")
+                    .HasDefaultValueSql("GETUTCDATE()");
+
+                entity.Property(e => e.ModifiedBy)
+                    .HasMaxLength(100)
+                    .HasDefaultValue("System");
+
+                entity.Property(e => e.ModifiedDate)
+                    .HasColumnType("datetime")
+                    .HasDefaultValueSql("GETUTCDATE()");
+
+                // Relationships
+                entity.HasOne(e => e.Order)
+                    .WithMany(o => o.OrderItems)
+                    .HasForeignKey(e => e.OrderId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(e => e.Product)
+                    .WithMany()
+                    .HasForeignKey(e => e.ProductId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(e => e.VatType)
+                    .WithMany()
+                    .HasForeignKey(e => e.VatTypeId)
+                    .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            // OrderItemDiscount configuration
+            modelBuilder.Entity<OrderItemDiscount>(entity =>
+            {
+                entity.HasKey(e => e.OrderItemDiscountId);
+
+                entity.Property(e => e.DiscountPercentage)
+                    .HasColumnType("decimal(18,2)");
+
+                entity.Property(e => e.DiscountAmount)
+                    .HasColumnType("decimal(18,2)");
+
+                entity.Property(e => e.BasePrice)
+                    .HasColumnType("decimal(18,2)");
+
+                entity.Property(e => e.PartnerPrice)
+                    .HasColumnType("decimal(18,2)");
+
+                entity.Property(e => e.VolumePrice)
+                    .HasColumnType("decimal(18,2)");
+
+                entity.Property(e => e.ListPrice)
+                    .HasColumnType("decimal(18,2)");
+
+                // Relationship
+                entity.HasOne(e => e.OrderItem)
+                    .WithMany()
+                    .HasForeignKey(e => e.OrderItemId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            // OrderShippingMethod configuration
+            modelBuilder.Entity<OrderShippingMethod>(entity =>
+            {
+                entity.HasKey(e => e.ShippingMethodId);
+
+                entity.Property(e => e.MethodName)
+                    .HasMaxLength(100)
+                    .IsRequired();
+
+                entity.Property(e => e.Description)
+                    .HasMaxLength(500);
+
+                entity.Property(e => e.CreatedBy)
+                    .HasMaxLength(100)
+                    .HasDefaultValue("System");
+
+                entity.Property(e => e.CreatedDate)
+                    .HasColumnType("datetime")
+                    .HasDefaultValueSql("GETUTCDATE()");
+
+                entity.Property(e => e.ModifiedBy)
+                    .HasMaxLength(100)
+                    .HasDefaultValue("System");
+
+                entity.Property(e => e.ModifiedDate)
+                    .HasColumnType("datetime")
+                    .HasDefaultValueSql("GETUTCDATE()");
+
+                entity.HasIndex(e => e.MethodName)
+                    .IsUnique();
+            });
+
+            // PaymentTerm configuration
+            modelBuilder.Entity<PaymentTerm>(entity =>
+            {
+                entity.HasKey(e => e.PaymentTermId);
+
+                entity.Property(e => e.TermName)
+                    .HasMaxLength(100)
+                    .IsRequired();
+
+                entity.Property(e => e.Description)
+                    .HasMaxLength(500);
+
+                entity.Property(e => e.DaysDue);
+
+                entity.Property(e => e.CreatedBy)
+                    .HasMaxLength(100)
+                    .HasDefaultValue("System");
+
+                entity.Property(e => e.CreatedDate)
+                    .HasColumnType("datetime")
+                    .HasDefaultValueSql("GETUTCDATE()");
+
+                entity.Property(e => e.ModifiedBy)
+                    .HasMaxLength(100)
+                    .HasDefaultValue("System");
+
+                entity.Property(e => e.ModifiedDate)
+                    .HasColumnType("datetime")
+                    .HasDefaultValueSql("GETUTCDATE()");
+
+                entity.HasIndex(e => e.TermName)
+                    .IsUnique();
+            });
+
+
             modelBuilder.Entity<Status>().ToTable("PartnerStatuses");
+            modelBuilder.Entity<Status>(entity =>
+            {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Name).IsRequired().HasMaxLength(100);
+            });
 
             modelBuilder.Entity<PartnerDto>()
                 .HasOne(p => p.Status)
@@ -428,10 +683,10 @@ namespace Cloud9_2.Data
                     .HasDefaultValue("Pending");
                 entity.Property(e => e.ReferenceNumber)
                     .HasMaxLength(100);
-                entity.Property(e => e.PaymentTerms)
-                    .HasMaxLength(100);
-                entity.Property(e => e.ShippingMethod)
-                    .HasMaxLength(100);
+                // entity.Property(e => e.PaymentTerms)
+                //     .HasMaxLength(100);
+                // entity.Property(e => e.ShippingMethod)
+                //     .HasMaxLength(100);
                 entity.Property(e => e.OrderType)
                     .HasMaxLength(50);
 

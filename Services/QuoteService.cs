@@ -161,6 +161,7 @@ namespace Cloud9_2.Services
                 quote.DiscountPercentage = updateQuoteDto.DiscountPercentage ?? quote.DiscountPercentage;
                 quote.TotalAmount = updateQuoteDto.TotalAmount ?? quote.TotalAmount;
                 quote.ModifiedDate = DateTime.UtcNow;
+                quote.QuoteDate = updateQuoteDto.QuoteDate ?? quote.QuoteDate;
                 quote.ModifiedBy = updateQuoteDto.ModifiedBy ?? "System";
 
                 // Handle QuoteItems
@@ -199,6 +200,7 @@ namespace Cloud9_2.Services
                         item.DiscountAmount = itemDto.DiscountAmount ?? 0;
                         item.PartnerPrice = itemDto.PartnerPrice;
                         item.VolumePrice = itemDto.VolumePrice;
+                        item.ItemDescription = itemDto.ItemDescription;
                     }
                 }
 

@@ -8,6 +8,8 @@ using System;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Collections.Generic;
+using Cloud9_2.Data;
+using Microsoft.EntityFrameworkCore;
 
 namespace Cloud9_2.Controllers
 {
@@ -19,13 +21,53 @@ namespace Cloud9_2.Controllers
         private readonly IPartnerService _partnerService;
         private readonly ILogger<SitesController> _logger;
         private readonly IHttpContextAccessor _httpContextAccessor;
+        private readonly ApplicationDbContext _context; // Added
 
-        public SitesController(IPartnerService partnerService, ILogger<SitesController> logger, IHttpContextAccessor httpContextAccessor)
+        public SitesController(IPartnerService partnerService, ILogger<SitesController> logger, IHttpContextAccessor httpContextAccessor, ApplicationDbContext context)
         {
             _partnerService = partnerService ?? throw new ArgumentNullException(nameof(partnerService));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             _httpContextAccessor = httpContextAccessor ?? throw new ArgumentNullException(nameof(httpContextAccessor));
+            _context = context ?? throw new ArgumentNullException(nameof(context));
         }
+
+                // GET: api/partners/{partnerId}/sites/select?search=abc
+        [HttpGet("select")]
+        public async Task<IActionResult> GetSitesForSelect(int partnerId, [FromQuery] string search = "")
+        {
+            try
+            {
+                var partner = await _partnerService.GetPartnerAsync(partnerId);
+                if (partner == null)
+                {
+                    _logger.LogWarning("Partner not found for PartnerId: {PartnerId}", partnerId);
+                    return NotFound();
+                }
+
+
+                    var sites = await _context.Sites
+                    .AsNoTracking()
+                    .Where(c => c.PartnerId == partnerId && 
+                               (string.IsNullOrEmpty(search) || c.SiteName.Contains(search)))
+                    .OrderBy(c => c.SiteName)
+                    .Select(c => new
+                    {
+                        id = c.SiteId,
+                        text = c.SiteName
+                    })
+                    .Take(50)
+                    .ToListAsync();
+
+                _logger.LogInformation("Fetched {SiteCount} sites for PartnerId: {PartnerId}", sites.Count, partnerId);
+                return Ok(sites);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error fetching sites for PartnerId: {PartnerId}", partnerId);
+                return StatusCode(500, new { title = "Internal server error", errors = new { General = new[] { "Failed to retrieve sites" } } });
+            }
+        }
+
 
         [HttpGet]
         public async Task<IActionResult> GetSites(int partnerId)
@@ -38,20 +80,26 @@ namespace Cloud9_2.Controllers
                     _logger.LogWarning("Partner not found for PartnerId: {PartnerId}", partnerId);
                     return NotFound();
                 }
-                var sites = partner.Sites?.Select(s => new SiteDto
-                {
-                    SiteId = s.SiteId,
-                    SiteName = s.SiteName,
-                    AddressLine1 = s.AddressLine1,
-                    AddressLine2 = s.AddressLine2,
-                    City = s.City,
-                    State = s.State,
-                    PostalCode = s.PostalCode,
-                    Country = s.Country,
-                    IsPrimary = s.IsPrimary,
-                    PartnerId = s.PartnerId,
-                    StatusId = s.StatusId
-                }).ToList() ?? new List<SiteDto>();
+            var sites = partner.Sites?.Select(s => new SiteDto
+            {
+                SiteId = s.SiteId,
+                SiteName = s.SiteName,
+                AddressLine1 = s.AddressLine1,
+                AddressLine2 = s.AddressLine2,
+                City = s.City,
+                State = s.State,
+                PostalCode = s.PostalCode,
+                Country = s.Country,
+                IsPrimary = s.IsPrimary,
+                ContactPerson1 = s.ContactPerson1,
+                ContactPerson2 = s.ContactPerson2,
+                ContactPerson3 = s.ContactPerson3,
+                Comment1 = s.Comment1,
+                Comment2 = s.Comment2,
+                PartnerId = s.PartnerId,
+                StatusId = s.StatusId,
+                Status = s.Status != null ? new Status { Id = s.Status.Id, Name = s.Status.Name } : null
+            }).ToList() ?? new List<SiteDto>();
                 return Ok(sites);
             }
             catch (Exception ex)
@@ -80,7 +128,7 @@ namespace Cloud9_2.Controllers
                 }
 
                 var site = await _partnerService.AddOrUpdateSiteAsync(partnerId, siteDto);
-                _logger.LogInformation("Created site with SiteId: {SiteId} for PartnerId: {PartnerId} by User: {User}", 
+                _logger.LogInformation("Created site with SiteId: {SiteId} for PartnerId: {PartnerId} by User: {User}",
                     site.SiteId, partnerId, _httpContextAccessor.HttpContext?.User?.Identity?.Name ?? "System");
                 return CreatedAtAction(nameof(GetSite), new { partnerId, id = site.SiteId }, site);
             }
@@ -108,7 +156,7 @@ namespace Cloud9_2.Controllers
                 }
 
                 var site = await _partnerService.AddOrUpdateSiteAsync(partnerId, siteDto);
-                _logger.LogInformation("Updated site with SiteId: {SiteId} for PartnerId: {PartnerId} by User: {User}", 
+                _logger.LogInformation("Updated site with SiteId: {SiteId} for PartnerId: {PartnerId} by User: {User}",
                     site.SiteId, partnerId, _httpContextAccessor.HttpContext?.User?.Identity?.Name ?? "System");
                 return NoContent();
             }
@@ -135,7 +183,7 @@ namespace Cloud9_2.Controllers
                     _logger.LogWarning("Site not found for deletion, PartnerId: {PartnerId}, SiteId: {SiteId}", partnerId, id);
                     return NotFound();
                 }
-                _logger.LogInformation("Deleted site with SiteId: {SiteId} for PartnerId: {PartnerId} by User: {User}", 
+                _logger.LogInformation("Deleted site with SiteId: {SiteId} for PartnerId: {PartnerId} by User: {User}",
                     id, partnerId, _httpContextAccessor.HttpContext?.User?.Identity?.Name ?? "System");
                 return NoContent();
             }
@@ -174,8 +222,14 @@ namespace Cloud9_2.Controllers
                     PostalCode = site.PostalCode,
                     Country = site.Country,
                     IsPrimary = site.IsPrimary,
+                    ContactPerson1 = site.ContactPerson1,
+                    ContactPerson2 = site.ContactPerson2,
+                    ContactPerson3 = site.ContactPerson3,
+                    Comment1 = site.Comment1,
+                    Comment2 = site.Comment2,
                     PartnerId = site.PartnerId,
-                    StatusId = site.StatusId
+                    StatusId = site.StatusId,
+                    Status = site.Status != null ? new Status { Id = site.Status.Id, Name = site.Status.Name } : null
                 };
                 return Ok(siteDto);
             }
@@ -185,5 +239,5 @@ namespace Cloud9_2.Controllers
                 return StatusCode(500, new { error = "Failed to fetch site", details = ex.Message });
             }
         }
-    }
+            }
 }

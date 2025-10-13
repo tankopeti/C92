@@ -1,26 +1,67 @@
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Identity;
-using Microsoft.AspNetCore.Mvc;
 using Cloud9_2.Data;
 using Cloud9_2.Models;
 using Cloud9_2.Services;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
+using System;
+using System.Linq;
 using System.Threading.Tasks;
 
 namespace Cloud9_2.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    [Authorize] // Requires authentication for all actions
+    [Authorize]
     public class QuotesController : ControllerBase
     {
         private readonly QuoteService _quoteService;
         private readonly UserManager<ApplicationUser> _userManager;
+        private readonly ApplicationDbContext _context;
+        private readonly ILogger<QuotesController> _logger;
 
-        public QuotesController(QuoteService quoteService, UserManager<ApplicationUser> userManager)
+        public QuotesController(
+            QuoteService quoteService,
+            UserManager<ApplicationUser> userManager,
+            ApplicationDbContext context,
+            ILogger<QuotesController> logger)
         {
             _quoteService = quoteService ?? throw new ArgumentNullException(nameof(quoteService));
-            _userManager = userManager;
+            _userManager = userManager ?? throw new ArgumentNullException(nameof(userManager));
+            _context = context ?? throw new ArgumentNullException(nameof(context));
+            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
+
+        [HttpGet("select")]
+        public async Task<IActionResult> GetQuotesForSelect([FromQuery] int partnerId, [FromQuery] string search = "")
+        {
+            try
+            {
+                var quotes = await _context.Quotes
+                    .AsNoTracking()
+                    .Where(q => q.PartnerId == partnerId &&
+                               (string.IsNullOrEmpty(search) || q.QuoteNumber.Contains(search)))
+                    .OrderBy(q => q.QuoteNumber)
+                    .Select(q => new
+                    {
+                        id = q.QuoteId,
+                        text = q.QuoteNumber
+                    })
+                    .Take(50)
+                    .ToListAsync();
+
+                _logger.LogInformation("Fetched {QuoteCount} quotes for PartnerId: {PartnerId}", quotes.Count, partnerId);
+                return Ok(quotes);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error fetching quotes for PartnerId: {PartnerId}", partnerId);
+                return StatusCode(500, new { title = "Internal server error", errors = new { General = new[] { "Failed to retrieve quotes" } } });
+            }
+        }
+
 
         // POST: api/quotes
         [HttpPost]

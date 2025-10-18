@@ -2,10 +2,10 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Cloud9_2.Models;
 using Cloud9_2.Data;
-using System;
+using System.ComponentModel.DataAnnotations;
+using System.Threading.Tasks;
 using System.Collections.Generic;
 using System.Linq;
-using System.Threading.Tasks;
 
 namespace Cloud9_2.Services
 {
@@ -13,7 +13,6 @@ namespace Cloud9_2.Services
     {
         private readonly ApplicationDbContext _context;
         private readonly UserManager<ApplicationUser> _userManager;
-
         private readonly ILogger<OrderService> _logger;
 
         public OrderService(ApplicationDbContext context, UserManager<ApplicationUser> userManager, ILogger<OrderService> logger)
@@ -25,6 +24,40 @@ namespace Cloud9_2.Services
 
         public async Task<Order> CreateOrderAsync(OrderCreateDTO orderDto, string userId)
         {
+            // Validation
+            if (string.IsNullOrEmpty(orderDto.OrderNumber))
+                throw new ValidationException("Rendelésszám megadása kötelező.");
+            if (await _context.Orders.AnyAsync(o => o.OrderNumber == orderDto.OrderNumber && o.IsDeleted != true))
+                throw new ValidationException("A rendelésszám már létezik.");
+            if (orderDto.OrderItems != null && orderDto.OrderItems.Any(i => i.Quantity <= 0))
+                throw new ValidationException("A rendelési tételek mennyisége pozitív kell legyen.");
+            if (!await _context.Partners.AnyAsync(p => p.PartnerId == orderDto.PartnerId))
+                throw new ValidationException("Érvénytelen PartnerId.");
+            if (!await _context.Currencies.AnyAsync(c => c.CurrencyId == orderDto.CurrencyId))
+                throw new ValidationException("Érvénytelen CurrencyId.");
+            if (orderDto.SiteId.HasValue && !await _context.Sites.AnyAsync(s => s.SiteId == orderDto.SiteId))
+                throw new ValidationException("Érvénytelen SiteId.");
+            if (orderDto.ShippingMethodId.HasValue && !await _context.OrderShippingMethods.AnyAsync(s => s.ShippingMethodId == orderDto.ShippingMethodId))
+                throw new ValidationException("Érvénytelen ShippingMethodId.");
+            if (orderDto.PaymentTermId.HasValue && !await _context.PaymentTerms.AnyAsync(p => p.PaymentTermId == orderDto.PaymentTermId))
+                throw new ValidationException("Érvénytelen PaymentTermId.");
+            if (orderDto.ContactId.HasValue && !await _context.Contacts.AnyAsync(c => c.ContactId == orderDto.ContactId))
+                throw new ValidationException("Érvénytelen ContactId.");
+            if (orderDto.QuoteId.HasValue && !await _context.Quotes.AnyAsync(q => q.QuoteId == orderDto.QuoteId))
+                throw new ValidationException("Érvénytelen QuoteId.");
+            // if (orderDto.OrderStatusTypes.HasValue && !await _context.OrderStatusTypes.AnyAsync(s => s.OrderStatusId == orderDto.OrderStatusTypes))
+            //     throw new ValidationException("Érvénytelen OrderStatusTypes.");
+            if (orderDto.OrderItems != null)
+            {
+                foreach (var item in orderDto.OrderItems)
+                {
+                    if (!await _context.Products.AnyAsync(p => p.ProductId == item.ProductId))
+                        throw new ValidationException($"Érvénytelen ProductId: {item.ProductId}.");
+                    if (item.VatTypeId.HasValue && !await _context.VatTypes.AnyAsync(v => v.VatTypeId == item.VatTypeId))
+                        throw new ValidationException($"Érvénytelen VatTypeId: {item.VatTypeId}.");
+                }
+            }
+
             var user = await _userManager.FindByIdAsync(userId);
             var userName = user?.UserName ?? "System";
 
@@ -34,7 +67,7 @@ namespace Cloud9_2.Services
                 OrderDate = orderDto.OrderDate,
                 Deadline = orderDto.Deadline,
                 Description = orderDto.Description,
-                TotalAmount = orderDto.TotalAmount,
+                TotalAmount = orderDto.OrderItems?.Sum(i => i.Quantity * i.UnitPrice - (i.DiscountAmount ?? 0)) ?? orderDto.TotalAmount, // Calculate from OrderItems if provided
                 SalesPerson = orderDto.SalesPerson,
                 DeliveryDate = orderDto.DeliveryDate,
                 PlannedDelivery = orderDto.PlannedDelivery,
@@ -53,6 +86,8 @@ namespace Cloud9_2.Services
                 OrderType = orderDto.OrderType,
                 ReferenceNumber = orderDto.ReferenceNumber,
                 QuoteId = orderDto.QuoteId,
+                IsDeleted = orderDto.IsDeleted ?? false,
+                OrderStatusTypes = orderDto.OrderStatusTypes,
                 CreatedBy = userName,
                 CreatedDate = DateTime.UtcNow,
                 ModifiedBy = userName,
@@ -73,11 +108,31 @@ namespace Cloud9_2.Services
                 }).ToList() ?? new List<OrderItem>()
             };
 
-            _context.Orders.Add(order);
-            await _context.SaveChangesAsync();
-            return order;
+            using var transaction = await _context.Database.BeginTransactionAsync();
+            try
+            {
+                _context.Orders.Add(order);
+                await _context.SaveChangesAsync();
+
+                foreach (var item in order.OrderItems)
+                {
+                    item.OrderId = order.OrderId;
+                }
+                await _context.SaveChangesAsync();
+
+                await transaction.CommitAsync();
+                _logger.LogInformation("Sikeresen létrehozva a rendelés, ID: {OrderId}", order.OrderId);
+                return order;
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                _logger.LogError(ex, "Hiba a rendelés létrehozása során, OrderNumber: {OrderNumber}", orderDto.OrderNumber);
+                throw;
+            }
         }
 
+        // Get an order by ID
         public async Task<Order?> GetOrderByIdAsync(int orderId)
         {
             return await _context.Orders
@@ -92,30 +147,21 @@ namespace Cloud9_2.Services
                 .FirstOrDefaultAsync(o => o.OrderId == orderId);
         }
 
+        // Get all orders
         public async Task<List<Order>> GetAllOrdersAsync()
         {
-            try
-            {
-                var orders = await _context.Orders
-                    .Include(o => o.OrderItems)
-                    .Include(o => o.Partner)
-                    .Include(o => o.Currency)
-                    .AsNoTracking() // Optional: Improves performance for read-only queries
-                    .ToListAsync();
-                _logger.LogInformation("Retrieved {Count} orders from database", orders.Count);
-                return orders;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error retrieving orders from database");
-                throw; // Let the controller handle the error
-            }
+            return await _context.Orders
+                .Include(o => o.OrderItems)
+                .Include(o => o.Partner)
+                .Include(o => o.Currency)
+                .ToListAsync();
         }
 
+        // Update an existing order
         public async Task<Order?> UpdateOrderAsync(OrderUpdateDTO orderDto, string userId)
         {
             var user = await _userManager.FindByIdAsync(userId);
-            var userName = user?.UserName ?? "System";
+            var userName = user?.UserName ?? "System"; // Fallback to "System" if user not found
 
             var order = await _context.Orders
                 .Include(o => o.OrderItems)
@@ -126,6 +172,7 @@ namespace Cloud9_2.Services
                 return null;
             }
 
+            // Update order properties
             order.OrderNumber = orderDto.OrderNumber;
             order.OrderDate = orderDto.OrderDate;
             order.Deadline = orderDto.Deadline;
@@ -152,8 +199,10 @@ namespace Cloud9_2.Services
             order.ModifiedBy = userName;
             order.ModifiedDate = DateTime.UtcNow;
 
+            // Update OrderItems
             if (orderDto.OrderItems != null)
             {
+                // Remove existing items not in the updated list
                 var existingItemIds = order.OrderItems.Select(i => i.OrderItemId).ToList();
                 var updatedItemIds = orderDto.OrderItems.Select(i => i.OrderItemId).ToList();
                 var itemsToRemove = existingItemIds.Except(updatedItemIds).ToList();
@@ -167,11 +216,13 @@ namespace Cloud9_2.Services
                     }
                 }
 
+                // Add or update items
                 foreach (var itemDto in orderDto.OrderItems)
                 {
                     var existingItem = order.OrderItems.FirstOrDefault(i => i.OrderItemId == itemDto.OrderItemId);
                     if (existingItem != null)
                     {
+                        // Update existing item
                         existingItem.Description = itemDto.Description;
                         existingItem.Quantity = itemDto.Quantity;
                         existingItem.UnitPrice = itemDto.UnitPrice;
@@ -184,6 +235,7 @@ namespace Cloud9_2.Services
                     }
                     else
                     {
+                        // Add new item
                         order.OrderItems.Add(new OrderItem
                         {
                             OrderId = order.OrderId,
@@ -207,6 +259,7 @@ namespace Cloud9_2.Services
             return order;
         }
 
+        // Delete an order
         public async Task<bool> DeleteOrderAsync(int orderId)
         {
             var order = await _context.Orders

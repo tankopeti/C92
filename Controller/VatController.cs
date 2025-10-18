@@ -1,7 +1,12 @@
-using Microsoft.AspNetCore.Mvc;
-using Cloud9_2.Models;
 using Cloud9_2.Data;
+using Cloud9_2.Models;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
+using System;
+using System.Linq;
+using System.Threading.Tasks;
 
 namespace Cloud9_2.Controllers
 {
@@ -13,6 +18,43 @@ namespace Cloud9_2.Controllers
         public VatController(ApplicationDbContext context)
         {
             _context = context;
+        }
+
+                // GET: api/vat/types?search=abc
+        [HttpGet("GetVatTypesForSelect")]
+        public async Task<IActionResult> GetVatTypesForSelect([FromQuery] string search = "")
+        {
+            try
+            {
+
+                if (_context.VatTypes == null)
+                {
+                    return StatusCode(500, new { title = "Internal server error", errors = new { General = new[] { "VAT types configuration is missing in the database context" } } });
+                }
+
+                var vatTypes = await _context.VatTypes
+                    .AsNoTracking()
+                    .Where(v => string.IsNullOrEmpty(search) || v.TypeName.Contains(search))
+                    .OrderBy(v => v.TypeName)
+                    .Select(v => new
+                    {
+                        id = v.VatTypeId,
+                        text = v.TypeName
+                    })
+                    .Take(50)
+                    .ToListAsync();
+
+                if (!vatTypes.Any())
+                {
+                    return NotFound(new { message = "No VAT types found." });
+                }
+
+                return Ok(vatTypes);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { title = "Internal server error", errors = new { General = new[] { $"Failed to retrieve VAT types: {ex.Message}" } } });
+            }
         }
 
         [HttpGet("types")]

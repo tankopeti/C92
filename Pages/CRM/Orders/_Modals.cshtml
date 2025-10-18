@@ -1,641 +1,663 @@
-
 @using Microsoft.AspNetCore.Mvc.Rendering
 @using Cloud9_2.Models
 @using System.Globalization
 @model Cloud9_2.Pages.CRM.Orders.IndexModel
-@using Microsoft.AspNetCore.Antiforgery
 
-
-
-@foreach (var order in Model.Orders)
-{
-
-<!-- Edit Order Modal -->
-<div class="modal fade" id="editOrderModal_@order.OrderId" tabindex="-1" aria-labelledby="editOrderModalLabel_@order.OrderId" aria-hidden="true">
-    <div class="modal-dialog modal-xl">
+<div class="modal fade" id="newOrderModal" tabindex="-1" aria-labelledby="newOrderModalLabel" aria-hidden="true">
+    <div class="modal-dialog" style="max-width: 95%;">
         <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="editOrderModalLabel_@order.OrderId">Rendelés szerkesztése: @(order.OrderNumber ?? "N/A")</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <!-- Tabs -->
-                <ul class="nav nav-tabs" id="orderTabs_@order.OrderId" role="tablist">
-                    <li class="nav-item" role="presentation">
-                        <button class="nav-link active" id="base-info-tab_@order.OrderId" data-bs-toggle="tab" data-bs-target="#base-info_@order.OrderId" type="button" role="tab" aria-controls="base-info_@order.OrderId" aria-selected="true">Alapadatok</button>
-                    </li>
-                    <li class="nav-item" role="presentation">
-                        <button class="nav-link" id="items-tab_@order.OrderId" data-bs-toggle="tab" data-bs-target="#items_@order.OrderId" type="button" role="tab" aria-controls="items_@order.OrderId" aria-selected="false">Tételek</button>
-                    </li>
-                </ul>
-
-            <!-- Tab Content -->
-            <div class="tab-content" id="orderTabContent_@order.OrderId">
-                <!-- Base Info Tab -->
-                <div class="tab-pane fade show active" id="base-info_@order.OrderId" role="tabpanel" aria-labelledby="base-info-tab_@order.OrderId">
-                    <form id="orderBaseInfoForm_@order.OrderId">
-                        @Html.AntiForgeryToken()
-                        <table class="table table-sm mt-3">
-                            <tbody>
-                                <tr>
-                                    <th>Rendelésszám</th>
-                                    <td><input type="text" class="form-control" name="OrderNumber" value="@order.OrderNumber" readonly></td>
-                                </tr>
-                                <tr>
-                                    <th>Rendelés dátuma</th>
-                                    <td><input type="date" class="form-control" name="OrderDate" value="@(order.OrderDate?.ToString("yyyy-MM-dd"))" required></td>
-                                </tr>
-                                <tr>
-                                    <th>Határidő</th>
-                                    <td><input type="date" class="form-control" name="Deadline" value="@(order.Deadline?.ToString("yyyy-MM-dd"))"></td>
-                                </tr>
-                                <tr>
-                                    <th>Partner</th>
-                                    <td>
-                                        <select name="PartnerId" id="partner-select_@order.OrderId" class="form-select tom-select" 
-                                                data-selected-id="@order.PartnerId" 
-                                                data-selected-text="@(order.Partner?.Name ?? "")" 
-                                                autocomplete="off">
-                                            <option value="">-- Válasszon partnert --</option>
-                                        </select>
-                                    </td>
-                                </tr>
-                                <tr>
-                                    <th>Telephely</th>
-                                    <td>
-                                        <select name="SiteId" id="site-select_@order.OrderId" class="form-select tom-select" 
-                                                data-selected-id="@order.SiteId" 
-                                                data-selected-text="@(order.Site?.AddressLine1 ?? "")" 
-                                                autocomplete="off">
-                                            <option value="">-- Válasszon telephelyet --</option>
-                                        </select>
-                                    </td>
-                                </tr>
-                                <tr>
-                                    <th>Pénznem</th>
-                                <td>
-                                    <select name="CurrencyId" class="form-select tom-select" data-selected-id="@order.CurrencyId" data-selected-text="@(order.Currency?.CurrencyName ?? "")" autocomplete="off">
-                                        <option value="" disabled selected>-- Válasszon pénznemet --</option>
-                                    </select>
-                                </td>
-                                </tr>
-                                <tr>
-                                    <th>Státusz</th>
-                                    <td>
-                                        <select class="form-select" name="Status" required>
-                                            @foreach (var status in Model.StatusDisplayNames)
-                                            {
-                                                <option value="@status.Key" selected="@(order.Status == status.Key)">@status.Value</option>
-                                            }
-                                        </select>
-                                    </td>
-                                </tr>
-                                <tr>
-                                    <th>Értékesítő</th>
-                                    <td><input type="text" class="form-control" name="SalesPerson" value="@order.SalesPerson"></td>
-                                </tr>
-                                <tr>
-                                    <th>Szállítási dátum</th>
-                                    <td><input type="date" class="form-control" name="DeliveryDate" value="@(order.DeliveryDate?.ToString("yyyy-MM-dd"))"></td>
-                                </tr>
-                                <tr>
-                                    <th>Cégnév</th>
-                                    <td><input type="text" class="form-control" name="CompanyName" value="@order.CompanyName"></td>
-                                </tr>
-                                <tr>
-                                    <th>Tárgy</th>
-                                    <td><input type="text" class="form-control" name="Subject" value="@order.Subject"></td>
-                                </tr>
-                                <tr>
-                                    <th>Fizetési feltételek</th>
-                                    <td><input type="text" class="form-control" name="PaymentTerms" value="@order.PaymentTerms"></td>
-                                </tr>
-                                <tr>
-                                    <th>Szállítási mód</th>
-                                    <td><input type="text" class="form-control" name="ShippingMethod" value="@order.ShippingMethod"></td>
-                                </tr>
-                                <tr>
-                                    <th>Rendelés típusa</th>
-                                    <td><input type="text" class="form-control" name="OrderType" value="@order.OrderType"></td>
-                                </tr>
-                                <tr>
-                                    <th>Hivatkozási szám</th>
-                                    <td><input type="text" class="form-control" name="ReferenceNumber" value="@order.ReferenceNumber"></td>
-                                </tr>
-                                <tr>
-                                    <th>Árajánlat</th>
-                                <td>
-                                    <select name="QuoteId" class="form-select tom-select" data-selected-id="@order.QuoteId" data-selected-text="@(order.Quote?.QuoteNumber ?? "")" autocomplete="off">
-                                        <option value=""></option>
-                                    </select>
-                                </td>
-                                </tr>
-                                <tr>
-                                    <th>Kedvezmény (%)</th>
-                                    <td><input type="number" step="0.01" min="0" max="100" class="form-control" name="DiscountPercentage" value="@(order.DiscountPercentage?.ToString("F2", CultureInfo.InvariantCulture))"></td>
-                                </tr>
-                                <tr>
-                                    <th>Kedvezmény összege</th>
-                                    <td><input type="number" step="0.01" min="0" class="form-control" name="DiscountAmount" value="@(order.DiscountAmount?.ToString("F2", CultureInfo.InvariantCulture))"></td>
-                                </tr>
-                                <tr>
-                                    <th>Összesen</th>
-                                    <td><input type="number" step="0.01" class="form-control" name="TotalAmount" value="@(order.TotalAmount?.ToString("F2", CultureInfo.InvariantCulture))" required></td>
-                                </tr>
-                                <tr>
-                                    <th>Leírás</th>
-                                    <td><textarea class="form-control" name="Description" rows="4" maxlength="1000">@order.Description</textarea></td>
-                                </tr>
-                                <tr>
-                                    <th>Részletes leírás</th>
-                                    <td><textarea class="form-control" name="DetailedDescription" rows="6" maxlength="2000">@order.DetailedDescription</textarea></td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </form>
-                </div>
-
-                <!-- Items Tab -->
-                <div class="tab-pane fade" id="items_@order.OrderId" role="tabpanel" aria-labelledby="items-tab_@order.OrderId"><br>
-                    <button type="button" class="btn btn-primary mb-3 add-item-row" data-order-id="@order.OrderId">Tétel hozzáadása</button>
-                    <form id="orderItemsForm_@order.OrderId" data-order-id="@order.OrderId">
-                        @Html.AntiForgeryToken()
-                        <input type="hidden" name="__RequestVerificationToken" value="@Html.AntiForgeryToken()"/>
-                        <table class="table table-sm table-bordered">
-                            <thead>
-                                <tr>
-                                    <th style="width: 30%;">Termék</th>
-                                    <th style="width: 15%;">Mennyiség</th>
-                                    <th style="width: 15%;">Egységár</th>
-                                    <th style="width: 20%;">Kedvezmény</th>
-                                    <th style="width: 15%;">Kedvezmény összeg</th>
-                                    <th style="width: 15%;">Nettó egységár</th>
-                                    <th style="width: 15%;">ÁFA</th>
-                                    <th style="width: 15%;">Nettó összeg</th>
-                                    <th style="width: 15%;">Bruttó összeg</th>
-                                    <th style="width: 15%;">Műveletek</th>
-                                    <th style="width: 5%;"></th>
-                                </tr>
-                            </thead>
-                            <tbody id="items-tbody_@order.OrderId">
-                                @foreach (var item in order.OrderItems)
-                                {
-                                    <script>console.log('Server-side item ID:', '@item.OrderItemId', 'ProductId:', '@item.ProductId');</script>
-                                    <tr class="order-item-row" data-item-id="@item.OrderItemId">
-                                        <td>
-                                            <select name="orderItems[@item.OrderItemId].ProductId" class="form-select tom-select-product" data-selected-id="@item.ProductId" data-selected-text="@(item.Product?.Name ?? "")" autocomplete="off" required>
-                                                <option value="" disabled selected>-- Válasszon terméket --</option>
-                                            </select>
-                                        </td>
-                                        <td>
-                                            <input type="number" name="orderItems[@item.OrderItemId].Quantity" class="form-control form-control-sm quantity" value="@item.Quantity.ToString(CultureInfo.InvariantCulture)" min="0" step="1" required>
-                                        </td>
-                                        <td>
-                                            <input type="number" name="orderItems[@item.OrderItemId].UnitPrice" class="form-control form-control-sm unit-price" value="@item.UnitPrice.ToString(CultureInfo.InvariantCulture)" min="0" step="0.01" required>
-                                        </td>
-                                        <td>
-                                            <div class="input-group input-group-sm">
-                                                <input type="text" name="orderItems[@item.OrderItemId].DiscountAmount" class="form-control discount-value" value="@(item.DiscountAmount)" placeholder="pl. 10">
-                                            </div>
-                                        </td>
-                                        <td>
-                                            <span class="total-price">@((item.Quantity * item.UnitPrice).ToString("F2", CultureInfo.InvariantCulture))</span>
-                                            <input type="hidden" name="orderItems[@item.OrderItemId].Description" class="item-description" value="@(item.Description ?? "")">
-                                        </td>
-                                        <td>
-                                            <button type="button" class="btn btn-outline-secondary btn-sm edit-description" data-item-id="@item.OrderItemId"><i class="bi bi-pencil"></i></button>
-                                            <button type="button" class="btn btn-danger btn-sm remove-item-row" data-item-id="@item.OrderItemId"><i class="bi bi-trash"></i></button>
-                                        </td>
-                                    </tr>
-                                    <tr class="description-row" data-item-id="@item.OrderItemId" style="display: none;">
-                                        <td colspan="6">
-                                            <div class="mb-2">
-                                                <label class="form-label">Leírás (max 200 karakter)</label>
-                                                <textarea name="orderItems[@item.OrderItemId].DescriptionInput" class="form-control form-control-sm item-description" maxlength="200" rows="2">@(item.Description ?? "")</textarea>
-                                                <div class="form-text">Karakterek: <span class="char-count">@((item.Description?.Length ?? 0))</span>/200</div>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                }
-                                <!-- Order Total Row -->
-                                <tr class="order-total-row">
-                                    <td colspan="5" class="text-end"><strong>Összesen Nettó:</strong></td>
-                                    <td><span class="order-total-net">0.00</span></td>
-                                    <td colspan="3"></td>
-                                </tr>
-                                <tr class="order-vat-row">
-                                    <td colspan="5" class="text-end"><strong>Összes ÁFA:</strong></td>
-                                    <td><span class="order-vat-amount">0.00</span></td>
-                                    <td colspan="3"></td>
-                                </tr>
-                                <tr class="order-gross-row">
-                                    <td colspan="5" class="text-end"><strong>Összesen Bruttó:</strong></td>
-                                    <td><span class="order-gross-amount">0.00</span></td>
-                                    <td colspan="3"></td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </form>
-                </div>
-            </div>
-        </div>
-        <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Bezár</button>
-            <button type="button" class="btn btn-primary" id="saveOrderBtn_@order.OrderId" data-order-id="@order.OrderId">Mentés</button>
-        </div>
-    </div>
-    </div>
-</div>
-
-    <!-- View Order Modal -->
-    <div class="modal fade" id="viewOrderModal_@order.OrderId" tabindex="-1" aria-labelledby="viewOrderModalLabel_@order.OrderId" aria-hidden="true">
-        <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
-            <div class="modal-content">
+            <form id="createOrderForm" method="post">
                 <div class="modal-header">
-                    <h5 class="modal-title" id="viewOrderModalLabel_@order.OrderId">Részletek: @(order.OrderNumber ?? "Nincs megadva")</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Bezárás"></button>
-                </div>
-                <div class="modal-body">
-                    <table class="table table-sm">
-                        <tbody>
-                            <tr>
-                                <th>Rendelésszám</th>
-                                <td class="order-number">@(order.OrderNumber ?? "Nincs megadva")</td>
-                            </tr>
-                            <tr>
-                                <th>Rendelés azonosító</th>
-                                <td>@order.OrderId</td>
-                            </tr>
-                            <tr>
-                                <th>Rendelés dátuma</th>
-                                <td>@(order.OrderDate?.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture) ?? "Nincs megadva")</td>
-                            </tr>
-                            <tr>
-                                <th>Határidő</th>
-                                <td>@(order.Deadline?.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture) ?? "Nincs megadva")</td>
-                            </tr>
-                            <tr>
-                                <th>Szállítási dátum</th>
-                                <td>@(order.DeliveryDate?.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture) ?? "Nincs megadva")</td>
-                            </tr>
-                            <tr>
-                                <th>Partner</th>
-                                <td>@(order.Partner?.Name ?? "Nincs partner megadva")</td>
-                            </tr>
-                            <tr>
-                                <th>Pénznem</th>
-                                <td>@(order.Currency?.CurrencyName ?? "Nincs pénznem megadva")</td>
-                            </tr>
-                            <tr>
-                                <th>Telephely</th>
-                                <td>@(order.SiteId.HasValue ? order.SiteId.ToString() : "Nincs megadva")</td>
-                            </tr>
-                            <tr>
-                                <th>Árajánlat azonosító</th>
-                                <td>@(order.QuoteId.HasValue ? order.QuoteId.ToString() : "Nincs megadva")</td>
-                            </tr>
-                            <tr>
-                                <th>Hivatkozási szám</th>
-                                <td>@(string.IsNullOrEmpty(order.ReferenceNumber) ? "Nincs megadva" : order.ReferenceNumber)</td>
-                            </tr>
-                            <tr>
-                                <th>Rendelés típusa</th>
-                                <td>@(string.IsNullOrEmpty(order.OrderType) ? "Nincs megadva" : order.OrderType)</td>
-                            </tr>
-                            <tr>
-                                <th>Cégnév</th>
-                                <td>@(string.IsNullOrEmpty(order.CompanyName) ? "Nincs megadva" : order.CompanyName)</td>
-                            </tr>
-                            <tr>
-                                <th>Státusz</th>
-                                <td>@(Model.StatusDisplayNames.ContainsKey(order.Status) ? Model.StatusDisplayNames[order.Status] : "Ismeretlen")</td>
-                            </tr>
-                            <tr>
-                                <th>Összesen</th>
-                                <td>@(order.TotalAmount?.ToString("N2", System.Globalization.CultureInfo.GetCultureInfo("hu-HU")) ?? "0,00") Ft</td>
-                            </tr>
-                            <tr>
-                                <th>Kedvezmény százaléka</th>
-                                <td>@(order.DiscountPercentage.HasValue ? $"{order.DiscountPercentage.Value:N2}%" : "0,00%")</td>
-                            </tr>
-                            <tr>
-                                <th>Kedvezmény összege</th>
-                                <td>@(order.DiscountAmount?.ToString("N2", System.Globalization.CultureInfo.GetCultureInfo("hu-HU")) ?? "0,00") Ft</td>
-                            </tr>
-                            <tr>
-                                <th>Fizetési feltételek</th>
-                                <td>@(string.IsNullOrEmpty(order.PaymentTerms) ? "Nincs megadva" : order.PaymentTerms)</td>
-                            </tr>
-                            <tr>
-                                <th>Szállítási mód</th>
-                                <td>@(string.IsNullOrEmpty(order.ShippingMethod) ? "Nincs megadva" : order.ShippingMethod)</td>
-                            </tr>
-                            <tr>
-                                <th>Értékesítő</th>
-                                <td>@(string.IsNullOrEmpty(order.SalesPerson) ? "Nincs megadva" : order.SalesPerson)</td>
-                            </tr>
-                            <tr>
-                                <th>Tárgy</th>
-                                <td>@(string.IsNullOrEmpty(order.Subject) ? "Nincs megadva" : order.Subject)</td>
-                            </tr>
-                            <tr>
-                                <th>Leírás</th>
-                                <td>@(string.IsNullOrEmpty(order.Description) ? "Nincs megadva" : order.Description)</td>
-                            </tr>
-                            <tr>
-                                <th>Részletes leírás</th>
-                                <td>@(string.IsNullOrEmpty(order.DetailedDescription) ? "Nincs megadva" : order.DetailedDescription)</td>
-                            </tr>
-                            <tr>
-                                <th>Létrehozta</th>
-                                <td>@(string.IsNullOrEmpty(order.CreatedBy) ? "Nincs megadva" : order.CreatedBy)</td>
-                            </tr>
-                            <tr>
-                                <th>Létrehozás dátuma</th>
-                                <td>@(order.CreatedDate?.ToString("yyyy-MM-dd HH:mm:ss", System.Globalization.CultureInfo.InvariantCulture) ?? "Nincs megadva")</td>
-                            </tr>
-                            <tr>
-                                <th>Módosította</th>
-                                <td>@(string.IsNullOrEmpty(order.ModifiedBy) ? "Nincs megadva" : order.ModifiedBy)</td>
-                            </tr>
-                            <tr>
-                                <th>Módosítás dátuma</th>
-                                <td>@(order.ModifiedDate?.ToString("yyyy-MM-dd HH:mm:ss", System.Globalization.CultureInfo.InvariantCulture) ?? "Nincs megadva")</td>
-                            </tr>
-                        </tbody>
-                    </table>
-
-                    <h5 class="mt-4">Tételek</h5>
-                    <table class="table table-sm">
-                        <thead>
-                            <tr>
-                                <th>Termék ID</th>
-                                <th>Termék</th>
-                                <th>Leírás</th>
-                                <th>Mennyiség</th>
-                                <th>Egységár</th>
-                                <th>Kedvezmény</th>
-                                <th>Összesen</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @if (order.OrderItems != null && order.OrderItems.Any())
-                            {
-                                @foreach (var orderItem in order.OrderItems)
-                                {
-                                    <tr data-item-id="@orderItem.OrderItemId">
-                                        <td>@(orderItem.ProductId > 0 ? orderItem.ProductId.ToString() : "Nincs megadva")</td>
-                                        <td>@(orderItem.Product?.Name ?? "Ismeretlen termék")</td>
-                                        <td>@(string.IsNullOrEmpty(orderItem.Description) ? "Nincs megadva" : orderItem.Description)</td>
-                                        <td>@(orderItem.Quantity > 0 ? orderItem.Quantity.ToString("N2", System.Globalization.CultureInfo.GetCultureInfo("hu-HU")) : "0,00")</td>
-                                        <td>@orderItem.UnitPrice.ToString("N2", System.Globalization.CultureInfo.GetCultureInfo("hu-HU")) Ft</td>
-
-                                    </tr>
-                                }
-                            }
-                            else
-                            {
-                                <tr>
-                                    <td colspan="7" class="text-center">Nincsenek tételek.</td>
-                                </tr>
-                            }
-                        </tbody>
-                    </table>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" aria-label="Bezárás">Bezárás</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-<!-- Delete Order Modal -->
-    <div class="modal fade" id="deleteOrderModal_@order.OrderId" tabindex="-1" aria-labelledby="deleteOrderModalLabel_@order.OrderId" aria-hidden="true">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="deleteOrderModalLabel_@order.OrderId">Rendelés törlése</h5>
+                    <h5 class="modal-title" id="newOrderModalLabel">Új rendelés</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
-                    Biztosan törölni szeretné a(z) <strong>@order.OrderNumber</strong> rendelést?
+                    <div id="errorContainer" class="alert alert-danger alert-dismissible fade show d-none" role="alert">
+                        <span id="errorMessage"></span>
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                    <input type="hidden" name="__RequestVerificationToken" value="@ViewData["AntiForgeryToken"]" />
+                    <ul class="nav nav-tabs" id="orderTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="basic-tab" data-bs-toggle="tab" data-bs-target="#basic" type="button" role="tab" aria-controls="basic" aria-selected="true">Alapadatok</button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="items-tab" data-bs-toggle="tab" data-bs-target="#items" type="button" role="tab" aria-controls="items" aria-selected="false">Tételek</button>
+                        </li>
+                    </ul>
+                    <div class="tab-content" id="orderTabContent">
+                        <div class="tab-pane fade show active" id="basic" role="tabpanel" aria-labelledby="basic-tab">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="orderNumber" class="form-label">Rendelésszám</label>
+                                        <input name="OrderCreateDTO.OrderNumber" id="orderNumber" class="form-control" required />
+                                        <span class="text-danger field-validation-error" data-valmsg-for="OrderCreateDTO.OrderNumber"></span>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="orderDate" class="form-label">Rendelés dátuma</label>
+                                        <input name="OrderCreateDTO.OrderDate" id="orderDate" type="date" class="form-control" />
+                                        <span class="text-danger field-validation-error" data-valmsg-for="OrderCreateDTO.OrderDate"></span>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="deadline" class="form-label">Határidő</label>
+                                        <input name="OrderCreateDTO.Deadline" id="deadline" type="date" class="form-control" />
+                                        <span class="text-danger field-validation-error" data-valmsg-for="OrderCreateDTO.Deadline"></span>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="deliveryDate" class="form-label">Kiszállítás dátuma</label>
+                                        <input name="OrderCreateDTO.DeliveryDate" id="deliveryDate" type="date" class="form-control" />
+                                        <span class="text-danger field-validation-error" data-valmsg-for="OrderCreateDTO.DeliveryDate"></span>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="plannedDelivery" class="form-label">Tervezett kiszállítás</label>
+                                        <input name="OrderCreateDTO.PlannedDelivery" id="plannedDelivery" type="date" class="form-control" />
+                                        <span class="text-danger field-validation-error" data-valmsg-for="OrderCreateDTO.PlannedDelivery"></span>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="totalAmount" class="form-label">Összeg</label>
+                                        <input name="OrderCreateDTO.TotalAmount" id="totalAmount" type="number" step="0.01" class="form-control" required />
+                                        <span class="text-danger field-validation-error" data-valmsg-for="OrderCreateDTO.TotalAmount"></span>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="discountPercentage" class="form-label">Kedvezmény (%)</label>
+                                        <input name="OrderCreateDTO.DiscountPercentage" id="discountPercentage" type="number" step="0.01" class="form-control" />
+                                        <span class="text-danger field-validation-error" data-valmsg-for="OrderCreateDTO.DiscountPercentage"></span>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="discountAmount" class="form-label">Kedvezmény összege</label>
+                                        <input name="OrderCreateDTO.DiscountAmount" id="discountAmount" type="number" step="0.01" class="form-control" />
+                                        <span class="text-danger field-validation-error" data-valmsg-for="OrderCreateDTO.DiscountAmount"></span>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="companyName" class="form-label">Ügyfél</label>
+                                        <input name="OrderCreateDTO.CompanyName" id="companyName" class="form-control" />
+                                        <span class="text-danger field-validation-error" data-valmsg-for="OrderCreateDTO.CompanyName"></span>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="salesPerson" class="form-label">Értékesítő</label>
+                                        <input name="OrderCreateDTO.SalesPerson" id="salesPerson" class="form-control" />
+                                        <span class="text-danger field-validation-error" data-valmsg-for="OrderCreateDTO.SalesPerson"></span>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="status" class="form-label">Státusz</label>
+                                        <select name="OrderCreateDTO.Status" id="status" class="form-control">
+                                            <option value="Pending">Függőben</option>
+                                            <option value="Confirmed">Megerősítve</option>
+                                            <option value="Shipped">Kiszállítva</option>
+                                            <option value="Delivered">Kiszállítva</option>
+                                            <option value="Cancelled">Törölve</option>
+                                        </select>
+                                        <span class="text-danger field-validation-error" data-valmsg-for="OrderCreateDTO.Status"></span>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="partnerIdSelect" class="form-label">Partner</label>
+                                        <select name="OrderCreateDTO.PartnerId" id="partnerIdSelect" class="form-control tomselect-dropdown" required>
+                                            <option value="">Válasszon...</option>
+                                        </select>
+                                        <span class="text-danger field-validation-error" data-valmsg-for="OrderCreateDTO.PartnerId">Partner kiválasztása kötelező.</span>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="contactIdSelect" class="form-label">Kapcsolattartó</label>
+                                        <select name="OrderCreateDTO.ContactId" id="contactIdSelect" class="form-control tomselect-dropdown">
+                                            <option value="">Válasszon...</option>
+                                        </select>
+                                        <span class="text-danger field-validation-error" data-valmsg-for="OrderCreateDTO.ContactId"></span>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="siteIdSelect" class="form-label">Telephely</label>
+                                        <select name="OrderCreateDTO.SiteId" id="siteIdSelect" class="form-control tomselect-dropdown">
+                                            <option value="">Válasszon...</option>
+                                        </select>
+                                        <span class="text-danger field-validation-error" data-valmsg-for="OrderCreateDTO.SiteId"></span>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="currencyIdSelect" class="form-label">Pénznem</label>
+                                        <select name="OrderCreateDTO.CurrencyId" id="currencyIdSelect" class="form-control tomselect-dropdown" required>
+                                            <option value="">Válasszon...</option>
+                                        </select>
+                                        <span class="text-danger field-validation-error" data-valmsg-for="OrderCreateDTO.CurrencyId">Pénznem kiválasztása kötelező.</span>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Szállítási mód</label>
+                                        <select name="OrderCreateDTO.ShippingMethodId" id="shippingMethodIdSelect" class="form-control tomselect-item">
+                                            <option value="">Válasszon...</option>
+                                        </select>
+                                        <span class="text-danger field-validation-error" data-valmsg-for="OrderCreateDTO.ShippingMethodId"></span>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Fizetési feltétel</label>
+                                        <select name="OrderCreateDTO.PaymentTermId" id="paymentTermIdSelect" class="form-control tomselect-item">
+                                            <option value="">Válasszon...</option>
+                                        </select>
+                                        <span class="text-danger field-validation-error" data-valmsg-for="OrderCreateDTO.PaymentTermId"></span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label for="subject" class="form-label">Tárgy</label>
+                                <input name="OrderCreateDTO.Subject" id="subject" class="form-control" />
+                                <span class="text-danger field-validation-error" data-valmsg-for="OrderCreateDTO.Subject"></span>
+                            </div>
+                            <div class="mb-3">
+                                <label for="detailedDescription" class="form-label">Részletes leírás</label>
+                                <textarea name="OrderCreateDTO.DetailedDescription" id="detailedDescription" class="form-control"></textarea>
+                                <span class="text-danger field-validation-error" data-valmsg-for="OrderCreateDTO.DetailedDescription"></span>
+                            </div>
+                            <div class="mb-3">
+                                <label for="orderType" class="form-label">Rendelés típusa</label>
+                                <input name="OrderCreateDTO.OrderType" id="orderType" class="form-control" />
+                                <span class="text-danger field-validation-error" data-valmsg-for="OrderCreateDTO.OrderType"></span>
+                            </div>
+                            <div class="mb-3">
+                                <label for="referenceNumber" class="form-label">Hivatkozási szám</label>
+                                <input name="OrderCreateDTO.ReferenceNumber" id="referenceNumber" class="form-control" />
+                                <span class="text-danger field-validation-error" data-valmsg-for="OrderCreateDTO.ReferenceNumber"></span>
+                            </div>
+                            <div class="mb-3">
+                                <label for="quoteIdSelect" class="form-label">Árajánlat azonosító</label>
+                                <select name="OrderCreateDTO.QuoteId" id="quoteIdSelect" class="form-control tomselect-dropdown">
+                                    <option value="">Válasszon...</option>
+                                </select>
+                                <span class="text-danger field-validation-error" data-valmsg-for="OrderCreateDTO.QuoteId"></span>
+                            </div>
+                        </div>
+                        <div class="tab-pane fade" id="items" role="tabpanel" aria-labelledby="items-tab">
+                            <div id="orderItemsContainer"></div>
+                            <button type="button" class="btn btn-outline-primary mt-3" id="addOrderItemButton">+ Tétel hozzáadása</button>
+                        </div>
+                    </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Mégse</button>
-                    <button type="button" class="btn btn-danger delete-order-btn" data-order-id="@order.OrderId">Törlés</button>
+                    <button type="submit" class="btn btn-primary">Létrehozás</button>
                 </div>
+            </form>
+        </div>
+    </div>
+</div>
+<!-- Modals for Each Order -->
+@foreach (var order in Model.Orders)
+{
+    <!-- View Order Modal -->
+    <div class="modal fade" id="viewOrderModal_@order.OrderId" tabindex="-1" aria-labelledby="viewOrderModalLabel_@order.OrderId" aria-hidden="true">
+        <div class="modal-dialog" style="max-width: 95%;">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="viewOrderModalLabel_@order.OrderId">Rendelés megtekintése - @order.OrderNumber</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="errorContainer_@order.OrderId" class="alert alert-danger alert-dismissible fade show d-none" role="alert">
+                        <span id="errorMessage_@order.OrderId"></span>
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                    <ul class="nav nav-tabs" id="orderTabs_@order.OrderId" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="basic-tab_@order.OrderId" data-bs-toggle="tab" data-bs-target="#basic_@order.OrderId" type="button" role="tab" aria-controls="basic_@order.OrderId" aria-selected="true">Alapadatok</button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="items-tab_@order.OrderId" data-bs-toggle="tab" data-bs-target="#items_@order.OrderId" type="button" role="tab" aria-controls="items_@order.OrderId" aria-selected="false">Tételek</button>
+                        </li>
+                    </ul>
+                    <div class="tab-content" id="orderTabContent_@order.OrderId">
+                        <div class="tab-pane fade show active" id="basic_@order.OrderId" role="tabpanel" aria-labelledby="basic-tab_@order.OrderId">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">Rendelésszám</label>
+                                        <input id="orderNumber_@order.OrderId" class="form-control" value="@order.OrderNumber" readonly />
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Rendelés dátuma</label>
+                                        <input id="orderDate_@order.OrderId" type="date" class="form-control" value="@(order.OrderDate?.ToString("yyyy-MM-dd"))" readonly />
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Határidő</label>
+                                        <input id="deadline_@order.OrderId" type="date" class="form-control" value="@(order.Deadline?.ToString("yyyy-MM-dd"))" readonly />
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Kiszállítás dátuma</label>
+                                        <input id="deliveryDate_@order.OrderId" type="date" class="form-control" value="@(order.DeliveryDate?.ToString("yyyy-MM-dd"))" readonly />
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Tervezett kiszállítás</label>
+                                        <input id="plannedDelivery_@order.OrderId" type="date" class="form-control" value="@(order.PlannedDelivery?.ToString("yyyy-MM-dd"))" readonly />
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Összeg</label>
+                                        <input id="totalAmount_@order.OrderId" type="number" step="0.01" class="form-control" value="@order.TotalAmount" readonly />
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Kedvezmény (%)</label>
+                                        <input id="discountPercentage_@order.OrderId" type="number" step="0.01" class="form-control" value="@order.DiscountPercentage" readonly />
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Kedvezmény összege</label>
+                                        <input id="discountAmount_@order.OrderId" type="number" step="0.01" class="form-control" value="@order.DiscountAmount" readonly />
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">Ügyfél</label>
+                                        <input id="companyName_@order.OrderId" class="form-control" value="@order.CompanyName" readonly />
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Értékesítő</label>
+                                        <input id="salesPerson_@order.OrderId" class="form-control" value="@order.SalesPerson" readonly />
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Státusz</label>
+                                        <input id="status_@order.OrderId" class="form-control" value="@order.Status" readonly />
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Partner</label>
+                                        <input id="partnerIdSelect_@order.OrderId" class="form-control" value="@(order.Partner != null ? order.Partner.Name : order.PartnerId.ToString())" readonly />
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Kapcsolattartó</label>
+                                        <input id="contactIdSelect_@order.OrderId" class="form-control" value="@(order.Contact != null ? order.Contact.FirstName : order.ContactId?.ToString() ?? "")" readonly />
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Telephely</label>
+                                        <input id="siteIdSelect_@order.OrderId" class="form-control" value="@(order.Site != null ? order.Site.SiteName : order.SiteId?.ToString() ?? "")" readonly />
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Pénznem</label>
+                                        <input id="currencyIdSelect_@order.OrderId" class="form-control" value="@(order.Currency != null ? order.Currency.CurrencyName : order.CurrencyId.ToString())" readonly />
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Szállítási mód</label>
+                                        <input id="shippingMethodIdSelect_@order.OrderId" class="form-control" value="@(order.ShippingMethod != null ? order.ShippingMethod.MethodName : order.ShippingMethodId?.ToString() ?? "")" readonly />
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Fizetési feltétel</label>
+                                        <input id="paymentTermIdSelect_@order.OrderId" class="form-control" value="@(order.PaymentTerm != null ? order.PaymentTerm.TermName : order.PaymentTermId?.ToString() ?? "")" readonly />
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Tárgy</label>
+                                <input id="subject_@order.OrderId" class="form-control" value="@order.Subject" readonly />
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Részletes leírás</label>
+                                <textarea id="detailedDescription_@order.OrderId" class="form-control" readonly>@order.DetailedDescription</textarea>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Rendelés típusa</label>
+                                <input id="orderType_@order.OrderId" class="form-control" value="@order.OrderType" readonly />
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Hivatkozási szám</label>
+                                <input id="referenceNumber_@order.OrderId" class="form-control" value="@order.ReferenceNumber" readonly />
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Árajánlat azonosító</label>
+                                <input id="quoteIdSelect_@order.OrderId" class="form-control" value="@(order.Quote != null ? order.Quote.QuoteNumber : order.QuoteId?.ToString() ?? "")" readonly />
+                            </div>
+                        </div>
+                        <div class="tab-pane fade" id="items_@order.OrderId" role="tabpanel" aria-labelledby="items-tab_@order.OrderId">
+                            <div id="orderItemsContainer_@order.OrderId">
+                                @if (order.OrderItems != null)
+                                {
+                                    foreach (var item in order.OrderItems)
+                                    {
+                                        <div class="order-item mb-3 p-3 border rounded">
+                                            <h6>Tétel @(order.OrderItems.IndexOf(item) + 1)</h6>
+                                            <div class="row">
+                                                <div class="col-md-6">
+                                                    <div class="mb-3">
+                                                        <label class="form-label">Leírás</label>
+                                                        <input class="form-control" value="@item.Description" readonly />
+                                                    </div>
+                                                    <div class="mb-3">
+                                                        <label class="form-label">Mennyiség</label>
+                                                        <input type="number" step="0.0001" class="form-control order-item-quantity" value="@item.Quantity" readonly />
+                                                    </div>
+                                                    <div class="mb-3">
+                                                        <label class="form-label">Egységár</label>
+                                                        <input type="number" step="0.01" class="form-control order-item-unit-price" value="@item.UnitPrice" readonly />
+                                                    </div>
+                                                    <div class="mb-3">
+                                                        <label class="form-label">Kedvezmény összege</label>
+                                                        <input type="number" step="0.01" class="form-control order-item-discount" value="@item.DiscountAmount" readonly />
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-6">
+                                                    @* <div class="mb-3">
+                                                        <label class="form-label">Kedvezmény típusa</label>
+                                                        <input class="form-control" value="@(item.DiscountType switch { 1 => "Nincs", 2 => "Egyedi kedvezmény (%)", 3 => "Egyedi kedvezmény összeg", 4 => "Partner ár", 5 => "Mennyiségi kedvezmény", 6 => "Listaár", _ => "" })" readonly />
+                                                    </div> *@
+                                                    <div class="mb-3">
+                                                        <label class="form-label">Termék</label>
+                                                        <input class="form-control" value="@(item.Product != null ? item.Product.Name : item.ProductId.ToString())" readonly />
+                                                    </div>
+                                                    <div class="mb-3">
+                                                        <label class="form-label">ÁFA típus</label>
+                                                        <input class="form-control" value="@(item.VatType != null ? item.VatType.TypeName : item.VatTypeId?.ToString() ?? "")" readonly />
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    }
+                                }
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Bezárás</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Order Modal -->
+    <div class="modal fade" id="editOrderModal_@order.OrderId" tabindex="-1" aria-labelledby="editOrderModalLabel_@order.OrderId" aria-hidden="true">
+        <div class="modal-dialog" style="max-width: 95%;">
+            <div class="modal-content">
+                <form id="editOrderForm_@order.OrderId" method="post">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="editOrderModalLabel_@order.OrderId">Rendelés szerkesztése</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div id="errorContainerEdit_@order.OrderId" class="alert alert-danger alert-dismissible fade show d-none" role="alert">
+                            <span id="errorMessageEdit_@order.OrderId"></span>
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                        <input type="hidden" name="__RequestVerificationToken" value="@ViewData["AntiForgeryToken"]" />
+                        <input type="hidden" name="OrderUpdateDTO.OrderId" id="OrderId@order.OrderId" value="@order.OrderId" />
+
+                        <!-- Tabs -->
+                        <ul class="nav nav-tabs" id="editOrderTabs_@order.OrderId" role="tablist">
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link active" id="basic-tab-@order.OrderId" data-bs-toggle="tab" data-bs-target="#basic-@order.OrderId" type="button" role="tab" aria-controls="basic-@order.OrderId" aria-selected="true">Alapadatok</button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="items-tab-@order.OrderId" data-bs-toggle="tab" data-bs-target="#items-@order.OrderId" type="button" role="tab" aria-controls="items-@order.OrderId" aria-selected="false">Tételek</button>
+                            </li>
+                        </ul>
+
+                        <div class="tab-content" id="editOrderTabContent_@order.OrderId">
+                            <!-- Tab 1: Basic Order Data -->
+                            <div class="tab-pane fade show active" id="basic-@order.OrderId" role="tabpanel" aria-labelledby="basic-tab-@order.OrderId">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="orderNumber_@order.OrderId" class="form-label">Rendelésszám</label>
+                                            <input name="OrderUpdateDTO.OrderNumber" id="orderNumber_@order.OrderId" class="form-control" value="@(order.OrderNumber ?? "")" required />
+                                            <span class="text-danger field-validation-error" data-valmsg-for="OrderUpdateDTO.OrderNumber"></span>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="orderDate_@order.OrderId" class="form-label">Rendelés dátuma</label>
+                                            <input name="OrderUpdateDTO.OrderDate" id="orderDate_@order.OrderId" type="date" class="form-control" value="@(order.OrderDate != null ? order.OrderDate.Value.ToString("yyyy-MM-dd") : "")" />
+                                            <span class="text-danger field-validation-error" data-valmsg-for="OrderUpdateDTO.OrderDate"></span>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="deadline_@order.OrderId" class="form-label">Határidő</label>
+                                            <input name="OrderUpdateDTO.Deadline" id="deadline_@order.OrderId" type="date" class="form-control" value="@(order.Deadline.HasValue ? order.Deadline.Value.ToString("yyyy-MM-dd") : "")" />
+                                            <span class="text-danger field-validation-error" data-valmsg-for="OrderUpdateDTO.Deadline"></span>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="deliveryDate_@order.OrderId" class="form-label">Kiszállítás dátuma</label>
+                                            <input name="OrderUpdateDTO.DeliveryDate" id="deliveryDate_@order.OrderId" type="date" class="form-control" value="@(order.DeliveryDate.HasValue ? order.DeliveryDate.Value.ToString("yyyy-MM-dd") : "")" />
+                                            <span class="text-danger field-validation-error" data-valmsg-for="OrderUpdateDTO.DeliveryDate"></span>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="plannedDelivery_@order.OrderId" class="form-label">Tervezett kiszállítás</label>
+                                            <input name="OrderUpdateDTO.PlannedDelivery" id="plannedDelivery_@order.OrderId" type="date" class="form-control" value="@(order.PlannedDelivery.HasValue ? order.PlannedDelivery.Value.ToString("yyyy-MM-dd") : "")" />
+                                            <span class="text-danger field-validation-error" data-valmsg-for="OrderUpdateDTO.PlannedDelivery"></span>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="discountPercentage_@order.OrderId" class="form-label">Kedvezmény (%)</label>
+                                            <input name="OrderUpdateDTO.DiscountPercentage" id="discountPercentage_@order.OrderId" type="number" step="0.01" class="form-control" value="@(order.DiscountPercentage.HasValue ? order.DiscountPercentage.Value.ToString("F2", CultureInfo.InvariantCulture) : "")" />
+                                            <span class="text-danger field-validation-error" data-valmsg-for="OrderUpdateDTO.DiscountPercentage"></span>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="discountAmount_@order.OrderId" class="form-label">Kedvezmény összege</label>
+                                            <input name="OrderUpdateDTO.DiscountAmount" id="discountAmount_@order.OrderId" type="number" step="0.01" class="form-control" value="@(order.DiscountAmount.HasValue ? order.DiscountAmount.Value.ToString("F2", CultureInfo.InvariantCulture) : "")" />
+                                            <span class="text-danger field-validation-error" data-valmsg-for="OrderUpdateDTO.DiscountAmount"></span>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="companyName_@order.OrderId" class="form-label">Ügyfél</label>
+                                            <input name="OrderUpdateDTO.CompanyName" id="companyName_@order.OrderId" class="form-control" value="@(order.Partner?.Name ?? order.CompanyName ?? "")" />
+                                            <span class="text-danger field-validation-error" data-valmsg-for="OrderUpdateDTO.CompanyName"></span>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="salesPerson_@order.OrderId" class="form-label">Értékesítő</label>
+                                            <input name="OrderUpdateDTO.SalesPerson" id="salesPerson_@order.OrderId" class="form-control" value="@(order.SalesPerson ?? "")" />
+                                            <span class="text-danger field-validation-error" data-valmsg-for="OrderUpdateDTO.SalesPerson"></span>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="status_@order.OrderId" class="form-label">Státusz</label>
+                                            <select name="OrderUpdateDTO.Status" id="status_@order.OrderId" class="form-control">
+                                                <option value="Pending" selected="@(order.Status == "Pending")">Függőben</option>
+                                                <option value="Confirmed" selected="@(order.Status == "Confirmed")">Megerősítve</option>
+                                                <option value="Shipped" selected="@(order.Status == "Shipped")">Kiszállítva</option>
+                                                <option value="Delivered" selected="@(order.Status == "Delivered")">Kiszállítva</option>
+                                                <option value="Cancelled" selected="@(order.Status == "Cancelled")">Törölve</option>
+                                            </select>
+                                            <span class="text-danger field-validation-error" data-valmsg-for="OrderUpdateDTO.Status"></span>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="partnerIdSelect_@order.OrderId" class="form-label">Partner</label>
+                                            <select name="OrderUpdateDTO.PartnerId" id="partnerIdSelect_@order.OrderId" class="form-control tomselect-dropdown">
+                                                <option value="">Válasszon...</option>
+                                                @if (order.PartnerId != 0)
+                                                {
+                                                    <option value="@order.PartnerId" selected>@(order.Partner?.Name ?? "Unknown")</option>
+                                                }
+                                            </select>
+                                            <span class="text-danger field-validation-error" data-valmsg-for="OrderUpdateDTO.PartnerId"></span>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="contactIdSelect_@order.OrderId" class="form-label">Kapcsolattartó</label>
+                                            <select name="OrderUpdateDTO.ContactId" id="contactIdSelect_@order.OrderId" class="form-control tomselect-dropdown">
+                                                <option value="">Válasszon...</option>
+                                                @if (order.ContactId != 0)
+                                                {
+                                                    <option value="@order.ContactId" selected>@(order.Contact?.FirstName ?? "Unknown")</option>
+                                                }
+                                            </select>
+                                            <span class="text-danger field-validation-error" data-valmsg-for="OrderUpdateDTO.ContactId"></span>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="siteIdSelect_@order.OrderId" class="form-label">Telephely</label>
+                                            <select name="OrderUpdateDTO.SiteId" id="siteIdSelect_@order.OrderId" class="form-control tomselect-dropdown">
+                                                <option value="">Válasszon...</option>
+                                                @if (order.SiteId != 0)
+                                                {
+                                                    <option value="@order.SiteId" selected>@(order.Site?.SiteName ?? "Unknown")</option>
+                                                }
+                                            </select>
+                                            <span class="text-danger field-validation-error" data-valmsg-for="OrderUpdateDTO.SiteId"></span>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="currencyIdSelect_@order.OrderId" class="form-label">Pénznem</label>
+                                            <select name="OrderUpdateDTO.CurrencyId" id="currencyIdSelect_@order.OrderId" class="form-control tomselect-dropdown">
+                                                <option value="">Válasszon...</option>
+                                                @if (order.CurrencyId != 0)
+                                                {
+                                                    <option value="@order.CurrencyId" selected>@(order.Currency?.CurrencyName ?? "Unknown")</option>
+                                                }
+                                            </select>
+                                            <span class="text-danger field-validation-error" data-valmsg-for="OrderUpdateDTO.CurrencyId"></span>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="shippingMethodIdSelect_@order.OrderId" class="form-label">Szállítási mód</label>
+                                            <select name="OrderUpdateDTO.ShippingMethodId" id="shippingMethodIdSelect_@order.OrderId" class="form-control tomselect-dropdown">
+                                                <option value="">Válasszon...</option>
+                                                @if (order.ShippingMethodId != 0)
+                                                {
+                                                    <option value="@order.ShippingMethodId" selected>@(order.ShippingMethod?.MethodName ?? "Unknown")</option>
+                                                }
+                                            </select>
+                                            <span class="text-danger field-validation-error" data-valmsg-for="OrderUpdateDTO.ShippingMethodId"></span>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="paymentTermIdSelect_@order.OrderId" class="form-label">Fizetési feltétel</label>
+                                            <select name="OrderUpdateDTO.PaymentTermId" id="paymentTermIdSelect_@order.OrderId" class="form-control tomselect-dropdown">
+                                                <option value="">Válasszon...</option>
+                                                @if (order.PaymentTermId != 0)
+                                                {
+                                                    <option value="@order.PaymentTermId" selected>@(order.PaymentTerm?.TermName ?? "Unknown")</option>
+                                                }
+                                            </select>
+                                            <span class="text-danger field-validation-error" data-valmsg-for="OrderUpdateDTO.PaymentTermId"></span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="subject_@order.OrderId" class="form-label">Tárgy</label>
+                                    <input name="OrderUpdateDTO.Subject" id="subject_@order.OrderId" class="form-control" value="@(order.Subject ?? "")" />
+                                    <span class="text-danger field-validation-error" data-valmsg-for="OrderUpdateDTO.Subject"></span>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="detailedDescription_@order.OrderId" class="form-label">Részletes leírás</label>
+                                    <textarea name="OrderUpdateDTO.DetailedDescription" id="detailedDescription_@order.OrderId" class="form-control">@(order.DetailedDescription ?? "")</textarea>
+                                    <span class="text-danger field-validation-error" data-valmsg-for="OrderUpdateDTO.DetailedDescription"></span>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="orderType_@order.OrderId" class="form-label">Rendelés típusa</label>
+                                    <input name="OrderUpdateDTO.OrderType" id="orderType_@order.OrderId" class="form-control" value="@(order.OrderType ?? "")" />
+                                    <span class="text-danger field-validation-error" data-valmsg-for="OrderUpdateDTO.OrderType"></span>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="referenceNumber_@order.OrderId" class="form-label">Hivatkozási szám</label>
+                                    <input name="OrderUpdateDTO.ReferenceNumber" id="referenceNumber_@order.OrderId" class="form-control" value="@(order.ReferenceNumber ?? "")" />
+                                    <span class="text-danger field-validation-error" data-valmsg-for="OrderUpdateDTO.ReferenceNumber"></span>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="quoteIdSelect_@order.OrderId" class="form-label">Árajánlat azonosító</label>
+                                    <select name="OrderUpdateDTO.QuoteId" id="quoteIdSelect_@order.OrderId" class="form-control tomselect-dropdown">
+                                        <option value="">Válasszon...</option>
+                                        @if (order.QuoteId != 0)
+                                        {
+                                            <option value="@order.QuoteId" selected>@(order.Quote?.QuoteNumber ?? "Unknown")</option>
+                                        }
+                                    </select>
+                                    <span class="text-danger field-validation-error" data-valmsg-for="OrderUpdateDTO.QuoteId"></span>
+                                </div>
+                            </div>
+
+                            <!-- Tab 2: Order Items -->
+                            <div class="tab-pane fade" id="items-@order.OrderId" role="tabpanel" aria-labelledby="items-tab-@order.OrderId">
+                                <div id="orderItemsContainer_@order.OrderId">
+                                    @if (order.OrderItems != null && order.OrderItems.Any())
+                                    {
+                                        @foreach (var item in order.OrderItems.Select((value, i) => new { Value = value, Index = i }))
+                                        {
+                                            <div class="order-item mb-3 p-3 border rounded" data-index="@item.Index" data-order-item-id="@item.Value.OrderItemId">
+                                                <input type="hidden" name="OrderUpdateDTO.OrderItems[@item.Index].OrderItemId" id="orderItemId_@order.OrderId@item.Index" value="@item.Value.OrderItemId" />
+                                                <h6>Tétel @(item.Index + 1)</h6>
+                                                <div class="row">
+                                                    <div class="col-md-6">
+                                                        <div class="mb-3">
+                                                            <label class="form-label">Leírás</label>
+                                                            <input name="OrderUpdateDTO.OrderItems[@item.Index].Description" id="itemDescription_@order.OrderId@item.Index" class="form-control" value="@(item.Value.Description ?? "")"  />
+                                                            <span class="text-danger field-validation-error" data-valmsg-for="OrderUpdateDTO.OrderItems[@item.Index].Description"></span>
+                                                        </div>
+                                                        <div class="mb-3">
+                                                            <label class="form-label">Mennyiség</label>
+                                                            <input name="OrderUpdateDTO.OrderItems[@item.Index].Quantity" id="itemQuantity_@order.OrderId@item.Index" type="number" step="1" class="form-control" value="@item.Value.Quantity"  />
+                                                            <span class="text-danger field-validation-error" data-valmsg-for="OrderUpdateDTO.OrderItems[@item.Index].Quantity"></span>
+                                                        </div>
+                                                        <div class="mb-3">
+                                                            <label class="form-label">Egységár</label>
+                                                            <input name="OrderUpdateDTO.OrderItems[@item.Index].UnitPrice" id="itemUnitPrice_@order.OrderId@item.Index" type="number" step="0.01" class="form-control" value="@item.Value.UnitPrice.ToString("F2", CultureInfo.InvariantCulture)" required />
+                                                            <span class="text-danger field-validation-error" data-valmsg-for="OrderUpdateDTO.OrderItems[@item.Index].UnitPrice"></span>
+                                                        </div>
+                                                        <div class="mb-3">
+                                                            <label class="form-label">Kedvezmény összege</label>
+                                                            <input name="OrderUpdateDTO.OrderItems[@item.Index].DiscountAmount" id="itemDiscountAmount_@order.OrderId@item.Index" type="number" step="0.01" class="form-control" value="@(item.Value.DiscountAmount.HasValue ? item.Value.DiscountAmount.Value.ToString("F2", CultureInfo.InvariantCulture) : "")" />
+                                                            <span class="text-danger field-validation-error" data-valmsg-for="OrderUpdateDTO.OrderItems[@item.Index].DiscountAmount"></span>
+                                                        </div>
+                                                    </div>
+                                                    <div class="col-md-6">
+                                                        @* <div class="mb-3">
+                                                            <label class="form-label">Kedvezmény típusa</label>
+                                                            <select name="OrderUpdateDTO.OrderItems[@item.Index].DiscountType" id="discountTypeSelect_@order.OrderId@item.Index" class="form-control tomselect-item">
+                                                                <option value="">Válasszon...</option>
+                                                                <option value="1" selected="@(item.Value.DiscountType == 1)">Nincs Kedvezmény</option>
+                                                                <option value="2" selected="@(item.Value.DiscountType == 2)">Listaár</option>
+                                                                <option value="3" selected="@(item.Value.DiscountType == 3)">Ügyfélár</option>
+                                                                <option value="4" selected="@(item.Value.DiscountType == 4)">Mennyiségi kedvezmény</option>
+                                                                <option value="5" selected="@(item.Value.DiscountType == 5)">Egyedi kedvezmény %</option>
+                                                                <option value="6" selected="@(item.Value.DiscountType == 6)">Egyedi kedvezmény Összeg</option>
+                                                            </select>
+                                                            <span class="text-danger field-validation-error" data-valmsg-for="OrderUpdateDTO.OrderItems[@item.Index].DiscountType"></span>
+                                                        </div> *@
+                                                        <div class="mb-3">
+                                                            <label class="form-label">Termék</label>
+                                                            <select name="OrderUpdateDTO.OrderItems[@item.Index].ProductId" id="productIdSelect_@order.OrderId@item.Index" class="form-control tomselect-item" required>
+                                                                <option value="">Válasszon...</option>
+                                                                @if (item.Value.ProductId != 0)
+                                                                {
+                                                                    <option value="@item.Value.ProductId" selected>@(item.Value.Product?.Name ?? "Unknown")</option>
+                                                                }
+                                                            </select>
+                                                            <span class="text-danger field-validation-error" data-valmsg-for="OrderUpdateDTO.OrderItems[@item.Index].ProductId"></span>
+                                                        </div>
+                                                        <div class="mb-3">
+                                                            <label class="form-label">ÁFA típus</label>
+                                                            <select name="OrderUpdateDTO.OrderItems[@item.Index].VatTypeId" id="vatTypeIdSelect_@order.OrderId@item.Index" class="form-control tomselect-item">
+                                                                <option value="">Válasszon...</option>
+                                                                @if (item.Value.VatTypeId != 0)
+                                                                {
+                                                                    <option value="@item.Value.VatTypeId" selected>@(item.Value.VatType != null ? item.Value.VatType.Rate.ToString("F2", CultureInfo.InvariantCulture) : "Unknown")</option>
+                                                                }
+                                                            </select>
+                                                            <span class="text-danger field-validation-error" data-valmsg-for="OrderUpdateDTO.OrderItems[@item.Index].VatTypeId"></span>
+                                                        </div>
+                                                        <button type="button" class="btn btn-danger btn-sm remove-order-item">Tétel törlése</button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        }
+                                    }
+                                    else
+                                    {
+                                        <p>Nincsenek tételek ehhez a rendeléshez.</p>
+                                    }
+                                </div>
+                                <button type="button" class="btn btn-outline-primary mt-3" id="addOrderItemButton_@order.OrderId">+ Tétel hozzáadása</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Mégse</button>
+                        <button type="submit" class="btn btn-primary">Mentés</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Delete Order Modal -->
+    <div class="modal fade" id="deleteOrderModal_@order.OrderId" tabindex="-1" aria-labelledby="deleteOrderModalLabel_@order.OrderId" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <form asp-page-handler="Delete" asp-route-id="@order.OrderId" method="post">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="deleteOrderModalLabel_@order.OrderId">Rendelés törlése</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <input type="hidden" name="__RequestVerificationToken" value="@ViewData["AntiForgeryToken"]" />
+                        <p>Biztosan törölni szeretné a(z) @order.OrderNumber rendelést?</p>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Mégse</button>
+                        <button type="submit" class="btn btn-danger">Törlés</button>
+                    </div>
+                </form>
             </div>
         </div>
     </div>
 }
-
-<!-- New Order Modal -->
-<div class="modal fade" id="newOrderModal" tabindex="-1" aria-labelledby="newOrderModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-xl">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="newOrderModalLabel">Új rendelés létrehozása</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-
-            <div class="modal-body">
-                <!-- Tabs -->
-                <ul class="nav nav-tabs mb-3" id="orderTabs_new" role="tablist">
-                    <li class="nav-item" role="presentation">
-                        <button class="nav-link active" id="base-info-tab_new" data-bs-toggle="tab" data-bs-target="#base-info_new" type="button" role="tab" aria-controls="base-info_new" aria-selected="true">
-                            Alapadatok
-                        </button>
-                    </li>
-                    <li class="nav-item" role="presentation">
-                        <button class="nav-link" id="items-tab_new" data-bs-toggle="tab" data-bs-target="#items_new" type="button" role="tab" aria-controls="items_new" aria-selected="false">
-                            Tételek
-                        </button>
-                    </li>
-                </ul>
-
-                <!-- Tab Content -->
-                <div class="tab-content" id="orderTabContent_new">
-                    <!-- Base Info Tab -->
-                    <div class="tab-pane fade show active" id="base-info_new" role="tabpanel" aria-labelledby="base-info-tab_new">
-                        <form id="orderBaseInfoForm_new">
-                            <input type="hidden" name="createdBy" value="System">
-                            <input type="hidden" name="createdDate" value="@DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss")">
-                            <input type="hidden" name="modifiedBy" value="System">
-                            <input type="hidden" name="modifiedDate" value="@DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss")">
-
-                            <div class="row g-3">
-                                <!-- General Section -->
-                                <div class="col-md-6">
-                                    <h6>Általános adatok</h6>
-                                    <div class="mb-2">
-                                        <label class="form-label">Rendelésszám</label>
-                                        <input type="text" class="form-control" name="orderNumber" value="@Model.NextOrderNumber" placeholder="Automatikusan generálódik" readonly>
-                                    </div>
-                                    <div class="mb-2">
-                                        <label class="form-label">Rendelés dátuma</label>
-                                        <input type="date" class="form-control" name="orderDate" value="@DateTime.Today.ToString("yyyy-MM-dd")" required>
-                                    </div>
-                                    <div class="mb-2">
-                                        <label class="form-label">Határidő</label>
-                                        <input type="date" class="form-control" name="deadline">
-                                    </div>
-                                    <div class="mb-2">
-                                        <label class="form-label">Szállítási dátum</label>
-                                        <input type="date" class="form-control" name="deliveryDate">
-                                    </div>
-                                    <div class="mb-2">
-                                        <label class="form-label">Referenciaszám</label>
-                                        <input type="text" class="form-control" name="referenceNumber" maxlength="100">
-                                    </div>
-                                    <div class="mb-2">
-                                        <label class="form-label">Rendelés típusa</label>
-                                        <input type="text" class="form-control" name="orderType" maxlength="50">
-                                    </div>
-                                </div>
-
-                                <!-- Partner Section -->
-                                <div class="col-md-6">
-                                    <h6>Partner adatok</h6>
-                                    <div class="mb-2">
-                                        <label class="form-label">Partner</label>
-                                        <select name="PartnerId" id="partner-select_new" class="form-select tom-select" autocomplete="off">
-                                            <option value="">-- Válasszon partnert --</option>
-                                        </select>
-                                    </div>
-                                    <div class="mb-2">
-                                        <label class="form-label">Telephely</label>
-                                        <select name="SiteId" id="site-select_new" class="form-select tom-select" autocomplete="off">
-                                            <option value="">-- Válasszon telephelyet --</option>
-                                        </select>
-                                    </div>
-                                    <div class="mb-2">
-                                        <label class="form-label">Cég neve</label>
-                                        <input type="text" class="form-control" name="companyName" maxlength="100">
-                                    </div>
-                                </div>
-
-                                <!-- Financial Section -->
-                                <div class="col-md-6">
-                                    <h6>Pénzügyi adatok</h6>
-                                    <div class="mb-2">
-                                        <label class="form-label">Pénznem</label>
-                                        <select id="currency-select_new" name="currencyId" class="form-select tom-select" required>
-                                            <option value="" disabled selected>-- Válasszon pénznemet --</option>
-                                        </select>
-                                    </div>
-                                    <div class="mb-2">
-                                        <label class="form-label">Összesen</label>
-                                        <input type="number" step="0.01" class="form-control" name="totalAmount" value="" required>
-                                    </div>
-                                    <div class="mb-2">
-                                        <label class="form-label">Kedvezmény %</label>
-                                        <input type="number" step="0.1" min="0" max="100" class="form-control" name="discountPercentage">
-                                    </div>
-                                    <div class="mb-2">
-                                        <label class="form-label">Kedvezmény összeg</label>
-                                        <input type="number" step="0.01" class="form-control" name="discountAmount">
-                                    </div>
-                                    <div class="mb-2">
-                                        <label class="form-label">Fizetési feltételek</label>
-                                        <input type="text" class="form-control" name="paymentTerms" maxlength="100">
-                                    </div>
-                                    <div class="mb-2">
-                                        <label class="form-label">Szállítási mód</label>
-                                        <input type="text" class="form-control" name="shippingMethod" maxlength="100">
-                                    </div>
-                                </div>
-
-                                <!-- Additional Info Section -->
-                                <div class="col-md-6">
-                                    <h6>További adatok</h6>
-                                    <div class="mb-2">
-                                        <label class="form-label">Státusz</label>
-                                        <select class="form-select" name="status" required>
-                                            @foreach (var status in Model.StatusDisplayNames)
-                                            {
-                                                <option value="@status.Key" selected="@(status.Key == "Pending" ? "selected" : "")">@status.Value</option>
-                                            }
-                                        </select>
-                                    </div>
-                                    <div class="mb-2">
-                                        <label class="form-label">Értékesítő</label>
-                                        <input type="text" class="form-control" name="salesPerson" maxlength="100">
-                                    </div>
-                                    <div class="mb-2">
-                                        <label class="form-label">Árajánlat azonosító</label>
-                                        <select id="quote-select_new" name="quoteId" class="form-select tom-select">
-                                            <option value="" disabled selected>-- Válasszon árajánlatot --</option>
-                                        </select>
-                                    </div>
-                                    <div class="mb-2">
-                                        <label class="form-label">Tárgy</label>
-                                        <input type="text" class="form-control" name="subject" maxlength="200">
-                                    </div>
-                                    <div class="mb-2">
-                                        <label class="form-label">Leírás</label>
-                                        <textarea class="form-control" name="description" maxlength="500" rows="3"></textarea>
-                                    </div>
-                                    <div class="mb-2">
-                                        <label class="form-label">Részletes leírás</label>
-                                        <textarea class="form-control" name="detailedDescription" rows="5"></textarea>
-                                    </div>
-                                </div>
-                            </div>
-                        </form>
-                    </div>
-
-                    <!-- Items Tab -->
-                    <div class="tab-pane fade" id="items_new" role="tabpanel" aria-labelledby="items-tab_new">
-                        <button type="button" class="btn btn-primary mb-3 add-item-row" data-order-id="new">Tétel hozzáadása</button>
-                        <form id="newOrderForm" method="post" action="/Orders/Create">
-                            <input type="hidden" name="TotalNet" class="order-total-net-input" value="0">
-                            <input type="hidden" name="TotalVat" class="order-vat-amount-input" value="0">
-                            <input type="hidden" name="TotalGross" class="order-gross-amount-input" value="0">
-
-                            <div class="table-responsive">
-                                <table class="table table-sm table-bordered" id="orderItemsTable">
-                                    <thead>
-                                        <tr>
-                                            <th style="width: 25%;">Termék</th>
-                                            <th style="width: 5%;">Mennyiség</th>
-                                            <th style="width: 10%;">Listaár</th>
-                                            <th style="width: 10%;">Kedvezmény típus</th>
-                                            <th style="width: 10%;">Kedvezmény mértéke</th>
-                                            <th style="width: 10%;">Nettó egységár</th>
-                                            <th style="width: 5%;">ÁFA</th>
-                                            <th style="width: 10%;">Nettó összes ár</th>
-                                            <th style="width: 10%;">Bruttó ár</th>
-                                            <th style="width: 5%;">Műveletek</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody id="items-tbody_new">
-                                        <tr class="order-total-row">
-                                            <td colspan="5" class="text-end"><strong>Összesen Nettó:</strong></td>
-                                            <td><span class="order-total-net">0.00</span></td>
-                                            <td colspan="3"></td>
-                                        </tr>
-                                        <tr class="order-vat-row">
-                                            <td colspan="5" class="text-end"><strong>Összes ÁFA:</strong></td>
-                                            <td><span class="order-vat-amount">0.00</span></td>
-                                            <td colspan="3"></td>
-                                        </tr>
-                                        <tr class="order-gross-row">
-                                            <td colspan="5" class="text-end"><strong>Összesen Bruttó:</strong></td>
-                                            <td><span class="order-gross-amount">0.00</span></td>
-                                            <td colspan="3"></td>
-                                        </tr>
-                                    </tbody>
-                                </table>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            </div>
-
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Bezár</button>
-                <button type="button" class="btn btn-primary" id="saveOrderBtn_new">Mentés</button>
-            </div>
-        </div>
-    </div>
-</div>

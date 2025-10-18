@@ -9,113 +9,212 @@ using System.Threading.Tasks;
 using Cloud9_2.Models;
 using Cloud9_2.Data;
 using Cloud9_2.Services;
+using Microsoft.AspNetCore.Authorization;
 
 namespace Cloud9_2.Pages.CRM.Orders
 {
+    [Authorize]
     public class IndexModel : PageModel
     {
         private readonly ApplicationDbContext _context;
+        private readonly OrderService _orderService;
         private readonly ILogger<IndexModel> _logger;
-        private readonly IOrderService _orderService;
 
-        public IndexModel(ApplicationDbContext context, ILogger<IndexModel> logger, IOrderService orderService)
+        public IndexModel(ApplicationDbContext context, OrderService orderService, ILogger<IndexModel> logger)
         {
-            _context = context ?? throw new ArgumentNullException(nameof(context));
-            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-            _orderService = orderService ?? throw new ArgumentNullException(nameof(orderService));
+            _context = context;
+            _orderService = orderService;
+            _logger = logger;
         }
 
-        public int CurrentPage { get; set; }
+        public IList<Order> Orders { get; set; } = new List<Order>();
+        public OrderDTO Order { get; set; }
+
+        [BindProperty]
+        public OrderCreateDTO OrderCreateDTO { get; set; }
+
+        [BindProperty]
+        public OrderUpdateDTO OrderUpdateDTO { get; set; }
+
+        [BindProperty(SupportsGet = true)]
         public string SearchTerm { get; set; }
-        public int PageSize { get; set; }
-        public string StatusFilter { get; set; }
-        public string SortBy { get; set; }
+
+        [BindProperty(SupportsGet = true)]
+        public int CurrentPage { get; set; } = 1;
+
+        [BindProperty(SupportsGet = true)]
+        public int PageSize { get; set; } = 10;
+
         public int TotalRecords { get; set; }
         public int TotalPages { get; set; }
-        public int DistinctOrderIdCount { get; set; }
-        public string NextOrderNumber { get; set; }
-        public Order SelectedOrder { get; set; }
-        public IList<Order> Orders { get; set; }
-        public IDictionary<string, string> StatusDisplayNames { get; set; } = new Dictionary<string, string>
+
+        public async Task<IActionResult> OnGetAsync(string searchTerm, int? pageNumber, int? pageSize, string sort)
         {
-            { "Draft", "Piszkozat" },
-            { "Pending", "Függőben" },
-            { "Confirmed", "Megerősítve" },
-            { "Shipped", "Kiszállítva" },
-            { "Cancelled", "Törölve" }
-        };
+            try
+            {
+                _logger.LogInformation("Fetching orders for page {Page}, searchTerm: {SearchTerm}, user: {User}",
+                    pageNumber ?? 1, searchTerm, User.Identity?.Name);
 
-        public async Task OnGetAsync(int? pageNumber, string searchTerm, int? pageSize, string statusFilter, string sortBy, int? orderId)
+                SearchTerm = searchTerm;
+                CurrentPage = pageNumber ?? 1;
+                PageSize = pageSize ?? 10;
+
+                var orders = await _orderService.GetAllOrdersAsync();
+                orders = sort switch
+                {
+                    "OrderDate" => orders.OrderByDescending(o => o.OrderDate).ToList(),
+                    "OrderId" => orders.OrderByDescending(o => o.OrderId).ToList(),
+                    "Deadline" => orders.OrderBy(o => o.Deadline ?? DateTime.MaxValue).ToList(),
+                    _ => orders.OrderBy(o => o.OrderId).ToList()
+                };
+                _logger.LogInformation("Retrieved {Count} orders", orders.Count);
+
+                if (!string.IsNullOrEmpty(searchTerm))
+                {
+                    orders = orders.Where(o => o.OrderNumber.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
+                                              (o.CompanyName != null && o.CompanyName.Contains(searchTerm, StringComparison.OrdinalIgnoreCase)) ||
+                                              (o.Partner?.Name != null && o.Partner.Name.Contains(searchTerm, StringComparison.OrdinalIgnoreCase)))
+                                   .ToList();
+                    _logger.LogInformation("After search, {Count} orders remain", orders.Count);
+                }
+
+                TotalRecords = orders.Count;
+                TotalPages = (int)Math.Ceiling((double)TotalRecords / PageSize);
+                _logger.LogInformation("TotalRecords: {TotalRecords}, TotalPages: {TotalPages}", TotalRecords, TotalPages);
+
+                if (CurrentPage < 1) CurrentPage = 1;
+                if (CurrentPage > TotalPages && TotalPages > 0)
+                {
+                    _logger.LogWarning("Requested page {CurrentPage} exceeds total pages {TotalPages}, redirecting", CurrentPage, TotalPages);
+                    return RedirectToPage("./Index", new { SearchTerm, PageNumber = TotalPages, PageSize });
+                }
+
+                Orders = orders.Skip((CurrentPage - 1) * PageSize).Take(PageSize).ToList();
+                _logger.LogInformation("Paginated orders for page {CurrentPage}: {Count}", CurrentPage, Orders.Count);
+
+                return Page();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error loading orders for page {CurrentPage}", CurrentPage);
+                TempData["ErrorMessage"] = "Error loading orders. Please try again later.";
+                return Page();
+            }
+        }
+    
+        public async Task<IActionResult> OnPostCreateAsync()
         {
-            CurrentPage = pageNumber ?? 1;
-            SearchTerm = searchTerm;
-            PageSize = pageSize ?? 10;
-            StatusFilter = statusFilter;
-            SortBy = sortBy ?? "orderdate";
+            var formData = Request.Form.ToDictionary(x => x.Key, x => x.Value.ToString());
+            _logger.LogInformation("Form data received: {FormData}", string.Join(", ", formData.Select(kv => $"{kv.Key}: {kv.Value}")));
 
-            _logger.LogInformation("Fetching Orders: Page={Page}, PageSize={PageSize}, SearchTerm={SearchTerm}, StatusFilter={StatusFilter}, SortBy={SortBy}, OrderId={OrderId}", 
-                CurrentPage, PageSize, SearchTerm, StatusFilter, SortBy, orderId);
-
-            NextOrderNumber = await _orderService.GetNextOrderNumberAsync();
-
-            if (orderId.HasValue)
+            if (!ModelState.IsValid)
             {
-                SelectedOrder = await _orderService.GetOrderByIdAsync(orderId.Value);
-                if (SelectedOrder == null)
+                var errors = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage).ToList();
+                _logger.LogWarning("Invalid model state for order creation. Errors: {Errors}", string.Join(", ", errors));
+                TempData["ErrorMessage"] = "Invalid order data: " + string.Join(", ", errors);
+                return Page();
+            }
+
+            try
+            {
+                var userId = User.Identity?.Name ?? "System";
+                var order = await _orderService.CreateOrderAsync(OrderCreateDTO, userId);
+                _logger.LogInformation("Created order with ID {OrderId}", order.OrderId);
+                TempData["SuccessMessage"] = "Order created successfully.";
+                return RedirectToPage();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error creating order");
+                TempData["ErrorMessage"] = "Error creating order.";
+                return Page();
+            }
+        }
+
+        public async Task<IActionResult> OnPostUpdateAsync(int id)
+        {
+            if (!ModelState.IsValid || OrderUpdateDTO.OrderId != id)
+            {
+                _logger.LogWarning("Invalid model state or ID mismatch for order {OrderId}", id);
+                TempData["ErrorMessage"] = "Invalid order data.";
+                return Page();
+            }
+
+            try
+            {
+                var userId = User.Identity?.Name ?? "System";
+                var existingOrder = await _orderService.GetOrderByIdAsync(id);
+                if (existingOrder == null)
                 {
-                    _logger.LogWarning("Order {OrderId} not found", orderId);
+                    _logger.LogWarning("Order with ID {OrderId} not found", id);
+                    TempData["ErrorMessage"] = $"Order with ID {id} not found.";
+                    return Page();
                 }
-                else
+
+                if (existingOrder.CreatedBy != userId)
                 {
-                    _logger.LogInformation("Retrieved Order {OrderId} with {ItemCount} items", orderId, SelectedOrder.OrderItems?.Count ?? 0);
+                    _logger.LogWarning("User {UserId} attempted to update order {OrderId} they do not own", userId, id);
+                    TempData["ErrorMessage"] = "You do not have permission to update this order.";
+                    return Page();
                 }
+
+                var updatedOrder = await _orderService.UpdateOrderAsync(OrderUpdateDTO, userId);
+                if (updatedOrder == null)
+                {
+                    _logger.LogWarning("Order with ID {OrderId} not found during update", id);
+                    TempData["ErrorMessage"] = $"Order with ID {id} not found.";
+                    return Page();
+                }
+
+                _logger.LogInformation("Updated order with ID {OrderId}", id);
+                TempData["SuccessMessage"] = "Order updated successfully.";
+                return RedirectToPage();
             }
-
-            IQueryable<Order> OrdersQuery = _context.Orders
-                .Include(q => q.Partner)
-                .Include(p => p.Quote)
-                .Include(q => q.OrderItems)!
-                .ThenInclude(qi => qi.Product);
-
-            if (!string.IsNullOrEmpty(SearchTerm))
+            catch (Exception ex)
             {
-                SearchTerm = SearchTerm.ToLower();
-                OrdersQuery = OrdersQuery.Where(q => (q.OrderNumber != null && q.OrderNumber.ToLower().Contains(SearchTerm)) ||
-                                                    (q.Subject != null && q.Subject.ToLower().Contains(SearchTerm)) ||
-                                                    (q.Partner != null && q.Partner.Name != null && q.Partner.Name.ToLower().Contains(SearchTerm)) ||
-                                                    (q.Description != null && q.Description.ToLower().Contains(SearchTerm)));
+                _logger.LogError(ex, "Error updating order {OrderId}", id);
+                TempData["ErrorMessage"] = "Error updating order.";
+                return Page();
             }
+        }
 
-            if (!string.IsNullOrEmpty(StatusFilter) && StatusFilter != "all")
+        public async Task<IActionResult> OnPostDeleteAsync(int id)
+        {
+            try
             {
-                OrdersQuery = OrdersQuery.Where(q => q.Status == StatusFilter);
+                var userId = User.Identity?.Name ?? "System";
+                var order = await _orderService.GetOrderByIdAsync(id);
+                if (order == null)
+                {
+                    _logger.LogWarning("Order with ID {OrderId} not found", id);
+                    TempData["ErrorMessage"] = $"Order with ID {id} not found.";
+                    return Page();
+                }
+
+                if (order.CreatedBy != userId)
+                {
+                    _logger.LogWarning("User {UserId} attempted to delete order {OrderId} they do not own", userId, id);
+                    TempData["ErrorMessage"] = "You do not have permission to delete this order.";
+                    return Page();
+                }
+
+                var result = await _orderService.DeleteOrderAsync(id);
+                if (!result)
+                {
+                    _logger.LogWarning("Order with ID {OrderId} not found during deletion", id);
+                    TempData["ErrorMessage"] = $"Order with ID {id} not found.";
+                    return Page();
+                }
+
+                _logger.LogInformation("Deleted order with ID {OrderId}", id);
+                TempData["SuccessMessage"] = "Order deleted successfully.";
+                return RedirectToPage();
             }
-
-            OrdersQuery = SortBy switch
+            catch (Exception ex)
             {
-                "OrderId" => OrdersQuery.OrderByDescending(q => q.OrderId),
-                "ValidityDate" => OrdersQuery.OrderBy(q => q.Deadline),
-                _ => OrdersQuery.OrderByDescending(q => q.OrderDate)
-            };
-
-            TotalRecords = await OrdersQuery.CountAsync();
-            DistinctOrderIdCount = await OrdersQuery.Select(q => q.OrderId).Distinct().CountAsync();
-            TotalPages = (int)Math.Ceiling(TotalRecords / (double)PageSize);
-            CurrentPage = Math.Max(1, Math.Min(CurrentPage, TotalPages));
-
-            Orders = await _orderService.GetOrdersAsync(
-                SearchTerm,
-                StatusFilter,
-                SortBy,
-                (CurrentPage - 1) * PageSize,
-                PageSize);
-
-            _logger.LogInformation("Retrieved {Count} Orders for page {Page}. TotalRecords={TotalRecords}, TotalPages={TotalPages}, StatusFilter={StatusFilter}, SortBy={SortBy}", 
-                Orders.Count, CurrentPage, TotalRecords, TotalPages, StatusFilter, SortBy);
-
-            if (!Orders.Any() && TotalRecords > 0)
-            {
-                _logger.LogWarning("No Orders found for page {Page}, but TotalRecords={TotalRecords}. Possible pagination or filter issue.", CurrentPage, TotalRecords);
+                _logger.LogError(ex, "Error deleting order {OrderId}", id);
+                TempData["ErrorMessage"] = "Error deleting order.";
+                return Page();
             }
         }
     }

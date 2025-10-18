@@ -1,0 +1,1 @@
+//taskhoz kapcsolódó dolgozók kerülnek ide, 1 dolgozó több taskban is lehet, több dolgozó is dolgozhat egy taskon

@@ -1,0 +1,1 @@
+//a taskhoz kapcsolódó erőforrások kerülnek ide, pl. gépek

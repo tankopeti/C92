@@ -90,6 +90,9 @@ namespace Cloud9_2.Models
 
         [Display(Name = "Mennyiségi ár")]
         public decimal? VolumePrice { get; set; }
+
+        [StringLength(200)]
+        public string? ItemDescription { get; set; }
     }
 
 
@@ -135,6 +138,9 @@ namespace Cloud9_2.Models
 
         [Display(Name = "Mennyiségi ár")]
         public decimal? VolumePrice { get; set; }
+
+        [StringLength(200)]
+        public string? ItemDescription { get; set; }
     }
 
     public class QuoteItemResponseDto
@@ -159,13 +165,4 @@ namespace Cloud9_2.Models
         public DiscountType? DiscountType { get; set; }
         }
 
-        public enum DiscountType
-        {
-            NoDiscount = 1,
-            ListPrice = 2,
-            PartnerPrice = 3,
-            VolumeDiscount = 4,
-            CustomDiscountPercentage = 5,
-            CustomDiscountAmount = 6
-        }
 }

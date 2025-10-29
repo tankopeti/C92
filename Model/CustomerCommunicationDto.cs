@@ -29,6 +29,8 @@ public int CustomerCommunicationId { get; set; }
         public int? LeadId { get; set; }
         public int? QuoteId { get; set; }
         public int? OrderId { get; set; }
+        public int? SiteId { get; set; }
+        public string? SiteName { get; set; }
         public List<CommunicationPostDto> Posts { get; set; }
         public CommunicationResponsibleDto CurrentResponsible { get; set; }
         public List<CommunicationResponsibleDto> ResponsibleHistory { get; set; }
@@ -92,6 +94,7 @@ public int CustomerCommunicationId { get; set; }
         public int StatusId { get; set; }
         public string? ResponsibleId { get; set; }
         public int? PartnerId { get; set; }
+        public int? SiteId { get; set; }
         // public int? LeadId { get; set; }
         // public int? QuoteId { get; set; }
         // public int? OrderId { get; set; }

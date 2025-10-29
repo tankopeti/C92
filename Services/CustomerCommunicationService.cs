@@ -26,8 +26,6 @@ namespace Cloud9_2.Services
                 throw new ArgumentException("Invalid CommunicationTypeId");
             if (dto.StatusId <= 0 || !await _context.CommunicationStatuses.AnyAsync(s => s.StatusId == dto.StatusId))
                 throw new ArgumentException("Invalid StatusId");
-            // if (!dto.ContactId.HasValue || !await _context.Contacts.AnyAsync(c => c.ContactId == dto.ContactId))
-            //     throw new ArgumentException("Invalid ContactId");
             if (string.IsNullOrWhiteSpace(dto.Subject))
                 throw new ArgumentException("Subject is required");
             if (dto.Date == default)
@@ -37,10 +35,8 @@ namespace Cloud9_2.Services
                 throw new ArgumentException("Invalid AgentId");
             if (dto.PartnerId.HasValue && !await _context.Partners.AnyAsync(p => p.PartnerId == dto.PartnerId))
                 throw new ArgumentException("Invalid PartnerId");
-            // if (dto.LeadId.HasValue && !await _context.Leads.AnyAsync(l => l.LeadId == dto.LeadId))
-            //     throw new ArgumentException("Invalid LeadId");
-            // if (dto.QuoteId.HasValue && !await _context.Quotes.AnyAsync(q => q.QuoteId == dto.QuoteId))
-            //     throw new ArgumentException("Invalid QuoteId");
+            if (dto.SiteId.HasValue && !await _context.Sites.AnyAsync(s => s.SiteId == dto.SiteId))
+                throw new ArgumentException("Invalid SiteId");
 
             var communication = new CustomerCommunication
             {
@@ -48,15 +44,12 @@ namespace Cloud9_2.Services
                 Date = dto.Date,
                 Subject = dto.Subject,
                 Note = dto.Note,
-                // ContactId = dto.ContactId,
                 AgentId = dto.AgentId,
                 StatusId = dto.StatusId,
                 AttachmentPath = dto.AttachmentPath,
                 Metadata = dto.Metadata,
-                // OrderId = dto.OrderId,
                 PartnerId = dto.PartnerId,
-                // LeadId = dto.LeadId,
-                // QuoteId = dto.QuoteId
+                SiteId = dto.SiteId
             };
 
             _context.CustomerCommunications.Add(communication);
@@ -78,8 +71,6 @@ namespace Cloud9_2.Services
                 throw new ArgumentException("Invalid CommunicationTypeId");
             if (dto.StatusId <= 0 || !await _context.CommunicationStatuses.AnyAsync(s => s.StatusId == dto.StatusId))
                 throw new ArgumentException("Invalid StatusId");
-            // if (!dto.ContactId.HasValue || !await _context.Contacts.AnyAsync(c => c.ContactId == dto.ContactId))
-            //     throw new ArgumentException("Invalid ContactId");
             if (string.IsNullOrWhiteSpace(dto.Subject))
                 throw new ArgumentException("Subject is required");
             if (dto.Date == default)
@@ -89,24 +80,19 @@ namespace Cloud9_2.Services
                 throw new ArgumentException("Invalid AgentId");
             if (dto.PartnerId.HasValue && !await _context.Partners.AnyAsync(p => p.PartnerId == dto.PartnerId))
                 throw new ArgumentException("Invalid PartnerId");
-            // if (dto.LeadId.HasValue && !await _context.Leads.AnyAsync(l => l.LeadId == dto.LeadId))
-            //     throw new ArgumentException("Invalid LeadId");
-            // if (dto.QuoteId.HasValue && !await _context.Quotes.AnyAsync(q => q.QuoteId == dto.QuoteId))
-            //     throw new ArgumentException("Invalid QuoteId");
+            if (dto.SiteId.HasValue && !await _context.Sites.AnyAsync(s => s.SiteId == dto.SiteId))
+                throw new ArgumentException("Invalid SiteId");
 
             communication.CommunicationTypeId = dto.CommunicationTypeId;
             communication.Date = dto.Date;
             communication.Subject = dto.Subject;
             communication.Note = dto.Note;
-            // communication.ContactId = dto.ContactId;
             communication.AgentId = dto.AgentId;
             communication.StatusId = dto.StatusId;
             communication.AttachmentPath = dto.AttachmentPath;
             communication.Metadata = dto.Metadata;
-            // communication.OrderId = dto.OrderId;
             communication.PartnerId = dto.PartnerId;
-            // communication.LeadId = dto.LeadId;
-            // communication.QuoteId = dto.QuoteId;
+            communication.SiteId = dto.SiteId;
 
             await _context.SaveChangesAsync();
         }
@@ -148,7 +134,8 @@ namespace Cloud9_2.Services
                 .Include(c => c.Status)
                 .Include(c => c.Agent)
                 .Include(c => c.Partner)
-                .Include(c => c.ResponsibleHistory) // Include ResponsibleHistory
+                .Include(c => c.Site)
+                .Include(c => c.ResponsibleHistory)
                 .Select(c => new CustomerCommunicationDto
                 {
                     CustomerCommunicationId = c.CustomerCommunicationId,
@@ -165,6 +152,8 @@ namespace Cloud9_2.Services
                     Metadata = c.Metadata,
                     PartnerId = c.PartnerId,
                     PartnerName = c.Partner != null ? c.Partner.Name : null,
+                    SiteId = c.SiteId,
+                    SiteName = c.Site != null ? c.Site.SiteName : null,
                     Posts = c.Posts.Select(p => new CommunicationPostDto
                     {
                         CommunicationPostId = p.CommunicationPostId,
@@ -195,9 +184,6 @@ namespace Cloud9_2.Services
                         }).ToList()
                 });
 
-            // if (orderId.HasValue)
-            //     query = query.Where(c => c.OrderId == orderId);
-
             return await query.OrderBy(c => c.Date).ToListAsync();
         }
 
@@ -207,7 +193,7 @@ namespace Cloud9_2.Services
                 throw new ArgumentException("Invalid CommunicationId");
 
             var user = await _userManager.FindByIdAsync(createdByUserId) ?? 
-                    await _userManager.FindByEmailAsync(createdByUserId);
+                       await _userManager.FindByEmailAsync(createdByUserId);
             if (user == null)
                 throw new ArgumentException("Invalid UserId");
 
@@ -231,8 +217,8 @@ namespace Cloud9_2.Services
                 throw new ArgumentException($"Communication with ID {communicationId} not found.");
 
             var responsibleUser = await _userManager.FindByIdAsync(responsibleUserId);
-            // if (responsibleUser == null || !await _userManager.IsInRoleAsync(responsibleUser, "Admin"))   - itt lehet beállítani a user típusokat.
-            //     throw new ArgumentException($"User with ID {responsibleUserId} is not an Admin user.");
+            if (responsibleUser == null)
+                throw new ArgumentException($"User with ID {responsibleUserId} not found.");
 
             var assignedByUser = await _userManager.FindByIdAsync(assignedByUserId);
             if (assignedByUser == null)
@@ -269,9 +255,10 @@ namespace Cloud9_2.Services
                     AttachmentPath = c.AttachmentPath,
                     Metadata = c.Metadata,
                     PartnerId = c.PartnerId,
+                    SiteId = c.SiteId,
+                    SiteName = c.Site != null ? c.Site.SiteName : null,
                     Posts = c.Posts
-                        .OrderBy(p => p.CustomerCommunicationId) // Sort posts by CreatedAt (ascending)
-                                                   //.OrderByDescending(p => p.CreatedAt) // Use this for newest first
+                        .OrderBy(p => p.CreatedAt)
                         .Select(p => new CommunicationPostDto
                         {
                             CommunicationPostId = p.CommunicationPostId,
@@ -282,7 +269,7 @@ namespace Cloud9_2.Services
                             CreatedAt = p.CreatedAt
                         }).ToList(),
                     CurrentResponsible = c.ResponsibleHistory
-                        .OrderByDescending(r => r.CustomerCommunicationId) // Keep descending for most recent
+                        .OrderByDescending(r => r.AssignedAt)
                         .Select(r => new CommunicationResponsibleDto
                         {
                             CommunicationResponsibleId = r.CommunicationResponsibleId,
@@ -297,8 +284,7 @@ namespace Cloud9_2.Services
                             AssignedAt = r.AssignedAt
                         }).FirstOrDefault(),
                     ResponsibleHistory = c.ResponsibleHistory
-                        .OrderBy(r => r.CustomerCommunicationId) // Sort history by AssignedAt (ascending)
-                                                    //.OrderByDescending(r => r.AssignedAt) // Use this for newest first
+                        .OrderBy(r => r.AssignedAt)
                         .Select(r => new CommunicationResponsibleDto
                         {
                             CommunicationResponsibleId = r.CommunicationResponsibleId,
@@ -325,30 +311,17 @@ namespace Cloud9_2.Services
             return communication;
         }
 
-        // public async Task<List<Contact>> GetContactsAsync(string term)
-        // {
-        //     var query = _context.Contacts.AsQueryable();
-        //     if (!string.IsNullOrEmpty(term))
-        //     {
-        //         term = term.ToLower();
-        //         query = query.Where(c => c.FirstName.ToLower().Contains(term) || c.LastName.ToLower().Contains(term));
-        //     }
-        //     return await query.ToListAsync();
-        // }
-
-public async Task<List<CustomerCommunication>> GetCommunicationsByUserAsync(string userId)
+        public async Task<List<CustomerCommunication>> GetCommunicationsByUserAsync(string userId)
         {
             return await _context.CustomerCommunications
-                .Where(c => c.AgentId == userId) // Changed from UserId to AgentId
+                .Where(c => c.AgentId == userId)
                 .ToListAsync();
         }
 
         public async Task<List<ApplicationUser>> GetAspNetUsersAsync(string searchTerm = null)
         {
-            // Start with all users
             var usersQuery = _userManager.Users.AsQueryable();
 
-            // Optionally filter by a search term (on username or email)
             if (!string.IsNullOrWhiteSpace(searchTerm))
             {
                 usersQuery = usersQuery.Where(u =>
@@ -357,8 +330,29 @@ public async Task<List<CustomerCommunication>> GetCommunicationsByUserAsync(stri
                 );
             }
 
-            // Fetch the users as a list asynchronously
             return await usersQuery.ToListAsync();
+        }
+
+        public async Task<List<SiteDto>> GetSitesAsync(int? partnerId = null, string searchTerm = null)
+        {
+            var sitesQuery = _context.Sites.AsQueryable();
+
+            if (partnerId.HasValue)
+            {
+                sitesQuery = sitesQuery.Where(s => s.PartnerId == partnerId.Value);
+            }
+            if (!string.IsNullOrWhiteSpace(searchTerm))
+            {
+                sitesQuery = sitesQuery.Where(s => s.SiteName.Contains(searchTerm));
+            }
+
+            return await sitesQuery
+                .Select(s => new SiteDto
+                {
+                    SiteId = s.SiteId,
+                    SiteName = s.SiteName
+                })
+                .ToListAsync();
         }
     }
 }

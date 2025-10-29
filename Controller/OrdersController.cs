@@ -1,13 +1,9 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Logging;
 using Microsoft.AspNetCore.Identity;
 using Cloud9_2.Services;
 using Cloud9_2.Models;
-using System.Threading.Tasks;
-using System.Collections.Generic;
 using System.Security.Claims;
-using System.Linq;
 using System.ComponentModel.DataAnnotations;
 
 namespace Cloud9_2.Controllers
@@ -21,7 +17,7 @@ namespace Cloud9_2.Controllers
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly ILogger<OrdersController> _logger;
 
-public OrdersController(OrderService orderService, UserManager<ApplicationUser> userManager, ILogger<OrdersController> logger)
+        public OrdersController(OrderService orderService, UserManager<ApplicationUser> userManager, ILogger<OrdersController> logger)
         {
             _orderService = orderService;
             _userManager = userManager;
@@ -74,8 +70,8 @@ public OrdersController(OrderService orderService, UserManager<ApplicationUser> 
                 return StatusCode(StatusCodes.Status500InternalServerError, new { Message = "Belső szerverhiba" });
             }
         }
-        
-                // GET: api/Orders/{orderId}
+
+        // GET: api/Orders/{orderId}
         [HttpGet("{orderId}")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -231,9 +227,11 @@ public OrdersController(OrderService orderService, UserManager<ApplicationUser> 
             }
         }
 
+        
+
         private OrderDTO MapToOrderDTO(Order order)
         {
-            return new OrderDTO
+return new OrderDTO
             {
                 OrderId = order.OrderId,
                 OrderNumber = order.OrderNumber,
@@ -255,23 +253,24 @@ public OrdersController(OrderService orderService, UserManager<ApplicationUser> 
                 ModifiedDate = order.ModifiedDate,
                 Status = order.Status,
                 PartnerId = order.PartnerId,
-                PartnerName = order.Partner?.Name, // Assumes Partner has a Name property
+                PartnerName = order.Partner?.Name ?? "N/A",
                 SiteId = order.SiteId,
-                SiteName = order.Site?.SiteName, // Assumes Site has a Name property
+                SiteName = order.Site?.SiteName,
                 CurrencyId = order.CurrencyId,
-                CurrencyCode = order.Currency?.CurrencyName, // Assumes Currency has a Code property
+                CurrencyCode = order.Currency?.CurrencyName,
                 ShippingMethodId = order.ShippingMethodId,
-                ShippingMethodName = order.ShippingMethod?.MethodName, // Assumes OrderShippingMethod has a Name property
+                ShippingMethodName = order.ShippingMethod?.MethodName,
                 PaymentTermId = order.PaymentTermId,
-                PaymentTermName = order.PaymentTerm?.TermName, // Assumes PaymentTerm has a Name property
+                PaymentTermName = order.PaymentTerm?.TermName,
                 ContactId = order.ContactId,
-                ContactName = order.Contact?.FirstName, // Assumes Contact has a Name property
+                ContactName = order.Contact?.FirstName,
                 OrderType = order.OrderType,
                 ReferenceNumber = order.ReferenceNumber,
                 QuoteId = order.QuoteId,
                 IsDeleted = order.IsDeleted,
                 OrderStatusTypes = order.OrderStatusTypes,
-                // OrderStatusTypeName = order.OrderStatusType?.Name, // Assumes OrderStatusType has a Name property
+                OrderStatusTypeName = order.OrderStatusType?.StatusName ?? "N/A",
+                OrderStatusTypeColor = order.OrderStatusType?.Color ?? "#6c757d",
                 OrderItems = order.OrderItems?.Select(oi => new OrderItemDTO
                 {
                     OrderItemId = oi.OrderItemId,
@@ -286,11 +285,13 @@ public OrdersController(OrderService orderService, UserManager<ApplicationUser> 
                     ModifiedDate = oi.ModifiedDate,
                     DiscountType = oi.DiscountType,
                     ProductId = oi.ProductId,
-                    ProductName = oi.Product?.Name, // Assumes Product has a Name property
+                    ProductName = oi.Product?.Name,
                     VatTypeId = oi.VatTypeId,
-                    VatRate = oi.VatType?.Rate, // Assumes VatType has a Rate property
-                    LineTotal = oi.LineTotal
-                }).ToList()
+                    VatRate = oi.VatType?.Rate,
+                    LineTotal = oi.LineTotal,
+                    VATvalue = oi.VATvalue,
+                    Gross = oi.Gross
+                }).ToList() ?? new List<OrderItemDTO>()
             };
         }
     }

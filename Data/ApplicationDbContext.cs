@@ -55,8 +55,8 @@ namespace Cloud9_2.Data
         public DbSet<TaskPM> TaskPMs { get; set; }
         public DbSet<TaskCommentPM> TaskCommentsPMs { get; set; }
         public DbSet<TaskAttachmentPM> TaskAttachmentsPMs { get; set; }
-        public DbSet<TaskStatusPM> TaskStatusPMs { get; set; }
-        public DbSet<TaskPriorityPM> TaskPriorityPMs { get; set; }
+        public DbSet<TaskStatusPM> TaskStatusesPM { get; set; }
+        public DbSet<TaskPriorityPM> TaskPrioritiesPM { get; set; }
         public DbSet<ProjectPM> ProjectPMs { get; set; }
         public DbSet<ProjectStatusPM> ProjectStatusPMs { get; set; }
         public DbSet<OrderItemDiscount> OrderItemDiscounts { get; set; } // Added for CS1061
@@ -67,15 +67,105 @@ namespace Cloud9_2.Data
         public DbSet<Status> Statuses { get; set; }
         public DbSet<OrderShippingMethod> OrderShippingMethods { get; set; }
         public DbSet<PaymentTerm> PaymentTerms { get; set; }
+        public DbSet<Employees> Employees { get; set; }
+        public DbSet<Shift> Shifts { get; set; }
+        public DbSet<EmploymentStatus> EmploymentStatuses { get; set; }
+        public DbSet<Salary> Salaries { get; set; }
+        public DbSet<EmployeeShift> EmployeeShifts { get; set; }
+        public DbSet<PartnerShift> PartnerShifts { get; set; }
+        public DbSet<SiteShift> SiteShifts { get; set; }
+        public DbSet<EmployeeHistory> EmployeeHistories { get; set; }
+        public DbSet<Vacation> Vacations { get; set; }
+        public DbSet<VacationBalance> VacationBalances { get; set; }
+        public DbSet<OrderStatusType> OrderStatusTypes { get; set; }
+        public DbSet<JobTitle> JobTitles { get; set; }
+        public DbSet<ResourceType> ResourceTypes { get; set; }
+        public DbSet<ResourceStatus> ResourceStatuses { get; set; }
+        public DbSet<Resource> Resources { get; set; }
 
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
 
-                        // Order configuration
+            modelBuilder.Entity<Resource>().ToTable("Resource");
+
+            modelBuilder.Entity<ResourceType>().ToTable("ResourceType");
+
+            modelBuilder.Entity<ResourceStatus>().ToTable("ResourceStatus");
+
+            modelBuilder.Entity<TaskPriorityPM>().ToTable("TaskPriorityPM");
+
+            modelBuilder.Entity<TaskStatusPM>().ToTable("TaskStatusPM");
+
+            // Map TaskTypePM
+            modelBuilder.Entity<TaskTypePM>().ToTable("TaskTypePM");
+
+            modelBuilder.Entity<TaskTypePM>()
+            .Property(t => t.CreatedAt)
+            .HasColumnName("CreatedAt");
+
+        modelBuilder.Entity<TaskTypePM>()
+            .Property(t => t.UpdatedAt)
+            .HasColumnName("UpdatedAt");
+
+            // HR
+            // Map Employee to singular table name
+            modelBuilder.Entity<Employees>().ToTable("Employee");
+
+            // Map EmploymentStatus to its table
+            modelBuilder.Entity<EmploymentStatus>().ToTable("EmploymentStatus");
+
+            // Map StatusName to Name column in EmploymentStatus
+            modelBuilder.Entity<EmploymentStatus>()
+                .Property(es => es.StatusName)
+                .HasColumnName("Name");
+
+            // Map created_at and updated_at columns
+            modelBuilder.Entity<EmploymentStatus>()
+                .Property(es => es.CreatedAt)
+                .HasColumnName("created_at");
+
+            modelBuilder.Entity<EmploymentStatus>()
+                .Property(es => es.UpdatedAt)
+                .HasColumnName("updated_at");
+
+            // Configure Employee -> EmploymentStatus relationship
+            modelBuilder.Entity<Employees>()
+                .HasOne(e => e.Status)
+                .WithMany(es => es.Employees)
+                .HasForeignKey(e => e.StatusId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            // Map JobTitle to its table
+            modelBuilder.Entity<JobTitle>().ToTable("JobTitle");
+            modelBuilder.Entity<JobTitle>()
+                .Property(jt => jt.CreatedAt)
+                .HasColumnName("CreatedAt");
+            modelBuilder.Entity<JobTitle>()
+                .Property(jt => jt.UpdatedAt)
+                .HasColumnName("UpdatedAt");
+
+
+            modelBuilder.Entity<EmployeeShift>()
+                .HasKey(es => new { es.EmployeeId, es.ShiftId });
+
+            modelBuilder.Entity<PartnerShift>()
+                .HasKey(ps => new { ps.PartnerId, ps.ShiftId });
+
+            modelBuilder.Entity<SiteShift>()
+                .HasKey(ss => new { ss.SiteId, ss.ShiftId });
+
+
+            modelBuilder.Entity<Site>()
+            .HasMany(s => s.CustomerCommunications)
+            .WithOne(c => c.Site)
+            .HasForeignKey(c => c.SiteId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+            // Order configuration
             modelBuilder.Entity<Order>(entity =>
-            {
+                    {
                 entity.HasKey(e => e.OrderId);
 
                 entity.Property(e => e.OrderNumber)
@@ -409,7 +499,6 @@ namespace Cloud9_2.Data
                     .WithMany(p => p.Tasks)
                     .HasForeignKey(t => t.ProjectPMId);
 
-                // Other relationships...
             });
 
             modelBuilder.Entity<TaskPM>()
@@ -421,12 +510,12 @@ namespace Cloud9_2.Data
             modelBuilder.Entity<TaskTypePM>(entity =>
                 {
                     entity.HasKey(tt => tt.TaskTypePMId);
-                    entity.Property(tt => tt.Name).IsRequired().HasMaxLength(50);
+                    entity.Property(tt => tt.TaskTypePMName).IsRequired().HasMaxLength(50);
                 });
 
             modelBuilder.Entity<TaskPM>(entity =>
             {
-                entity.HasKey(t => t.TaskPMId);
+                entity.HasKey(t => t.TaskTypePMId);
                 entity.Property(t => t.Title).IsRequired().HasMaxLength(100);
 
                 entity.HasOne(t => t.TaskTypePM)

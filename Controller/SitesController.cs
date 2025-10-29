@@ -31,29 +31,31 @@ namespace Cloud9_2.Controllers
             _context = context ?? throw new ArgumentNullException(nameof(context));
         }
 
-                // GET: api/partners/{partnerId}/sites/select?search=abc
+        // GET: api/partners/{partnerId}/sites/select?search=abc
         [HttpGet("select")]
         public async Task<IActionResult> GetSitesForSelect(int partnerId, [FromQuery] string search = "")
         {
             try
             {
-                var partner = await _partnerService.GetPartnerAsync(partnerId);
-                if (partner == null)
+                // Simple existence check without loading full Partner or navigation properties
+                var partnerExists = await _context.Partners
+                    .AnyAsync(p => p.PartnerId == partnerId);
+
+                if (!partnerExists)
                 {
                     _logger.LogWarning("Partner not found for PartnerId: {PartnerId}", partnerId);
                     return NotFound();
                 }
 
-
-                    var sites = await _context.Sites
+                var sites = await _context.Sites
                     .AsNoTracking()
-                    .Where(c => c.PartnerId == partnerId && 
-                               (string.IsNullOrEmpty(search) || c.SiteName.Contains(search)))
-                    .OrderBy(c => c.SiteName)
+                    .Where(c => c.PartnerId == partnerId &&
+                                (string.IsNullOrEmpty(search) || (!string.IsNullOrEmpty(c.SiteName) && c.SiteName.Contains(search))))
+                    .OrderBy(c => c.SiteName ?? "")
                     .Select(c => new
                     {
                         id = c.SiteId,
-                        text = c.SiteName
+                        text = c.SiteName ?? "Unnamed Site"
                     })
                     .Take(50)
                     .ToListAsync();
@@ -63,8 +65,8 @@ namespace Cloud9_2.Controllers
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error fetching sites for PartnerId: {PartnerId}", partnerId);
-                return StatusCode(500, new { title = "Internal server error", errors = new { General = new[] { "Failed to retrieve sites" } } });
+                _logger.LogError(ex, "Error fetching sites for PartnerId: {PartnerId}. StackTrace: {StackTrace}", partnerId, ex.StackTrace);
+                return StatusCode(500, new { title = "Internal server error", errors = new { General = new[] { ex.Message } } });
             }
         }
 
@@ -74,38 +76,91 @@ namespace Cloud9_2.Controllers
         {
             try
             {
-                var partner = await _partnerService.GetPartnerAsync(partnerId);
-                if (partner == null)
+                // Use DbContext directly to avoid PartnerService issues
+                var sites = await _context.Sites
+                    .Where(s => s.PartnerId == partnerId)
+                    .Select(s => new SiteDto
+                    {
+                        SiteId = s.SiteId,
+                        SiteName = s.SiteName,
+                        AddressLine1 = s.AddressLine1,
+                        AddressLine2 = s.AddressLine2,
+                        City = s.City,
+                        State = s.State,
+                        PostalCode = s.PostalCode,
+                        Country = s.Country,
+                        IsPrimary = s.IsPrimary,
+                        ContactPerson1 = s.ContactPerson1,
+                        ContactPerson2 = s.ContactPerson2,
+                        ContactPerson3 = s.ContactPerson3,
+                        Comment1 = s.Comment1,
+                        Comment2 = s.Comment2,
+                        PartnerId = s.PartnerId,
+                        StatusId = s.StatusId,
+                        Status = s.Status != null ? new Status { Id = s.Status.Id, Name = s.Status.Name } : null
+                    })
+                    .ToListAsync();
+
+                if (!sites.Any())
                 {
-                    _logger.LogWarning("Partner not found for PartnerId: {PartnerId}", partnerId);
+                    _logger.LogWarning("No sites found for PartnerId: {PartnerId}", partnerId);
                     return NotFound();
                 }
-            var sites = partner.Sites?.Select(s => new SiteDto
-            {
-                SiteId = s.SiteId,
-                SiteName = s.SiteName,
-                AddressLine1 = s.AddressLine1,
-                AddressLine2 = s.AddressLine2,
-                City = s.City,
-                State = s.State,
-                PostalCode = s.PostalCode,
-                Country = s.Country,
-                IsPrimary = s.IsPrimary,
-                ContactPerson1 = s.ContactPerson1,
-                ContactPerson2 = s.ContactPerson2,
-                ContactPerson3 = s.ContactPerson3,
-                Comment1 = s.Comment1,
-                Comment2 = s.Comment2,
-                PartnerId = s.PartnerId,
-                StatusId = s.StatusId,
-                Status = s.Status != null ? new Status { Id = s.Status.Id, Name = s.Status.Name } : null
-            }).ToList() ?? new List<SiteDto>();
+
+                _logger.LogInformation("Fetched {SiteCount} sites for PartnerId: {PartnerId}", sites.Count, partnerId);
                 return Ok(sites);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error fetching sites for PartnerId: {PartnerId}", partnerId);
                 return StatusCode(500, new { error = "Failed to fetch sites", details = ex.Message });
+            }
+        }
+
+
+        [HttpGet("{id}")]
+        public async Task<IActionResult> GetSite(int partnerId, int id)
+        {
+            try
+            {
+                var partner = await _partnerService.GetPartnerAsync(partnerId);
+                if (partner == null)
+                {
+                    _logger.LogWarning("Partner not found for PartnerId: {PartnerId}", partnerId);
+                    return NotFound();
+                }
+                var site = partner.Sites?.FirstOrDefault(s => s.SiteId == id);
+                if (site == null)
+                {
+                    _logger.LogWarning("Site not found for SiteId: {SiteId}", id);
+                    return NotFound();
+                }
+                var siteDto = new SiteDto
+                {
+                    SiteId = site.SiteId,
+                    SiteName = site.SiteName,
+                    AddressLine1 = site.AddressLine1,
+                    AddressLine2 = site.AddressLine2,
+                    City = site.City,
+                    State = site.State,
+                    PostalCode = site.PostalCode,
+                    Country = site.Country,
+                    IsPrimary = site.IsPrimary,
+                    ContactPerson1 = site.ContactPerson1,
+                    ContactPerson2 = site.ContactPerson2,
+                    ContactPerson3 = site.ContactPerson3,
+                    Comment1 = site.Comment1,
+                    Comment2 = site.Comment2,
+                    PartnerId = site.PartnerId,
+                    StatusId = site.StatusId,
+                    Status = site.Status != null ? new Status { Id = site.Status.Id, Name = site.Status.Name } : null
+                };
+                return Ok(siteDto);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error fetching site for PartnerId: {PartnerId}, SiteId: {SiteId}", partnerId, id);
+                return StatusCode(500, new { error = "Failed to fetch site", details = ex.Message });
             }
         }
 
@@ -194,50 +249,5 @@ namespace Cloud9_2.Controllers
             }
         }
 
-        [HttpGet("{id}")]
-        public async Task<IActionResult> GetSite(int partnerId, int id)
-        {
-            try
-            {
-                var partner = await _partnerService.GetPartnerAsync(partnerId);
-                if (partner == null)
-                {
-                    _logger.LogWarning("Partner not found for PartnerId: {PartnerId}", partnerId);
-                    return NotFound();
-                }
-                var site = partner.Sites?.FirstOrDefault(s => s.SiteId == id);
-                if (site == null)
-                {
-                    _logger.LogWarning("Site not found for SiteId: {SiteId}", id);
-                    return NotFound();
-                }
-                var siteDto = new SiteDto
-                {
-                    SiteId = site.SiteId,
-                    SiteName = site.SiteName,
-                    AddressLine1 = site.AddressLine1,
-                    AddressLine2 = site.AddressLine2,
-                    City = site.City,
-                    State = site.State,
-                    PostalCode = site.PostalCode,
-                    Country = site.Country,
-                    IsPrimary = site.IsPrimary,
-                    ContactPerson1 = site.ContactPerson1,
-                    ContactPerson2 = site.ContactPerson2,
-                    ContactPerson3 = site.ContactPerson3,
-                    Comment1 = site.Comment1,
-                    Comment2 = site.Comment2,
-                    PartnerId = site.PartnerId,
-                    StatusId = site.StatusId,
-                    Status = site.Status != null ? new Status { Id = site.Status.Id, Name = site.Status.Name } : null
-                };
-                return Ok(siteDto);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error fetching site for PartnerId: {PartnerId}, SiteId: {SiteId}", partnerId, id);
-                return StatusCode(500, new { error = "Failed to fetch site", details = ex.Message });
-            }
-        }
-            }
+    }
 }

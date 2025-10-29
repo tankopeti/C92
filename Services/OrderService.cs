@@ -3,9 +3,6 @@ using Microsoft.EntityFrameworkCore;
 using Cloud9_2.Models;
 using Cloud9_2.Data;
 using System.ComponentModel.DataAnnotations;
-using System.Threading.Tasks;
-using System.Collections.Generic;
-using System.Linq;
 
 namespace Cloud9_2.Services
 {
@@ -22,13 +19,58 @@ namespace Cloud9_2.Services
             _logger = logger;
         }
 
+        // Helper method to calculate UnitPrice for an OrderItem
+        private async Task<decimal> CalculateUnitPriceAsync(int productId, decimal quantity, int partnerId, int currencyId)
+        {
+            // Check for PartnerProductPrice first
+            var partnerPrice = await _context.PartnerProductPrice
+                .Where(ppp => ppp.PartnerId == partnerId && ppp.ProductId == productId)
+                .FirstOrDefaultAsync();
+
+            if (partnerPrice != null)
+            {
+                return partnerPrice.PartnerUnitPrice;
+            }
+
+            // Fallback to ProductPrice
+            var productPrice = await _context.ProductPrices
+                .Where(pp => pp.ProductId == productId
+                             && pp.CurrencyId == currencyId
+                             && pp.IsActive
+                             && pp.StartDate <= DateTime.UtcNow
+                             && (pp.EndDate == null || pp.EndDate >= DateTime.UtcNow))
+                .FirstOrDefaultAsync();
+
+            if (productPrice == null)
+            {
+                throw new ValidationException($"No valid price found for ProductId: {productId} in CurrencyId: {currencyId}.");
+            }
+
+            // Determine price based on volume thresholds
+            // Convert quantity to int for volume comparisons, assuming fractional quantities use the same tier
+            int quantityForThreshold = (int)Math.Floor(quantity);
+            decimal basePrice;
+            if (quantityForThreshold >= productPrice.Volume3 && productPrice.Volume3 > 0)
+                basePrice = productPrice.Volume3Price;
+            else if (quantityForThreshold >= productPrice.Volume2 && productPrice.Volume2 > 0)
+                basePrice = productPrice.Volume2Price;
+            else if (quantityForThreshold >= productPrice.Volume1 && productPrice.Volume1 > 0)
+                basePrice = productPrice.Volume1Price;
+            else
+                basePrice = productPrice.SalesPrice;
+
+            // Apply discount if applicable
+            if (productPrice.DiscountPercentage > 0)
+            {
+                basePrice *= (1 - productPrice.DiscountPercentage / 100);
+            }
+
+            return Math.Round(basePrice, 2);
+        }
+
         public async Task<Order> CreateOrderAsync(OrderCreateDTO orderDto, string userId)
         {
             // Validation
-            if (string.IsNullOrEmpty(orderDto.OrderNumber))
-                throw new ValidationException("Rendelésszám megadása kötelező.");
-            if (await _context.Orders.AnyAsync(o => o.OrderNumber == orderDto.OrderNumber && o.IsDeleted != true))
-                throw new ValidationException("A rendelésszám már létezik.");
             if (orderDto.OrderItems != null && orderDto.OrderItems.Any(i => i.Quantity <= 0))
                 throw new ValidationException("A rendelési tételek mennyisége pozitív kell legyen.");
             if (!await _context.Partners.AnyAsync(p => p.PartnerId == orderDto.PartnerId))
@@ -45,8 +87,6 @@ namespace Cloud9_2.Services
                 throw new ValidationException("Érvénytelen ContactId.");
             if (orderDto.QuoteId.HasValue && !await _context.Quotes.AnyAsync(q => q.QuoteId == orderDto.QuoteId))
                 throw new ValidationException("Érvénytelen QuoteId.");
-            // if (orderDto.OrderStatusTypes.HasValue && !await _context.OrderStatusTypes.AnyAsync(s => s.OrderStatusId == orderDto.OrderStatusTypes))
-            //     throw new ValidationException("Érvénytelen OrderStatusTypes.");
             if (orderDto.OrderItems != null)
             {
                 foreach (var item in orderDto.OrderItems)
@@ -58,16 +98,22 @@ namespace Cloud9_2.Services
                 }
             }
 
+            // Generate unique order number
+            string orderNumber;
+            do
+            {
+                orderNumber = $"R-{DateTime.UtcNow:yyyyMMdd}-{Guid.NewGuid().ToString().Substring(0, 4)}";
+            } while (await _context.Orders.AnyAsync(o => o.OrderNumber == orderNumber && o.IsDeleted != true));
+
             var user = await _userManager.FindByIdAsync(userId);
             var userName = user?.UserName ?? "System";
 
             var order = new Order
             {
-                OrderNumber = orderDto.OrderNumber,
+                OrderNumber = orderNumber,
                 OrderDate = orderDto.OrderDate,
                 Deadline = orderDto.Deadline,
                 Description = orderDto.Description,
-                TotalAmount = orderDto.OrderItems?.Sum(i => i.Quantity * i.UnitPrice - (i.DiscountAmount ?? 0)) ?? orderDto.TotalAmount, // Calculate from OrderItems if provided
                 SalesPerson = orderDto.SalesPerson,
                 DeliveryDate = orderDto.DeliveryDate,
                 PlannedDelivery = orderDto.PlannedDelivery,
@@ -87,7 +133,7 @@ namespace Cloud9_2.Services
                 ReferenceNumber = orderDto.ReferenceNumber,
                 QuoteId = orderDto.QuoteId,
                 IsDeleted = orderDto.IsDeleted ?? false,
-                OrderStatusTypes = orderDto.OrderStatusTypes,
+                OrderStatusTypes = orderDto.OrderStatusTypes ?? 1,
                 CreatedBy = userName,
                 CreatedDate = DateTime.UtcNow,
                 ModifiedBy = userName,
@@ -96,7 +142,7 @@ namespace Cloud9_2.Services
                 {
                     Description = item.Description,
                     Quantity = item.Quantity,
-                    UnitPrice = item.UnitPrice,
+                    UnitPrice = 0, // Will be calculated below
                     DiscountAmount = item.DiscountAmount,
                     DiscountType = item.DiscountType,
                     ProductId = item.ProductId,
@@ -107,6 +153,18 @@ namespace Cloud9_2.Services
                     ModifiedDate = DateTime.UtcNow
                 }).ToList() ?? new List<OrderItem>()
             };
+
+            // Calculate UnitPrice for each OrderItem
+            if (order.OrderItems != null)
+            {
+                foreach (var item in order.OrderItems)
+                {
+                    item.UnitPrice = await CalculateUnitPriceAsync(item.ProductId, item.Quantity, order.PartnerId, order.CurrencyId);
+                }
+            }
+
+            // Calculate TotalAmount
+            order.TotalAmount = order.OrderItems?.Sum(i => i.Quantity * i.UnitPrice - (i.DiscountAmount ?? 0)) ?? orderDto.TotalAmount;
 
             using var transaction = await _context.Database.BeginTransactionAsync();
             try
@@ -127,7 +185,7 @@ namespace Cloud9_2.Services
             catch (Exception ex)
             {
                 await transaction.RollbackAsync();
-                _logger.LogError(ex, "Hiba a rendelés létrehozása során, OrderNumber: {OrderNumber}", orderDto.OrderNumber);
+                _logger.LogError(ex, "Hiba a rendelés létrehozása során, OrderNumber: {OrderNumber}", orderNumber);
                 throw;
             }
         }
@@ -137,10 +195,14 @@ namespace Cloud9_2.Services
         {
             return await _context.Orders
                 .Include(o => o.OrderItems)
+                    .ThenInclude(oi => oi.Product)
+                .Include(o => o.OrderItems)
+                    .ThenInclude(oi => oi.VatType)
                 .Include(o => o.Partner)
                 .Include(o => o.Site)
                 .Include(o => o.Currency)
                 .Include(o => o.ShippingMethod)
+                .Include(o => o.OrderStatusType)
                 .Include(o => o.PaymentTerm)
                 .Include(o => o.Contact)
                 .Include(o => o.Quote)
@@ -152,16 +214,24 @@ namespace Cloud9_2.Services
         {
             return await _context.Orders
                 .Include(o => o.OrderItems)
+                    .ThenInclude(oi => oi.Product)
+                .Include(o => o.OrderItems)
+                    .ThenInclude(oi => oi.VatType)
                 .Include(o => o.Partner)
+                .Include(o => o.Site)
                 .Include(o => o.Currency)
+                .Include(o => o.ShippingMethod)
+                .Include(o => o.OrderStatusType)
+                .Include(o => o.PaymentTerm)
+                .Include(o => o.Contact)
+                .Include(o => o.Quote)
                 .ToListAsync();
         }
 
-        // Update an existing order
         public async Task<Order?> UpdateOrderAsync(OrderUpdateDTO orderDto, string userId)
         {
             var user = await _userManager.FindByIdAsync(userId);
-            var userName = user?.UserName ?? "System"; // Fallback to "System" if user not found
+            var userName = user?.UserName ?? "System";
 
             var order = await _context.Orders
                 .Include(o => o.OrderItems)
@@ -177,7 +247,6 @@ namespace Cloud9_2.Services
             order.OrderDate = orderDto.OrderDate;
             order.Deadline = orderDto.Deadline;
             order.Description = orderDto.Description;
-            order.TotalAmount = orderDto.TotalAmount;
             order.SalesPerson = orderDto.SalesPerson;
             order.DeliveryDate = orderDto.DeliveryDate;
             order.PlannedDelivery = orderDto.PlannedDelivery;
@@ -198,6 +267,7 @@ namespace Cloud9_2.Services
             order.QuoteId = orderDto.QuoteId;
             order.ModifiedBy = userName;
             order.ModifiedDate = DateTime.UtcNow;
+            order.OrderStatusTypes = orderDto.OrderStatusTypes ?? 1;
 
             // Update OrderItems
             if (orderDto.OrderItems != null)
@@ -225,7 +295,7 @@ namespace Cloud9_2.Services
                         // Update existing item
                         existingItem.Description = itemDto.Description;
                         existingItem.Quantity = itemDto.Quantity;
-                        existingItem.UnitPrice = itemDto.UnitPrice;
+                        existingItem.UnitPrice = await CalculateUnitPriceAsync(itemDto.ProductId, itemDto.Quantity, order.PartnerId, order.CurrencyId);
                         existingItem.DiscountAmount = itemDto.DiscountAmount;
                         existingItem.DiscountType = itemDto.DiscountType;
                         existingItem.ProductId = itemDto.ProductId;
@@ -241,7 +311,7 @@ namespace Cloud9_2.Services
                             OrderId = order.OrderId,
                             Description = itemDto.Description,
                             Quantity = itemDto.Quantity,
-                            UnitPrice = itemDto.UnitPrice,
+                            UnitPrice = await CalculateUnitPriceAsync(itemDto.ProductId, itemDto.Quantity, order.PartnerId, order.CurrencyId),
                             DiscountAmount = itemDto.DiscountAmount,
                             DiscountType = itemDto.DiscountType,
                             ProductId = itemDto.ProductId,
@@ -254,6 +324,9 @@ namespace Cloud9_2.Services
                     }
                 }
             }
+
+            // Recalculate TotalAmount
+            order.TotalAmount = order.OrderItems?.Sum(i => i.Quantity * i.UnitPrice - (i.DiscountAmount ?? 0)) ?? orderDto.TotalAmount;
 
             await _context.SaveChangesAsync();
             return order;

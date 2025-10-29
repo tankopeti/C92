@@ -11,13 +11,13 @@ public class TaskStatusPM
     public string Name { get; set; }
     
     [StringLength(255)]
-    public string Description { get; set; }
+    public string? Description { get; set; }
     
-    public int DisplayOrder { get; set; }
-    public bool IsActive { get; set; }
-    public string ColorCode { get; set; }
+    public int? DisplayOrder { get; set; }
+    public bool? IsActive { get; set; } = true;
+    public string? ColorCode { get; set; }
     
-    public ICollection<TaskPM> Tasks { get; set; }
+    public ICollection<TaskPM>? Tasks { get; set; }
 }
 
 }

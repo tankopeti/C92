@@ -101,6 +101,7 @@ namespace Cloud9_2.Models
         [Display(Name = "Státusz")]
         public int? StatusId { get; set; }
         public Status? Status { get; set; }
+        
 
         // Audit Fields
 

@@ -1,3 +1,4 @@
+using System;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
@@ -21,7 +22,19 @@ namespace Cloud9_2.Models
         [Display(Name = "Egyedi egységár")]
         public decimal PartnerUnitPrice { get; set; }
 
-        // Navigation properties
+        [Required]
+        public bool IsActive { get; set; } = true;
+
+        [Required]
+        public string CreatedBy { get; set; }
+
+        public string? LastModifiedBy { get; set; }
+
+        [Required]
+        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+        public DateTime? UpdatedAt { get; set; }
+
         [ForeignKey("PartnerId")]
         public Partner? Partner { get; set; }
 

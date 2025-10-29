@@ -111,7 +111,7 @@ namespace Cloud9_2.Services
         private string GenerateQuoteNumber()
         {
             // Example: Q-20251008-1234
-            return $"Q-{DateTime.Today:yyyyMMdd}-{new Random().Next(1000, 9999)}";
+            return $"A-{DateTime.Today:yyyyMMdd}-{new Random().Next(1000, 9999)}";
         }
 
 

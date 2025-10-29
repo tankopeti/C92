@@ -176,7 +176,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     <select name="quoteItems[${tempItemId}].VatTypeId" 
                             class="form-select tom-select-vat" 
                             autocomplete="off" required>
-                        <option value="">Válasszon ÁFA típust...</option>
+                        <option value="">...</option>
                     </select>
                 </td>
                 <td>
@@ -750,7 +750,7 @@ document.addEventListener('DOMContentLoaded', function () {
                             callback([]);
                         });
                 },
-                placeholder: 'Válasszon ÁFA típust...',
+                placeholder: '...',
                 render: {
                     option: function(data, escape) {
                         return `<div>${escape(data.text)}</div>`;

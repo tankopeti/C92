@@ -56,6 +56,10 @@ namespace Cloud9_2.Models
         [ForeignKey("OrderId")]
         public Order? Order { get; set; }
 
+        public int? SiteId { get; set; }
+        [ForeignKey("SiteId")]
+        public Site? Site { get; set; }
+
         public List<CommunicationPost> Posts { get; set; } = new();
         public List<CommunicationResponsible> ResponsibleHistory { get; set; } = new();
     }

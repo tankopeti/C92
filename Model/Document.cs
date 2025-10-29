@@ -19,6 +19,8 @@ namespace Cloud9_2.Models
         public ICollection<DocumentMetadata> DocumentMetadata { get; set; }
         public ICollection<DocumentLink> DocumentLinks { get; set; }
         public ICollection<DocumentStatusHistory> StatusHistory { get; set; }
+        // public int? EmployeeId { get; set; }
+        // public Employee Employee { get; set; }
     }
 
     public class DocumentDto
@@ -34,6 +36,7 @@ namespace Cloud9_2.Models
         public int? SiteId { get; set; }
         public int? PartnerId { get; set; }
         public string? PartnerName { get; set; }
+        // public int? EmployeeId { get; set; }
         public DocumentStatusEnum Status { get; set; }
         public List<DocumentLinkDto>? DocumentLinks { get; set; }
         public List<DocumentStatusHistoryDto>? StatusHistory { get; set; } = new List<DocumentStatusHistoryDto>();
@@ -89,6 +92,7 @@ namespace Cloud9_2.Models
         public string FilePath { get; set; }
         public int? DocumentTypeId { get; set; }
         public int? SiteId { get; set; }
+        // public int? EmployeeId { get; set; }
         public int? PartnerId { get; set; }
         [Required]
         public DocumentStatusEnum Status { get; set; }

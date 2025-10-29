@@ -31,7 +31,7 @@
                                 <div class="col-md-6">
                                     <div class="mb-3">
                                         <label for="orderNumber" class="form-label">Rendelésszám</label>
-                                        <input name="OrderCreateDTO.OrderNumber" id="orderNumber" class="form-control" required />
+                                        <input name="OrderCreateDTO.OrderNumber" id="orderNumber" class="form-control" />
                                         <span class="text-danger field-validation-error" data-valmsg-for="OrderCreateDTO.OrderNumber"></span>
                                     </div>
                                     <div class="mb-3">
@@ -81,14 +81,10 @@
                                         <input name="OrderCreateDTO.SalesPerson" id="salesPerson" class="form-control" />
                                         <span class="text-danger field-validation-error" data-valmsg-for="OrderCreateDTO.SalesPerson"></span>
                                     </div>
-                                    <div class="mb-3">
-                                        <label for="status" class="form-label">Státusz</label>
-                                        <select name="OrderCreateDTO.Status" id="status" class="form-control">
-                                            <option value="Pending">Függőben</option>
-                                            <option value="Confirmed">Megerősítve</option>
-                                            <option value="Shipped">Kiszállítva</option>
-                                            <option value="Delivered">Kiszállítva</option>
-                                            <option value="Cancelled">Törölve</option>
+                                <div class="mb-3">
+                                        <label for="orderStatusTypesSelect" class="form-label">Státusz</label>
+                                        <select name="OrderCreateDTO.Status" id="orderStatusTypesSelect" class="form-control">
+                                            <option value="">Válasszon státuszt...</option>
                                         </select>
                                         <span class="text-danger field-validation-error" data-valmsg-for="OrderCreateDTO.Status"></span>
                                     </div>
@@ -250,7 +246,7 @@
                                     </div>
                                     <div class="mb-3">
                                         <label class="form-label">Státusz</label>
-                                        <input id="status_@order.OrderId" class="form-control" value="@order.Status" readonly />
+                                        <input id="status_@order.OrderId" class="form-control" value="@(order.OrderStatusType != null ? order.OrderStatusType.StatusName : order.Status ?? "N/A")" readonly />
                                     </div>
                                     <div class="mb-3">
                                         <label class="form-label">Partner</label>
@@ -299,51 +295,59 @@
                                 <input id="quoteIdSelect_@order.OrderId" class="form-control" value="@(order.Quote != null ? order.Quote.QuoteNumber : order.QuoteId?.ToString() ?? "")" readonly />
                             </div>
                         </div>
-                        <div class="tab-pane fade" id="items_@order.OrderId" role="tabpanel" aria-labelledby="items-tab_@order.OrderId">
-                            <div id="orderItemsContainer_@order.OrderId">
-                                @if (order.OrderItems != null)
-                                {
-                                    foreach (var item in order.OrderItems)
-                                    {
-                                        <div class="order-item mb-3 p-3 border rounded">
-                                            <h6>Tétel @(order.OrderItems.IndexOf(item) + 1)</h6>
-                                            <div class="row">
-                                                <div class="col-md-6">
-                                                    <div class="mb-3">
-                                                        <label class="form-label">Leírás</label>
-                                                        <input class="form-control" value="@item.Description" readonly />
-                                                    </div>
-                                                    <div class="mb-3">
-                                                        <label class="form-label">Mennyiség</label>
-                                                        <input type="number" step="0.0001" class="form-control order-item-quantity" value="@item.Quantity" readonly />
-                                                    </div>
-                                                    <div class="mb-3">
-                                                        <label class="form-label">Egységár</label>
-                                                        <input type="number" step="0.01" class="form-control order-item-unit-price" value="@item.UnitPrice" readonly />
-                                                    </div>
-                                                    <div class="mb-3">
-                                                        <label class="form-label">Kedvezmény összege</label>
-                                                        <input type="number" step="0.01" class="form-control order-item-discount" value="@item.DiscountAmount" readonly />
-                                                    </div>
-                                                </div>
-                                                <div class="col-md-6">
-                                                    @* <div class="mb-3">
-                                                        <label class="form-label">Kedvezmény típusa</label>
-                                                        <input class="form-control" value="@(item.DiscountType switch { 1 => "Nincs", 2 => "Egyedi kedvezmény (%)", 3 => "Egyedi kedvezmény összeg", 4 => "Partner ár", 5 => "Mennyiségi kedvezmény", 6 => "Listaár", _ => "" })" readonly />
-                                                    </div> *@
-                                                    <div class="mb-3">
-                                                        <label class="form-label">Termék</label>
-                                                        <input class="form-control" value="@(item.Product != null ? item.Product.Name : item.ProductId.ToString())" readonly />
-                                                    </div>
-                                                    <div class="mb-3">
-                                                        <label class="form-label">ÁFA típus</label>
-                                                        <input class="form-control" value="@(item.VatType != null ? item.VatType.TypeName : item.VatTypeId?.ToString() ?? "")" readonly />
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    }
-                                }
+<div class="tab-pane fade" id="items_@order.OrderId" role="tabpanel" aria-labelledby="items-tab_@order.OrderId">
+    <div id="orderItemsContainer_@order.OrderId">
+        @if (order.OrderItems != null && order.OrderItems.Any())
+        {
+            foreach (OrderItem item in order.OrderItems)
+            {
+                <div class="order-item mb-3 p-3 border rounded">
+                    <h6>Tétel @(order.OrderItems.IndexOf(item) + 1)</h6>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Leírás</label>
+                                <input class="form-control" value="@(item.Description ?? "")" readonly />
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Mennyiség</label>
+                                <input type="number" step="0.0001" class="form-control order-item-quantity" value="@item.Quantity.ToString("F4", System.Globalization.CultureInfo.InvariantCulture)" readonly />
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Egységár</label>
+                                <input type="number" step="0.01" class="form-control order-item-unit-price" value="@item.UnitPrice.ToString("F2", System.Globalization.CultureInfo.InvariantCulture)" readonly />
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Kedvezmény összege</label>
+                                <input type="number" step="0.01" class="form-control order-item-discount" value="@(item.DiscountAmount.HasValue ? item.DiscountAmount.Value.ToString("F2", System.Globalization.CultureInfo.InvariantCulture) : "")" readonly />
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Kedvezmény típusa</label>
+                                <input class="form-control" value="@(item.DiscountType switch { 
+                                    DiscountType.None => "Nincs", 
+                                    DiscountType.CustomDiscountPercentage => "Egyedi kedvezmény (%)", 
+                                    DiscountType.CustomDiscountAmount => "Egyedi kedvezmény összeg", 
+                                    DiscountType.PartnerPrice => "Partner ár", 
+                                    DiscountType.VolumeDiscount => "Mennyiségi kedvezmény", 
+                                    DiscountType.ListPrice => "Listaár", 
+                                    _ => "" 
+                                })" readonly />
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Termék</label>
+                                <input class="form-control" value="@(item.Product != null ? item.Product.Name : item.ProductId.ToString())" readonly />
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">ÁFA típus</label>
+                                <input class="form-control" value="@(item.VatType != null ? item.VatType.TypeName : item.VatTypeId?.ToString() ?? "")" readonly />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+        }
                             </div>
                         </div>
                     </div>
@@ -580,19 +584,19 @@
                                                         </div>
                                                     </div>
                                                     <div class="col-md-6">
-                                                        @* <div class="mb-3">
-                                                            <label class="form-label">Kedvezmény típusa</label>
-                                                            <select name="OrderUpdateDTO.OrderItems[@item.Index].DiscountType" id="discountTypeSelect_@order.OrderId@item.Index" class="form-control tomselect-item">
-                                                                <option value="">Válasszon...</option>
-                                                                <option value="1" selected="@(item.Value.DiscountType == 1)">Nincs Kedvezmény</option>
-                                                                <option value="2" selected="@(item.Value.DiscountType == 2)">Listaár</option>
-                                                                <option value="3" selected="@(item.Value.DiscountType == 3)">Ügyfélár</option>
-                                                                <option value="4" selected="@(item.Value.DiscountType == 4)">Mennyiségi kedvezmény</option>
-                                                                <option value="5" selected="@(item.Value.DiscountType == 5)">Egyedi kedvezmény %</option>
-                                                                <option value="6" selected="@(item.Value.DiscountType == 6)">Egyedi kedvezmény Összeg</option>
-                                                            </select>
-                                                            <span class="text-danger field-validation-error" data-valmsg-for="OrderUpdateDTO.OrderItems[@item.Index].DiscountType"></span>
-                                                        </div> *@
+                                                    <div class="mb-3">
+                                                        <label class="form-label">Kedvezmény típusa</label>
+                                                        <select name="OrderUpdateDTO.OrderItems[@item.Index].DiscountType" id="discountTypeSelect_@order.OrderId@item.Index" class="form-control tomselect-item">
+                                                            <option value="" selected="@(item.Value.DiscountType == null)">Válasszon...</option>
+                                                            <option value="1" selected="@(item.Value.DiscountType == DiscountType.None)">Nincs</option>
+                                                            <option value="2" selected="@(item.Value.DiscountType == DiscountType.CustomDiscountPercentage)">Egyedi kedvezmény (%)</option>
+                                                            <option value="3" selected="@(item.Value.DiscountType == DiscountType.CustomDiscountAmount)">Egyedi kedvezmény összeg</option>
+                                                            <option value="4" selected="@(item.Value.DiscountType == DiscountType.PartnerPrice)">Partner ár</option>
+                                                            <option value="5" selected="@(item.Value.DiscountType == DiscountType.VolumeDiscount)">Mennyiségi kedvezmény</option>
+                                                            <option value="6" selected="@(item.Value.DiscountType == DiscountType.ListPrice)">Listaár</option>
+                                                        </select>
+                                                        <span class="text-danger field-validation-error" data-valmsg-for="OrderUpdateDTO.OrderItems[@item.Index].DiscountType"></span>
+                                                    </div>
                                                         <div class="mb-3">
                                                             <label class="form-label">Termék</label>
                                                             <select name="OrderUpdateDTO.OrderItems[@item.Index].ProductId" id="productIdSelect_@order.OrderId@item.Index" class="form-control tomselect-item" required>

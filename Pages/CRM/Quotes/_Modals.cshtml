@@ -182,7 +182,9 @@
                                         <tbody id="items-tbody_@quote.QuoteId">
                                             @foreach (var item in quote.QuoteItems)
                                             {
-                                                <tr class="quote-item-row" data-item-id="@item.QuoteItemId">
+                                                <tr class="quote-item-row" data-item-id="@item.QuoteItemId" 
+                                                    data-discount-type-id="@item.DiscountTypeId" 
+                                                    data-discount-amount="@(item.DiscountAmount?.ToString(CultureInfo.InvariantCulture) ?? "0")">
                                                 <td>
                                                         <select name="quoteItems[@item.QuoteItemId].ProductId"
                                                                 class="form-select tom-select-product"

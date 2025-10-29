@@ -526,6 +526,7 @@
             var notes = $(this).data('lead-notes') || '';
 
             // Pre-fill modal fields
+            $('#newPartnerForm').find('#partnerLeadId').val(leadId);
             $('#newPartnerForm').find('#partnerName').val(firstName + ' ' + lastName);
             $('#newPartnerForm').find('#partnerEmail').val(email);
             $('#newPartnerForm').find('#partnerPhoneNumber').val(phone);
@@ -535,6 +536,9 @@
             $('#newPartnerForm').find('#partnerStatus').val('Prospect');
             $('#newPartnerForm').find('#partnerCreatedDate').val(new Date().toISOString().slice(0, 16));
             $('#newPartnerForm').find('#partnerCreatedBy').val('@User.Identity?.Name' || 'System');
+            $('#newPartnerForm').find('#partnerAddressLine1').val(company ? company + ' Address' : ''); // Example mapping
+            $('#newPartnerForm').find('#partnerIndustry').val(jobTitle ? jobTitle : '');
+
 
             // Add leadId to form for tracking
             $('#newPartnerForm').find('input[name="LeadId"]').remove();
@@ -583,44 +587,53 @@
             });
 
             // Delete Modal Logic
-            document.querySelectorAll('[data-bs-target^="#deleteLeadModal_"]').forEach(button => {
-                button.addEventListener('click', function () {
-                    const leadId = this.closest('tr').getAttribute('data-lead-id') || $(this).data('lead-id');
-                    const leadName = $(this).data('lead-name');
+document.querySelectorAll('[data-bs-target^="#deleteLeadModal_"]').forEach(button => {
+    button.addEventListener('click', function () {
+        const leadId = this.closest('tr').getAttribute('data-lead-id') || $(this).data('lead-id');
+        const leadName = $(this).data('lead-name');
 
-                    if (!leadId) {
-                        console.error('Lead ID is missing');
-                        return;
-                    }
+        if (!leadId) {
+            console.error('Lead ID is missing');
+            return;
+        }
 
-                    const deleteBtn = document.getElementById('confirmDeleteBtn_' + leadId);
-                    const warning = document.getElementById('deleteWarning_' + leadId);
-                    deleteBtn.disabled = false;
-                    warning.style.display = 'none';
-                    warning.textContent = 'This lead cannot be deleted because it is referenced in other records.';
+        const deleteBtn = document.getElementById('confirmDeleteBtn_' + leadId);
+        const warning = document.getElementById('deleteWarning_' + leadId);
+        deleteBtn.disabled = false;
+        warning.style.display = 'none';
+        warning.textContent = 'This lead cannot be deleted because it is referenced in other records.';
 
-                    fetch(`/CRM/Leads?handler=CheckRelatedRecords&id=${leadId}`, {
-                        method: 'GET',
-                        headers: { 'X-Requested-With': 'XMLHttpRequest' }
-                    })
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.hasRelatedRecords) {
-                            deleteBtn.disabled = true;
-                            warning.style.display = 'block';
-                        } else {
-                            deleteBtn.disabled = false;
-                            warning.style.display = 'none';
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Error checking related records:', error);
-                        deleteBtn.disabled = true;
-                        warning.textContent = 'Error checking related records';
-                        warning.style.display = 'block';
-                    });
-                });
-            });
+        fetch(`/CRM/Leads?handler=CheckRelatedRecords&id=${leadId}`, {
+            method: 'GET',
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! Status: ${response.status}`);
+            }
+            const contentType = response.headers.get('content-type');
+            if (!contentType || !contentType.includes('application/json')) {
+                throw new Error('Response is not JSON');
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.hasRelatedRecords) {
+                deleteBtn.disabled = true;
+                warning.style.display = 'block';
+            } else {
+                deleteBtn.disabled = false;
+                warning.style.display = 'none';
+            }
+        })
+        .catch(error => {
+            console.error('Error checking related records:', error);
+            deleteBtn.disabled = true;
+            warning.textContent = 'Error checking related records: ' + error.message;
+            warning.style.display = 'block';
+        });
+    });
+});
 
             // Confirm Delete Action
             document.querySelectorAll('[id^="confirmDeleteBtn_"]').forEach(button => {

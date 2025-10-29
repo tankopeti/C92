@@ -528,16 +528,10 @@
             </div>
         </div>
     }
+</div>
 
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js" integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4=" crossorigin="anonymous"></script>
-    <link href="https://cdn.jsdelivr.net/npm/tom-select@2.4.3/dist/css/tom-select.bootstrap5.css" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/tom-select@2.4.3/dist/js/tom-select.complete.min.js"></script>
-
-    @section Scripts {
-        <script src="/js/Sites.js"></script>
-        <script src="/js/utils.js"></script>
-        <script src="/js/tomSelectUtils.js"></script>
-        <script>
+@section Scripts {
+<script>
 $(function () {
     $('[data-bs-toggle="tooltip"]').tooltip();
 
@@ -559,63 +553,121 @@ $(function () {
             modalBodyEl.textContent = errorMessage;
             modalEl.querySelector('.modal-content').classList.add('text-bg-danger');
         }
-
         modal.show();
     }
 
-    // Create dictionaries for SiteId to PartnerId mappings
-    const sitePartnerMap = @Json.Serialize(Model.Sites.ToDictionary(s => s.SiteId, s => s.PartnerId));
+    // Create dictionaries for SiteId to PartnerId and PartnerName mappings
+    const sitePartnerMap = @Json.Serialize(Model.Sites.ToDictionary(s => s.SiteId, s => new { partnerId = s.PartnerId, partnerName = s.Partner != null ? s.Partner.Name : $"Partner {s.PartnerId}" }));
     console.log('sitePartnerMap:', sitePartnerMap);
 
-    // Initialize TomSelect for create modal partner select
-    window.c92.initializePartnerTomSelect(
-        document.querySelector('#create-partner-select'),
-        'createSiteModal',
-        'site-create',
-        null
-    ).then(tomSelect => {
-        console.log('Create partner select initialized');
-    }).catch(err => {
-        console.error('Failed to initialize create partner select:', err);
-        document.querySelector('#create-partner-select').innerHTML = '<option value="" disabled selected>Nincs elérhető partner</option>';
-    });
+    // TomSelect initialization function
+    function initializePartnerTomSelect(element, modalId, context, preselectedId, preselectedText) {
+        return new Promise((resolve, reject) => {
+            try {
+                console.log(`Initializing TomSelect for ${modalId}, context: ${context}, preselectedId: ${preselectedId}, preselectedText: ${preselectedText}`);
 
-    // Initialize TomSelect for edit modal partner selects
+                // Prepare fallback options from sitePartnerMap if API fails
+                const fallbackOptions = Object.values(sitePartnerMap).map(p => ({
+                    id: p.partnerId,
+                    text: p.partnerName
+                }));
+
+                const tomSelect = new TomSelect(element, {
+                    valueField: 'id',
+                    labelField: 'text',
+                    searchField: ['text'],
+                    maxItems: 1,
+                    maxOptions: 50,
+                    placeholder: '-- Válasszon partnert --',
+                    load: function (query, callback) {
+                        const url = `/api/partners/select?search=${encodeURIComponent(query)}`;
+                        console.log(`Fetching partners from ${url}`);
+                        $.ajax({
+                            url: url,
+                            type: 'GET',
+                            headers: {
+                                'Accept': 'application/json',
+                                'Authorization': 'Bearer ' + getAuthToken() // Adjust based on your auth mechanism
+                            },
+                            success: function (response) {
+                                console.log(`API response data for ${url}:`, response);
+                                callback(response);
+                            },
+                            error: function (xhr, status, error) {
+                                console.error(`Failed to load partners for ${modalId}:`, error);
+                                callback(fallbackOptions); // Fallback to sitePartnerMap options
+                            }
+                        });
+                    },
+                    render: {
+                        option: function (item, escape) {
+                            return `<div>${escape(item.text)}</div>`;
+                        },
+                        item: function (item, escape) {
+                            return `<div>${escape(item.text)}</div>`;
+                        }
+                    },
+                    onInitialize: function () {
+                        if (preselectedId && preselectedText) {
+                            console.log(`Adding preselected option for ${modalId}: id=${preselectedId}, text=${preselectedText}`);
+                            this.addOption({ id: preselectedId, text: preselectedText });
+                            this.addItem(preselectedId);
+                        }
+                    }
+                });
+
+                resolve(tomSelect);
+            } catch (error) {
+                console.error(`Error initializing TomSelect for ${modalId}:`, error);
+                element.innerHTML = `<option value="${preselectedId || ''}" selected>${preselectedText || 'Nincs elérhető partner'}</option>`;
+                reject(error);
+            }
+        });
+    }
+
+    // Initialize TomSelect for both create and edit modals
     $('.modal').on('shown.bs.modal', function (e) {
         const modal = $(this);
         const partnerSelect = modal.find('select[name="partnerId"]');
 
-        // Initialize Partner TomSelect
-        if (partnerSelect.length && partnerSelect.attr('id').startsWith('edit-partner-select-')) {
-            const siteId = parseInt(partnerSelect.attr('id').replace('edit-partner-select-', ''), 10);
-            const preselectedPartnerId = sitePartnerMap[siteId] || null;
-            const preselectedPartnerName = partnerSelect.find('option[selected]').text() || `Partner ${preselectedPartnerId}`;
-            console.log(`Modal shown for SiteId: ${siteId}, PreselectedPartnerId: ${preselectedPartnerId}, PreselectedPartnerName: ${preselectedPartnerName}`);
+        if (partnerSelect.length) {
+            let modalId, context, preselectedId, preselectedText;
+
+            if (modal.attr('id') === 'createSiteModal') {
+                modalId = 'createSiteModal';
+                context = 'site-create';
+                preselectedId = null;
+                preselectedText = null;
+            } else if (partnerSelect.attr('id').startsWith('edit-partner-select-')) {
+                const siteId = parseInt(partnerSelect.attr('id').replace('edit-partner-select-', ''), 10);
+                const preselectedPartner = sitePartnerMap[siteId] || { partnerId: null, partnerName: null };
+                modalId = `editSiteModal_${siteId}`;
+                context = 'site-edit';
+                preselectedId = preselectedPartner.partnerId;
+                preselectedText = preselectedPartner.partnerName;
+            } else {
+                return; // Skip if not a partner select modal
+            }
+
+            console.log(`Modal shown for ${modalId}, PreselectedId: ${preselectedId}, PreselectedText: ${preselectedText}`);
 
             if (partnerSelect[0].tomselect) {
                 partnerSelect[0].tomselect.destroy();
-                console.log(`Destroyed existing Partner TomSelect for SiteId: ${siteId}`);
+                console.log(`Destroyed existing Partner TomSelect for ${modalId}`);
             }
 
-            setTimeout(() => {
-                window.c92.initializePartnerTomSelect(
-                    partnerSelect[0],
-                    `editSiteModal_${siteId}`,
-                    'site-edit',
-                    preselectedPartnerId
-                ).then(tomSelect => {
-                    console.log(`Edit partner select initialized for SiteId: ${siteId}`);
-                    if (preselectedPartnerId) {
-                        tomSelect.addOption({ id: preselectedPartnerId, text: preselectedPartnerName });
-                        tomSelect.setValue(preselectedPartnerId, true);
-                        tomSelect.refreshOptions(false);
-                        console.log(`Set partner value ${preselectedPartnerId} for SiteId: ${siteId}`);
-                    }
-                }).catch(err => {
-                    console.error(`Failed to initialize edit partner select for SiteId: ${siteId}`, err);
-                    partnerSelect.html(`<option value="${preselectedPartnerId}" selected>${preselectedPartnerName}</option>`);
-                });
-            }, 100);
+            initializePartnerTomSelect(
+                partnerSelect[0],
+                modalId,
+                context,
+                preselectedId,
+                preselectedText
+            ).then(tomSelect => {
+                console.log(`Partner select initialized for ${modalId}`);
+            }).catch(err => {
+                console.error(`Failed to initialize partner select for ${modalId}:`, err);
+                partnerSelect.html(`<option value="${preselectedId || ''}" selected>${preselectedText || 'Nincs partner'}</option>`);
+            });
         }
 
         // Ensure status selects remain native
@@ -670,7 +722,13 @@ $(function () {
     $('select[id="create-status-select"], select[id^="edit-status-select-"]').on('click', function (e) {
         console.log('Native status select clicked:', this.id);
     });
-});
-        </script>
+
+    // Function to get auth token (implement based on your auth setup)
+    function getAuthToken() {
+        // Replace with your method to retrieve the JWT token (e.g., from localStorage, session, or cookie)
+        // Example: return localStorage.getItem('jwtToken');
+        return ''; // Placeholder
     }
-</div>
+});
+</script>
+    }

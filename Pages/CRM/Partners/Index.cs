@@ -339,156 +339,156 @@ namespace Cloud9_2.Pages.CRM.Partners
             }
         }
 
-        public async Task<IActionResult> OnPostAddContactAsync(int partnerId)
-        {
-            try
-            {
-                if (string.IsNullOrWhiteSpace(NewContact.FirstName) ||
-                    string.IsNullOrWhiteSpace(NewContact.LastName))
-                {
-                    TempData["ContactError"] = "First and Last name are required";
-                    return RedirectToPage();
-                }
+        // public async Task<IActionResult> OnPostAddContactAsync(int partnerId)
+        // {
+        //     try
+        //     {
+        //         if (string.IsNullOrWhiteSpace(NewContact.FirstName) ||
+        //             string.IsNullOrWhiteSpace(NewContact.LastName))
+        //         {
+        //             TempData["ContactError"] = "First and Last name are required";
+        //             return RedirectToPage();
+        //         }
 
-                var partner = await _context.Partners
-                    .Include(p => p.Contacts)
-                    .FirstOrDefaultAsync(p => p.PartnerId == partnerId);
+        //         var partner = await _context.Partners
+        //             .Include(p => p.Contacts)
+        //             .FirstOrDefaultAsync(p => p.PartnerId == partnerId);
 
-                if (partner == null)
-                {
-                    TempData["ContactError"] = "Partner not found";
-                    return RedirectToPage();
-                }
+        //         if (partner == null)
+        //         {
+        //             TempData["ContactError"] = "Partner not found";
+        //             return RedirectToPage();
+        //         }
 
-                if (NewContact.IsPrimary)
-                {
-                    var currentPrimary = partner.Contacts.FirstOrDefault(c => c.IsPrimary);
-                    if (currentPrimary != null)
-                    {
-                        currentPrimary.IsPrimary = false;
-                        _context.Update(currentPrimary);
-                    }
-                }
+        //         // if (NewContact.IsPrimary)
+        //         // {
+        //         //     var currentPrimary = partner.Contacts.FirstOrDefault(c => c.IsPrimary);
+        //         //     if (currentPrimary != null)
+        //         //     {
+        //         //         currentPrimary.IsPrimary = false;
+        //         //         _context.Update(currentPrimary);
+        //         //     }
+        //         // }
 
-                NewContact.PartnerId = partnerId;
+        //         NewContact.PartnerId = partnerId;
 
-                _context.Contacts.Add(NewContact);
-                var changes = await _context.SaveChangesAsync();
+        //         _context.Contacts.Add(NewContact);
+        //         var changes = await _context.SaveChangesAsync();
 
-                if (changes > 0)
-                {
-                    TempData["SuccessMessage"] = $"Contact {NewContact.FirstName} {NewContact.LastName} added!";
-                }
-                else
-                {
-                    TempData["ContactError"] = "Contact not saved";
-                }
+        //         if (changes > 0)
+        //         {
+        //             TempData["SuccessMessage"] = $"Contact {NewContact.FirstName} {NewContact.LastName} added!";
+        //         }
+        //         else
+        //         {
+        //             TempData["ContactError"] = "Contact not saved";
+        //         }
 
-                return RedirectToPage(new
-                {
-                    pageNumber = CurrentPage,
-                    pageSize = PageSize,
-                    searchTerm = SearchTerm
-                });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Contact creation failed");
-                TempData["ContactError"] = $"Error saving contact: {ex.Message}";
-                return RedirectToPage();
-            }
-        }
+        //         return RedirectToPage(new
+        //         {
+        //             pageNumber = CurrentPage,
+        //             pageSize = PageSize,
+        //             searchTerm = SearchTerm
+        //         });
+        //     }
+        //     catch (Exception ex)
+        //     {
+        //         _logger.LogError(ex, "Contact creation failed");
+        //         TempData["ContactError"] = $"Error saving contact: {ex.Message}";
+        //         return RedirectToPage();
+        //     }
+        // }
 
-        public async Task<IActionResult> OnPostAddSite(int partnerId, string siteName,
-            string addressLine1, string addressLine2, string city,
-            string postalCode, string country, bool isPrimary,
-            string createdById,
-            DateTime createdDate)
-        {
-            try
-            {
-                var site = new Site
-                {
-                    PartnerId = partnerId,
-                    SiteName = siteName,
-                    AddressLine1 = addressLine1,
-                    AddressLine2 = addressLine2,
-                    City = city,
-                    PostalCode = postalCode,
-                    Country = country,
-                    IsPrimary = isPrimary,
-                    CreatedById = createdById,
-                    CreatedDate = createdDate,
-                    LastModifiedById = createdById,
-                    LastModifiedDate = createdDate
-                };
+        // public async Task<IActionResult> OnPostAddSite(int partnerId, string siteName,
+        //     string addressLine1, string addressLine2, string city,
+        //     string postalCode, string country, bool isPrimary,
+        //     string createdById,
+        //     DateTime createdDate)
+        // {
+        //     try
+        //     {
+        //         var site = new Site
+        //         {
+        //             PartnerId = partnerId,
+        //             SiteName = siteName,
+        //             AddressLine1 = addressLine1,
+        //             AddressLine2 = addressLine2,
+        //             City = city,
+        //             PostalCode = postalCode,
+        //             Country = country,
+        //             IsPrimary = isPrimary,
+        //             CreatedById = createdById,
+        //             CreatedDate = createdDate,
+        //             LastModifiedById = createdById,
+        //             LastModifiedDate = createdDate
+        //         };
 
-                _context.Sites.Add(site);
-                await _context.SaveChangesAsync();
+        //         _context.Sites.Add(site);
+        //         await _context.SaveChangesAsync();
 
-                TempData["SuccessMessage"] = "Site added successfully";
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error adding site");
-                TempData["ErrorMessage"] = "Error adding site";
-            }
+        //         TempData["SuccessMessage"] = "Site added successfully";
+        //     }
+        //     catch (Exception ex)
+        //     {
+        //         _logger.LogError(ex, "Error adding site");
+        //         TempData["ErrorMessage"] = "Error adding site";
+        //     }
 
-            return RedirectToPage();
-        }
+        //     return RedirectToPage();
+        // }
 
-        public async Task<IActionResult> OnPostAddDocumentAsync(int partnerId, int? documentTypeId, int? siteId)
-        {
-            try
-            {
-                _logger.LogInformation($"Uploading document for partner {partnerId}, type {documentTypeId}, site {siteId}");
+        // public async Task<IActionResult> OnPostAddDocumentAsync(int partnerId, int? documentTypeId, int? siteId)
+        // {
+        //     try
+        //     {
+        //         _logger.LogInformation($"Uploading document for partner {partnerId}, type {documentTypeId}, site {siteId}");
 
-                if (File == null || File.Length == 0)
-                {
-                    _logger.LogWarning("No file was uploaded");
-                    TempData["ErrorMessage"] = "Please select a file";
-                    return RedirectToPage();
-                }
+        //         if (File == null || File.Length == 0)
+        //         {
+        //             _logger.LogWarning("No file was uploaded");
+        //             TempData["ErrorMessage"] = "Please select a file";
+        //             return RedirectToPage();
+        //         }
 
-                var uploadsDir = Path.Combine("wwwroot", "Uploads", "documents");
-                Directory.CreateDirectory(uploadsDir);
+        //         var uploadsDir = Path.Combine("wwwroot", "Uploads", "documents");
+        //         Directory.CreateDirectory(uploadsDir);
 
-                var uniqueFileName = $"{Guid.NewGuid()}{Path.GetExtension(File.FileName)}";
-                var filePath = Path.Combine(uploadsDir, uniqueFileName);
+        //         var uniqueFileName = $"{Guid.NewGuid()}{Path.GetExtension(File.FileName)}";
+        //         var filePath = Path.Combine(uploadsDir, uniqueFileName);
 
-                _logger.LogInformation($"Saving file to {filePath}");
-                using (var stream = new FileStream(filePath, FileMode.Create))
-                {
-                    await File.CopyToAsync(stream);
-                }
+        //         _logger.LogInformation($"Saving file to {filePath}");
+        //         using (var stream = new FileStream(filePath, FileMode.Create))
+        //         {
+        //             await File.CopyToAsync(stream);
+        //         }
 
-                var document = new Document
-                {
-                    FileName = File.FileName,
-                    FilePath = $"/Uploads/documents/{uniqueFileName}",
-                    DocumentTypeId = documentTypeId,
-                    PartnerId = partnerId,
-                    SiteId = siteId,
-                    UploadDate = DateTime.Now,
-                    UploadedBy = User.Identity?.Name ?? "System"
-                };
+        //         var document = new Document
+        //         {
+        //             FileName = File.FileName,
+        //             FilePath = $"/Uploads/documents/{uniqueFileName}",
+        //             DocumentTypeId = documentTypeId,
+        //             PartnerId = partnerId,
+        //             SiteId = siteId,
+        //             UploadDate = DateTime.Now,
+        //             UploadedBy = User.Identity?.Name ?? "System"
+        //         };
 
-                _logger.LogInformation($"Creating document record: {JsonSerializer.Serialize(document)}");
+        //         _logger.LogInformation($"Creating document record: {JsonSerializer.Serialize(document)}");
 
-                _context.Documents.Add(document);
-                var changes = await _context.SaveChangesAsync();
-                _logger.LogInformation($"Database changes saved: {changes} records affected");
+        //         _context.Documents.Add(document);
+        //         var changes = await _context.SaveChangesAsync();
+        //         _logger.LogInformation($"Database changes saved: {changes} records affected");
 
-                TempData["SuccessMessage"] = $"Document '{File.FileName}' uploaded successfully!";
-                return RedirectToPage();
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Document upload failed");
-                TempData["ErrorMessage"] = $"Error: {ex.Message}";
-                return RedirectToPage();
-            }
-        }
+        //         TempData["SuccessMessage"] = $"Document '{File.FileName}' uploaded successfully!";
+        //         return RedirectToPage();
+        //     }
+        //     catch (Exception ex)
+        //     {
+        //         _logger.LogError(ex, "Document upload failed");
+        //         TempData["ErrorMessage"] = $"Error: {ex.Message}";
+        //         return RedirectToPage();
+        //     }
+        // }
 
         private async Task PrepareAndReturnPage()
         {

@@ -33,6 +33,14 @@
                                 </td>
                             </tr>
                             <tr>
+                                <th>Telephely</th>
+                                <td>
+                                    <select name="SiteId" class="form-select tom-select" data-selected-id="" data-selected-text="" autocomplete="off">
+                                        <option value="" selected>-- Válasszon telephelyet --</option>
+                                    </select>
+                                </td>
+                            </tr>
+                            <tr>
                                 <th>Felelős</th>
                                 <td>
                                     <select name="ResponsibleContactId" class="form-select tom-select" data-selected-id="" data-selected-text="" autocomplete="off" required>
@@ -113,11 +121,22 @@
                                     </td>
                                 </tr>
                                 <tr>
+                                    <th>Telephely</th>
+                                    <td>
+                                        <select class="form-select tom-select" name="SiteId" data-selected-id="@communication.SiteId" data-selected-text="@communication.SiteName" required>
+                                            <option value="" disabled selected>-- Válasszon telephelyet --</option>
+                                        </select>
+                                    </td>
+                                </tr>
+                                <tr>
                                     <th>Felelős</th>
                                     <td>
-                                        <select class="form-select tom-select" name="ResponsibleContactId" data-selected-id="@communication.AgentId" data-selected-text="@communication.AgentName" required>
-                                            <option value="" disabled selected>-- Válasszon felelőst --</option>
-                                        </select>
+                                    <select class="form-select tom-select" name="ResponsibleContactId" 
+                                                    data-selected-id="@communication.CurrentResponsible?.ResponsibleId" 
+                                                    data-selected-text="@communication.CurrentResponsible?.ResponsibleName" 
+                                                    required>
+                                                <option value="" disabled selected>-- Válasszon felelőst --</option>
+                                            </select>
                                     </td>
                                 </tr>
                                 <tr>
@@ -177,7 +196,11 @@
                             </tr>
                             <tr>
                                 <th>Partner</th>
-                                <td>@(string.Join(" ", new[] { communication.FirstName, communication.LastName }.Where(s => !string.IsNullOrEmpty(s))) ?? "Nincs partner megadva")</td>
+                                <td>@(communication.PartnerName ?? "Nincs partner megadva")</td>
+                            </tr>
+                            <tr>
+                                <th>Telephely</th>
+                                <td>@(communication.SiteName ?? "Nincs telephely megadva")</td>
                             </tr>
                             <tr>
                                 <th>Dátum</th>
@@ -209,7 +232,7 @@
                             </tr>
                             <tr>
                                 <th>Felelős</th>
-                                <td>@(string.IsNullOrEmpty(communication.AgentName) ? "Nincs megadva" : communication.AgentName)</td>
+                                <td>@(communication.CurrentResponsible?.ResponsibleName ?? "Nincs felelős megadva")</td>
                             </tr>
                             <tr>
                                 <th>Megjegyzések</th>
@@ -240,16 +263,16 @@
                         <button type="button" class="btn btn-primary btn-sm add-post" data-communication-id="@communication.CustomerCommunicationId">Hozzászólás hozzáadása</button>
                     </form>
                     <!-- Assign Responsible Form -->
-                    <h6 class="mt-3">Felelős kijelölése</h6>
+                    @* <h6 class="mt-3">Felelős kijelölése</h6>
                     <form id="assignResponsibleForm_@communication.CustomerCommunicationId" class="mt-2">
                         @Html.AntiForgeryToken()
                         <div class="mb-3">
-                            <select name="ResponsibleId" class="form-select tom-select" data-selected-id="" data-selected-text="" autocomplete="off" required>
-                                <option value="" disabled selected>-- Válasszon felelőst --</option>
-                            </select>
+                        <select name="ResponsibleId" class="form-select tom-select" data-selected-id="" data-selected-text="" autocomplete="off" required>
+                                    <option value="" disabled selected>-- Válasszon felelőst --</option>
+                                </select>
                         </div>
                         <button type="button" class="btn btn-primary btn-sm assign-responsible" data-communication-id="@communication.CustomerCommunicationId">Felelős kijelölése</button>
-                    </form>
+                    </form> *@
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Bezárás</button>

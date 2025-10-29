@@ -101,7 +101,7 @@ namespace Cloud9_2.Pages.CRM.CustomerCommunication
                     "PartnerName" => query.OrderBy(c => (c.FirstName ?? "") + " " + (c.LastName ?? "")),
                     "CommunicationDate" => query.OrderByDescending(c => c.Date),
                     "Subject" => query.OrderBy(c => c.Subject),
-                    _ => query.OrderByDescending(c => c.Date)
+                    _ => query.OrderByDescending(c => c.CustomerCommunicationId)
                 };
 
                 // Apply pagination

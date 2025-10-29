@@ -65,7 +65,7 @@ namespace Cloud9_2.Pages.CRM.Orders
                     "OrderDate" => orders.OrderByDescending(o => o.OrderDate).ToList(),
                     "OrderId" => orders.OrderByDescending(o => o.OrderId).ToList(),
                     "Deadline" => orders.OrderBy(o => o.Deadline ?? DateTime.MaxValue).ToList(),
-                    _ => orders.OrderBy(o => o.OrderId).ToList()
+                    _ => orders.OrderByDescending(o => o.OrderId).ToList() // Changed default to OrderByDescending
                 };
                 _logger.LogInformation("Retrieved {Count} orders", orders.Count);
 
@@ -101,6 +101,7 @@ namespace Cloud9_2.Pages.CRM.Orders
                 return Page();
             }
         }
+
     
         public async Task<IActionResult> OnPostCreateAsync()
         {

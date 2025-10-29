@@ -1,6 +1,10 @@
+
 @page
+@using System.Security.Claims
 @using Cloud9_2.Models
+@using Microsoft.AspNetCore.Identity
 @model Cloud9_2.Pages.CRM.Contacts.IndexModel
+
 @{
     Layout = "_Layout";
     ViewData["Title"] = "Kontaktok";
@@ -9,46 +13,29 @@
 @await Html.PartialAsync("_CRMSidebar")
 
 <div class="right-content">
-    <!-- Message Modal -->
-    <div class="modal fade" id="messageModal" tabindex="-1" aria-labelledby="messageModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="messageModalLabel"></h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body" id="messageModalBody"></div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Bezárás</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
     <div class="page-header-fixed-top">
-        <!-- Breadcrumb -->
+        <!-- Breadcrumb Navigation -->
         <div class="d-flex justify-content-between align-items-center mb-2">
             <nav aria-label="breadcrumb">
                 <ol class="breadcrumb bg-body-tertiary rounded-3 p-2 mb-0">
                     <li class="breadcrumb-item"><a href="../../">Főoldal</a></li>
                     <li class="breadcrumb-item"><a href="../">CRM Dashboard</a></li>
                     <li class="breadcrumb-item active" aria-current="page">Kontaktok</li>
-                    <li class="breadcrumb-item active" aria-current="page">@Model.Contacts.Count / @Model.TotalRecords kontakt (Oldal @Model.CurrentPage / @Model.TotalPages)</li>
+                    <li class="breadcrumb-item active" aria-current="page">@Model.TotalRecords kontakt@(Model.TotalRecords != 1 ? "ok" : "") (Page @Model.CurrentPage of @Model.TotalPages)</li>
                 </ol>
             </nav>
         </div>
 
-        <!-- Search and Filter -->
+        <!-- Header with Buttons and Search -->
         <div class="d-flex justify-content-between align-items-center mb-3">
             <div class="d-flex align-items-center gap-2">
-                <button class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#createContactModal">
-                    + Új Kontakt
-                </button>
+                <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#createContactModal">+ Új Kontakt</button>
             </div>
             <div class="d-flex align-items-center gap-2">
                 <form method="get" asp-page="./Index" class="input-group input-group-sm" style="width: 250px;">
-                    <input type="text" class="form-control" placeholder="Kontakt keresése..." id="searchInput" name="SearchTerm" value="@Model.SearchTerm">
+                    <input type="hidden" name="pageNumber" value="1" />
                     <input type="hidden" name="pageSize" value="@Model.PageSize" />
+                    <input type="text" class="form-control" placeholder="Keresés kontaktokban..." id="searchInput" name="searchTerm" value="@Model.SearchTerm">
                     <button class="btn btn-outline-secondary" type="submit">
                         <i class="bi bi-search"></i>
                     </button>
@@ -64,22 +51,36 @@
                         <i class="bi bi-funnel me-1"></i>Szűrő
                     </button>
                     <ul class="dropdown-menu dropdown-menu-end">
-                        <li><a class="dropdown-item" href="#" data-filter="all">Összes Kontakt</a></li>
-                        @foreach (var status in Model.StatusList)
-                        {
-                            <li><a class="dropdown-item" href="#" data-filter="status-@status.Id">@status.Name</a></li>
-                        }
+                        <li><a class="dropdown-item" href="@Url.Page("./Index")">Minden Kontakt</a></li>
+                        <li><a class="dropdown-item" href="@Url.Page("./Index", new { filter = "active" })">Aktív</a></li>
+                        <li><a class="dropdown-item" href="@Url.Page("./Index", new { filter = "inactive" })">Inaktív</a></li>
                     </ul>
                 </div>
             </div>
         </div>
 
-        <!-- Table -->
+        <!-- Messages -->
+        @if (TempData["SuccessMessage"] != null)
+        {
+            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                @TempData["SuccessMessage"]
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        }
+        @if (TempData["ErrorMessage"] != null)
+        {
+            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                @TempData["ErrorMessage"]
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        }
+
+        <!-- Contacts Table -->
         <div class="table-responsive" style="max-height: 70vh; overflow-y: auto;">
             <table class="table table-striped table-hover">
                 <thead class="sticky-top custom-thead">
                     <tr>
-                        @foreach (var column in new[] { "Név", "Partner", "Email", "Telefonszám", "Telefonszám 2", "Státusz" })
+                        @foreach (var column in new[] { "Név", "Email", "Telefonszám", "Beosztás", "Státusz", "Létrehozva", "Frissítve" })
                         {
                             <th class="text-nowrap">@column</th>
                         }
@@ -92,51 +93,91 @@
                         @foreach (var contact in Model.Contacts)
                         {
                             <tr>
-                                <td class="text-nowrap">@contact.FirstName @contact.LastName</td>
+                                <td class="text-nowrap">@(contact.FirstName ?? "") @(contact.LastName ?? "")</td>
+                                <td class="text-nowrap"><i class="bi bi-envelope me-1"></i>@(contact.Email ?? "")</td>
+                                <td><i class="bi bi-telephone me-1"></i>@(contact.PhoneNumber ?? "") @(contact.PhoneNumber2 != null ? "; " + contact.PhoneNumber2 : "")</td>
+                                <td class="text-nowrap"><i class="bi bi-briefcase me-1"></i>@(contact.JobTitle ?? "")</td>
                                 <td class="text-nowrap">
-                                    <a asp-page="/CRM/Partners/Index" asp-route-id="@contact.PartnerId" class="@(contact.PartnerId == 0 ? "text-muted" : "")">
-                                        @(contact.PartnerName ?? "Nincs Partner")
-                                    </a>
+                                    @{
+                                        var badgeClass = "badge bg-secondary";
+                                        var statusName = contact.Status?.Name ?? "N/A";
+                                        if (statusName == "Aktív") badgeClass = "badge bg-success";
+                                        else if (statusName == "Inaktív") badgeClass = "badge bg-secondary";
+                                    }
+                                    <span class="@badgeClass">@statusName</span>
+                                    @if (contact.PartnerId.HasValue)
+                                    {
+                                        <span class="badge bg-info ms-1" title="Hozzárendelve partnerhez">Partner</span>
+                                    }
                                 </td>
-                                <td class="text-nowrap"><i class="bi bi-envelope me-1"></i>@(string.IsNullOrEmpty(contact.Email) ? "-" : contact.Email)</td>
-                                <td class="text-nowrap"><i class="bi bi-telephone me-1"></i>@(string.IsNullOrEmpty(contact.PhoneNumber) ? "-" : contact.PhoneNumber)</td>
-                                <td class="text-nowrap"><i class="bi bi-telephone me-1"></i>@(string.IsNullOrEmpty(contact.PhoneNumber2) ? "-" : contact.PhoneNumber2)</td>
-                                <td class="text-nowrap">
-                                    <span class="badge" style="background-color: @(contact.StatusColor ?? "#6c757d"); color: #fff;">
-                                        @(contact.StatusName ?? "Nincs Státusz")
-                                    </span>
-                                </td>
+                                <td class="text-nowrap">@contact.CreatedDate.ToString("yyyy-MM-dd HH:mm")</td>
+                                <td class="text-nowrap">@(contact.UpdatedDate?.ToString("yyyy-MM-dd HH:mm") ?? "N/A")</td>
                                 <td>
                                     <div class="btn-group btn-group-sm" role="group">
-                                        <button type="button"
-                                                class="btn btn-outline-info view-contact-btn"
+                                        <button type="button" 
+                                                class="btn btn-outline-info" 
+                                                data-bs-toggle="modal" 
+                                                data-bs-target="#viewContactModal"
                                                 data-contact-id="@contact.ContactId"
-                                                data-bs-toggle="modal"
-                                                data-bs-target="#viewContactModal_@contact.ContactId">
+                                                data-first-name="@(contact.FirstName ?? "")"
+                                                data-last-name="@(contact.LastName ?? "")"
+                                                data-email="@(contact.Email ?? "")"
+                                                data-phone-number="@(contact.PhoneNumber ?? "")"
+                                                data-phone-number2="@(contact.PhoneNumber2 ?? "")"
+                                                data-job-title="@(contact.JobTitle ?? "")"
+                                                data-comment="@(contact.Comment ?? "")"
+                                                data-comment2="@(contact.Comment2 ?? "")"
+                                                data-is-primary="@contact.IsPrimary"
+                                                data-status-name="@(contact.Status?.Name ?? "N/A")"
+                                                data-partner-name="@(contact.Partner?.Name ?? "Nincs hozzárendelve")"
+                                                title="Részletek">
                                             <i class="bi bi-eye"></i>
                                         </button>
                                         <div class="dropdown">
                                             <button class="btn btn-outline-secondary dropdown-toggle btn-sm" type="button"
-                                                    data-bs-toggle="dropdown" aria-expanded="false"
-                                                    data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="További Műveletek">
+                                                    id="actionsDropdown_@contact.ContactId"
+                                                    data-bs-toggle="dropdown"
+                                                    aria-expanded="false"
+                                                    data-bs-toggle="tooltip"
+                                                    data-bs-placement="top"
+                                                    data-bs-title="További műveletek">
                                                 <i class="bi bi-three-dots-vertical"></i>
                                             </button>
-                                            <ul class="dropdown-menu dropdown-menu-end">
+                                            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="actionsDropdown_@contact.ContactId">
                                                 <li>
-                                                    <a class="dropdown-item edit-contact-btn" href="#"
-                                                       data-contact-id="@contact.ContactId"
+                                                    <a class="dropdown-item" href="#"
                                                        data-bs-toggle="modal"
-                                                       data-bs-target="#editContactModal_@contact.ContactId">
+                                                       data-bs-target="#editContactModal"
+                                                       data-contact-id="@contact.ContactId"
+                                                       data-first-name="@contact.FirstName"
+                                                       data-last-name="@contact.LastName"
+                                                       data-email="@contact.Email"
+                                                       data-phone-number="@contact.PhoneNumber"
+                                                       data-phone-number2="@contact.PhoneNumber2"
+                                                       data-job-title="@contact.JobTitle"
+                                                       data-comment="@contact.Comment"
+                                                       data-comment2="@contact.Comment2"
+                                                       data-is-primary="@contact.IsPrimary"
+                                                       data-status-id="@contact.StatusId"
+                                                       data-partner-id="@contact.PartnerId">
                                                         <i class="bi bi-pencil-square me-2"></i>Szerkesztés
                                                     </a>
                                                 </li>
+                                                @if (contact.PartnerId.HasValue)
+                                                {
+                                                    <li>
+                                                        <a class="dropdown-item" asp-page="../Partners/Details" asp-route-id="@contact.PartnerId" target="_blank">
+                                                            <i class="bi bi-people me-2"></i>Partner megtekintése
+                                                        </a>
+                                                    </li>
+                                                }
                                                 <li><hr class="dropdown-divider"></li>
                                                 <li>
                                                     <a class="dropdown-item text-danger" href="#"
                                                        data-bs-toggle="modal"
-                                                       data-bs-target="#deleteContactModal_@contact.ContactId"
+                                                       data-bs-target="#deleteContactModal"
                                                        data-contact-id="@contact.ContactId"
-                                                       data-contact-name="@contact.FirstName @contact.LastName">
+                                                       data-contact-name="@(contact.FirstName ?? "") @(contact.LastName ?? "")">
                                                         <i class="bi bi-trash me-2"></i>Törlés
                                                     </a>
                                                 </li>
@@ -150,15 +191,15 @@
                     else
                     {
                         <tr>
-                            <td colspan="7" class="text-center">
+                            <td colspan="8" class="text-center">
                                 <div class="alert alert-warning" role="alert">
                                     @if (!string.IsNullOrEmpty(Model.SearchTerm))
                                     {
-                                        @:Nem található kontakt a "@Model.SearchTerm" keresésre.
+                                        @:Nincsenek kontaktok a következő keresésre: "@Model.SearchTerm".
                                     }
                                     else
                                     {
-                                        @:Nem található kontakt. <button type="button" class="btn btn-link alert-link p-0 align-baseline" data-bs-toggle="modal" data-bs-target="#createContactModal">Hozz létre egyet?</button>
+                                        @:Nincsenek kontaktok. <button type="button" class="btn btn-link alert-link p-0 align-baseline" data-bs-toggle="modal" data-bs-target="#createContactModal">Létrehozni az elsőt?</button>
                                     }
                                 </div>
                             </td>
@@ -174,411 +215,16 @@
             CurrentPage = Model.CurrentPage,
             TotalPages = Model.TotalPages,
             PageSize = Model.PageSize,
-            SearchTerm = Model.SearchTerm,
+            SearchTerm = Model.SearchTerm ?? string.Empty,
             PageRoute = "./Index",
-            EntityName = "Kontaktok"
+            EntityName = "kontakt"
         })
     </div>
-
-    <!-- Modals -->
-    <!-- Create Contact Modal -->
-    <div class="modal fade" id="createContactModal" tabindex="-1" aria-labelledby="createContactModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content">
-                <form method="post" asp-page-handler="CreateContact" class="needs-validation" novalidate>
-                    @Html.AntiForgeryToken()
-                    <div class="modal-header">
-                        <h5 class="modal-title" id="createContactModalLabel">Új Kontakt</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                    </div>
-                    <div class="modal-body">
-                        <div class="mb-3">
-                            <label class="form-label">Keresztnév</label>
-                            <input type="text" class="form-control" name="firstName" required>
-                            <div class="invalid-feedback">A keresztnév kötelező.</div>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">Vezetéknév</label>
-                            <input type="text" class="form-control" name="lastName" required>
-                            <div class="invalid-feedback">A vezetéknév kötelező.</div>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">Email</label>
-                            <input type="email" class="form-control" name="email">
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">Telefonszám</label>
-                            <input type="tel" class="form-control" name="phoneNumber">
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">Telefonszám 2</label>
-                            <input type="tel" class="form-control" name="phoneNumber2">
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">Megjegyzés</label>
-                            <input type="text" class="form-control" name="comment">
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">Megjegyzés 2</label>
-                            <input type="text" class="form-control" name="comment2">
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">Partner</label>
-                            <select id="create-partner-select" class="form-select" name="partnerId" required>
-                                <option value="" disabled selected>-- Válasszon partnert --</option>
-                            </select>
-                            <div class="invalid-feedback">Partner megadása kötelező.</div>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">Státusz</label>
-                            <select id="create-status-select" class="form-select" name="statusId">
-                                <option value="" selected>-- Válasszon státuszt --</option>
-                                @foreach (var status in Model.StatusList)
-                                {
-                                    <option value="@status.Id" data-color="@status.Color">@status.Name</option>
-                                }
-                            </select>
-                            <div class="invalid-feedback">Státusz megadása kötelező.</div>
-                        </div>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Mégse</button>
-                        <button type="submit" class="btn btn-primary">Kontakt Létrehozása</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
-
-    <!-- View Contact Modal -->
-    @foreach (var contact in Model.Contacts)
-    {
-        <div class="modal fade" id="viewContactModal_@contact.ContactId" tabindex="-1"
-             aria-labelledby="viewContactModalLabel_@contact.ContactId" aria-hidden="true">
-            <div class="modal-dialog modal-dialog-centered">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h5 class="modal-title" id="viewContactModalLabel_@contact.ContactId">
-                            @contact.FirstName @contact.LastName
-                        </h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                    </div>
-                    <div class="modal-body">
-                        <p><strong>Partner:</strong> @(contact.PartnerName ?? "Nincs Partner")</p>
-                        <p><strong>Státusz:</strong> <span class="badge" style="background-color: @(contact.StatusColor ?? "#6c757d"); color: #fff;">@(contact.StatusName ?? "Nincs Státusz")</span></p>
-                        <p><strong>Email:</strong> @(string.IsNullOrEmpty(contact.Email) ? "-" : contact.Email)</p>
-                        <p><strong>Telefonszám:</strong> @(string.IsNullOrEmpty(contact.PhoneNumber) ? "-" : contact.PhoneNumber)</p>
-                        <p><strong>Telefonszám 2:</strong> @(string.IsNullOrEmpty(contact.PhoneNumber2) ? "-" : contact.PhoneNumber2)</p>
-                        <p><strong>Megjegyzés:</strong> @(string.IsNullOrEmpty(contact.Comment) ? "-" : contact.Comment)</p>
-                        <p><strong>Megjegyzés 2:</strong> @(string.IsNullOrEmpty(contact.Comment2) ? "-" : contact.Comment2)</p>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Bezárás</button>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Edit Contact Modal -->
-        <div class="modal fade" id="editContactModal_@contact.ContactId" tabindex="-1"
-             aria-labelledby="editContactModalLabel_@contact.ContactId" aria-hidden="true">
-            <div class="modal-dialog modal-dialog-centered">
-                <div class="modal-content">
-                    <form method="post" asp-page-handler="EditContact" class="needs-validation" novalidate>
-                        @Html.AntiForgeryToken()
-                        <input type="hidden" name="contactId" value="@contact.ContactId" />
-                        <div class="modal-header">
-                            <h5 class="modal-title" id="editContactModalLabel_@contact.ContactId">
-                                @contact.FirstName @contact.LastName Szerkesztése
-                            </h5>
-                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                        </div>
-                        <div class="modal-body">
-                            <div class="mb-3">
-                                <label class="form-label">Keresztnév</label>
-                                <input type="text" class="form-control" name="firstName" value="@contact.FirstName" required>
-                                <div class="invalid-feedback">A keresztnév kötelező.</div>
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label">Vezetéknév</label>
-                                <input type="text" class="form-control" name="lastName" value="@contact.LastName" required>
-                                <div class="invalid-feedback">A vezetéknév kötelező.</div>
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label">Email</label>
-                                <input type="email" class="form-control" name="email" value="@contact.Email">
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label">Telefonszám</label>
-                                <input type="tel" class="form-control" name="phoneNumber" value="@contact.PhoneNumber">
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label">Telefonszám 2</label>
-                                <input type="tel" class="form-control" name="phoneNumber2" value="@contact.PhoneNumber2">
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label">Megjegyzés</label>
-                                <input type="text" class="form-control" name="comment" value="@contact.Comment">
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label">Megjegyzés 2</label>
-                                <input type="text" class="form-control" name="comment2" value="@contact.Comment2">
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label">Partner</label>
-                                <select id="edit-partner-select-@contact.ContactId" class="form-select" name="partnerId" required data-partner-id="@contact.PartnerId">
-                                    <option value="" disabled>-- Válasszon partnert --</option>
-                                    @if (!string.IsNullOrEmpty(contact.PartnerName))
-                                    {
-                                        <option value="@contact.PartnerId" selected>@contact.PartnerName</option>
-                                    }
-                                </select>
-                                <div class="invalid-feedback">Partner megadása kötelező.</div>
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label">Státusz</label>
-                                <select id="edit-status-select-@contact.ContactId" class="form-select" name="statusId" data-status-id="@contact.StatusId">
-                                    @if (contact.StatusId == null)
-                                    {
-                                        <option value="" selected>-- Válasszon státuszt --</option>
-                                    }
-                                    else
-                                    {
-                                        <option value="">-- Válasszon státuszt --</option>
-                                    }
-                                    @foreach (var status in Model.StatusList)
-                                    {
-                                        @if (contact.StatusId == status.Id)
-                                        {
-                                            <option value="@status.Id" selected data-color="@status.Color">@status.Name</option>
-                                        }
-                                        else
-                                        {
-                                            <option value="@status.Id" data-color="@status.Color">@status.Name</option>
-                                        }
-                                    }
-                                </select>
-                                <div class="invalid-feedback">Státusz megadása kötelező.</div>
-                            </div>
-                        </div>
-                        <div class="modal-footer">
-                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Mégse</button>
-                            <button type="submit" class="btn btn-primary">Módosítások Mentése</button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        </div>
-
-        <!-- Delete Contact Modal -->
-        <div class="modal fade" id="deleteContactModal_@contact.ContactId" tabindex="-1"
-             aria-labelledby="deleteContactModalLabel_@contact.ContactId" aria-hidden="true">
-            <div class="modal-dialog modal-dialog-centered">
-                <div class="modal-content">
-                    <form method="post" asp-page-handler="DeleteContact">
-                        @Html.AntiForgeryToken()
-                        <input type="hidden" name="contactId" value="@contact.ContactId" />
-                        <div class="modal-header">
-                            <h5 class="modal-title" id="deleteContactModalLabel_@contact.ContactId">
-                                Törlés Megerősítése
-                            </h5>
-                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                        </div>
-                        <div class="modal-body">
-                            <p>Biztosan törölni szeretnéd <strong>@contact.FirstName @contact.LastName</strong> kontaktot?</p>
-                            <p class="text-danger">Ez a művelet nem vonható vissza.</p>
-                        </div>
-                        <div class="modal-footer">
-                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Mégse</button>
-                            <button type="submit" class="btn btn-danger">Kontakt Törlése</button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        </div>
-    }
 </div>
 
-<!-- Dependencies -->
-<link href="https://cdn.jsdelivr.net/npm/tom-select@2.4.3/dist/css/tom-select.bootstrap5.css" rel="stylesheet">
-<script src="https://code.jquery.com/jquery-3.6.0.min.js" integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4=" crossorigin="anonymous"></script>
-<script src="https://cdn.jsdelivr.net/npm/tom-select@2.4.3/dist/js/tom-select.complete.min.js"></script>
+@await Html.PartialAsync("_Modals")
 
 @section Scripts {
-    <script src="/js/Contacts.js"></script>
-    <script src="/js/utils.js"></script>
-    <script src="/js/tomSelectUtils.js"></script>
-    <script>
-$(function () {
-    $('[data-bs-toggle="tooltip"]').tooltip();
-
-    // Show message modal for success or error messages
-    const successMessage = '@Html.Raw(TempData["SuccessMessage"])';
-    const errorMessage = '@Html.Raw(TempData["ErrorMessage"])';
-    if (successMessage || errorMessage) {
-        const modalEl = document.getElementById('messageModal');
-        const modalTitleEl = document.getElementById('messageModalLabel');
-        const modalBodyEl = document.getElementById('messageModalBody');
-        const modal = new bootstrap.Modal(modalEl, { backdrop: 'static', keyboard: true });
-
-        if (successMessage) {
-            modalTitleEl.textContent = 'Siker';
-            modalBodyEl.textContent = successMessage;
-            modalEl.querySelector('.modal-content').classList.add('text-bg-success');
-        } else if (errorMessage) {
-            modalTitleEl.textContent = 'Hiba';
-            modalBodyEl.textContent = errorMessage;
-            modalEl.querySelector('.modal-content').classList.add('text-bg-danger');
-        }
-
-        modal.show();
-    }
-
-    // Create dictionaries for ContactId to Partner and Status mappings
-    const contactPartnerMap = @Json.Serialize(Model.Contacts.ToDictionary(c => c.ContactId, c => new { id = c.PartnerId, text = c.PartnerName ?? "" }));
-    const contactStatusMap = @Json.Serialize(Model.Contacts.ToDictionary(c => c.ContactId, c => new { id = c.StatusId, text = c.StatusName ?? "", color = c.StatusColor ?? "" }));
-    console.log('contactPartnerMap:', contactPartnerMap);
-    console.log('contactStatusMap:', contactStatusMap);
-
-    // Initialize TomSelect for create modal partner select
-    window.c92.initializePartnerTomSelect(
-        document.querySelector('#create-partner-select'),
-        'createContactModal',
-        'contact-create',
-        null
-    ).then(tomSelect => {
-        console.log('Create partner select initialized successfully');
-    }).catch(err => {
-        console.error('Failed to initialize create partner select:', err);
-        document.querySelector('#create-partner-select').innerHTML = '<option value="" disabled selected>Nincs elérhető partner</option>';
-    });
-
-    // Initialize TomSelect for create modal status select
-    window.c92.initializeStatusTomSelect(
-        document.querySelector('#create-status-select'),
-        'createContactModal',
-        'contact-create',
-        null
-    ).then(tomSelect => {
-        console.log('Create status select initialized successfully');
-    }).catch(err => {
-        console.error('Failed to initialize create status select:', err);
-        document.querySelector('#create-status-select').innerHTML = '<option value="" disabled selected>Nincs elérhető státusz</option>';
-    });
-
-    // Initialize TomSelect for edit modal partner and status selects
-    $('.modal').on('shown.bs.modal', function (e) {
-        const modal = $(this);
-        const partnerSelect = modal.find('select[name="partnerId"]');
-        const statusSelect = modal.find('select[name="statusId"]');
-
-        // Initialize Partner TomSelect
-        if (partnerSelect.length && partnerSelect.attr('id').startsWith('edit-partner-select-')) {
-            const contactId = parseInt(partnerSelect.attr('id').replace('edit-partner-select-', ''), 10);
-            const preselectedPartner = contactPartnerMap[contactId] || null;
-            const preselectedPartnerId = preselectedPartner ? preselectedPartner.id : null;
-            const preselectedPartnerName = preselectedPartner ? preselectedPartner.text : `Partner ${preselectedPartnerId}`;
-            console.log(`Modal shown for ContactId: ${contactId}, PreselectedPartnerId: ${preselectedPartnerId}, PreselectedPartnerName: ${preselectedPartnerName}`);
-
-            if (partnerSelect[0].tomselect) {
-                partnerSelect[0].tomselect.destroy();
-                console.log(`Destroyed existing Partner TomSelect for ContactId: ${contactId}`);
-            }
-
-            setTimeout(() => {
-                window.c92.initializePartnerTomSelect(
-                    partnerSelect[0],
-                    `editContactModal_${contactId}`,
-                    'contact-edit',
-                    preselectedPartnerId
-                ).then(tomSelect => {
-                    console.log(`Edit partner select initialized for ContactId: ${contactId}`);
-                    if (preselectedPartnerId) {
-                        tomSelect.addOption({ id: preselectedPartnerId, text: preselectedPartnerName });
-                        tomSelect.setValue(preselectedPartnerId, true);
-                        tomSelect.refreshOptions(false);
-                        console.log(`Set partner value ${preselectedPartnerId} for ContactId: ${contactId}`);
-                    }
-                }).catch(err => {
-                    console.error(`Failed to initialize edit partner select for ContactId: ${contactId}`, err);
-                    partnerSelect.html(`<option value="${preselectedPartnerId || ''}" selected>${preselectedPartnerName}</option>`);
-                });
-            }, 100);
-        }
-
-        // Initialize Status TomSelect
-        if (statusSelect.length && statusSelect.attr('id').startsWith('edit-status-select-')) {
-            const contactId = parseInt(statusSelect.attr('id').replace('edit-status-select-', ''), 10);
-            const preselectedStatus = contactStatusMap[contactId] || null;
-            const preselectedStatusId = preselectedStatus ? preselectedStatus.id : null;
-            const preselectedStatusName = preselectedStatus ? preselectedStatus.text : `Status ${preselectedStatusId}`;
-            console.log(`Modal shown for ContactId: ${contactId}, PreselectedStatusId: ${preselectedStatusId}, PreselectedStatusName: ${preselectedStatusName}`);
-
-            if (statusSelect[0].tomselect) {
-                statusSelect[0].tomselect.destroy();
-                console.log(`Destroyed existing Status TomSelect for ContactId: ${contactId}`);
-            }
-
-            setTimeout(() => {
-                window.c92.initializeStatusTomSelect(
-                    statusSelect[0],
-                    `editContactModal_${contactId}`,
-                    'contact-edit',
-                    preselectedStatusId
-                ).then(tomSelect => {
-                    console.log(`Edit status select initialized for ContactId: ${contactId}`);
-                    if (preselectedStatusId) {
-                        tomSelect.addOption({ id: preselectedStatusId, text: preselectedStatusName, color: preselectedStatus.color });
-                        tomSelect.setValue(preselectedStatusId, true);
-                        tomSelect.refreshOptions(false);
-                        console.log(`Set status value ${preselectedStatusId} for ContactId: ${contactId}`);
-                    }
-                }).catch(err => {
-                    console.error(`Failed to initialize edit status select for ContactId: ${contactId}`, err);
-                    statusSelect.html(`<option value="${preselectedStatusId || ''}" selected>${preselectedStatusName}</option>`);
-                });
-            }, 100);
-        }
-    });
-
-    // Form validation for modals
-    document.querySelectorAll('.modal form').forEach(form => {
-        form.addEventListener('submit', function (event) {
-            if (!this.checkValidity()) {
-                event.preventDefault();
-                event.stopPropagation();
-            }
-            this.classList.add('was-validated');
-        }, false);
-    });
-
-    // Search form handling
-    document.addEventListener('DOMContentLoaded', function () {
-        const searchForm = document.querySelector('form[method="get"]');
-        if (searchForm) {
-            searchForm.addEventListener('submit', function (e) {
-                const searchInput = document.getElementById('searchInput');
-                if (searchInput.value.trim() === '') {
-                    e.preventDefault();
-                    window.location.href = window.location.pathname;
-                }
-            });
-        }
-
-        document.querySelectorAll('[data-filter]').forEach(item => {
-            item.addEventListener('click', function (e) {
-                e.preventDefault();
-                const filter = this.getAttribute('data-filter');
-                console.log('Filter by:', filter);
-                if (filter.startsWith('status-')) {
-                    const statusId = filter.replace('status-', '');
-                    window.location.href = `@Url.Page("./Index")?SearchTerm=status:${statusId}`;
-                } else {
-                    window.location.href = `@Url.Page("./Index")`;
-                }
-            });
-        });
-    });
-});
-    </script>
+    <partial name="_ValidationScriptsPartial" />
+    <script src="~/js/contact.js"></script>
 }

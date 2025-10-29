@@ -21,6 +21,24 @@
                     <a class="nav-link px-3 py-2 @(Html.IsActive("Meetings/Index", "GroupRemote") ? "active" : "")" asp-area="" asp-page="/GroupRemote/Meetings/Index">
                         <i class="bi bi-people-fill me-2"></i>Megbeszélések
                     </a>
+                    <a class="nav-link px-3 py-2 @(Html.IsActive("TaskType/Index", "GroupRemote") ? "active" : "")" asp-area="" asp-page="/GroupRemote/TaskType/Index">
+                        <i class="bi bi-people-fill me-2"></i>Feladat Típusok
+                    </a>
+                    <a class="nav-link px-3 py-2 @(Html.IsActive("TaskStatuses/Index", "GroupRemote") ? "active" : "")" asp-area="" asp-page="/GroupRemote/TaskStatuses/Index">
+                        <i class="bi bi-people-fill me-2"></i>Feladat Státuszok
+                    </a>
+                    <a class="nav-link px-3 py-2 @(Html.IsActive("TaskPriorities/Index", "GroupRemote") ? "active" : "")" asp-area="" asp-page="/GroupRemote/TaskPriorities/Index">
+                        <i class="bi bi-people-fill me-2"></i>Feladat Prioritások
+                    </a>
+                    <a class="nav-link px-3 py-2 @(Html.IsActive("ResourceTypes/Index", "GroupRemote") ? "active" : "")" asp-area="" asp-page="/GroupRemote/ResourceTypes/Index">
+                        <i class="bi bi-people-fill me-2"></i>Eszköz Típusok
+                    </a>
+                    <a class="nav-link px-3 py-2 @(Html.IsActive("ResourceStatuses/Index", "GroupRemote") ? "active" : "")" asp-area="" asp-page="/GroupRemote/ResourceStatuses/Index">
+                        <i class="bi bi-people-fill me-2"></i>Eszköz Státuszok
+                    </a>
+                    <a class="nav-link px-3 py-2 @(Html.IsActive("Resources/Index", "GroupRemote") ? "active" : "")" asp-area="" asp-page="/GroupRemote/Resources/Index">
+                        <i class="bi bi-people-fill me-2"></i>Eszközök
+                    </a>
                 </li>
                 @* Add other sidebar links as needed *@
             </ul>

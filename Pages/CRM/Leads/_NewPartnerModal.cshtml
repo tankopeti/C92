@@ -8,7 +8,7 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-                <form id="newPartnerForm" method="post" asp-page-handler="CreatePartner" class="needs-validation" novalidate>
+                <form id="newPartnerForm" method="post" class="needs-validation" novalidate>
                     <ul class="nav nav-tabs" id="newPartnerTabs" role="tablist">
                         <li class="nav-item" role="presentation">
                             <button class="nav-link active" id="basic-tab" data-bs-toggle="tab" data-bs-target="#basic" type="button" role="tab" aria-controls="basic" aria-selected="true">Basic Info</button>
@@ -58,7 +58,7 @@
                                 </div>
                             </div>
                         </div>
-                        <!-- Address Tab -->
+                        <!-- Address Tab (unchanged) -->
                         <div class="tab-pane fade" id="address" role="tabpanel" aria-labelledby="address-tab">
                             <div class="row g-3">
                                 <div class="col-md-6">
@@ -87,7 +87,7 @@
                                 </div>
                             </div>
                         </div>
-                        <!-- CRM Tab -->
+                        <!-- CRM Tab (unchanged) -->
                         <div class="tab-pane fade" id="crm" role="tabpanel" aria-labelledby="crm-tab">
                             <div class="row g-3">
                                 <div class="col-md-6">
@@ -116,7 +116,7 @@
                                 </div>
                             </div>
                         </div>
-                        <!-- Invoicing Tab -->
+                        <!-- Invoicing Tab (unchanged) -->
                         <div class="tab-pane fade" id="invoicing" role="tabpanel" aria-labelledby="invoicing-tab">
                             <div class="row g-3">
                                 <div class="col-md-6">
@@ -149,11 +149,13 @@
                                 </div>
                                 <div class="col-md-6">
                                     <label for="partnerIsTaxExempt" class="form-label">Adómentes</label>
-                                    <input type="checkbox" class="form-check-input" id="partnerIsTaxExempt" name="isTaxExempt">
+                                    <div class="form-check">
+                                        <input type="checkbox" class="form-check-input" id="partnerIsTaxExempt" name="isTaxExempt">
+                                    </div>
                                 </div>
                             </div>
                         </div>
-                        <!-- Audit Tab -->
+                        <!-- Audit Tab (unchanged, but values will be auto-set by service) -->
                         <div class="tab-pane fade" id="audit" role="tabpanel" aria-labelledby="audit-tab">
                             <div class="row g-3">
                                 <div class="col-md-6">
@@ -179,31 +181,106 @@
 </div>
 
 <script>
-    // Client-side validation for partner form
-    document.querySelector('#newPartnerModal form').addEventListener('submit', function(e) {
+    // Status mapping (adjust IDs based on your DB: assuming Prospect=3, Active=1, Inactive=2)
+    var statusMap = {
+        'Prospect': 3,
+        'Active': 1,
+        'Inactive': 2
+    };
+
+    // Updated: AJAX submission for partner form
+    document.querySelector('#newPartnerModal form').addEventListener('submit', async function(e) {
+        e.preventDefault();
         const form = e.target;
-        const nameInput = form.querySelector('#partnerName');
-        
-        if (!nameInput.value.trim()) {
-            e.preventDefault();
-            nameInput.focus();
-            nameInput.classList.add('is-invalid');
-            const feedback = nameInput.nextElementSibling;
-            if (feedback && feedback.classList.contains('invalid-feedback')) {
-                feedback.textContent = 'Név megadása kötelező';
-            }
+
+        // Bootstrap validation
+        if (!form.checkValidity()) {
+            form.classList.add('was-validated');
             return false;
         }
-        form.classList.add('was-validated');
-        return true;
+
+        // Collect form data into PartnerDto object
+        var formData = {};
+        form.querySelectorAll('input, select, textarea').forEach(function(element) {
+            var name = element.name;
+            var value = element.value;
+            if (name && name !== 'leadId' && name !== 'createdDate' && name !== 'createdBy') {  // Omit auto-set fields
+                if (element.type === 'checkbox') {
+                    formData[name] = element.checked;
+                } else if (element.type === 'number') {
+                    formData[name] = parseFloat(value) || null;
+                } else if (element.type === 'datetime-local' && value) {
+                    // Convert to ISO for DateTime?
+                    formData[name] = new Date(value).toISOString();
+                } else {
+                    formData[name] = value ? value.trim() : null;
+                }
+            }
+        });
+
+        // Map status string to StatusId
+        var status = formData.status;
+        if (status && statusMap[status]) {
+            formData.StatusId = statusMap[status];
+        } else {
+            formData.StatusId = 3;  // Default to Prospect
+        }
+        delete formData.status;  // DTO doesn't have string status
+
+        // Get leadId
+        var leadId = document.getElementById('partnerLeadId').value;
+        if (!leadId) {
+            alert('Lead ID is missing. Cannot create partner.');
+            return false;
+        }
+
+        // Show loading
+        const submitBtn = form.querySelector('button[type="submit"]');
+        const originalText = submitBtn.textContent;
+        submitBtn.textContent = 'Mentés...';
+        submitBtn.disabled = true;
+
+        try {
+            const response = await fetch(`/api/partners/OnPostCreatePartner?leadId=${leadId}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + localStorage.getItem('token') || ''  // If using JWT; adjust if needed
+                },
+                body: JSON.stringify(formData)
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                alert(result.message || 'Partner created successfully!');
+                $('#newPartnerModal').modal('hide');  // Close modal
+                location.reload();  // Reload leads page to show updates
+            } else {
+                alert('Error: ' + (result.message || 'Failed to create partner.'));
+                // Optionally highlight errors if result.errors provided
+                if (result.errors) {
+                    console.error(result.errors);
+                }
+            }
+        } catch (error) {
+            console.error('AJAX error:', error);
+            alert('Network error: ' + error.message);
+        } finally {
+            submitBtn.textContent = originalText;
+            submitBtn.disabled = false;
+        }
+
+        return false;
     });
 
-    // Reset validation when modal is shown
+    // Reset validation when modal is shown (unchanged)
     $('#newPartnerModal').on('show.bs.modal', function() {
         $(this).find('.is-invalid').removeClass('is-invalid');
         $(this).find('form').removeClass('was-validated');
     });
 </script>
+
 
 <style>
     /* Modal Sizing */

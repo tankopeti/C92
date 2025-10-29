@@ -1,0 +1,350 @@
+
+<!-- Create Contact Modal -->
+<div class="modal fade" id="createContactModal" tabindex="-1" aria-labelledby="createContactLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content rounded-3 shadow-lg">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="createContactLabel">Új Kontakt létrehozása</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Bezárás"></button>
+            </div>
+            <div class="modal-body">
+                <form id="createContactForm" method="post" asp-page-handler="CreateContact">
+                    @Html.AntiForgeryToken()
+                    <!-- Basic Information -->
+                    <h5 class="mb-2">Alap információk</h5>
+                    <br>
+                    <div class="row g-3">
+                        <div class="col-md-6 mb-3">
+                            <label for="createFirstName" class="form-label fw-bold">Vezetéknév</label>
+                            <input type="text" class="form-control" id="createFirstName" name="firstName" maxlength="100">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="createLastName" class="form-label fw-bold">Keresztnév</label>
+                            <input type="text" class="form-control" id="createLastName" name="lastName" maxlength="100">
+                        </div>
+                    </div>
+                    <!-- Contact Information -->
+                    <hr class="my-4">
+                    <h5 class="mb-2">Kapcsolatfelvételi adatok</h5>
+                    <br>
+                    <div class="row g-3">
+                        <div class="col-md-6 mb-3">
+                            <label for="createEmail" class="form-label fw-bold">E-mail</label>
+                            <input type="email" class="form-control" id="createEmail" name="email" maxlength="255">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="createPhoneNumber" class="form-label fw-bold">Telefonszám</label>
+                            <input type="tel" class="form-control" id="createPhoneNumber" name="phoneNumber" maxlength="20">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="createPhoneNumber2" class="form-label fw-bold">Második telefonszám</label>
+                            <input type="tel" class="form-control" id="createPhoneNumber2" name="phoneNumber2" maxlength="20">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="createJobTitle" class="form-label fw-bold">Beosztás</label>
+                            <input type="text" class="form-control" id="createJobTitle" name="jobTitle" maxlength="100">
+                        </div>
+                    </div>
+                    <!-- Assignment Information -->
+                    <hr class="my-4">
+                    <h5 class="mb-2">Hozzárendelés</h5>
+                    <br>
+                    <div class="row g-3">
+                        <div class="col-md-6 mb-3">
+                            <label for="createStatusId" class="form-label fw-bold">Státusz</label>
+                            <select class="form-select" id="createStatusId" name="statusId">
+                                <option value="">-- Válassz státuszt --</option>
+                                @foreach (SelectListItem status in Model.Statuses)
+                                {
+                                    <option value="@status.Value">@status.Text</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="createPartnerId" class="form-label fw-bold">Partner</label>
+                            <select class="form-select" id="createPartnerId" name="partnerId">
+                                <option value="">-- Válassz partnert --</option>
+                                @foreach (SelectListItem partner in Model.Partners)
+                                {
+                                    <option value="@partner.Value">@partner.Text</option>
+                                }
+                            </select>
+                        </div>
+                    </div>
+                    <!-- Additional Settings -->
+                    <hr class="my-4">
+                    <h5 class="mb-2">További beállítások</h5>
+                    <br>
+                    <div class="row g-3">
+                        <div class="col-12 mb-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="createIsPrimary" name="isPrimary" value="true">
+                                <label class="form-check-label fw-bold" for="createIsPrimary">Elsődleges kontakt</label>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Notes -->
+                    <hr class="my-4">
+                    <h5 class="mb-2">Jegyzetek</h5>
+                    <br>
+                    <div class="row g-3">
+                        <div class="col-md-12 mb-3">
+                            <label for="createComment" class="form-label fw-bold">Megjegyzés</label>
+                            <textarea class="form-control" id="createComment" name="comment" rows="3" maxlength="1000"></textarea>
+                        </div>
+                        <div class="col-md-12 mb-3">
+                            <label for="createComment2" class="form-label fw-bold">További megjegyzés</label>
+                            <textarea class="form-control" id="createComment2" name="comment2" rows="3" maxlength="1000"></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Mégse</button>
+                        <button type="submit" class="btn btn-primary" id="createSubmitBtn">
+                            <i class="bi bi-save"></i> Mentés
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Contact Modal -->
+<div class="modal fade" id="editContactModal" tabindex="-1" aria-labelledby="editContactLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content rounded-3 shadow-lg">
+            <div class="modal-header bg-warning text-dark">
+                <h5 class="modal-title" id="editContactLabel">Kontakt szerkesztése</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Bezárás"></button>
+            </div>
+            <div class="modal-body">
+                <form method="post" asp-page-handler="UpdateContact">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" id="editContactId" name="contactId" />
+                    <h5 class="mb-2">Alap információk</h5>
+                    <br>
+                    <div class="row g-3">
+                        <div class="col-md-6 mb-3">
+                            <label for="editFirstName" class="form-label fw-bold">Vezetéknév</label>
+                            <input type="text" class="form-control" id="editFirstName" name="firstName" maxlength="100">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="editLastName" class="form-label fw-bold">Keresztnév</label>
+                            <input type="text" class="form-control" id="editLastName" name="lastName" maxlength="100">
+                        </div>
+                    </div>
+                    <hr class="my-4">
+                    <h5 class="mb-2">Kapcsolatfelvételi adatok</h5>
+                    <br>
+                    <div class="row g-3">
+                        <div class="col-md-6 mb-3">
+                            <label for="editEmail" class="form-label fw-bold">E-mail</label>
+                            <input type="email" class="form-control" id="editEmail" name="email" maxlength="255">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="editPhoneNumber" class="form-label fw-bold">Telefonszám</label>
+                            <input type="tel" class="form-control" id="editPhoneNumber" name="phoneNumber" maxlength="20">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="editPhoneNumber2" class="form-label fw-bold">Második telefonszám</label>
+                            <input type="tel" class="form-control" id="editPhoneNumber2" name="phoneNumber2" maxlength="20">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="editJobTitle" class="form-label fw-bold">Beosztás</label>
+                            <input type="text" class="form-control" id="editJobTitle" name="jobTitle" maxlength="100">
+                        </div>
+                    </div>
+                    <hr class="my-4">
+                    <h5 class="mb-2">Hozzárendelés</h5>
+                    <br>
+                    <div class="row g-3">
+                        <div class="col-md-6 mb-3">
+                            <label for="editStatusId" class="form-label fw-bold">Státusz</label>
+                            <select class="form-select" id="editStatusId" name="statusId">
+                                <option value="">-- Válassz státuszt --</option>
+                                @foreach (SelectListItem status in Model.Statuses)
+                                {
+                                    <option value="@status.Value">@status.Text</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="editPartnerId" class="form-label fw-bold">Partner</label>
+                            <select class="form-select" id="editPartnerId" name="partnerId">
+                                <option value="">-- Válassz partnert --</option>
+                                @foreach (SelectListItem partner in Model.Partners)
+                                {
+                                    <option value="@partner.Value">@partner.Text</option>
+                                }
+                            </select>
+                        </div>
+                    </div>
+                    <hr class="my-4">
+                    <h5 class="mb-2">További beállítások</h5>
+                    <br>
+                    <div class="row g-3">
+                        <div class="col-12 mb-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="editIsPrimary" name="isPrimary" value="true">
+                                <label class="form-check-label fw-bold" for="editIsPrimary">Elsődleges kontakt</label>
+                            </div>
+                        </div>
+                    </div>
+                    <hr class="my-4">
+                    <h5 class="mb-2">Jegyzetek</h5>
+                    <br>
+                    <div class="row g-3">
+                        <div class="col-md-12 mb-3">
+                            <label for="editComment" class="form-label fw-bold">Megjegyzés</label>
+                            <textarea class="form-control" id="editComment" name="comment" rows="3" maxlength="1000"></textarea>
+                        </div>
+                        <div class="col-md-12 mb-3">
+                            <label for="editComment2" class="form-label fw-bold">További megjegyzés</label>
+                            <textarea class="form-control" id="editComment2" name="comment2" rows="3" maxlength="1000"></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Mégse</button>
+                        <button type="submit" class="btn btn-warning">
+                            <i class="bi bi-pencil"></i> Frissítés
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Contact Modal -->
+<div class="modal fade" id="deleteContactModal" tabindex="-1" aria-labelledby="deleteContactLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content rounded-3 shadow-lg">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title" id="deleteContactLabel">Kontakt törlése</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Bezárás"></button>
+            </div>
+            <div class="modal-body">
+                <form method="post" asp-page-handler="DeleteContact">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" id="deleteContactId" name="contactId" />
+                    <div class="text-center">
+                        <i class="bi bi-exclamation-triangle-fill text-danger display-4 mb-3"></i>
+                        <p class="lead">Biztosan törölni szeretné a következő kontaktot: <strong id="deleteContactName"></strong>?</p>
+                        <div class="alert alert-warning">
+                            <i class="bi bi-exclamation-triangle"></i> Ez a művelet visszavonhatatlan!
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Mégse</button>
+                        <button type="submit" class="btn btn-danger">
+                            <i class="bi bi-trash"></i> Törlés
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- View Contact Modal -->
+<div class="modal fade" id="viewContactModal" tabindex="-1" aria-labelledby="viewContactLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content rounded-3 shadow-lg">
+            <div class="modal-header bg-info text-white">
+                <h5 class="modal-title" id="viewContactLabel">Kontakt részletei</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Bezárás"></button>
+            </div>
+            <div class="modal-body">
+                <div id="viewContactBody">
+                    <h5 class="mb-2">Alap információk</h5>
+                    <br>
+                    <div class="row g-3">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-bold">Vezetéknév</label>
+                            <p class="form-control-plaintext" id="viewFirstName"></p>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-bold">Keresztnév</label>
+                            <p class="form-control-plaintext" id="viewLastName"></p>
+                        </div>
+                    </div>
+                    <hr class="my-4">
+                    <h5 class="mb-2">Kapcsolatfelvételi adatok</h5>
+                    <br>
+                    <div class="row g-3">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-bold">E-mail</label>
+                            <p class="form-control-plaintext" id="viewEmail"></p>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="viewPhoneNumber" class="form-label fw-bold">Telefonszám</label>
+                            <p class="form-control-plaintext" id="viewPhoneNumber"></p>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="viewPhoneNumber2" class="form-label fw-bold">Második telefonszám</label>
+                            <p class="form-control-plaintext" id="viewPhoneNumber2"></p>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="viewJobTitle" class="form-label fw-bold">Beosztás</label>
+                            <p class="form-control-plaintext" id="viewJobTitle"></p>
+                        </div>
+                    </div>
+                    <hr class="my-4">
+                    <h5 class="mb-2">Hozzárendelés</h5>
+                    <br>
+                    <div class="row g-3">
+                        <div class="col-md-6 mb-3">
+                            <label for="viewStatusName" class="form-label fw-bold">Státusz</label>
+                            <p class="form-control-plaintext" id="viewStatusName"></p>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="viewPartnerName" class="form-label fw-bold">Partner</label>
+                            <p class="form-control-plaintext" id="viewPartnerName"></p>
+                        </div>
+                    </div>
+                    <hr class="my-4">
+                    <h5 class="mb-2">További beállítások</h5>
+                    <br>
+                    <div class="row g-3">
+                        <div class="col-12 mb-3">
+                            <label for="viewIsPrimary" class="form-label fw-bold">Elsődleges kontakt</label>
+                            <p class="form-control-plaintext" id="viewIsPrimary"></p>
+                        </div>
+                    </div>
+                    <hr class="my-4">
+                    <h5 class="mb-2">Jegyzetek</h5>
+                    <br>
+                    <div class="row g-3">
+                        <div class="col-md-12 mb-3">
+                            <label for="viewComment" class="form-label fw-bold">Megjegyzés</label>
+                            <p class="form-control-plaintext" id="viewComment" style="white-space: pre-wrap;"></p>
+                        </div>
+                        <div class="col-md-12 mb-3">
+                            <label for="viewComment2" class="form-label fw-bold">További megjegyzés</label>
+                            <p class="form-control-plaintext" id="viewComment2" style="white-space: pre-wrap;"></p>
+                        </div>
+                    </div>
+                    <hr class="my-4">
+                    <h5 class="mb-2">Időbélyegek</h5>
+                    <br>
+                    <div class="row g-3">
+                        <div class="col-md-6 mb-3">
+                            <label for="viewCreatedDate" class="form-label fw-bold">Létrehozva</label>
+                            <p class="form-control-plaintext" id="viewCreatedDate"></p>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="viewUpdatedDate" class="form-label fw-bold">Frissítve</label>
+                            <p class="form-control-plaintext" id="viewUpdatedDate"></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Bezárás</button>
+                <a href="@Url.Page("./Details", new { id = "PLACEHOLDER_CONTACT_ID" })" class="btn btn-info" target="_blank" id="viewDetailsLink">
+                    <i class="bi bi-box-arrow-up-right"></i> Teljes részletek új lapon
+                </a>
+            </div>
+        </div>
+    </div>
+</div>

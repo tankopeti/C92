@@ -347,17 +347,17 @@
                         <!-- Sites Tab -->
                         <div class="tab-pane fade" id="sites-edit" role="tabpanel" aria-labelledby="sites-edit-tab">
                             <div id="sites-edit-content"></div>
-                            <button type="button" class="btn btn-success mt-3" id="addSiteBtn" onclick="addSite()">Telephely hozzáadása</button>
+                            @* <button type="button" class="btn btn-success mt-3" id="addSiteBtn" onclick="addSite()">Telephely hozzáadása</button> *@
                         </div>
                         <!-- Contacts Tab -->
                         <div class="tab-pane fade" id="contacts-edit" role="tabpanel" aria-labelledby="contacts-edit-tab">
                             <div id="contacts-edit-content"></div>
-                            <button type="button" class="btn btn-success mt-3" id="addContactBtn" onclick="addContact()">Kapcsolattartó hozzáadása</button>
+                            @* <button type="button" class="btn btn-success mt-3" id="addContactBtn" onclick="addContact()">Kapcsolattartó hozzáadása</button> *@
                         </div>
                         <!-- Documents Tab -->
                         <div class="tab-pane fade" id="documents-edit" role="tabpanel" aria-labelledby="documents-edit-tab">
                             <div id="documents-edit-content"></div>
-                            <button type="button" class="btn btn-success mt-3" id="addDocumentBtn" onclick="addDocument()">Dokumentum hozzáadása</button>
+                            @* <button type="button" class="btn btn-success mt-3" id="addDocumentBtn" onclick="addDocument()">Dokumentum hozzáadása</button> *@
                         </div>
                     </div>
                 </form>
@@ -597,7 +597,7 @@
     </div>
 </div>
 
-<!-- Dynamic Modals for Each Partner -->
+@* <!-- Dynamic Modals for Each Partner -->
 @foreach (var item in Model.Partners)
 {
 
@@ -674,7 +674,7 @@
             </div>
         </div>
     </div>
-}
+} *@
 
 <div class="modal fade" id="deletePartnerModal" tabindex="-1" aria-labelledby="deletePartnerModalLabel" aria-hidden="true">
     <div class="modal-dialog">

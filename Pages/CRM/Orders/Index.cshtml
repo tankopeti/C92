@@ -94,15 +94,9 @@
                                 <td class="text-nowrap"><i class="bi bi-person me-1"></i>@(order.Partner?.Name ?? order.CompanyName)</td>
                                 <td class="text-nowrap"><i class="bi bi-calendar me-1"></i>@String.Format(CultureInfo.InvariantCulture, "{0:yyyy-MM-dd}", order.OrderDate)</td>
                                 <td class="text-nowrap">
-                                    @{
-                                        var badgeClass = "badge bg-secondary";
-                                        if (order.Status == "Pending") badgeClass = "badge bg-secondary";
-                                        else if (order.Status == "Confirmed") badgeClass = "badge bg-primary";
-                                        else if (order.Status == "Shipped") badgeClass = "badge bg-info";
-                                        else if (order.Status == "Delivered") badgeClass = "badge bg-success";
-                                        else if (order.Status == "Cancelled") badgeClass = "badge bg-danger";
-                                    }
-                                    <span class="@badgeClass">@order.Status</span>
+                                    <span class="badge" style="background-color:@(order.OrderStatusType?.Color ?? "#6c757d")">
+                                        @(order.OrderStatusType?.StatusName ?? "Ismeretlen")
+                                    </span>
                                 </td>
                                 <td class="text-nowrap">
                                     <i class="bi me-1"></i>

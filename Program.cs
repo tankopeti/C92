@@ -12,6 +12,16 @@ using Microsoft.EntityFrameworkCore;
   var builder = WebApplication.CreateBuilder(args);
   builder.Configuration.AddEnvironmentVariables();
 
+  builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowAll", builder =>
+    {
+        builder.AllowAnyOrigin()
+               .AllowAnyMethod()
+               .AllowAnyHeader();
+    });
+});
+
   // Add services to the container
   builder.Services.AddControllers()
       .AddJsonOptions(options =>
@@ -27,21 +37,25 @@ using Microsoft.EntityFrameworkCore;
   builder.Services.AddScoped<EmailService>();
   builder.Services.AddScoped<IDocumentService, DocumentService>();
   builder.Services.AddScoped<QuoteService>();
-  builder.Services.AddScoped<IOrderService, OrderService>();
+  builder.Services.AddScoped<OrderService>();
   builder.Services.AddScoped<CustomerCommunicationService>();
-  builder.Services.AddScoped<IPartnerService, PartnerService>();
+builder.Services.AddScoped<IPartnerService, PartnerService>();
+  builder.Services.AddScoped<ProductPriceService>();
+  builder.Services.AddScoped<ContactService>();
+  builder.Services.AddScoped<PartnerProductPriceService>();
   builder.Services.AddMemoryCache();
-  builder.Services.AddScoped<QuoteService>();
   builder.Services.AddResponseCaching();
 //   builder.Services.AddScoped<OpenSearchService>();
   builder.Services.AddSingleton<MetadataExtractor>();
   builder.Services.AddHttpClient();
 
-  builder.Services.AddAutoMapper(typeof(OrderProfile));
+//   builder.Services.AddAutoMapper(typeof(OrderProfile));
   builder.Services.AddAutoMapper(typeof(Program));
   builder.Services.AddAutoMapper(typeof(MappingProfile));
   builder.Services.AddHttpContextAccessor();
   builder.Services.AddScoped<IUserService, UserService>();
+  
+  builder.Services.AddAntiforgery(options => options.HeaderName = "X-CSRF-TOKEN");
 
   builder.Services.Configure<RequestLocalizationOptions>(options =>
   {

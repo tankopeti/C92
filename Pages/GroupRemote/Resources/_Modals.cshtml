@@ -1,0 +1,209 @@
+@* _Modals.cshtml *@
+@using Cloud9_2.Models
+@using Microsoft.AspNetCore.Antiforgery
+@inject IAntiforgery Antiforgery
+
+@{
+    var token = Context.Request.Cookies["XSRF-TOKEN"] 
+                ?? Antiforgery.GetAndStoreTokens(Context).RequestToken;
+}
+
+<!-- ====================== CREATE MODAL ====================== -->
+<div class="modal fade" id="newResourceModal" tabindex="-1" aria-labelledby="newResourceModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <form id="createResourceForm" method="post">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="newResourceModalLabel">Új eszköz</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="errorContainer" class="alert alert-danger d-none"></div>
+                    <input type="hidden" name="__RequestVerificationToken" value="@token" />
+
+                    <ul class="nav nav-tabs" id="createTabs">
+                        <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#basic">Alapadatok</button></li>
+                        <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#service">Szerviz</button></li>
+                        <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#relations">Kapcsolatok</button></li>
+                        <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#history">Előzmények</button></li>
+                    </ul>
+
+                    <div class="tab-content mt-3">
+                        <!-- Alapadatok -->
+                        <div class="tab-pane fade show active" id="basic">
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">Név <span class="text-danger">*</span></label>
+                                        <input name="Name" class="form-control" required />
+                                        <span class="text-danger"></span>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Sorozatszám</label>
+                                        <input name="Serial" class="form-control" />
+                                        <span class="text-danger"></span>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Ár</label>
+                                        <input name="Price" type="number" step="0.01" class="form-control" />
+                                        <span class="text-danger"></span>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Vétel dátuma</label>
+                                        <input name="DateOfPurchase" type="date" class="form-control" />
+                                        <span class="text-danger"></span>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">Típus</label>
+                                        <select name="ResourceTypeId" id="createType" class="form-control tomselect-dropdown"></select>
+                                        <span class="text-danger"></span>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Státusz</label>
+                                        <select name="ResourceStatusId" id="createStatus" class="form-control tomselect-dropdown"></select>
+                                        <span class="text-danger"></span>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Megjegyzés 1</label>
+                                        <textarea name="Comment1" class="form-control" rows="2"></textarea>
+                                        <span class="text-danger"></span>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Megjegyzés 2</label>
+                                        <textarea name="Comment2" class="form-control" rows="2"></textarea>
+                                        <span class="text-danger"></span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Szerviz -->
+                        <div class="tab-pane fade" id="service">
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">Következő szerviz</label>
+                                        <input name="NextService" type="date" class="form-control" />
+                                        <span class="text-danger"></span>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Szerviz dátuma</label>
+                                        <input name="ServiceDate" type="date" class="form-control" />
+                                        <span class="text-danger"></span>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">Garancia (hónap)</label>
+                                        <input name="WarrantyPeriod" type="number" class="form-control" />
+                                        <span class="text-danger"></span>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Garancia lejárat</label>
+                                        <input name="WarrantyExpireDate" type="date" class="form-control" />
+                                        <span class="text-danger"></span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Kapcsolatok -->
+                        <div class="tab-pane fade" id="relations">
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">Vásárló</label>
+                                        <select name="WhoBuyId" id="createWhoBuy" class="form-control tomselect-dropdown"></select>
+                                        <span class="text-danger"></span>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Utolsó szervizelő</label>
+                                        <select name="WhoLastServicedId" id="createWhoLastServiced" class="form-control tomselect-dropdown"></select>
+                                        <span class="text-danger"></span>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">Partner</label>
+                                        <select name="PartnerId" id="createPartner" class="form-control tomselect-dropdown"></select>
+                                        <span class="text-danger"></span>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Telephely</label>
+                                        <select name="SiteId" id="createSite" class="form-control tomselect-dropdown"></select>
+                                        <span class="text-danger"></span>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Kapcsolattartó</label>
+                                        <select name="ContactId" id="createContact" class="form-control tomselect-dropdown"></select>
+                                        <span class="text-danger"></span>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Munkatárs</label>
+                                        <select name="EmployeeId" id="createEmployee" class="form-control tomselect-dropdown"></select>
+                                        <span class="text-danger"></span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Előzmények -->
+                        <div class="tab-pane fade" id="history">
+                            <div class="p-3 text-muted">Új eszköz — nincs előzmény.</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Mégse</button>
+                    <button type="submit" class="btn btn-primary">Létrehozás</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- ====================== EDIT MODAL (Shared) ====================== -->
+<div class="modal fade" id="editResourceModal" tabindex="-1" aria-labelledby="editResourceModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <form id="editResourceForm" method="post">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="editResourceModalLabel">Eszköz szerkesztése</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" id="editModalBody">
+                    <!-- Content injected by Resources.edit(id) -->
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Mégse</button>
+                    <button type="submit" class="btn btn-primary">Mentés</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- ====================== VIEW HISTORY MODAL (per resource) ====================== -->
+@foreach (var r in Model.Resources)
+{
+    <div class="modal fade" id="viewResourceModal_@r.ResourceId" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Előzmények: @r.Name</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="historyContainer_@r.ResourceId">
+                        <p class="text-muted">Kattints a "Megtekintés" gombra.</p>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Bezárás</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}

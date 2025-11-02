@@ -1,178 +1,84 @@
+// File: Pages/GroupRemote/Resources/Index.cshtml.cs
+using Cloud9_2.Models;
+using Cloud9_2.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
-using Microsoft.EntityFrameworkCore;
-using Cloud9_2.Data;
-using Cloud9_2.Models;
-using Microsoft.AspNetCore.Mvc.Rendering;
-using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 
-namespace Cloud9_2.Pages.GroupRemote
+namespace Cloud9_2.Pages.GroupRemote.Resources
 {
-    public class ResourcesModel : PageModel
+    public class IndexModel : PageModel
     {
-        private readonly ApplicationDbContext _context;
+        private readonly ResourceService _service;
 
-        public ResourcesModel(ApplicationDbContext context)
-        {
-            _context = context;
-        }
+        public IndexModel(ResourceService service) => _service = service;
 
-        public IList<Resource> Resources { get; set; }
+        public IEnumerable<ResourceDto> Resources { get; set; } = new List<ResourceDto>();
+        public int CurrentPage { get; set; } = 1;
+        public int PageSize { get; set; } = 20;
+        public int TotalRecords { get; set; }
+        public int TotalPages => (int)Math.Ceiling((double)TotalRecords / PageSize);
+        public string? SearchTerm { get; set; }
+        public string? Sort { get; set; }
+        public string? Order { get; set; }
+
         [BindProperty]
-        public Resource Resource { get; set; }
-        public SelectList ResourceTypeOptions { get; set; }
-        public SelectList ResourceStatusOptions { get; set; }
-        public SelectList UserOptions { get; set; }
-        public SelectList PartnerOptions { get; set; }
-        public SelectList SiteOptions { get; set; }
-        public SelectList ContactOptions { get; set; }
-        public SelectList EmployeeOptions { get; set; }
+        public CreateResourceDto CreateDto { get; set; } = new();
 
-        public async Task OnGetAsync()
+        [BindProperty]
+        public UpdateResourceDto? UpdateDto { get; set; } // Nullable to fix CS8603
+
+        public async Task OnGetAsync(int? pageNumber, int? pageSize, string? searchTerm, string? sort, string? order)
         {
-            try
-            {
-                Resources = await _context.Resources
-                    .Include(r => r.ResourceType)
-                    .Include(r => r.ResourceStatus)
-                    .Include(r => r.WhoBuy)
-                    .Include(r => r.WhoLastServiced)
-                    .Include(r => r.Partner)
-                    .Include(r => r.Site)
-                    .Include(r => r.Contact)
-                    .Include(r => r.Employee)
-                    .Where(r => r.IsActive == true)
-                    .OrderBy(r => r.Name)
-                    .ToListAsync();
+            CurrentPage = pageNumber ?? 1;
+            PageSize = pageSize ?? 20;
+            SearchTerm = searchTerm;
+            Sort = sort;
+            Order = order;
 
-                await LoadDropdowns();
-            }
-            catch (Exception ex)
-            {
-                TempData["ErrorMessage"] = $"Error loading resources: {ex.Message}";
-                Resources = new List<Resource>();
-            }
+            var result = await _service.GetPagedResourcesAsync(CurrentPage, PageSize, SearchTerm, Sort, Order);
+            Resources = result.Items ?? new List<ResourceDto>();
+            TotalRecords = result.TotalCount;
         }
 
         public async Task<IActionResult> OnPostCreateAsync()
         {
-            if (!ModelState.IsValid)
-            {
-                var errors = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage).ToList();
-                TempData["ErrorMessage"] = "Invalid input data: " + string.Join("; ", errors);
-                await LoadDropdowns();
-                return Page();
-            }
-
-            Resource.CreatedDate = DateTime.UtcNow;
-            Resource.IsActive = true;
-            _context.Resources.Add(Resource);
-            await _context.SaveChangesAsync();
-
-            TempData["SuccessMessage"] = "Resource created successfully.";
+            if (!ModelState.IsValid) return Page();
+            await _service.CreateResourceAsync(CreateDto, User.Identity?.Name ?? "system");
             return RedirectToPage();
         }
 
         public async Task<IActionResult> OnPostUpdateAsync()
         {
-            if (!ModelState.IsValid)
-            {
-                var errors = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage).ToList();
-                TempData["ErrorMessage"] = "Invalid input data: " + string.Join("; ", errors);
-                await LoadDropdowns();
-                return Page();
-            }
-
-            var existingResource = await _context.Resources.FindAsync(Resource.ResourceId);
-            if (existingResource == null)
-            {
-                TempData["ErrorMessage"] = "Resource not found.";
-                return RedirectToPage();
-            }
-
-            existingResource.Name = Resource.Name;
-            existingResource.ResourceTypeId = Resource.ResourceTypeId;
-            existingResource.ResourceStatusId = Resource.ResourceStatusId;
-            existingResource.Serial = Resource.Serial;
-            existingResource.NextService = Resource.NextService;
-            existingResource.DateOfPurchase = Resource.DateOfPurchase;
-            existingResource.WarrantyPeriod = Resource.WarrantyPeriod;
-            existingResource.WarrantyExpireDate = Resource.WarrantyExpireDate;
-            existingResource.ServiceDate = Resource.ServiceDate;
-            existingResource.WhoBuyId = Resource.WhoBuyId;
-            existingResource.WhoLastServicedId = Resource.WhoLastServicedId;
-            existingResource.PartnerId = Resource.PartnerId;
-            existingResource.SiteId = Resource.SiteId;
-            existingResource.ContactId = Resource.ContactId;
-            existingResource.EmployeeId = Resource.EmployeeId;
-            existingResource.Price = Resource.Price;
-            existingResource.CreatedDate = existingResource.CreatedDate;
-            existingResource.IsActive = Resource.IsActive ?? true;
-            existingResource.Comment1 = Resource.Comment1;
-            existingResource.Comment2 = Resource.Comment2;
-
-            await _context.SaveChangesAsync();
-
-            TempData["SuccessMessage"] = "Resource updated successfully.";
+            if (!ModelState.IsValid || UpdateDto == null) return Page();
+            await _service.UpdateResourceAsync(UpdateDto, User.Identity?.Name ?? "system");
             return RedirectToPage();
         }
 
         public async Task<IActionResult> OnPostDeleteAsync(int id)
         {
-            var resource = await _context.Resources.FindAsync(id);
-            if (resource == null)
-            {
-                TempData["ErrorMessage"] = "Resource not found.";
-                return RedirectToPage();
-            }
-
-            resource.IsActive = false;
-            await _context.SaveChangesAsync();
-
-            TempData["SuccessMessage"] = "Resource deleted successfully.";
+            await _service.DeactivateResourceAsync(id, User.Identity?.Name ?? "system");
             return RedirectToPage();
         }
 
-        private async Task LoadDropdowns()
+        public async Task<IActionResult> OnGetEditAsync(int id)
         {
-            ResourceTypeOptions = new SelectList(
-                await _context.ResourceTypes.Where(t => t.IsActive == true && !string.IsNullOrEmpty(t.Name)).ToListAsync(),
-                "ResourceTypeId",
-                "Name"
-            );
-            ResourceStatusOptions = new SelectList(
-                await _context.ResourceStatuses.Where(s => s.IsActive == true && !string.IsNullOrEmpty(s.Name)).ToListAsync(),
-                "ResourceStatusId",
-                "Name"
-            );
-            UserOptions = new SelectList(
-                await _context.Users.Where(u => !string.IsNullOrEmpty(u.UserName)).ToListAsync(),
-                "Id",
-                "UserName"
-            );
-            PartnerOptions = new SelectList(
-                await _context.Partners.Where(p => !string.IsNullOrEmpty(p.Name)).ToListAsync(),
-                "PartnerId",
-                "Name"
-            );
-            SiteOptions = new SelectList(
-                await _context.Sites.Where(s => s.SiteId > 0 && !string.IsNullOrEmpty(s.SiteName)).ToListAsync(),
-                "SiteId",
-                "SiteName"
-            );
-            ContactOptions = new SelectList(
-                await _context.Contacts.Where(c => !string.IsNullOrEmpty(c.FirstName)).ToListAsync(),
-                "ContactId",
-                "FirstName"
-            );
-            EmployeeOptions = new SelectList(
-                await _context.Employees.Where(e => !string.IsNullOrEmpty(e.FirstName)).ToListAsync(),
-                "EmployeeId",
-                "FirstName"
-            );
+            var res = await _service.GetResourceByIdAsync(id);
+            if (res == null) return NotFound();
+
+            UpdateDto = new UpdateResourceDto
+            {
+                ResourceId = res.ResourceId,
+                Name = res.Name ?? string.Empty,
+                Serial = res.Serial,
+                ResourceTypeId = res.ResourceTypeId,
+                ResourceStatusId = res.ResourceStatusId,
+                Price = res.Price,
+                DateOfPurchase = res.DateOfPurchase,
+                Comment1 = res.Comment1
+            };
+
+            return Partial("_EditForm", UpdateDto);
         }
     }
 }

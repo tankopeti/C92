@@ -34,7 +34,9 @@ using Microsoft.EntityFrameworkCore;
   builder.Services.AddControllersWithViews();
   builder.Services.AddControllers();
 
-  builder.Services.AddScoped<EmailService>();
+builder.Services.AddScoped<EmployeeService>();
+builder.Services.AddScoped<ResourceService>();
+builder.Services.AddScoped<EmailService>();
   builder.Services.AddScoped<IDocumentService, DocumentService>();
   builder.Services.AddScoped<QuoteService>();
   builder.Services.AddScoped<OrderService>();

@@ -120,6 +120,34 @@ namespace Cloud9_2.Controllers
 
             return NoContent();
         }
+
+
+        [HttpGet("select")]
+        public async Task<IActionResult> GetUsersForSelect([FromQuery] string search = "")
+        {
+            var query = _userManager.Users.AsNoTracking();
+
+            if (!string.IsNullOrWhiteSpace(search))
+            {
+                var term = search.Trim().ToLower();
+                query = query.Where(u =>
+                    u.NormalizedUserName.Contains(term.ToUpper()) ||  // Match NormalizedUserName
+                    (u.Email != null && u.Email.ToLower().Contains(term))
+                );
+            }
+
+            var users = await query
+                .OrderBy(u => u.NormalizedUserName)
+                .Select(u => new
+                {
+                    id = u.Id,
+                    text = u.NormalizedUserName + (u.Email != null ? $" ({u.Email})" : "")
+                })
+                .Take(50)
+                .ToListAsync();
+
+            return Ok(users);
+        }
     }
 
     public class UserDto

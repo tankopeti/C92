@@ -82,11 +82,36 @@ namespace Cloud9_2.Data
         public DbSet<ResourceType> ResourceTypes { get; set; }
         public DbSet<ResourceStatus> ResourceStatuses { get; set; }
         public DbSet<Resource> Resources { get; set; }
+        public DbSet<ResourceHistory> ResourceHistories { get; set; }
 
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
+
+            modelBuilder.Entity<ResourceHistory>().ToTable("ResourceHistory");
+
+            modelBuilder.Entity<ResourceHistory>(entity =>
+            {
+                entity.HasKey(e => e.ResourceHistoryId);
+
+                entity.Property(e => e.ModifiedDate)
+                    .HasDefaultValueSql("GETDATE()");
+
+                entity.Property(e => e.ServicePrice)
+                    .HasColumnType("decimal(18,2)");
+
+                entity.HasOne(e => e.Resource)
+                    .WithMany(r => r.ResourceHistories) // if you have inverse
+                    .HasForeignKey(e => e.ResourceId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(e => e.ModifiedBy)
+                    .WithMany()
+                    .HasForeignKey(e => e.ModifiedById)
+                    .OnDelete(DeleteBehavior.SetNull);
+            });
+    
 
             modelBuilder.Entity<Resource>().ToTable("Resource");
 

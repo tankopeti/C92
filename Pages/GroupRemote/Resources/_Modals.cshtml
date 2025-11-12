@@ -22,10 +22,18 @@
                     <input type="hidden" name="__RequestVerificationToken" value="@token" />
 
                     <ul class="nav nav-tabs" id="createTabs">
-                        <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#basic">Alapadatok</button></li>
-                        <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#service">Szerviz</button></li>
-                        <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#relations">Kapcsolatok</button></li>
-                        <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#history">Előzmények</button></li>
+                        <li class="nav-item">
+                            <button type="button" class="nav-link active" data-bs-toggle="tab" data-bs-target="#basic">Alapadatok</button>
+                        </li>
+                        <li class="nav-item">
+                            <button type="button" class="nav-link" data-bs-toggle="tab" data-bs-target="#service">Szerviz</button>
+                        </li>
+                        <li class="nav-item">
+                            <button type="button" class="nav-link" data-bs-toggle="tab" data-bs-target="#relations">Kapcsolatok</button>
+                        </li>
+                        <li class="nav-item">
+                            <button type="button" class="nav-link" data-bs-toggle="tab" data-bs-target="#history">Előzmények</button>
+                        </li>
                     </ul>
 
                     <div class="tab-content mt-3">
@@ -164,17 +172,190 @@
     </div>
 </div>
 
-<!-- ====================== EDIT MODAL (Shared) ====================== -->
+
+<div class="modal fade" id="viewResourceModal" tabindex="-1" aria-labelledby="viewResourceModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header bg-light">
+                <h5 class="modal-title" id="viewResourceModalLabel">Eszköz megtekintése</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <ul class="nav nav-tabs">
+                    <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#view-basic">Alapadatok</button></li>
+                    <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#view-service">Szerviz</button></li>
+                    <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#view-relations">Kapcsolatok</button></li>
+                    <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#view-history">Előzmények</button></li>
+                </ul>
+
+                <div class="tab-content mt-3">
+                    <div class="tab-pane fade show active" id="view-basic">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Név</label>
+                                <input id="viewName" class="form-control" readonly />
+                                <label class="form-label mt-2">Sorozatszám</label>
+                                <input id="viewSerial" class="form-control" readonly />
+                                <label class="form-label mt-2">Ár</label>
+                                <input id="viewPrice" class="form-control" readonly />
+                                <label class="form-label mt-2">Vétel dátuma</label>
+                                <input id="viewDateOfPurchase" class="form-control" readonly />
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Típus</label>
+                                <input id="viewType" class="form-control" readonly />
+                                <label class="form-label mt-2">Státusz</label>
+                                <input id="viewStatus" class="form-control" readonly />
+                                <label class="form-label mt-2">Megjegyzés 1</label>
+                                <textarea id="viewComment1" class="form-control" rows="2" readonly></textarea>
+                                <label class="form-label mt-2">Megjegyzés 2</label>
+                                <textarea id="viewComment2" class="form-control" rows="2" readonly></textarea>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="tab-pane fade" id="view-service">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Következő szerviz</label>
+                                <input id="viewNextService" class="form-control" readonly />
+                                <label class="form-label mt-2">Szerviz dátuma</label>
+                                <input id="viewServiceDate" class="form-control" readonly />
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Garancia (hónap)</label>
+                                <input id="viewWarrantyPeriod" class="form-control" readonly />
+                                <label class="form-label mt-2">Garancia lejárat</label>
+                                <input id="viewWarrantyExpireDate" class="form-control" readonly />
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="tab-pane fade" id="view-relations">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Vásárló</label>
+                                <input id="viewWhoBuy" class="form-control" readonly />
+                                <label class="form-label mt-2">Utolsó szervizelő</label>
+                                <input id="viewWhoLastServiced" class="form-control" readonly />
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Partner</label>
+                                <input id="viewPartner" class="form-control" readonly />
+                                <label class="form-label mt-2">Telephely</label>
+                                <input id="viewSite" class="form-control" readonly />
+                                <label class="form-label mt-2">Kapcsolattartó</label>
+                                <input id="viewContact" class="form-control" readonly />
+                                <label class="form-label mt-2">Munkatárs</label>
+                                <input id="viewEmployee" class="form-control" readonly />
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="tab-pane fade" id="view-history">
+                        <div id="viewHistoryContainer" class="p-3 text-muted">Nincs előzmény.</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <div class="modal fade" id="editResourceModal" tabindex="-1" aria-labelledby="editResourceModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-xl">
         <div class="modal-content">
             <form id="editResourceForm" method="post">
-                <div class="modal-header">
+            <input type="hidden" name="ResourceId" id="editId" />
+                <div class="modal-header bg-light">
                     <h5 class="modal-title" id="editResourceModalLabel">Eszköz szerkesztése</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
-                <div class="modal-body" id="editModalBody">
-                    <!-- Content injected by Resources.edit(id) -->
+                <div class="modal-body">
+                    <input type="hidden" name="Id" id="editId" />
+
+<ul class="nav nav-tabs">
+    <li class="nav-item">
+        <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#edit-basic" type="button">Alapadatok</button>
+    </li>
+    <li class="nav-item">
+        <button class="nav-link" data-bs-toggle="tab" data-bs-target="#edit-service" type="button">Szerviz</button>
+    </li>
+    <li class="nav-item">
+        <button class="nav-link" data-bs-toggle="tab" data-bs-target="#edit-relations" type="button">Kapcsolatok</button>
+    </li>
+    <li class="nav-item">
+        <button class="nav-link" data-bs-toggle="tab" data-bs-target="#edit-history" type="button">Előzmények</button>
+    </li>
+</ul>
+
+                    <div class="tab-content mt-3">
+                        <div class="tab-pane fade show active" id="edit-basic">
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="form-label">Név</label>
+                                    <input name="Name" id="editName" class="form-control" required />
+                                    <label class="form-label mt-2">Sorozatszám</label>
+                                    <input name="Serial" id="editSerial" class="form-control" />
+                                    <label class="form-label mt-2">Ár</label>
+                                    <input name="Price" id="editPrice" type="number" step="0.01" class="form-control" />
+                                    <label class="form-label mt-2">Vétel dátuma</label>
+                                    <input name="DateOfPurchase" id="editDateOfPurchase" type="date" class="form-control" />
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Típus</label>
+                                    <select name="ResourceTypeId" id="editType" class="form-control tomselect-dropdown"></select>
+                                    <label class="form-label mt-2">Státusz</label>
+                                    <select name="ResourceStatusId" id="editStatus" class="form-control tomselect-dropdown"></select>
+                                    <label class="form-label mt-2">Megjegyzés 1</label>
+                                    <textarea name="Comment1" id="editComment1" class="form-control" rows="2"></textarea>
+                                    <label class="form-label mt-2">Megjegyzés 2</label>
+                                    <textarea name="Comment2" id="editComment2" class="form-control" rows="2"></textarea>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="tab-pane fade" id="edit-service">
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="form-label">Következő szerviz</label>
+                                    <input name="NextService" id="editNextService" type="date" class="form-control" />
+                                    <label class="form-label mt-2">Szerviz dátuma</label>
+                                    <input name="ServiceDate" id="editServiceDate" type="date" class="form-control" />
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Garancia (hónap)</label>
+                                    <input name="WarrantyPeriod" id="editWarrantyPeriod" type="number" class="form-control" />
+                                    <label class="form-label mt-2">Garancia lejárat</label>
+                                    <input name="WarrantyExpireDate" id="editWarrantyExpireDate" type="date" class="form-control" />
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="tab-pane fade" id="edit-relations">
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="form-label">Vásárló</label>
+                                    <select name="WhoBuyId" id="editWhoBuy" class="form-control tomselect-dropdown"></select>
+                                    <label class="form-label mt-2">Utolsó szervizelő</label>
+                                    <select name="WhoLastServicedId" id="editWhoLastServiced" class="form-control tomselect-dropdown"></select>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Partner</label>
+                                    <select name="PartnerId" id="editPartner" class="form-control tomselect-dropdown"></select>
+                                    <label class="form-label mt-2">Telephely</label>
+                                    <select name="SiteId" id="editSite" class="form-control tomselect-dropdown"></select>
+                                    <label class="form-label mt-2">Kapcsolattartó</label>
+                                    <select name="ContactId" id="editContact" class="form-control tomselect-dropdown"></select>
+                                    <label class="form-label mt-2">Munkatárs</label>
+                                    <select name="EmployeeId" id="editEmployee" class="form-control tomselect-dropdown"></select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="tab-pane fade" id="edit-history">
+                            <div class="p-3 text-muted">Előzmények megtekintése csak olvasható.</div>
+                        </div>
+                    </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Mégse</button>
@@ -185,25 +366,25 @@
     </div>
 </div>
 
-<!-- ====================== VIEW HISTORY MODAL (per resource) ====================== -->
-@foreach (var r in Model.Resources)
-{
-    <div class="modal fade" id="viewResourceModal_@r.ResourceId" tabindex="-1">
-        <div class="modal-dialog modal-lg">
-            <div class="modal-content">
+
+
+@* DELETE MODAL (shared) *@
+<div class="modal fade" id="deleteResourceModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form id="deleteResourceForm">
                 <div class="modal-header">
-                    <h5 class="modal-title">Előzmények: @r.Name</h5>
+                    <h5 class="modal-title">Deaktiválás</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
-                    <div id="historyContainer_@r.ResourceId">
-                        <p class="text-muted">Kattints a "Megtekintés" gombra.</p>
-                    </div>
+                    <p>Biztosan deaktiválod ezt az eszközt?</p>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Bezárás</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Mégse</button>
+                    <button type="submit" class="btn btn-danger">Deaktiválás</button>
                 </div>
-            </div>
+            </form>
         </div>
     </div>
-}
+</div>

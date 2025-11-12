@@ -15,6 +15,9 @@
                     <a class="nav-link px-3 py-2 @(Html.IsActive("Tasks/Index", "GroupRemote") ? "active" : "")" asp-area="" asp-page="/GroupRemote/Tasks/Index">
                         <i class="bi bi-people-fill me-2"></i>Feladatok
                     </a>
+                    <a class="nav-link px-3 py-2 @(Html.IsActive("Resources/Index", "GroupRemote") ? "active" : "")" asp-area="" asp-page="/GroupRemote/Resources/Index">
+                        <i class="bi bi-people-fill me-2"></i>Eszközök
+                    </a>
                     <a class="nav-link px-3 py-2 @(Html.IsActive("Projects/Index", "GroupRemote") ? "active" : "")" asp-area="" asp-page="/GroupRemote/Projects/Index">
                         <i class="bi bi-people-fill me-2"></i>Projektek
                     </a>
@@ -35,9 +38,6 @@
                     </a>
                     <a class="nav-link px-3 py-2 @(Html.IsActive("ResourceStatuses/Index", "GroupRemote") ? "active" : "")" asp-area="" asp-page="/GroupRemote/ResourceStatuses/Index">
                         <i class="bi bi-people-fill me-2"></i>Eszköz Státuszok
-                    </a>
-                    <a class="nav-link px-3 py-2 @(Html.IsActive("Resources/Index", "GroupRemote") ? "active" : "")" asp-area="" asp-page="/GroupRemote/Resources/Index">
-                        <i class="bi bi-people-fill me-2"></i>Eszközök
                     </a>
                 </li>
                 @* Add other sidebar links as needed *@

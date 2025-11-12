@@ -1,7 +1,9 @@
 using Microsoft.AspNetCore.Mvc;
 using Cloud9_2.Models;
 using Cloud9_2.Services;
+using Cloud9_2.Data;
 using System.ComponentModel.DataAnnotations;
+using Microsoft.EntityFrameworkCore;
 
 namespace Cloud9_2.Controllers
 {
@@ -11,10 +13,15 @@ namespace Cloud9_2.Controllers
     {
         private readonly EmployeeService _employeeService;
         private readonly ILogger<EmployeeController> _logger;
+        private readonly ApplicationDbContext _context; // Added
 
-        public EmployeeController(EmployeeService employeeService, ILogger<EmployeeController> logger)
+public EmployeeController(
+            EmployeeService employeeService,
+            ApplicationDbContext context,  // INJECT DbContext
+            ILogger<EmployeeController> logger)
         {
             _employeeService = employeeService ?? throw new ArgumentNullException(nameof(employeeService));
+            _context = context ?? throw new ArgumentNullException(nameof(context));  // REQUIRED
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
@@ -169,6 +176,45 @@ namespace Cloud9_2.Controllers
             {
                 _logger.LogError(ex, "Error in TomSelect endpoint with term: {SearchTerm}", q);
                 return StatusCode(500, "TomSelect search failed.");
+            }
+        }
+
+// NEW: GET: api/employee/select (for TomSelect)
+[HttpGet("select")]
+public async Task<IActionResult> GetEmployeesForSelect([FromQuery] string search = "")
+        {
+            try
+            {
+                var query = _context.Employees.AsQueryable();  // Use _context
+
+                if (!string.IsNullOrEmpty(search))
+                {
+                    query = query.Where(e =>
+                        (e.FirstName != null && e.FirstName.Contains(search)) ||
+                        (e.LastName != null && e.LastName.Contains(search)) ||
+                        (e.Email != null && e.Email.Contains(search))
+                    );
+                }
+
+                var employees = await query
+                    .OrderBy(e => e.LastName).ThenBy(e => e.FirstName)
+                    .Select(e => new
+                    {
+                        id = e.EmployeeId,
+                        text = string.IsNullOrWhiteSpace(e.FirstName + " " + e.LastName)
+                               ? (e.Email ?? "Ismeretlen alkalmazott")
+                               : $"{e.FirstName} {e.LastName}".Trim()
+                    })
+                    .Take(50)
+                    .ToListAsync();
+
+                _logger.LogInformation("Loaded {Count} employees for select", employees.Count);
+                return Ok(employees);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error loading employees for select. Search: {Search}", search);
+                return StatusCode(500, new { errors = new { General = new[] { "Failed to load employees: " + ex.Message } } });
             }
         }
     }

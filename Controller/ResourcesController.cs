@@ -71,29 +71,39 @@ namespace Cloud9_2.Controllers
             }
         }
 
-        // POST: api/resources
         [HttpPost]
         public async Task<ActionResult<ResourceDto>> CreateResource([FromBody] CreateResourceDto createResourceDto)
         {
             if (!ModelState.IsValid)
             {
-                return BadRequest(new { message = "Invalid data provided.", errors = ModelState });
+                var errors = ModelState
+                    .Where(e => e.Value.Errors.Count > 0)
+                    .ToDictionary(
+                        e => e.Key,
+                        e => e.Value.Errors.Select(err => err.ErrorMessage).ToArray()
+                    );
+                return BadRequest(new { message = "Invalid data", errors });
             }
 
             try
             {
                 var user = await _userManager.GetUserAsync(User);
-                var modifiedById = user?.Id;
-
-                var resource = await _resourceService.CreateResourceAsync(createResourceDto, modifiedById);
+                var resource = await _resourceService.CreateResourceAsync(createResourceDto, user?.Id);
                 return CreatedAtAction(nameof(GetResource), new { id = resource.ResourceId }, resource);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error creating resource");
-                return StatusCode(500, new { message = $"An error occurred while creating the resource: {ex.Message}" });
+                // TELJES HIBA VISSZAKÜLDÉSE
+                return StatusCode(500, new
+                {
+                    message = "Hiba történt a létrehozáskor",
+                    error = ex.Message,
+                    stack = ex.StackTrace,
+                    inner = ex.InnerException?.Message
+                });
             }
         }
+
 
         // PUT: api/resources/{id}
         [HttpPut("{id}")]
@@ -175,7 +185,7 @@ namespace Cloud9_2.Controllers
         }
 
         // DELETE: api/resources/{id} (Soft Delete)
-        [HttpDelete("{id}")]
+        [HttpPost("{id}/deactivate")]
         public async Task<IActionResult> DeactivateResource(int id)
         {
             try

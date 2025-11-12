@@ -1,269 +1,468 @@
-// using System;
-// using System.Collections.Generic;
-// using System.Linq;
-// using System.Threading.Tasks;
-// using Microsoft.EntityFrameworkCore;
-// using Cloud9_2.Models;
-// using Cloud9_2.Data;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
+using Cloud9_2.Models;
+using Cloud9_2.Data;
+using System.ComponentModel.DataAnnotations;
+using Microsoft.Extensions.Logging;
+
+namespace Cloud9_2.Services
+{
+    public class TaskPMService
+    {
+        private readonly ApplicationDbContext _context;
+        private readonly UserManager<ApplicationUser> _userManager;
+        private readonly ILogger<TaskPMService> _logger;
+
+        public TaskPMService(ApplicationDbContext context, UserManager<ApplicationUser> userManager, ILogger<TaskPMService> logger)
+        {
+            _context = context;
+            _userManager = userManager;
+            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        }
+
+        #region === Helpers ===
+        private static string FullName(ApplicationUser? user) =>
+            user == null ? null! : user.UserName;   // <-- only property that ALWAYS exists
+
+        private static IQueryable<TaskPM> BaseQuery(ApplicationDbContext ctx) =>
+            ctx.TaskPMs                                 // <-- **TaskPMs** (plural)
+                .AsNoTracking()
+                .Include(t => t.TaskTypePM)
+                .Include(t => t.TaskStatusPM)
+                .Include(t => t.TaskPriorityPM)
+                // .Include(t => t.ProjectPM)
+                .Include(t => t.CreatedBy)
+                .Include(t => t.AssignedTo)
+                .Include(t => t.Partner)
+                .Include(t => t.Site)
+                .Include(t => t.Contact)
+                .Include(t => t.Quote)
+                .Include(t => t.Order)
+                .Include(t => t.CustomerCommunication)
+                .Include(t => t.TaskResourceAssignments).ThenInclude(ra => ra.Resource)
+                .Include(t => t.TaskEmployeeAssignments).ThenInclude(ea => ea.Employee)
+                .Include(t => t.TaskHistories).ThenInclude(th => th.ModifiedBy);
+        #endregion
+
+        // -----------------------------------------------------------------
+        // GET ALL
+        // -----------------------------------------------------------------
+        public async Task<List<TaskPMDto>> GetAllTasksAsync()
+        {
+            return await BaseQuery(_context)
+                .Where(t => t.IsActive)
+                .Select(t => MapToDto(t))
+                .ToListAsync();
+        }
+
+        // -----------------------------------------------------------------
+        // GET BY ID
+        // -----------------------------------------------------------------
+        public async Task<TaskPMDto?> GetTaskByIdAsync(int id)
+        {
+            var task = await BaseQuery(_context)
+                .FirstOrDefaultAsync(t => t.Id == id && t.IsActive);
+
+            return task == null ? null : MapToDto(task);
+        }
+
+        // -----------------------------------------------------------------
+        // CREATE
+        // -----------------------------------------------------------------
+        public async Task<TaskPMDto> CreateTaskAsync(TaskCreateDto dto, string currentUserId)
+        {
+            _logger.LogInformation("CreateTaskAsync started - User: {UserId}, DTO: {@DTO}", currentUserId, dto);
+
+            // 1. VALIDATION
+            if (string.IsNullOrWhiteSpace(dto.Title))
+                throw new ValidationException("A cím megadása kötelező.");
+
+            if (dto.TaskTypePMId == null)
+                throw new ValidationException("A feladat típusának kiválasztása kötelező.");
+
+            // Check if the required Task Type ID actually exists to prevent Foreign Key failure
+            var taskTypeExists = await _context.TaskTypePMs
+                .AnyAsync(t => t.TaskTypePMId == dto.TaskTypePMId.Value);
+
+            if (!taskTypeExists)
+            {
+                _logger.LogError("Invalid TaskTypePMId provided: {Id}", dto.TaskTypePMId.Value);
+                throw new ValidationException("A kiválasztott feladat típus nem létezik.");
+            }
+
+            // Site validation (Existing logic for conditional Site dependency)
+            if (dto.SiteId.HasValue && dto.SiteId.Value != 0)
+            {
+                if (dto.PartnerId == null || dto.PartnerId.Value == 0)
+                    throw new ValidationException("Helyszín megadásakor Partner kiválasztása kötelező.");
+
+                var siteExists = await _context.Sites.AnyAsync(s => s.SiteId == dto.SiteId.Value && s.PartnerId == dto.PartnerId);
+                if (!siteExists)
+                    throw new ValidationException("A Site nem tartozik a kiválasztott Partnerhez vagy nem létezik.");
+            }
+
+            // Map DTO to Entity
+            var task = new TaskPM
+            {
+                Title = dto.Title,
+                Description = dto.Description,
+                IsActive = dto.IsActive,
+                TaskTypePMId = dto.TaskTypePMId.Value, // Safe now
+                TaskStatusPMId = dto.TaskStatusPMId ?? 1,
+                TaskPriorityPMId = dto.TaskPriorityPMId ?? 2,
+                DueDate = dto.DueDate,
+                EstimatedHours = dto.EstimatedHours,
+                ActualHours = dto.ActualHours,
+                AssignedToId = dto.AssignedToId,
+
+                // Defensive check for optional integer FKs (TomSelect sometimes sends 0 for blank)
+                PartnerId = dto.PartnerId == 0 ? null : dto.PartnerId,
+                SiteId = dto.SiteId == 0 ? null : dto.SiteId,
+                ContactId = dto.ContactId == 0 ? null : dto.ContactId,
+                QuoteId = dto.QuoteId == 0 ? null : dto.QuoteId,
+                OrderId = dto.OrderId == 0 ? null : dto.OrderId,
+                CustomerCommunicationId = dto.CustomerCommunicationId == 0 ? null : dto.CustomerCommunicationId,
+
+                CreatedById = currentUserId,
+                CreatedDate = DateTime.UtcNow,
+                UpdatedDate = DateTime.UtcNow
+            };
+
+            // 2. TRANSACTION BLOCK
+            using var transaction = await _context.Database.BeginTransactionAsync();
+            try
+            {
+                _logger.LogInformation("Adding task to context - Title: {Title}", task.Title);
+                _context.TaskPMs.Add(task);
+                // Save the task first to get its ID (Task.Id)
+                await _context.SaveChangesAsync();
+                _logger.LogInformation("Task saved - Id: {Id}", task.Id);
+
+                // --- Resources Assignment (with validation) ---
+                if (dto.ResourceIds?.Any() == true)
+                {
+                    // Filter out any ResourceIds that do not exist in the database
+                    var validResourceIds = await _context.Resources
+                        .Where(r => dto.ResourceIds.Contains(r.ResourceId))
+                        .Select(r => r.ResourceId)
+                        .ToListAsync();
+
+                    if (validResourceIds.Any())
+                    {
+                        var res = validResourceIds.Select(rid => new TaskResourceAssignment
+                        {
+                            TaskPMId = task.Id,
+                            ResourceId = rid
+                        });
+                        _logger.LogInformation("Adding {Count} valid resources", res.Count());
+                        _context.TaskResourceAssignments.AddRange(res);
+                    }
+                }
+
+                // --- Employees Assignment (with validation) ---
+                if (dto.EmployeeIds?.Any() == true)
+                {
+                    // Filter out any EmployeeIds that do not exist in the database
+                    var validEmployeeIds = await _context.Employees
+                        .Where(e => dto.EmployeeIds.Contains(e.EmployeeId))
+                        .Select(e => e.EmployeeId)
+                        .ToListAsync();
+
+                    if (validEmployeeIds.Any())
+                    {
+                        var emp = validEmployeeIds.Select(eid => new TaskEmployeeAssignment
+                        {
+                            TaskPMId = task.Id,
+                            EmployeeId = eid
+                        });
+                        _logger.LogInformation("Adding {Count} valid employees", emp.Count());
+                        _context.TaskEmployeeAssignments.AddRange(emp);
+                    }
+                }
+
+                await _context.SaveChangesAsync(); // Save assignments (should be safe now)
+                await transaction.CommitAsync();   // Commit the transaction
+
+                _logger.LogInformation("Task with assignments saved successfully - Id: {Id}", task.Id);
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+
+                // CRITICAL: This is the log you MUST check now for the detailed error message
+                _logger.LogError(ex, "DATABASE ERROR in CreateTaskAsync for Task: {Title} by User: {UserId}.", task.Title, currentUserId);
+
+                throw; // Re-throw for the controller to catch and convert to HTTP 500
+            }
+
+            // 3. MAP AND RETURN DTO (Ensure you pull names for the return DTO if needed)
+            return await GetTaskByIdAsync(task.Id)
+                   ?? throw new InvalidOperationException("Failed to retrieve the newly created task.");
+        }
+
+        // -----------------------------------------------------------------
+        // UPDATE
+        // -----------------------------------------------------------------
+public async Task<TaskPMDto> UpdateTaskAsync(TaskUpdateDto dto, string currentUserId)
+{
+    var task = await _context.TaskPMs
+        .Include(t => t.TaskResourceAssignments)
+        .Include(t => t.TaskEmployeeAssignments)
+                .FirstOrDefaultAsync(t => t.Id == dto.Id && t.IsActive)
+                ?? throw new KeyNotFoundException($"Task {dto.Id} not found.");
+
+            task.Title = dto.Title;
+            task.Description = dto.Description;
+            // task.IsActive = dto.IsActive ?? task.IsActive;
+            task.TaskTypePMId = dto.TaskTypePMId ?? task.TaskTypePMId;
+            // task.ProjectPMId = dto.ProjectPMId ?? task.ProjectPMId;
+            task.TaskStatusPMId = dto.TaskStatusPMId ?? task.TaskStatusPMId;
+            task.TaskPriorityPMId = dto.TaskPriorityPMId ?? task.TaskPriorityPMId;
+            task.DueDate = dto.DueDate ?? task.DueDate;
+            task.EstimatedHours = dto.EstimatedHours ?? task.EstimatedHours;
+            task.ActualHours = dto.ActualHours ?? task.ActualHours;
+            task.AssignedToId = dto.AssignedToId ?? task.AssignedToId;
+            task.PartnerId = dto.PartnerId ?? task.PartnerId;
+            task.SiteId = dto.SiteId ?? task.SiteId;
+            task.ContactId = dto.ContactId ?? task.ContactId;
+            task.QuoteId = dto.QuoteId ?? task.QuoteId;
+            task.OrderId = dto.OrderId ?? task.OrderId;
+            task.CustomerCommunicationId = dto.CustomerCommunicationId ?? task.CustomerCommunicationId;
+            task.UpdatedDate = DateTime.UtcNow;
+
+            // CompletedDate logic
+            if (task.TaskStatusPMId == 3 && task.CompletedDate == null)   // 3 = Completed
+                task.CompletedDate = DateTime.UtcNow;
+            else if (task.TaskStatusPMId != 3)
+                task.CompletedDate = null;
+
+            // Resources
+            if (dto.ResourceIds.Any())
+            {
+                var validResourceIds = await _context.Resources
+                    .Where(r => dto.ResourceIds.Contains(r.ResourceId))
+                    .Select(r => r.ResourceId)
+                    .ToListAsync();
+
+                if (validResourceIds.Any())
+                {
+                    var newRes = validResourceIds.Select(rid => new TaskResourceAssignment
+                    {
+                        TaskPMId = task.Id,
+                        ResourceId = rid
+                    });
+                    _context.TaskResourceAssignments.AddRange(newRes);
+                }
+            }
 
 
-// namespace Cloud9_2.Services
-// {
+            // Employees
+            if (dto.EmployeeIds != null)
+            {
+                // Step 1: Remove existing assignments
+                _context.TaskEmployeeAssignments.RemoveRange(task.TaskEmployeeAssignments);
 
-//     public interface ITaskService
-//     {
-//         Task<IEnumerable<TaskPMDto>> GetAllTasksAsync(bool includeInactive = false);
-//         Task<TaskPMDto> GetTaskByIdAsync(int id);
-//         Task<TaskPMDto> CreateTaskAsync(TaskPMCreateDto createDto, string userId);
-//         Task<TaskPMDto> UpdateTaskAsync(int id, TaskPMUpdateDto updateDto);
-//         Task<bool> DeleteTaskAsync(int id);
-//         Task<IEnumerable<TaskStatusPMDto>> GetTaskStatusesAsync();
-//         Task<IEnumerable<TaskPriorityPMDto>> GetTaskPrioritiesAsync();
-//         Task<IEnumerable<TaskTypePMDto>> GetTaskTypesAsync();
-//     }
+                // Step 2: Filter and Add NEW assignments (only those with valid IDs)
+                if (dto.EmployeeIds.Any())
+                {
+                    var validEmployeeIds = await _context.Employees
+                        .Where(e => dto.EmployeeIds.Contains(e.EmployeeId))
+                        .Select(e => e.EmployeeId)
+                        .ToListAsync();
 
-//     public class TaskService : ITaskService
-//     {
-//         private readonly ApplicationDbContext _context;
-//         private readonly IUserService _userService;
-//         private readonly ILogger<TaskService> _logger;
+                    if (validEmployeeIds.Any())
+                    {
+                        var newEmp = validEmployeeIds.Select(eid => new TaskEmployeeAssignment
+                        {
+                            TaskPMId = task.Id,
+                            EmployeeId = eid
+                        });
+                        _context.TaskEmployeeAssignments.AddRange(newEmp);
+                    }
+                }
+            }
+    
+            await _context.SaveChangesAsync();
 
-//         public TaskService(ApplicationDbContext context, IUserService userService, ILogger<TaskService> logger)
-//         {
-//             _context = context;
-//             _userService = userService;
-//             _logger = logger;
-//         }
+            return await GetTaskByIdAsync(task.Id)
+                   ?? throw new ValidationException("Failed to retrieve updated task.");
+        }
 
-//         public async Task<IEnumerable<TaskPMDto>> GetAllTasksAsync(bool includeInactive = false)
-//         {
-//             var query = _context.TaskPMs
-//                 .Include(t => t.TaskTypePM)
-//                 .Include(t => t.ProjectPM)
-//                 .Include(t => t.TaskStatusPM)
-//                 .Include(t => t.TaskPriorityPM)
-//                 .AsQueryable();
+        // -----------------------------------------------------------------
+        // SOFT DELETE
+        // -----------------------------------------------------------------
+        public async Task DeleteTaskAsync(int id)
+        {
+            var task = await _context.TaskPMs
+                .FirstOrDefaultAsync(t => t.Id == id && t.IsActive)
+                ?? throw new KeyNotFoundException($"Task {id} not found.");
 
-//             if (!includeInactive)
-//             {
-//                 //query = query.Where(t => (bool)t.IsActive);
-//             }
+            task.IsActive = false;
+            task.UpdatedDate = DateTime.UtcNow;
+            await _context.SaveChangesAsync();
+        }
 
-//             var tasks = await query.OrderByDescending(t => t.CreatedDate).ToListAsync();
-//             return tasks.Select(t => MapToDto(t));
-//         }
+        // -----------------------------------------------------------------
+        // PAGED + FILTER + SEARCH + SORT
+        // -----------------------------------------------------------------
+        public async Task<PagedResult<TaskPMDto>> GetPagedTasksAsync(
+            int page = 1,
+            int pageSize = 10,
+            string? searchTerm = null,
+            string? sort = null,
+            string? order = "asc",
+            int? statusId = null,
+            int? priorityId = null,
+            // int? projectPMId = null,
+            string? assignedToId = null)
+        {
+            page = Math.Max(1, page);
+            pageSize = Math.Max(1, Math.Min(100, pageSize));
+            sort ??= "Id";
+            order = order?.ToLower() == "desc" ? "desc" : "asc";
 
-//         public async Task<TaskPMDto> GetTaskByIdAsync(int id)
-//         {
-//             var task = await _context.TaskPMs
-//                 .Include(t => t.TaskTypePM)
-//                 .Include(t => t.ProjectPM)
-//                 .Include(t => t.TaskStatusPM)
-//                 .Include(t => t.TaskPriorityPM)
-//                 .FirstOrDefaultAsync(t => t.Id == id);
+            var query = BaseQuery(_context).Where(t => t.IsActive);
 
-//             if (task == null) return null;
+            // FILTERS
+            if (statusId.HasValue)    query = query.Where(t => t.TaskStatusPMId == statusId.Value);
+            if (priorityId.HasValue)  query = query.Where(t => t.TaskPriorityPMId == priorityId.Value);
+            // if (projectPMId.HasValue) query = query.Where(t => t.ProjectPMId == projectPMId.Value);
+            if (!string.IsNullOrWhiteSpace(assignedToId))
+                query = query.Where(t => t.AssignedToId == assignedToId);
 
-//             return MapToDto(task);
-//         }
+            // SEARCH
+            if (!string.IsNullOrWhiteSpace(searchTerm))
+            {
+                var term = searchTerm.Trim().ToLower();
+                query = query.Where(t =>
+                    t.Title.ToLower().Contains(term) ||
+                    (t.Description != null && t.Description.ToLower().Contains(term)) ||
+                    // (t.ProjectPM != null && t.ProjectPM.Name.ToLower().Contains(term)) ||
+                    (t.AssignedTo != null && t.AssignedTo.UserName.ToLower().Contains(term)) ||
+                    (t.CreatedBy != null && t.CreatedBy.UserName.ToLower().Contains(term))
+                );
+            }
 
-//         public async Task<TaskPMDto> CreateTaskAsync(TaskPMCreateDto createDto, string userId)
-//         {
-//             // var userId = _userService.GetCurrentUserId();
+            var totalCount = await query.CountAsync();
 
-//             if (string.IsNullOrEmpty(userId))
-//             {
-//                 throw new UnauthorizedAccessException("User not authenticated");
-//             }
+            // SORT
+            query = sort.ToLowerInvariant() switch
+            {
+                "title"       => order == "desc" ? query.OrderByDescending(t => t.Title)                : query.OrderBy(t => t.Title),
+                "duedate"     => order == "desc" ? query.OrderByDescending(t => t.DueDate)              : query.OrderBy(t => t.DueDate),
+                "status"      => order == "desc" ? query.OrderByDescending(t => t.TaskStatusPM!.Name)   : query.OrderBy(t => t.TaskStatusPM!.Name),
+                "priority"    => order == "desc" ? query.OrderByDescending(t => t.TaskPriorityPM!.Name) : query.OrderBy(t => t.TaskPriorityPM!.Name),
+                "assignedto"  => order == "desc"
+                                    ? query.OrderByDescending(t => t.AssignedTo!.UserName)
+                                    : query.OrderBy(t => t.AssignedTo!.UserName),
+                "createddate" => order == "desc" ? query.OrderByDescending(t => t.CreatedDate)          : query.OrderBy(t => t.CreatedDate),
+                // "project"     => order == "desc" ? query.OrderByDescending(t => t.ProjectPM!.Name)      : query.OrderBy(t => t.ProjectPM!.Name),
+                _             => order == "desc" ? query.OrderByDescending(t => t.Id)                    : query.OrderBy(t => t.Id)
+            };
 
-//             var task = new TaskPM
-//             {
-//                 Title = createDto.Title,
-//                 Description = createDto.Description,
-//                 TaskTypePMId = createDto.TaskTypePMId,
-//                 ProjectPMId = createDto.ProjectPMId,
-//                 TaskStatusPMId = createDto.TaskStatusPMId,
-//                 TaskPriorityPMId = createDto.TaskPriorityPMId,
-//                 DueDate = createDto.DueDate,
-//                 EstimatedHours = createDto.EstimatedHours,
-//                 CreatedById = userId,
-//                 CreatedDate = DateTime.UtcNow,
-//                 AssignedToId = createDto.AssignedToId,
-//                 IsActive = true
-//             };
+            var items = await query
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .Select(t => MapToDto(t))
+                .ToListAsync();
 
-//             _context.TaskPMs.Add(task);
-//             await _context.SaveChangesAsync();
+            return new PagedResult<TaskPMDto>
+            {
+                Items = items,
+                TotalCount = totalCount,
+                Page = page,
+                PageSize = pageSize
+            };
+        }
 
-//             return await GetTaskByIdAsync(task.Id);
-//         }
+        // -----------------------------------------------------------------
+        // MAP ENTITY → DTO
+        // -----------------------------------------------------------------
+        private static TaskPMDto MapToDto(TaskPM task)
+        {
+            return new TaskPMDto
+            {
+                Id = task.Id,
+                Title = task.Title,
+                Description = task.Description,
+                IsActive = task.IsActive,
 
-//         public async Task<TaskPMDto> UpdateTaskAsync(int id, TaskPMUpdateDto updateDto)
-//         {
-//             var task = await _context.TaskPMs
-//                 .Include(t => t.TaskTypePM)
-//                 .Include(t => t.ProjectPM)
-//                 .Include(t => t.TaskStatusPM)
-//                 .Include(t => t.TaskPriorityPM)
-//                 .FirstOrDefaultAsync(t => t.Id == id);
+                TaskTypePMId = task.TaskTypePMId,
+                TaskTypePMName = task.TaskTypePM?.TaskTypePMName,
 
-//             if (task == null)
-//             {
-//                 return null;
-//             }
+                TaskStatusPMId = task.TaskStatusPMId,
+                TaskStatusPMName = task.TaskStatusPM?.Name,
 
-//             // Update properties
-//             task.Title = updateDto.Title;
-//             task.Description = updateDto.Description;
-//             task.TaskTypePMId = updateDto.TaskTypePMId;
-//             task.ProjectPMId = updateDto.ProjectPMId;
-//             task.TaskStatusPMId = updateDto.TaskStatusPMId;
-//             task.TaskPriorityPMId = updateDto.TaskPriorityPMId;
-//             task.DueDate = updateDto.DueDate;
-//             task.EstimatedHours = updateDto.EstimatedHours;
-//             task.ActualHours = updateDto.ActualHours;
-//             task.AssignedToId = updateDto.AssignedToId;
-//             task.IsActive = updateDto.IsActive;
+                TaskPriorityPMId = task.TaskPriorityPMId,
+                TaskPriorityPMName = task.TaskPriorityPM?.Name,
 
-//             // Set completed date if status changed to "Completed"
-//             if (updateDto.TaskStatusPMId == 3 && task.CompletedDate == null) // Assuming 3 is Completed
-//             {
-//                 task.CompletedDate = DateTime.UtcNow;
-//             }
+                DueDate = task.DueDate,
+                EstimatedHours = task.EstimatedHours,
+                ActualHours = task.ActualHours,
 
-//             try
-//             {
-//                 await _context.SaveChangesAsync();
-//                 return MapToDto(task); // Use your existing mapping method
-//             }
-//             catch (DbUpdateException ex)
-//             {
-//                 _logger.LogError(ex, "Error updating task ID: {TaskId}", id);
-//                 throw; // Or return null if you prefer
-//             }
-//         }
+                CreatedById = task.CreatedById,
+                CreatedByName = FullName(task.CreatedBy),
 
+                CreatedDate = task.CreatedDate,
 
+                AssignedToId = task.AssignedToId,
+                AssignedToName = FullName(task.AssignedTo),
 
-//         public async Task<bool> DeleteTaskAsync(int id)
-//         {
-//             var task = await _context.TaskPMs.FindAsync(id);
-//             if (task == null)
-//             {
-//                 return false;
-//             }
+                UpdatedDate = task.UpdatedDate,
+                CompletedDate = task.CompletedDate,
 
-//             // Soft delete (recommended approach)
-//             task.IsActive = false;
-            
-//             try
-//             {
-//                 await _context.SaveChangesAsync();
-//                 return true;
-//             }
-//             catch (DbUpdateException)
-//             {
-//                 // Log the error here if needed
-//                 return false;
-//             }
-//         }
+                // ProjectPMId = task.ProjectPMId,
+                // ProjectPMName = task.ProjectPM?.Name,
 
-//         public async Task<IEnumerable<TaskStatusPMDto>> GetTaskStatusesAsync()
-//         {
-//             return await _context.TaskStatusPMs
-//                 .Where(s => s.IsActive)
-//                 .OrderBy(s => s.DisplayOrder)
-//                 .Select(s => new TaskStatusPMDto
-//                 {
-//                     Id = s.Id,
-//                     Name = s.Name,
-//                     Description = s.Description,
-//                     ColorCode = s.ColorCode
-//                 })
-//                 .ToListAsync();
-//         }
+                PartnerId = task.PartnerId,
+                PartnerName = task.Partner?.Name,
 
-//         public async Task<IEnumerable<TaskPriorityPMDto>> GetTaskPrioritiesAsync()
-//         {
-//             return await _context.TaskPriorityPMs
-//                 .Where(p => p.IsActive)
-//                 .OrderBy(p => p.DisplayOrder)
-//                 .Select(p => new TaskPriorityPMDto
-//                 {
-//                     Id = p.Id,
-//                     Name = p.Name,
-//                     Description = p.Description,
-//                     ColorCode = p.ColorCode,
-//                     Icon = p.Icon
-//                 })
-//                 .ToListAsync();
-//         }
+                SiteId = task.SiteId,
+                SiteName = task.Site?.SiteName,
 
-//         public async Task<IEnumerable<TaskTypePMDto>> GetTaskTypesAsync()
-//         {
-//             return await _context.TaskTypePMs
-//                 .Where(t => t.IsActive)
-//                 .OrderBy(t => t.Name)
-//                 .Select(t => new TaskTypePMDto
-//                 {
-//                     Id = t.Id,
-//                     Name = t.Name,
-//                     Description = t.Description,
-//                     Icon = t.Icon
-//                 })
-//                 .ToListAsync();
-//         }
+                ContactId = task.ContactId,
+                ContactName = task.Contact != null
+                    ? $"{task.Contact.FirstName} {task.Contact.LastName}".Trim()
+                    : null,
 
-//         private TaskPMDto MapToDto(TaskPM task)
-//         {
-//             return new TaskPMDto
-//             {
-//                 Id = task.Id,
-//                 Title = task.Title,
-//                 Description = task.Description,
-//                 TaskType = task.TaskTypePM != null ? new TaskTypePMDto
-//                 {
-//                     Id = task.TaskTypePM.Id,
-//                     Name = task.TaskTypePM.Name,
-//                     Description = task.TaskTypePM.Description,
-//                     Icon = task.TaskTypePM.Icon
-//                 } : null,
-//                 Project = task.ProjectPM != null ? new ProjectPMDto
-//                 {
-//                     Id = task.ProjectPM.Id,
-//                     Name = task.ProjectPM.Name,
-//                     Status = task.ProjectPM.ProjectStatusPM != null ? new ProjectStatusPMDto
-//                     {
-//                         Id = task.ProjectPM.ProjectStatusPM.Id,
-//                         Name = task.ProjectPM.ProjectStatusPM.Name
-//                         // Other status properties
-//                     } : null
-//                 } : null,
-//                 Status = task.TaskStatusPM != null ? new TaskStatusPMDto
-//                 {
-//                     Id = task.TaskStatusPM.Id,
-//                     Name = task.TaskStatusPM.Name,
-//                     Description = task.TaskStatusPM.Description,
-//                     ColorCode = task.TaskStatusPM.ColorCode
-//                 } : null,
-//                 Priority = task.TaskPriorityPM != null ? new TaskPriorityPMDto
-//                 {
-//                     Id = task.TaskPriorityPM.Id,
-//                     Name = task.TaskPriorityPM.Name,
-//                     Description = task.TaskPriorityPM.Description,
-//                     ColorCode = task.TaskPriorityPM.ColorCode,
-//                     Icon = task.TaskPriorityPM.Icon
-//                 } : null,
-//                 DueDate = task.DueDate,
-//                 EstimatedHours = task.EstimatedHours,
-//                 ActualHours = task.ActualHours,
-//                 CreatedBy = task.CreatedById,
-//                 CreatedDate = task.CreatedDate,
-//                 AssignedTo = task.AssignedToId,
-//                 CompletedDate = task.CompletedDate,
-//                 //IsActive = (bool)task.IsActive
-//             };
-//         }
-//     }
+                QuoteId = task.QuoteId,
+                QuoteNumber = task.Quote?.QuoteNumber,
 
-// }
+                OrderId = task.OrderId,
+                OrderNumber = task.Order?.OrderNumber,
+
+                CustomerCommunicationId = task.CustomerCommunicationId,
+                CustomerCommunicationSubject = task.CustomerCommunication?.Subject,
+
+                ResourceIds = task.TaskResourceAssignments.Select(ra => ra.ResourceId).ToList(),
+                EmployeeIds = task.TaskEmployeeAssignments.Select(ea => ea.EmployeeId).ToList(),
+
+                // ----- History -----
+                TaskHistories = task.TaskHistories
+                    .Select(th => new TaskHistoryDto
+                    {
+                        TaskHistoryId = th.TaskHistoryId,
+                        TaskPMId = th.TaskPMId,
+                        ModifiedById = th.ModifiedById,
+                        ModifiedByName = FullName(th.ModifiedBy),
+                        ModifiedDate = th.ModifiedDate,
+                        ChangeDescription = th.ChangeDescription
+                    })
+                    .OrderByDescending(th => th.ModifiedDate)
+                    .ToList()
+            };
+        }
+    }
+
+    // -----------------------------------------------------------------
+    // PAGED RESULT
+    // -----------------------------------------------------------------
+    public class PagedResult<T>
+    {
+        public List<T> Items { get; set; } = new();
+        public int TotalCount { get; set; }
+        public int Page { get; set; }
+        public int PageSize { get; set; }
+        public int TotalPages => (int)Math.Ceiling((double)TotalCount / PageSize);
+    }
+}

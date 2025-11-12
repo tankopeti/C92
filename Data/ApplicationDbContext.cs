@@ -83,6 +83,8 @@ namespace Cloud9_2.Data
         public DbSet<ResourceStatus> ResourceStatuses { get; set; }
         public DbSet<Resource> Resources { get; set; }
         public DbSet<ResourceHistory> ResourceHistories { get; set; }
+        public DbSet<TaskResourceAssignment> TaskResourceAssignments { get; set; }
+        public DbSet<TaskEmployeeAssignment> TaskEmployeeAssignments { get; set; }
 
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -111,7 +113,41 @@ namespace Cloud9_2.Data
                     .HasForeignKey(e => e.ModifiedById)
                     .OnDelete(DeleteBehavior.SetNull);
             });
+
+// TaskPM
+    modelBuilder.Entity<TaskPM>(entity =>
+    {
+        entity.ToTable("TaskPM");
+        entity.Property(t => t.AssignedToId).HasColumnName("AssignedTo");
+        entity.Property(t => t.CreatedById).HasColumnName("CreatedBy");
+
+        entity.HasOne(t => t.AssignedTo)
+              .WithMany()
+              .HasForeignKey(t => t.AssignedToId)
+              .HasPrincipalKey(u => u.Id);
+
+        entity.HasOne(t => t.CreatedBy)
+              .WithMany()
+              .HasForeignKey(t => t.CreatedById)
+              .HasPrincipalKey(u => u.Id);
+    });
+
+            // ProjectPM
+            modelBuilder.Entity<ProjectPM>(entity =>
+            {
+                entity.ToTable("ProjectPM");
+                entity.HasKey(p => p.ProjectPMId);
+                // Add other config if needed
+            });
     
+
+
+
+            modelBuilder.Entity<TaskResourceAssignment>().ToTable("TaskResourceAssignment");
+
+            modelBuilder.Entity<TaskEmployeeAssignment>().ToTable("TaskEmployeeAssignment");
+
+            modelBuilder.Entity<TaskPM>().ToTable("TaskPM");
 
             modelBuilder.Entity<Resource>().ToTable("Resource");
 
@@ -130,9 +166,9 @@ namespace Cloud9_2.Data
             .Property(t => t.CreatedAt)
             .HasColumnName("CreatedAt");
 
-        modelBuilder.Entity<TaskTypePM>()
-            .Property(t => t.UpdatedAt)
-            .HasColumnName("UpdatedAt");
+            modelBuilder.Entity<TaskTypePM>()
+                .Property(t => t.UpdatedAt)
+                .HasColumnName("UpdatedAt");
 
             // HR
             // Map Employee to singular table name
@@ -191,102 +227,102 @@ namespace Cloud9_2.Data
             // Order configuration
             modelBuilder.Entity<Order>(entity =>
                     {
-                entity.HasKey(e => e.OrderId);
+                        entity.HasKey(e => e.OrderId);
 
-                entity.Property(e => e.OrderNumber)
-                    .HasMaxLength(100);
+                        entity.Property(e => e.OrderNumber)
+                            .HasMaxLength(100);
 
-                entity.Property(e => e.OrderDate)
-                    .HasColumnType("date");
+                        entity.Property(e => e.OrderDate)
+                            .HasColumnType("date");
 
-                entity.Property(e => e.Deadline)
-                    .HasColumnType("date");
+                        entity.Property(e => e.Deadline)
+                            .HasColumnType("date");
 
-                entity.Property(e => e.Description)
-                    .HasMaxLength(500);
+                        entity.Property(e => e.Description)
+                            .HasMaxLength(500);
 
-                entity.Property(e => e.TotalAmount)
-                    .HasColumnType("decimal(18,2)");
+                        entity.Property(e => e.TotalAmount)
+                            .HasColumnType("decimal(18,2)");
 
-                entity.Property(e => e.SalesPerson)
-                    .HasMaxLength(100);
+                        entity.Property(e => e.SalesPerson)
+                            .HasMaxLength(100);
 
-                entity.Property(e => e.DeliveryDate)
-                    .HasColumnType("date");
+                        entity.Property(e => e.DeliveryDate)
+                            .HasColumnType("date");
 
-                entity.Property(e => e.PlannedDelivery)
-                    .HasColumnType("datetime");
+                        entity.Property(e => e.PlannedDelivery)
+                            .HasColumnType("datetime");
 
-                entity.Property(e => e.DiscountPercentage)
-                    .HasColumnType("decimal(5,2)");
+                        entity.Property(e => e.DiscountPercentage)
+                            .HasColumnType("decimal(5,2)");
 
-                entity.Property(e => e.DiscountAmount)
-                    .HasColumnType("decimal(18,2)");
+                        entity.Property(e => e.DiscountAmount)
+                            .HasColumnType("decimal(18,2)");
 
-                entity.Property(e => e.CompanyName)
-                    .HasMaxLength(100);
+                        entity.Property(e => e.CompanyName)
+                            .HasMaxLength(100);
 
-                entity.Property(e => e.Subject)
-                    .HasMaxLength(200);
+                        entity.Property(e => e.Subject)
+                            .HasMaxLength(200);
 
-                entity.Property(e => e.CreatedBy)
-                    .HasMaxLength(100)
-                    .HasDefaultValue("System");
+                        entity.Property(e => e.CreatedBy)
+                            .HasMaxLength(100)
+                            .HasDefaultValue("System");
 
-                entity.Property(e => e.CreatedDate)
-                    .HasColumnType("datetime")
-                    .HasDefaultValueSql("GETUTCDATE()");
+                        entity.Property(e => e.CreatedDate)
+                            .HasColumnType("datetime")
+                            .HasDefaultValueSql("GETUTCDATE()");
 
-                entity.Property(e => e.ModifiedBy)
-                    .HasMaxLength(100)
-                    .HasDefaultValue("System");
+                        entity.Property(e => e.ModifiedBy)
+                            .HasMaxLength(100)
+                            .HasDefaultValue("System");
 
-                entity.Property(e => e.ModifiedDate)
-                    .HasColumnType("datetime")
-                    .HasDefaultValueSql("GETUTCDATE()");
+                        entity.Property(e => e.ModifiedDate)
+                            .HasColumnType("datetime")
+                            .HasDefaultValueSql("GETUTCDATE()");
 
-                entity.Property(e => e.Status)
-                    .HasMaxLength(50)
-                    .HasDefaultValue("Pending");
+                        entity.Property(e => e.Status)
+                            .HasMaxLength(50)
+                            .HasDefaultValue("Pending");
 
-                entity.Property(e => e.OrderType)
-                    .HasMaxLength(50);
+                        entity.Property(e => e.OrderType)
+                            .HasMaxLength(50);
 
-                entity.Property(e => e.ReferenceNumber)
-                    .HasMaxLength(100);
+                        entity.Property(e => e.ReferenceNumber)
+                            .HasMaxLength(100);
 
-                // Relationships
-                entity.HasOne(e => e.Partner)
-                    .WithMany()
-                    .HasForeignKey(e => e.PartnerId)
-                    .OnDelete(DeleteBehavior.Restrict);
+                        // Relationships
+                        entity.HasOne(e => e.Partner)
+                            .WithMany()
+                            .HasForeignKey(e => e.PartnerId)
+                            .OnDelete(DeleteBehavior.Restrict);
 
-                entity.HasOne(e => e.Site)
-                    .WithMany()
-                    .HasForeignKey(e => e.SiteId)
-                    .OnDelete(DeleteBehavior.SetNull);
+                        entity.HasOne(e => e.Site)
+                            .WithMany()
+                            .HasForeignKey(e => e.SiteId)
+                            .OnDelete(DeleteBehavior.SetNull);
 
-                entity.HasOne(e => e.Currency)
-                    .WithMany()
-                    .HasForeignKey(e => e.CurrencyId)
-                    .OnDelete(DeleteBehavior.Restrict);
+                        entity.HasOne(e => e.Currency)
+                            .WithMany()
+                            .HasForeignKey(e => e.CurrencyId)
+                            .OnDelete(DeleteBehavior.Restrict);
 
-                entity.HasOne(e => e.Quote)
-                    .WithMany()
-                    .HasForeignKey(e => e.QuoteId)
-                    .OnDelete(DeleteBehavior.SetNull);
+                        entity.HasOne(e => e.Quote)
+                            .WithMany()
+                            .HasForeignKey(e => e.QuoteId)
+                            .OnDelete(DeleteBehavior.SetNull);
 
-                entity.HasOne(e => e.ShippingMethod)
-                    .WithMany(sm => sm.Orders)
-                    .HasForeignKey(e => e.ShippingMethodId)
-                    .OnDelete(DeleteBehavior.SetNull);
+                        entity.HasOne(e => e.ShippingMethod)
+                            .WithMany(sm => sm.Orders)
+                            .HasForeignKey(e => e.ShippingMethodId)
+                            .OnDelete(DeleteBehavior.SetNull);
 
-                entity.HasOne(e => e.PaymentTerm)
-                    .WithMany(pt => pt.Orders)
-                    .HasForeignKey(e => e.PaymentTermId)
-                    .OnDelete(DeleteBehavior.SetNull);
-                    
-            });
+                        entity.HasOne(e => e.PaymentTerm)
+                            .WithMany(pt => pt.Orders)
+                            .HasForeignKey(e => e.PaymentTermId)
+                            .OnDelete(DeleteBehavior.SetNull);
+
+                    });
 
             // OrderItem configuration
             modelBuilder.Entity<OrderItem>(entity =>
@@ -438,8 +474,8 @@ namespace Cloud9_2.Data
             modelBuilder.Entity<Status>().ToTable("PartnerStatuses");
             modelBuilder.Entity<Status>(entity =>
             {
-            entity.HasKey(e => e.Id);
-            entity.Property(e => e.Name).IsRequired().HasMaxLength(100);
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Name).IsRequired().HasMaxLength(100);
             });
 
             modelBuilder.Entity<PartnerDto>()
@@ -520,17 +556,17 @@ namespace Cloud9_2.Data
                     .WithMany()
                     .HasForeignKey(t => t.TaskTypePMId);
 
-                entity.HasOne(t => t.ProjectPM)
-                    .WithMany(p => p.Tasks)
-                    .HasForeignKey(t => t.ProjectPMId);
+                // entity.HasOne(t => t.ProjectPM)
+                //     .WithMany(p => p.Tasks)
+                //     .HasForeignKey(t => t.ProjectPMId);
 
             });
 
-            modelBuilder.Entity<TaskPM>()
-                .HasOne(t => t.ProjectPM)
-                .WithMany(p => p.Tasks)
-                .HasForeignKey(t => t.ProjectPMId)
-                .OnDelete(DeleteBehavior.SetNull);
+            // modelBuilder.Entity<TaskPM>()
+            //     .HasOne(t => t.ProjectPM)
+            //     .WithMany(p => p.Tasks)
+            //     .HasForeignKey(t => t.ProjectPMId)
+            //     .OnDelete(DeleteBehavior.SetNull);
 
             modelBuilder.Entity<TaskTypePM>(entity =>
                 {

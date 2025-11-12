@@ -4,6 +4,7 @@ using Cloud9_2.Services; // Add this for CustomerCommunicationService
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+
 using System;
 using System.Threading.Tasks;
 using System.Security.Claims; // For getting current user
@@ -285,7 +286,7 @@ namespace Cloud9_2.Controllers
                 return StatusCode(500, new { error = ex.Message });
             }
         }
-        
+
         [HttpGet]
         public IActionResult GetUsers()
         {
@@ -293,6 +294,35 @@ namespace Cloud9_2.Controllers
                 .Select(u => new { Id = u.Id, Name = u.NormalizedUserName })
                 .ToList();
             return Ok(users); // Returns JSON array
+
+        }
+[HttpGet("select")]
+public async Task<IActionResult> GetCommunicationsSelect([FromQuery] int? partnerId, [FromQuery] string search = "")
+{
+    try
+    {
+        var query = _context.CustomerCommunications.AsQueryable();
+
+        if (partnerId.HasValue)
+            query = query.Where(c => c.PartnerId == partnerId);
+
+        if (!string.IsNullOrEmpty(search))
+            query = query.Where(c => c.Subject.Contains(search));
+
+        var result = await query
+            .OrderByDescending(c => c.Date)
+            .Select(c => new { id = c.CustomerCommunicationId, text = c.Subject })
+            .Take(50)
+            .ToListAsync();
+
+        return Ok(result);
     }
+    catch (Exception ex)
+    {
+        _logger.LogError(ex, "Error loading communications for select");
+        return StatusCode(500, "Failed to load");
+    }
+}
+
     }
 }

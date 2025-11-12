@@ -34,6 +34,7 @@ using Microsoft.EntityFrameworkCore;
   builder.Services.AddControllersWithViews();
   builder.Services.AddControllers();
 
+builder.Services.AddScoped<TaskPMService>();
 builder.Services.AddScoped<EmployeeService>();
 builder.Services.AddScoped<ResourceService>();
 builder.Services.AddScoped<EmailService>();

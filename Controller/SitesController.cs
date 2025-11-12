@@ -248,6 +248,5 @@ namespace Cloud9_2.Controllers
                 return StatusCode(500, new { error = "Failed to delete site", details = ex.Message });
             }
         }
-
     }
 }

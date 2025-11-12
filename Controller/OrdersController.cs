@@ -2,9 +2,11 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Identity;
 using Cloud9_2.Services;
+using Cloud9_2.Data;
 using Cloud9_2.Models;
 using System.Security.Claims;
 using System.ComponentModel.DataAnnotations;
+using Microsoft.EntityFrameworkCore;
 
 namespace Cloud9_2.Controllers
 {
@@ -14,10 +16,12 @@ namespace Cloud9_2.Controllers
     public class OrdersController : ControllerBase
     {
         private readonly OrderService _orderService;
+        
+        private readonly ApplicationDbContext _context; // Added
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly ILogger<OrdersController> _logger;
 
-        public OrdersController(OrderService orderService, UserManager<ApplicationUser> userManager, ILogger<OrdersController> logger)
+        public OrdersController(ApplicationDbContext context, OrderService orderService, UserManager<ApplicationUser> userManager, ILogger<OrdersController> logger)
         {
             _orderService = orderService;
             _userManager = userManager;
@@ -227,6 +231,44 @@ namespace Cloud9_2.Controllers
             }
         }
 
+[HttpGet("select")]
+        public async Task<IActionResult> GetOrdersForSelect([FromQuery] int? partnerId, [FromQuery] string search = "")
+        {
+            try
+            {
+                if (_context == null || _context.Orders == null)
+                {
+                    _logger.LogError("DbContext or Orders DbSet is null");
+                    return StatusCode(500, new { errors = new { General = new[] { "Database context not initialized." } } });
+                }
+
+                var query = _context.Orders.AsQueryable();
+
+                if (partnerId.HasValue)
+                    query = query.Where(o => o.PartnerId == partnerId);
+
+                if (!string.IsNullOrEmpty(search))
+                    query = query.Where(o => o.OrderNumber != null && o.OrderNumber.Contains(search));
+
+                var orders = await query
+                    .OrderBy(o => o.OrderNumber)
+                    .Select(o => new
+                    {
+                        id = o.OrderId,
+                        text = o.OrderNumber ?? "N/A"
+                    })
+                    .Take(50)
+                    .ToListAsync();
+
+                _logger.LogInformation("Loaded {Count} orders for PartnerId: {PartnerId}", orders.Count, partnerId);
+                return Ok(orders);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error in GetOrdersForSelect - PartnerId: {PartnerId}", partnerId);
+                return StatusCode(500, new { errors = new { General = new[] { "Failed to load orders: " + ex.Message } } });
+            }
+        }
         
 
         private OrderDTO MapToOrderDTO(Order order)

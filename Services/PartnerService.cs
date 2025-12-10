@@ -516,57 +516,77 @@ public async Task<PartnerDto> CreatePartnerAsync(PartnerDto partnerDto)
 
         public async Task<bool> DeleteSiteAsync(int partnerId, int siteId)
         {
-            _logger.LogInformation("DeleteSiteAsync called for PartnerId: {PartnerId}, SiteId: {SiteId}", partnerId, siteId);
-
-            var site = await _context.Sites
-                .FirstOrDefaultAsync(s => s.SiteId == siteId && s.PartnerId == partnerId);
-
-            if (site == null)
+            try
             {
-                _logger.LogWarning("Site not found for SiteId: {SiteId}", siteId);
+                var site = await _context.Sites
+                    .FirstOrDefaultAsync(s => s.SiteId == siteId && s.PartnerId == partnerId);
+
+                if (site == null)
+                {
+                    _logger.LogWarning("DeleteSiteAsync: Site {SiteId} not found for Partner {PartnerId}", siteId, partnerId);
+                    return false;
+                }
+
+                // Already soft-deleted? → success (idempotent)
+                if (!site.IsActive)
+                {
+                    _logger.LogInformation("Site {SiteId} is already soft-deleted", siteId);
+                    return true;
+                }
+
+                // Soft delete
+                site.IsActive = false;
+
+                await _context.SaveChangesAsync();
+
+                _logger.LogInformation("Site {SiteId} (Partner {PartnerId}) soft-deleted by {User}",
+                    siteId, partnerId, GetCurrentUser());
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error soft-deleting Site {SiteId} for Partner {PartnerId}", siteId, partnerId);
                 return false;
             }
-
-            _context.Sites.Remove(site);
-            await _context.SaveChangesAsync();
-            return true;
         }
 
         public async Task<bool> DeletePartnerAsync(int partnerId)
         {
             try
             {
-                // Find the partner by ID
+                // We only need the partner row itself – no need to load all related entities
                 var partner = await _context.Partners
-                    .Include(p => p.Sites)
-                    .Include(p => p.Contacts)
-                    .Include(p => p.Documents)
                     .FirstOrDefaultAsync(p => p.PartnerId == partnerId);
 
                 if (partner == null)
                 {
-                    return false; // Partner not found
+                    _logger.LogWarning("DeletePartnerAsync: Partner with ID {PartnerId} not found.", partnerId);
+                    return false;
                 }
 
-                // Remove related entities first (if required by business logic)
-                _context.Sites.RemoveRange(partner.Sites);
-                _context.Contacts.RemoveRange(partner.Contacts);
-                _context.Documents.RemoveRange(partner.Documents);
+                // If already soft-deleted, consider it success (idempotent)
+                if (!partner.IsActive)
+                {
+                    _logger.LogInformation("DeletePartnerAsync: Partner {PartnerId} is already soft-deleted.", partnerId);
+                    return true;
+                }
 
-                // Remove the partner
-                _context.Partners.Remove(partner);
+                // Perform soft delete
+                partner.IsActive = false;
 
-                // Save changes to the database
                 await _context.SaveChangesAsync();
-                
+
+                _logger.LogInformation("Partner {PartnerId} was successfully soft-deleted by {User}", partnerId, GetCurrentUser());
                 return true;
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                // Log the exception if needed (logging not implemented here)
-                return false;
+                _logger.LogError(ex, "Unexpected error during soft-delete of Partner {PartnerId}", partnerId);
+                return false; // Still return false on unexpected error
             }
         }
+
 
         private PartnerDto MapToDto(Partner p)
         {

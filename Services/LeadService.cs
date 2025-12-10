@@ -77,6 +77,25 @@ namespace Cloud9_2.Services
             await _context.SaveChangesAsync();
         }
 
+        // SOFT DELETE - Perfect version
+        public async Task<bool> DeleteLeadAsync(int leadId, string user)
+        {
+            var lead = await _context.Leads
+                .FirstOrDefaultAsync(l => l.LeadId == leadId);
+
+            if (lead == null) return false;
+            if (!lead.IsActive) return true;
+
+            lead.IsActive = false;
+            lead.UpdatedBy = user;
+
+            await _context.SaveChangesAsync();
+            await LogHistoryAsync(lead, user, "Deleted (Soft)"); // Pass full object
+
+            return true;
+        }
+
+
         public async Task<List<LeadHistory>> GetLeadHistoryAsync(int leadId)
         {
             return await _context.LeadHistories

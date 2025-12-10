@@ -183,30 +183,29 @@ namespace Cloud9_2.Services
 
         public async Task<bool> DeleteAsync(int id)
         {
-            try
-            {
-                var contact = await _context.Contacts.FindAsync(id);
-                if (contact == null)
-                {
-                    _logger.LogWarning("Contact with ID {Id} not found for deletion", id);
-                    return false;
-                }
+            var contact = await _context.Contacts
+                .FirstOrDefaultAsync(c => c.ContactId == id);
 
-                _context.Contacts.Remove(contact);
-                await _context.SaveChangesAsync();
-                _logger.LogInformation("Contact deleted with ID {ContactId}", id);
+            if (contact == null)
+            {
+                _logger.LogWarning("DeleteAsync: Contact {ContactId} not found", id);
+                return false;
+            }
+
+            // Already deleted? → success (idempotent)
+            if (!contact.IsActive)
+            {
+                _logger.LogInformation("Contact {ContactId} already soft-deleted", id);
                 return true;
             }
-            catch (DbUpdateException ex)
-            {
-                _logger.LogError(ex, "Database error deleting contact with ID {Id}", id);
-                throw; // Let the controller handle the response
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Unexpected error deleting contact with ID {Id}", id);
-                throw;
-            }
+
+            contact.IsActive = false;
+            contact.UpdatedDate = DateTime.UtcNow;
+
+            await _context.SaveChangesAsync();
+
+            _logger.LogInformation("Contact {ContactId} soft-deleted successfully", id);
+            return true;
         }
 
 

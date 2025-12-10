@@ -162,16 +162,37 @@ namespace Cloud9_2.Controllers
             [FromQuery] int pageSize = 10,
             [FromQuery] string? search = null,
             [FromQuery] string? sort = null,
-            [FromQuery] string? order = "asc",
+            [FromQuery] string? order = "desc",           // figyeld: desc az alap!
             [FromQuery] int? statusId = null,
             [FromQuery] int? priorityId = null,
-            [FromQuery] string? assignedToId = null)
+            [FromQuery] int? taskTypeId = null,           // ÚJ
+            [FromQuery] int? partnerId = null,            // ÚJ
+            [FromQuery] int? siteId = null,               // ÚJ
+            [FromQuery] string? assignedToId = null,      // marad string
+            [FromQuery] DateTime? dueDateFrom = null,     // ÚJ
+            [FromQuery] DateTime? dueDateTo = null,       // ÚJ
+            [FromQuery] DateTime? createdDateFrom = null, // ÚJ
+            [FromQuery] DateTime? createdDateTo = null)   // ÚJ
         {
             try
             {
                 var result = await _taskService.GetPagedTasksAsync(
-                    page, pageSize, search, sort, order,
-                    statusId, priorityId, assignedToId);
+                    page: page,
+                    pageSize: pageSize,
+                    searchTerm: search,
+                    sort: sort,
+                    order: order,
+                    statusId: statusId,
+                    priorityId: priorityId,
+                    taskTypeId: taskTypeId,
+                    partnerId: partnerId,
+                    siteId: siteId,
+                    assignedToId: assignedToId,
+                    dueDateFrom: dueDateFrom,
+                    dueDateTo: dueDateTo,
+                    createdDateFrom: createdDateFrom,
+                    createdDateTo: createdDateTo
+                );
 
                 return Ok(result);
             }
@@ -181,6 +202,7 @@ namespace Cloud9_2.Controllers
                 return StatusCode(500, "An error occurred while retrieving paged tasks.");
             }
         }
+
 
         // === ÚJ SELECT VÉGPONTOK ===
 
@@ -227,6 +249,7 @@ namespace Cloud9_2.Controllers
         }
 
 
+
         // -----------------------------------------------------------------
         // GET: api/tasks/taskpriorities/select
         // -----------------------------------------------------------------
@@ -248,34 +271,36 @@ namespace Cloud9_2.Controllers
                 return StatusCode(500, "An error occurred while retrieving task priorities.");
             }
         }
+
+        [HttpGet("partners/select")]
+        public async Task<IActionResult> SearchPartners([FromQuery] string? q = null)
+        {
+            if (string.IsNullOrWhiteSpace(q) || q.Length < 2)
+                return Ok(new List<object>());
+
+            var term = q.Trim();
+
+            var result = await _context.Partners
+                .Where(p => p.IsActive &&
+                           (p.Name.Contains(term, StringComparison.OrdinalIgnoreCase) ||
+                            p.TaxId.Contains(term, StringComparison.OrdinalIgnoreCase) ||     // adószám is jó keresési kulcs!
+                            p.CompanyName.Contains(term, StringComparison.OrdinalIgnoreCase))) // cégnév is
+                .OrderBy(p => p.Name)
+                .Take(100)
+                .Select(p => new
+                {
+                    id = p.PartnerId,
+                    text = string.IsNullOrEmpty(p.CompanyName)
+                        ? p.Name
+                        : $"{p.Name} • {p.CompanyName}"  // szép megjelenítés: "Tesco • Tesco Magyarország Zrt."
+                })
+                .ToListAsync();
+
+            return Ok(result);
+        }
+
+
     }
     
-    // NEW FILE: TaskPrioritiesController.cs (or similar)
-
-
-[Route("api/[controller]")] // This makes the base route /api/TaskPriorities
-[ApiController]
-public class TaskPrioritiesController : ControllerBase
-{
-    private readonly ApplicationDbContext _context;
-
-    public TaskPrioritiesController(ApplicationDbContext context)
-    {
-        _context = context;
-    }
-
-    // GET: api/TaskPriorities/select
-    [HttpGet("select")]
-    public async Task<IActionResult> GetTaskPrioritiesForSelect()
-    {
-        var priorities = await _context.TaskPrioritiesPM    
-            .Select(p => new { id = p.TaskPriorityPMId, text = p.Name })
-            .OrderBy(p => p.text)
-            .ToListAsync();
-
-        return Ok(priorities);
-    }
-}
-
-// NOTE: You would need to do the same for TaskStatusesController, TaskTypesController, etc.
+    
 }

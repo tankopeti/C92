@@ -9,6 +9,8 @@ using Microsoft.Extensions.Logging;
 using System;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.Data.SqlClient;
+using System.Data;
 
 namespace Cloud9_2.Controllers
 {
@@ -169,6 +171,73 @@ namespace Cloud9_2.Controllers
                 return StatusCode(500, new { message = $"An error occurred while deleting the quote: {ex.Message}" });
             }
         }
+
+        [HttpPost("{id}/convert-to-order")]
+        public async Task<IActionResult> ConvertQuoteToOrder(int id)
+        {
+            var method = $"{nameof(QuotesController)}.ConvertQuoteToOrder";
+            _logger.LogInformation("[{Method}] START – Converting Quote ID: {QuoteId}", method, id);
+
+            try
+            {
+                var user = await _userManager.GetUserAsync(User);
+                if (user == null) return Unauthorized(new { message = "User not authenticated." });
+
+                var username = user.UserName ?? user.Email ?? "System";
+
+                var quoteExists = await _context.Quotes
+                    .AnyAsync(q => q.QuoteId == id && (q.IsActive == null || q.IsActive == true));
+
+                if (!quoteExists)
+                    return NotFound(new { message = $"Quote with ID {id} not found or inactive." });
+
+                var quoteIdParam = new SqlParameter("@QuoteId", id);
+                var createdByParam = new SqlParameter("@CreatedBy", SqlDbType.NVarChar, 100) { Value = username };
+                var newOrderIdParam = new SqlParameter
+                {
+                    ParameterName = "@NewOrderId",
+                    SqlDbType = SqlDbType.Int,
+                    Direction = ParameterDirection.Output
+                };
+
+                await _context.Database.ExecuteSqlRawAsync(
+                    "EXEC dbo.usp_ConvertQuoteToOrder @QuoteId, @CreatedBy, @NewOrderId OUTPUT",
+                    quoteIdParam, createdByParam, newOrderIdParam);
+
+                var newOrderId = newOrderIdParam.Value as int? ?? 0;
+
+                if (newOrderId <= 0)
+                    return StatusCode(500, new { message = "Order created but ID not returned." });
+
+                var order = await _context.Orders
+                    .Include(o => o.Partner)
+                    .Include(o => o.Currency)
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(o => o.OrderId == newOrderId);
+
+                _logger.LogInformation("[{Method}] SUCCESS → Order {OrderId} created from Quote {QuoteId}", method, newOrderId, id);
+
+                return Ok(new
+                {
+                    message = "Quote successfully converted to order",
+                    orderId = newOrderId,
+                    orderNumber = order?.OrderNumber,
+                    order
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[{Method}] FAILED converting Quote {QuoteId}", method, id);
+                return StatusCode(500, new { message = "A rendelés nem hozható létre (már van ilyen rendelés)", error = ex.Message });
+            }
+        }
+
+
+        public class OrderIdResult
+        {
+            public int NewOrderId { get; set; }
+        }
+
 
     }
 }

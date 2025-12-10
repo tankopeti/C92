@@ -222,6 +222,7 @@ namespace Cloud9_2.Services
             try
             {
                 var quote = await _context.Quotes
+                .Where(q => q.IsActive)
                     .Include(q => q.QuoteItems)
                     .Include(q => q.Partner)
                     .Include(q => q.Currency)
@@ -247,6 +248,7 @@ namespace Cloud9_2.Services
             try
             {
                 var quotes = await _context.Quotes
+                    .Where(q => q.IsActive)
                     .Include(q => q.QuoteItems)
                     .Include(q => q.Partner)
                     .Include(q => q.Currency)
@@ -267,35 +269,34 @@ namespace Cloud9_2.Services
             try
             {
                 var quote = await _context.Quotes
-                    .Include(q => q.QuoteItems)
                     .FirstOrDefaultAsync(q => q.QuoteId == id);
 
                 if (quote == null)
                 {
-                    _logger.LogWarning("Quote with ID {QuoteId} not found", id);
+                    _logger.LogWarning("DeleteQuoteAsync: Quote {QuoteId} not found", id);
                     return false;
                 }
 
-                // Remove associated QuoteItems
-                _context.QuoteItems.RemoveRange(quote.QuoteItems);
+                // Already deleted? → success (idempotent)
+                if (!quote.IsActive)
+                {
+                    _logger.LogInformation("Quote {QuoteId} already soft-deleted", id);
+                    return true;
+                }
 
-                // Remove the quote
-                _context.Quotes.Remove(quote);
+                quote.IsActive = false;
+                quote.ModifiedDate = DateTime.UtcNow;
+                // quote.ModifiedBy = currentUser; // if you pass user
 
                 await _context.SaveChangesAsync();
 
-                _logger.LogInformation("Deleted quote with ID {QuoteId}", id);
+                _logger.LogInformation("Quote {QuoteId} soft-deleted successfully", id);
                 return true;
-            }
-            catch (DbUpdateException ex)
-            {
-                _logger.LogError(ex, "Database error deleting quote with ID {QuoteId}: {InnerException}", id, ex.InnerException?.Message);
-                throw new Exception($"Failed to delete quote: {ex.InnerException?.Message ?? ex.Message}");
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error deleting quote with ID {QuoteId}", id);
-                throw;
+                _logger.LogError(ex, "Unexpected error soft-deleting Quote {QuoteId}", id);
+                return false;
             }
         }
 

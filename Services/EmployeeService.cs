@@ -22,12 +22,13 @@ namespace Cloud9_2.Services
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
-        // GET: All employees
+        // GET: All active employees
         public async Task<IEnumerable<Employees>> GetAllEmployeesAsync()
         {
             try
             {
                 return await _context.Employees
+                    .Where(e => e.IsActive)
                     .Include(e => e.JobTitle)
                     .Include(e => e.Status)
                     .AsNoTracking()
@@ -35,13 +36,35 @@ namespace Cloud9_2.Services
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error retrieving all employees.");
+                _logger.LogError(ex, "Error retrieving all active employees.");
                 throw;
             }
         }
 
-        // GET: Employee by ID
+        // GET: Employee by ID (only active employees)
         public async Task<Employees?> GetEmployeeByIdAsync(int id)
+        {
+            if (id <= 0)
+                throw new ArgumentException("Employee ID must be greater than zero.", nameof(id));
+
+            try
+            {
+                return await _context.Employees
+                    .Where(e => e.IsActive)
+                    .Include(e => e.JobTitle)
+                    .Include(e => e.Status)
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(e => e.EmployeeId == id);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving employee with ID {EmployeeId}.", id);
+                throw;
+            }
+        }
+
+        // GET: Employee by ID including soft-deleted (for admin operations)
+        public async Task<Employees?> GetEmployeeByIdIncludingDeletedAsync(int id)
         {
             if (id <= 0)
                 throw new ArgumentException("Employee ID must be greater than zero.", nameof(id));
@@ -56,7 +79,7 @@ namespace Cloud9_2.Services
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error retrieving employee with ID {EmployeeId}.", id);
+                _logger.LogError(ex, "Error retrieving employee (including deleted) with ID {EmployeeId}.", id);
                 throw;
             }
         }
@@ -91,6 +114,7 @@ namespace Cloud9_2.Services
                     Comment2 = createDto.Comment2,
                     VacationDays = createDto.VacationDays,
                     FullVacationDays = createDto.FullVacationDays,
+                    IsActive = true, // Explicitly set for clarity
                     CreatedAt = DateTime.UtcNow,
                     UpdatedAt = DateTime.UtcNow
                 };
@@ -131,32 +155,40 @@ namespace Cloud9_2.Services
             try
             {
                 var employee = await _context.Employees
+                    .IgnoreQueryFilters() // Need this to find if it's soft-deleted
                     .FirstOrDefaultAsync(e => e.EmployeeId == updateDto.EmployeeId);
 
                 if (employee == null)
                     throw new KeyNotFoundException($"Employee with ID {updateDto.EmployeeId} not found.");
 
+                // Don't allow updating if it's permanently deleted (IsActive = false AND some other flag)
+                // For now, just allow updates to soft-deleted records
+                if (!employee.IsActive)
+                {
+                    _logger.LogWarning("Updating soft-deleted employee {EmployeeId}. Consider restoring first.", updateDto.EmployeeId);
+                }
+
                 // Manual mapping (only update provided fields)
-                employee.FirstName = updateDto.FirstName;
-                employee.LastName = updateDto.LastName;
-                employee.Email = updateDto.Email;
-                employee.Email2 = updateDto.Email2;
-                employee.PhoneNumber = updateDto.PhoneNumber;
-                employee.PhoneNumber2 = updateDto.PhoneNumber2;
-                employee.DateOfBirth = updateDto.DateOfBirth;
-                employee.Address = updateDto.Address;
-                employee.HireDate = updateDto.HireDate;
-                employee.DepartmentId = updateDto.DepartmentId;
-                employee.JobTitleId = updateDto.JobTitleId;
-                employee.StatusId = updateDto.StatusId;
-                employee.DefaultSiteId = updateDto.DefaultSiteId;
-                employee.WorkingTime = updateDto.WorkingTime;
-                employee.IsContracted = updateDto.IsContracted;
-                employee.FamilyData = updateDto.FamilyData;
-                employee.Comment1 = updateDto.Comment1;
-                employee.Comment2 = updateDto.Comment2;
-                employee.VacationDays = updateDto.VacationDays;
-                employee.FullVacationDays = updateDto.FullVacationDays;
+                employee.FirstName = updateDto.FirstName ?? employee.FirstName;
+                employee.LastName = updateDto.LastName ?? employee.LastName;
+                employee.Email = updateDto.Email ?? employee.Email;
+                employee.Email2 = updateDto.Email2 ?? employee.Email2;
+                employee.PhoneNumber = updateDto.PhoneNumber ?? employee.PhoneNumber;
+                employee.PhoneNumber2 = updateDto.PhoneNumber2 ?? employee.PhoneNumber2;
+                employee.DateOfBirth = updateDto.DateOfBirth ?? employee.DateOfBirth;
+                employee.Address = updateDto.Address ?? employee.Address;
+                employee.HireDate = updateDto.HireDate ?? employee.HireDate;
+                employee.DepartmentId = updateDto.DepartmentId ?? employee.DepartmentId;
+                employee.JobTitleId = updateDto.JobTitleId ?? employee.JobTitleId;
+                employee.StatusId = updateDto.StatusId ?? employee.StatusId;
+                employee.DefaultSiteId = updateDto.DefaultSiteId ?? employee.DefaultSiteId;
+                employee.WorkingTime = updateDto.WorkingTime ?? employee.WorkingTime;
+                employee.IsContracted = updateDto.IsContracted ?? employee.IsContracted;
+                employee.FamilyData = updateDto.FamilyData ?? employee.FamilyData;
+                employee.Comment1 = updateDto.Comment1 ?? employee.Comment1;
+                employee.Comment2 = updateDto.Comment2 ?? employee.Comment2;
+                employee.VacationDays = updateDto.VacationDays ?? employee.VacationDays;
+                employee.FullVacationDays = updateDto.FullVacationDays ?? employee.FullVacationDays;
                 employee.UpdatedAt = DateTime.UtcNow;
 
                 _context.Employees.Update(employee);
@@ -183,8 +215,8 @@ namespace Cloud9_2.Services
             }
         }
 
-        // DELETE: Hard delete
-        public async Task DeleteEmployeeAsync(int id)
+        // SOFT DELETE: Mark employee as inactive instead of removing from DB
+        public async Task SoftDeleteEmployeeAsync(int id)
         {
             if (id <= 0)
                 throw new ArgumentException("Employee ID must be greater than zero.", nameof(id));
@@ -192,34 +224,97 @@ namespace Cloud9_2.Services
             try
             {
                 var employee = await _context.Employees
+                    .IgnoreQueryFilters() // Need this to find soft-deleted employees
                     .FirstOrDefaultAsync(e => e.EmployeeId == id);
 
                 if (employee == null)
                     throw new KeyNotFoundException($"Employee with ID {id} not found.");
 
-                _context.Employees.Remove(employee);
+                // Already soft-deleted? Just log and return
+                if (!employee.IsActive)
+                {
+                    _logger.LogInformation("Employee with ID {EmployeeId} is already soft-deleted.", id);
+                    return;
+                }
+
+                employee.IsActive = false;
+                employee.UpdatedAt = DateTime.UtcNow;
+                // Optional: Add DeletedAt = DateTime.UtcNow if you want to track when it was deleted
+
                 await _context.SaveChangesAsync();
 
-                _logger.LogInformation("Employee deleted with ID {EmployeeId}.", id);
+                _logger.LogInformation("Employee soft-deleted with ID {EmployeeId}.", id);
             }
-            catch (DbUpdateException dbEx)
+            catch (Exception ex) when (!(ex is KeyNotFoundException))
             {
-                _logger.LogError(dbEx, "Database error while deleting employee ID {Id}.", id);
-                throw new InvalidOperationException("Failed to delete employee due to referential integrity.", dbEx);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Unexpected error while deleting employee ID {Id}.", id);
+                _logger.LogError(ex, "Unexpected error while soft-deleting employee ID {Id}.", id);
                 throw;
             }
         }
 
-        // SEARCH: By name, email, or phone
+        // RESTORE: Bring back a soft-deleted employee
+        public async Task RestoreEmployeeAsync(int id)
+        {
+            if (id <= 0)
+                throw new ArgumentException("Employee ID must be greater than zero.", nameof(id));
+
+            try
+            {
+                var employee = await _context.Employees
+                    .IgnoreQueryFilters() // Needed to find soft-deleted records
+                    .FirstOrDefaultAsync(e => e.EmployeeId == id);
+
+                if (employee == null)
+                    throw new KeyNotFoundException($"Employee with ID {id} not found.");
+
+                // Already active? Just log and return
+                if (employee.IsActive)
+                {
+                    _logger.LogInformation("Employee with ID {EmployeeId} is already active.", id);
+                    return;
+                }
+
+                employee.IsActive = true;
+                employee.UpdatedAt = DateTime.UtcNow;
+
+                await _context.SaveChangesAsync();
+
+                _logger.LogInformation("Employee restored with ID {EmployeeId}.", id);
+            }
+            catch (Exception ex) when (!(ex is KeyNotFoundException))
+            {
+                _logger.LogError(ex, "Unexpected error while restoring employee ID {Id}.", id);
+                throw;
+            }
+        }
+
+        // GET: All soft-deleted employees (for admin panel)
+        public async Task<IEnumerable<Employees>> GetDeletedEmployeesAsync()
+        {
+            try
+            {
+                return await _context.Employees
+                    .IgnoreQueryFilters()
+                    .Where(e => !e.IsActive)
+                    .Include(e => e.JobTitle)
+                    .Include(e => e.Status)
+                    .AsNoTracking()
+                    .ToListAsync();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving deleted employees.");
+                throw;
+            }
+        }
+
+        // SEARCH: By name, email, or phone (only active employees)
         public async Task<IEnumerable<Employees>> SearchEmployeesAsync(string? searchTerm)
         {
             try
             {
                 var query = _context.Employees
+                    .Where(e => e.IsActive)
                     .Include(e => e.JobTitle)
                     .Include(e => e.Status)
                     .AsNoTracking();
@@ -244,12 +339,47 @@ namespace Cloud9_2.Services
             }
         }
 
-        // OPTIONAL: Get by department
-        public async Task<IEnumerable<Employees>> GetEmployeesByDepartmentAsync(int departmentId)
+        // SEARCH: Including soft-deleted employees (for admin search)
+        public async Task<IEnumerable<Employees>> SearchAllEmployeesAsync(string? searchTerm)
         {
             try
             {
+                var query = _context.Employees
+                    .IgnoreQueryFilters()
+                    .Include(e => e.JobTitle)
+                    .Include(e => e.Status)
+                    .AsNoTracking();
+
+                if (!string.IsNullOrWhiteSpace(searchTerm))
+                {
+                    searchTerm = searchTerm.Trim().ToLower();
+                    query = query.Where(e =>
+                        (e.FirstName != null && e.FirstName.ToLower().Contains(searchTerm)) ||
+                        (e.LastName != null && e.LastName.ToLower().Contains(searchTerm)) ||
+                        (e.Email != null && e.Email.ToLower().Contains(searchTerm)) ||
+                        (e.PhoneNumber != null && e.PhoneNumber.Contains(searchTerm))
+                    );
+                }
+
+                return await query.ToListAsync();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error during full employee search with term: {SearchTerm}", searchTerm);
+                throw;
+            }
+        }
+
+        // GET: Employees by department (only active)
+        public async Task<IEnumerable<Employees>> GetEmployeesByDepartmentAsync(int departmentId)
+        {
+            if (departmentId <= 0)
+                throw new ArgumentException("Department ID must be greater than zero.", nameof(departmentId));
+
+            try
+            {
                 return await _context.Employees
+                    .Where(e => e.IsActive)
                     .Where(e => e.DepartmentId == departmentId)
                     .Include(e => e.JobTitle)
                     .Include(e => e.Status)
@@ -259,6 +389,81 @@ namespace Cloud9_2.Services
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error retrieving employees for Department ID {DepartmentId}.", departmentId);
+                throw;
+            }
+        }
+
+        // GET: Active employees by status
+        public async Task<IEnumerable<Employees>> GetEmployeesByStatusAsync(int statusId)
+        {
+            if (statusId <= 0)
+                throw new ArgumentException("Status ID must be greater than zero.", nameof(statusId));
+
+            try
+            {
+                return await _context.Employees
+                    .Where(e => e.IsActive)
+                    .Where(e => e.StatusId == statusId)
+                    .Include(e => e.JobTitle)
+                    .Include(e => e.Status)
+                    .AsNoTracking()
+                    .ToListAsync();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving employees for Status ID {StatusId}.", statusId);
+                throw;
+            }
+        }
+
+        // CHECK: Does employee exist? (including soft-deleted)
+        public async Task<bool> EmployeeExistsAsync(int id)
+        {
+            if (id <= 0)
+                return false;
+
+            try
+            {
+                return await _context.Employees
+                    .IgnoreQueryFilters()
+                    .AnyAsync(e => e.EmployeeId == id);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error checking if employee {EmployeeId} exists.", id);
+                throw;
+            }
+        }
+
+        // COUNT: Total active employees
+        public async Task<int> GetActiveEmployeesCountAsync()
+        {
+            try
+            {
+                return await _context.Employees
+                    .Where(e => e.IsActive)
+                    .CountAsync();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error counting active employees.");
+                throw;
+            }
+        }
+
+        // COUNT: Total deleted employees
+        public async Task<int> GetDeletedEmployeesCountAsync()
+        {
+            try
+            {
+                return await _context.Employees
+                    .IgnoreQueryFilters()
+                    .Where(e => !e.IsActive)
+                    .CountAsync();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error counting deleted employees.");
                 throw;
             }
         }

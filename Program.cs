@@ -32,7 +32,14 @@ using Microsoft.EntityFrameworkCore;
 
   builder.Services.AddRazorPages();
   builder.Services.AddControllersWithViews();
-  builder.Services.AddControllers();
+builder.Services.AddControllers();
+  
+// Register Twilio settings from appsettings.json
+builder.Services.Configure<TwilioSettings>(builder.Configuration.GetSection("Twilio"));
+
+// // Initialize Twilio client (optional but recommended)
+var twilio = builder.Configuration.GetSection("Twilio").Get<TwilioSettings>();
+Twilio.TwilioClient.Init(twilio.AccountSid, twilio.AuthToken);
 
 builder.Services.AddScoped<TaskPMService>();
 builder.Services.AddScoped<EmployeeService>();

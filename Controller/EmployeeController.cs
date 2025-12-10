@@ -119,8 +119,8 @@ public EmployeeController(
         {
             try
             {
-                await _employeeService.DeleteEmployeeAsync(id);
-                return NoContent();
+                await _employeeService.SoftDeleteEmployeeAsync(id);
+                return NoContent(); // 204 - successfully "deleted"
             }
             catch (KeyNotFoundException)
             {
@@ -132,10 +132,25 @@ public EmployeeController(
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error deleting employee ID {Id}.", id);
+                _logger.LogError(ex, "Error soft-deleting employee ID {Id}.", id);
                 return StatusCode(500, "Failed to delete employee.");
             }
         }
+
+        [HttpPatch("{id}/restore")]
+        public async Task<IActionResult> RestoreEmployee(int id)
+        {
+            try
+            {
+                await _employeeService.RestoreEmployeeAsync(id);
+                return Ok();
+            }
+            catch (KeyNotFoundException)
+            {
+                return NotFound();
+            }
+        }
+
 
         // SEARCH: api/employee/search?q=john
         [HttpGet("search")]

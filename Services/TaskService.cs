@@ -39,9 +39,12 @@ namespace Cloud9_2.Services
                 .Include(t => t.Quote)
                 .Include(t => t.Order)
                 .Include(t => t.CustomerCommunication)
+                .Include(t => t.CommunicationType)
                 .Include(t => t.TaskResourceAssignments).ThenInclude(ra => ra.Resource)
                 .Include(t => t.TaskEmployeeAssignments).ThenInclude(ea => ea.Employee)
-                .Include(t => t.TaskHistories).ThenInclude(th => th.ModifiedBy);
+                .Include(t => t.TaskHistories).ThenInclude(th => th.ModifiedBy)
+                .Include(t => t.TaskDocuments)
+            .ThenInclude(td => td.Document);
         #endregion
 
         // -----------------------------------------------------------------
@@ -114,6 +117,9 @@ namespace Cloud9_2.Services
                 EstimatedHours = dto.EstimatedHours,
                 ActualHours = dto.ActualHours,
                 AssignedToId = dto.AssignedToId,
+                ScheduledDate = dto.ScheduledDate,
+                CommunicationTypeId = dto.CommunicationTypeId,
+                CommunicationDescription = dto.CommunicationDescription,
 
                 // Defensive check for optional integer FKs (TomSelect sometimes sends 0 for blank)
                 PartnerId = dto.PartnerId == 0 ? null : dto.PartnerId,
@@ -227,7 +233,10 @@ public async Task<TaskPMDto> UpdateTaskAsync(TaskUpdateDto dto, string currentUs
             task.ContactId = dto.ContactId ?? task.ContactId;
             task.QuoteId = dto.QuoteId ?? task.QuoteId;
             task.OrderId = dto.OrderId ?? task.OrderId;
+            task.ScheduledDate = dto.ScheduledDate ?? task.ScheduledDate;
+            task.CommunicationTypeId = dto.CommunicationTypeId;
             task.CustomerCommunicationId = dto.CustomerCommunicationId ?? task.CustomerCommunicationId;
+            task.CommunicationDescription = dto.CommunicationDescription;
             task.UpdatedDate = DateTime.UtcNow;
 
             // CompletedDate logic
@@ -310,62 +319,88 @@ public async Task<TaskPMDto> UpdateTaskAsync(TaskUpdateDto dto, string currentUs
             int pageSize = 10,
             string? searchTerm = null,
             string? sort = null,
-            string? order = "asc",
+            string? order = "desc",
             int? statusId = null,
             int? priorityId = null,
-            // int? projectPMId = null,
-            string? assignedToId = null)
+            int? taskTypeId = null,           // ÚJ: Feladat típusa / Task Type
+            int? partnerId = null,            // ÚJ: Partner
+            int? siteId = null,               // ÚJ: Telephely / Site
+            string? assignedToId = null,      // Technikus / Technician
+            DateTime? dueDateFrom = null,     // Határidő tól / Due Date From
+            DateTime? dueDateTo = null,       // Határidő ig / Due Date To
+            DateTime? createdDateFrom = null, // Létrehozás tól / Created From
+            DateTime? createdDateTo = null)   // Létrehozás ig / Created To
         {
+            // --- Biztonságos értékek ---
             page = Math.Max(1, page);
             pageSize = Math.Max(1, Math.Min(100, pageSize));
             sort ??= "Id";
-            order = order?.ToLower() == "desc" ? "desc" : "asc";
+            order ??= "desc";
 
+            // --- Alap lekérdezés ---
             var query = BaseQuery(_context).Where(t => t.IsActive);
 
-            // FILTERS
-            if (statusId.HasValue)    query = query.Where(t => t.TaskStatusPMId == statusId.Value);
-            if (priorityId.HasValue)  query = query.Where(t => t.TaskPriorityPMId == priorityId.Value);
-            // if (projectPMId.HasValue) query = query.Where(t => t.ProjectPMId == projectPMId.Value);
+            // === SZŰRŐK / FILTERS ===
+            if (statusId.HasValue) query = query.Where(t => t.TaskStatusPMId == statusId.Value);
+            if (priorityId.HasValue) query = query.Where(t => t.TaskPriorityPMId == priorityId.Value);
+            if (taskTypeId.HasValue) query = query.Where(t => t.TaskTypePMId == taskTypeId.Value);
+            if (partnerId.HasValue) query = query.Where(t => t.PartnerId == partnerId.Value);
+            if (siteId.HasValue) query = query.Where(t => t.SiteId == siteId.Value);
             if (!string.IsNullOrWhiteSpace(assignedToId))
                 query = query.Where(t => t.AssignedToId == assignedToId);
 
-            // SEARCH
+            // Dátumtartományok / Date ranges
+            if (dueDateFrom.HasValue)
+                query = query.Where(t => t.DueDate >= dueDateFrom.Value.Date);
+
+            if (dueDateTo.HasValue)
+                query = query.Where(t => t.DueDate <= dueDateTo.Value.Date.AddDays(1).AddSeconds(-1));
+
+            if (createdDateFrom.HasValue)
+                query = query.Where(t => t.CreatedDate >= createdDateFrom.Value.Date);
+
+            if (createdDateTo.HasValue)
+                query = query.Where(t => t.CreatedDate <= createdDateTo.Value.Date.AddDays(1).AddSeconds(-1));
+
+            // === KERESÉS / SEARCH ===
             if (!string.IsNullOrWhiteSpace(searchTerm))
             {
                 var term = searchTerm.Trim().ToLower();
                 query = query.Where(t =>
                     t.Title.ToLower().Contains(term) ||
                     (t.Description != null && t.Description.ToLower().Contains(term)) ||
-                    // (t.ProjectPM != null && t.ProjectPM.Name.ToLower().Contains(term)) ||
                     (t.AssignedTo != null && t.AssignedTo.UserName.ToLower().Contains(term)) ||
-                    (t.CreatedBy != null && t.CreatedBy.UserName.ToLower().Contains(term))
-                );
+                    (t.CreatedBy != null && t.CreatedBy.UserName.ToLower().Contains(term)) ||
+                    (t.Site != null && t.Site.SiteName.ToLower().Contains(term)) ||
+                    (t.Site != null && t.Site.City.ToLower().Contains(term)));
             }
 
+            // --- Összes találat száma (lapozás előtt!) ---
             var totalCount = await query.CountAsync();
 
-            // SORT
+            // === RENDEZÉS / SORTING ===
             query = sort.ToLowerInvariant() switch
             {
-                "title"       => order == "desc" ? query.OrderByDescending(t => t.Title)                : query.OrderBy(t => t.Title),
-                "duedate"     => order == "desc" ? query.OrderByDescending(t => t.DueDate)              : query.OrderBy(t => t.DueDate),
-                "status"      => order == "desc" ? query.OrderByDescending(t => t.TaskStatusPM!.Name)   : query.OrderBy(t => t.TaskStatusPM!.Name),
-                "priority"    => order == "desc" ? query.OrderByDescending(t => t.TaskPriorityPM!.Name) : query.OrderBy(t => t.TaskPriorityPM!.Name),
-                "assignedto"  => order == "desc"
-                                    ? query.OrderByDescending(t => t.AssignedTo!.UserName)
-                                    : query.OrderBy(t => t.AssignedTo!.UserName),
-                "createddate" => order == "desc" ? query.OrderByDescending(t => t.CreatedDate)          : query.OrderBy(t => t.CreatedDate),
-                // "project"     => order == "desc" ? query.OrderByDescending(t => t.ProjectPM!.Name)      : query.OrderBy(t => t.ProjectPM!.Name),
-                _             => order == "desc" ? query.OrderByDescending(t => t.Id)                    : query.OrderBy(t => t.Id)
+                "title" => order == "desc" ? query.OrderByDescending(t => t.Title) : query.OrderBy(t => t.Title),
+                "duedate" => order == "desc" ? query.OrderByDescending(t => t.DueDate) : query.OrderBy(t => t.DueDate),
+                "status" => order == "desc" ? query.OrderByDescending(t => t.TaskStatusPM!.Name) : query.OrderBy(t => t.TaskStatusPM!.Name),
+                "priority" => order == "desc" ? query.OrderByDescending(t => t.TaskPriorityPM!.Name) : query.OrderBy(t => t.TaskPriorityPM!.Name),
+                "assignedto" => order == "desc" ? query.OrderByDescending(t => t.AssignedTo!.UserName) : query.OrderBy(t => t.AssignedTo!.UserName),
+                "createddate" => order == "desc" ? query.OrderByDescending(t => t.CreatedDate) : query.OrderBy(t => t.CreatedDate),
+                "partner" => order == "desc" ? query.OrderByDescending(t => t.Partner!.Name) : query.OrderBy(t => t.Partner!.Name),
+                "site" => order == "desc" ? query.OrderByDescending(t => t.Site!.SiteName) : query.OrderBy(t => t.Site!.SiteName),
+                "tasktype" => order == "desc" ? query.OrderByDescending(t => t.TaskTypePM!.TaskTypePMName) : query.OrderBy(t => t.TaskTypePM!.TaskTypePMName),
+                _ => order == "desc" ? query.OrderByDescending(t => t.Id) : query.OrderBy(t => t.Id)
             };
 
+            // --- Lapozás / Pagination ---
             var items = await query
                 .Skip((page - 1) * pageSize)
                 .Take(pageSize)
                 .Select(t => MapToDto(t))
                 .ToListAsync();
 
+            // --- Visszatérés ---
             return new PagedResult<TaskPMDto>
             {
                 Items = items,
@@ -392,13 +427,19 @@ public async Task<TaskPMDto> UpdateTaskAsync(TaskUpdateDto dto, string currentUs
 
                 TaskStatusPMId = task.TaskStatusPMId,
                 TaskStatusPMName = task.TaskStatusPM?.Name,
+                ColorCode = task.TaskStatusPM?.ColorCode,
 
                 TaskPriorityPMId = task.TaskPriorityPMId,
                 TaskPriorityPMName = task.TaskPriorityPM?.Name,
 
+                CommunicationTypeId = task.CommunicationTypeId,
+                CommunicationTypeName = task.CommunicationType?.Name,
+                CommunicationDescription = task.CommunicationDescription,
+
                 DueDate = task.DueDate,
                 EstimatedHours = task.EstimatedHours,
                 ActualHours = task.ActualHours,
+                ScheduledDate = task.ScheduledDate,
 
                 CreatedById = task.CreatedById,
                 CreatedByName = FullName(task.CreatedBy),
@@ -419,6 +460,7 @@ public async Task<TaskPMDto> UpdateTaskAsync(TaskUpdateDto dto, string currentUs
 
                 SiteId = task.SiteId,
                 SiteName = task.Site?.SiteName,
+                City = task.Site?.City,
 
                 ContactId = task.ContactId,
                 ContactName = task.Contact != null
@@ -449,9 +491,76 @@ public async Task<TaskPMDto> UpdateTaskAsync(TaskUpdateDto dto, string currentUs
                         ChangeDescription = th.ChangeDescription
                     })
                     .OrderByDescending(th => th.ModifiedDate)
-                    .ToList()
+                    .ToList(),
+
+                Attachments = task.TaskDocuments
+            .Select(td => new TaskDocumentDto
+            {
+                Id = td.Id,
+                DocumentId = td.DocumentId,
+                FileName = td.Document.FileName,
+                FilePath = td.Document.FilePath,
+                LinkedDate = td.LinkedDate,
+                LinkedByName = td.LinkedBy != null ? td.LinkedBy.UserName : null,
+                Note = td.Note
+            })
+            .OrderByDescending(a => a.LinkedDate)
+            .ToList()
+
             };
         }
+
+        // Attach existing document to task
+        public async Task AttachDocumentAsync(int taskId, int documentId, string currentUserId, string? note = null)
+        {
+            if (!await _context.TaskPMs.AnyAsync(t => t.Id == taskId && t.IsActive))
+                throw new KeyNotFoundException($"Task {taskId} not found.");
+
+            if (!await _context.Documents.AnyAsync(d => d.DocumentId == documentId))
+                throw new KeyNotFoundException($"Document {documentId} not found.");
+
+            var alreadyAttached = await _context.TaskDocumentLinks
+                .AnyAsync(x => x.TaskId == taskId && x.DocumentId == documentId);
+
+            if (alreadyAttached)
+                return;
+
+            var link = new TaskDocumentLink
+            {
+                TaskId = taskId,
+                DocumentId = documentId,
+                LinkedDate = DateTime.UtcNow,
+                LinkedById = currentUserId,
+                Note = note
+            };
+
+            _context.TaskDocumentLinks.Add(link);
+            await _context.SaveChangesAsync();
+        }
+
+        // Remove document from task
+        public async Task RemoveDocumentAsync(int taskId, int documentLinkId, string currentUserId)
+        {
+            var link = await _context.TaskDocumentLinks
+                .FirstOrDefaultAsync(x => x.Id == documentLinkId && x.TaskId == taskId);
+
+            if (link == null)
+                throw new KeyNotFoundException($"Attachment {documentLinkId} not found on task {taskId}");
+
+            _context.TaskDocumentLinks.Remove(link);
+            await _context.SaveChangesAsync();
+        }
+
+
+        // Optional: Attach multiple at once
+        public async Task AttachDocumentsAsync(int taskId, List<int> documentIds, string currentUserId, string? note = null)
+        {
+            foreach (var docId in documentIds.Distinct())
+            {
+                await AttachDocumentAsync(taskId, docId, currentUserId, note);
+            }
+        }
+
     }
 
     // -----------------------------------------------------------------

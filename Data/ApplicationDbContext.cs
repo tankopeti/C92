@@ -85,6 +85,7 @@ namespace Cloud9_2.Data
         public DbSet<ResourceHistory> ResourceHistories { get; set; }
         public DbSet<TaskResourceAssignment> TaskResourceAssignments { get; set; }
         public DbSet<TaskEmployeeAssignment> TaskEmployeeAssignments { get; set; }
+        public DbSet<TaskDocumentLink> TaskDocumentLinks { get; set; } = null!;
 
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -113,6 +114,26 @@ namespace Cloud9_2.Data
                     .HasForeignKey(e => e.ModifiedById)
                     .OnDelete(DeleteBehavior.SetNull);
             });
+
+            modelBuilder.Entity<TaskDocumentLink>(entity =>
+    {
+        entity.HasKey(e => e.Id);
+        
+        entity.HasOne(e => e.Task)
+              .WithMany(t => t.TaskDocuments)
+              .HasForeignKey(e => e.TaskId)
+              .OnDelete(DeleteBehavior.Cascade);
+
+        entity.HasOne(e => e.Document)
+              .WithMany(d => d.TaskDocuments)
+              .HasForeignKey(e => e.DocumentId)
+              .OnDelete(DeleteBehavior.Cascade);
+
+        entity.HasOne(e => e.LinkedBy)
+              .WithMany()
+              .HasForeignKey(e => e.LinkedById)
+              .OnDelete(DeleteBehavior.SetNull);
+    });
 
 // TaskPM
     modelBuilder.Entity<TaskPM>(entity =>
@@ -173,6 +194,8 @@ namespace Cloud9_2.Data
             // HR
             // Map Employee to singular table name
             modelBuilder.Entity<Employees>().ToTable("Employee");
+            
+            modelBuilder.Entity<Employees>().HasQueryFilter(e => e.IsActive);
 
             // Map EmploymentStatus to its table
             modelBuilder.Entity<EmploymentStatus>().ToTable("EmploymentStatus");
@@ -216,6 +239,8 @@ namespace Cloud9_2.Data
 
             modelBuilder.Entity<SiteShift>()
                 .HasKey(ss => new { ss.SiteId, ss.ShiftId });
+
+            modelBuilder.Entity<Site>().HasQueryFilter(s => s.IsActive);
 
 
             modelBuilder.Entity<Site>()
@@ -907,6 +932,8 @@ namespace Cloud9_2.Data
                 .HasForeignKey(l => l.PartnerId)
                 .OnDelete(DeleteBehavior.Restrict);
 
+                modelBuilder.Entity<Lead>().HasQueryFilter(l => l.IsActive);
+
             modelBuilder.Entity<Quote>(entity =>
             {
                 entity.Property(e => e.QuoteNumber).IsRequired(false);
@@ -925,6 +952,8 @@ namespace Cloud9_2.Data
                 .WithMany(o => o.OrderItems)
                 .HasForeignKey(oi => oi.OrderId);
 
+
+            modelBuilder.Entity<Quote>().HasQueryFilter(q => q.IsActive);
 
             modelBuilder.Entity<Quote>()
             .HasMany(q => q.QuoteHistories)
@@ -954,6 +983,8 @@ namespace Cloud9_2.Data
             .HasForeignKey(c => c.PartnerId)
             .OnDelete(DeleteBehavior.Cascade);
 
+            modelBuilder.Entity<Contact>().HasQueryFilter(c => c.IsActive);
+
             modelBuilder.Entity<Quote>()
                 .HasOne(q => q.Partner)
                 .WithMany(p => p.Quotes)
@@ -963,6 +994,8 @@ namespace Cloud9_2.Data
                 .HasMany(p => p.Quotes)
                 .WithOne(q => q.Partner)
                 .HasForeignKey(q => q.PartnerId);
+
+                modelBuilder.Entity<Partner>().HasQueryFilter(p => p.IsActive);
 
             modelBuilder.Entity<Product>()
             .HasOne(p => p.BaseUOM)

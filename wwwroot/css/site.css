@@ -1,3 +1,9 @@
+:root {
+    --navbar-height: 40px;
+    --sidebar-width: 205px;
+    --header-height: 105px; /* or whatever your page-header-fixed-top actually is */
+    --footer-height: 55px;
+}
 *, *::before, *::after {
   box-sizing: border-box; /* Apply universally */
 }
@@ -19,7 +25,7 @@ html {
 body {
     margin: 0;
     padding: 0; /* Remove default body margin/padding */
-    padding-top: 40px; /* ADD BACK: Space for fixed navbar */
+    padding-top: var(--navbar-height); /* ADD BACK: Space for fixed navbar */
     background-color: #F1EFEC;
     height: 100vh; /* Body occupies full viewport height */
     overflow: hidden; /* Prevent body scrollbar */
@@ -177,9 +183,14 @@ body {
   z-index: 998;
 }
 
+.left-sidebar,
 .right-content {
-  margin-left: 205px;
-  width: calc(100% - 205px);
+    height: calc(100vh - var(--navbar-height));
+}
+
+.right-content {
+margin-left: var(--sidebar-width);
+    width: calc(100% - var(--sidebar-width));
   display: flex;
   flex-direction: column;
   height: calc(100vh - 40px);
@@ -336,8 +347,8 @@ body {
   }
 
   .fixed-footer {
-      left: 0;
-      min-height: 70px;
+left: var(--sidebar-width);
+    min-height: var(--footer-height);
       padding: 5px 10px;
   }
   .fixed-footer .d-flex {
@@ -471,6 +482,9 @@ body {
 
 /* Responsive Adjustments */
 @media (max-width: 768px) {
+  :root {
+        --sidebar-width: 0;
+    }
   .navbar-container {
       flex-direction: column;
       align-items: flex-start;
@@ -966,27 +980,90 @@ body {
     border: 1px solid #444;
 }
 
-/* Ensure TomSelect fields take full width */
-.tom-select .ts-wrapper {
-    width: 100% !important;
-    min-width: 200px; /* Minimum width to prevent shrinking */
+    .tom-select .ts-control {
+        /* Match Bootstrap form-select styling */
+        display: block;
+        width: 100%;
+        padding: 0.375rem 2.25rem 0.375rem 0.75rem;
+        font-size: 1rem;
+        font-weight: 400;
+        line-height: 1.5;
+        color: #212529;
+        background-color: #fff;
+        background-clip: padding-box;
+        border: 1px solid #ced4da;
+        border-radius: 0.25rem;
+        transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+    }
+
+    .tom-select .ts-control:focus {
+        /* Bootstrap focus state */
+        color: #212529;
+        background-color: #fff;
+        border-color: #86b7fe;
+        outline: 0;
+        box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+    }
+
+    .tom-select .ts-dropdown {
+        /* Match Bootstrap dropdown styling */
+        border: 1px solid #ced4da;
+        border-radius: 0.25rem;
+        background-color: #fff;
+        box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+        font-size: 1rem;
+    }
+
+    .tom-select .ts-dropdown .option {
+        padding: 0.25rem 0.75rem;
+        cursor: pointer;
+    }
+
+    .tom-select .ts-dropdown .option:hover,
+    .tom-select .ts-dropdown .option.active {
+        background-color: #f8f9fa;
+        color: #212529;
+    }
+
+    /* Validation error styling */
+    .tom-select .ts-control.is-invalid {
+        border-color: #dc3545;
+        background-image: none;
+    }
+
+    .tom-select .ts-control.is-invalid:focus {
+        border-color: #dc3545;
+        box-shadow: 0 0 0 0.25rem rgba(220, 53, 69, 0.25);
+    }
+
+    /* Ensure responsiveness in modal */
+    .tom-select {
+        width: 100%;
+        max-width: 100%;
+    }
+
+    /* Adjust placeholder text */
+    .tom-select .ts-control input::placeholder {
+        color: #6c757d;
+        opacity: 1;
+    }
+
+    .flash {
+    animation: flash 1.5s infinite;
 }
 
-.tom-select .ts-control {
-    width: 100% !important;
+@keyframes flash {
+    50%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.1;
+    }
 }
 
-.tom-select .ts-dropdown {
-    width: 100% !important;
-}
-
-/* Ensure modal table cells expand properly */
-.modal-body .table td {
-    width: auto;
-    min-width: 200px; /* Adjust as needed */
-}
-
-.form-select.tom-select {
-    width: 100% !important;
-    box-sizing: border-box;
-}
+.table-dynamic-height { min-height: 400px; overflow-y: auto; transition: max-height 0.35s ease; }
+.table-dynamic-height[data-page-size="10"],
+.table-dynamic-height[data-page-size="20"]  { max-height: 60vh; }
+.table-dynamic-height[data-page-size="25"],
+.table-dynamic-height[data-page-size="50"]  { max-height: 75vh; }
+.table-dynamic-height[data-page-size="100"] { max-height: 85vh; }

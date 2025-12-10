@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+
 namespace Cloud9_2.Models
 {
     public class PaginationViewModel

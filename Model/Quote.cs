@@ -89,6 +89,7 @@ namespace Cloud9_2.Models
         [StringLength(100)]
         [Display(Name = "Referenciaszám")]
         public string? ReferenceNumber { get; set; }
+        public bool IsActive { get; set; } = true;
 
         // Navigation properties
         [ForeignKey("PartnerId")]

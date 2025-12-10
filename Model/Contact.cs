@@ -24,6 +24,7 @@ namespace Cloud9_2.Models
         public Partner Partner { get; set; } = null!;
         public DateTime CreatedDate { get; set; }
         public DateTime? UpdatedDate { get; set; }
+        public bool IsActive { get; set; } = true;
         public ICollection<CustomerCommunication>? CustomerCommunications { get; set; } = new List<CustomerCommunication>();
         public List<Document>? Documents { get; set; } = new List<Document>();
         public ICollection<Order>? Orders { get; set; }
@@ -48,6 +49,7 @@ namespace Cloud9_2.Models
         public Partner? Partner { get; set; }
         public DateTime CreatedDate { get; set; }
         public DateTime? UpdatedDate { get; set; }
+        public bool IsActive { get; set; }
     }
 
     public class CreateContactDto
@@ -68,6 +70,7 @@ namespace Cloud9_2.Models
         public int? PartnerId { get; set; }
         public DateTime CreatedDate { get; set; } = DateTime.UtcNow;
         public DateTime? UpdatedDate { get; set; }
+        public bool IsActive { get; set; } = true;
     }
 
     public class UpdateContactDto

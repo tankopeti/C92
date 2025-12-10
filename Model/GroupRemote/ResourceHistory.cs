@@ -1,32 +1,42 @@
 using System;
-using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace Cloud9_2.Models
 {
+    [Table("ResourceHistory")]
     public class ResourceHistory
     {
         [Key]
-        public int Id { get; set; }
+        [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
+        public int ResourceHistoryId { get; set; }  // Matches SQL PK
 
+        [Required]
         public int ResourceId { get; set; }
-        public Resource Resource { get; set; }
 
+        [ForeignKey("ResourceId")]
+        public Resource Resource { get; set; } = null!;
+
+        [MaxLength(450)]
         public string? ModifiedById { get; set; }
+
+        [ForeignKey("ModifiedById")]
         public ApplicationUser? ModifiedBy { get; set; }
 
-        [Display(Name = "Modified Date")]
-        public DateTime? ModifiedDate { get; set; } = DateTime.UtcNow;
+        [Column(TypeName = "datetime")]
+        public DateTime? ModifiedDate { get; set; }
 
-        [StringLength(500, ErrorMessage = "Change description cannot exceed 500 characters")]
+        [MaxLength(500)]
         public string? ChangeDescription { get; set; }
 
-        [Range(0, 999999.99, ErrorMessage = "Service price must be between 0 and 999,999.99")]
+        [Column(TypeName = "decimal(18,2)")]
+        [Range(0, 999999.99)]
         public decimal? ServicePrice { get; set; }
     }
+
     public class ResourceHistoryDto
     {
-        public int Id { get; set; }
+        public int ResourceHistoryId { get; set; }
         public int ResourceId { get; set; }
         public string? ModifiedById { get; set; }
         public string? ModifiedByName { get; set; }
@@ -34,5 +44,4 @@ namespace Cloud9_2.Models
         public string? ChangeDescription { get; set; }
         public decimal? ServicePrice { get; set; }
     }
-
 }

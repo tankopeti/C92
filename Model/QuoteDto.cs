@@ -101,6 +101,7 @@ namespace Cloud9_2.Models
 
         [Display(Name = "Kedvezmény")]
         public DiscountDto? Discount { get; set; }
+        public bool IsActive { get; set; } = true;
 
         [Display(Name = "Tételek")]
         public List<QuoteItemDto> Items { get; set; } = new List<QuoteItemDto>();
@@ -167,6 +168,8 @@ namespace Cloud9_2.Models
         [Required]
         [Display(Name = "Partner")]
         public int PartnerId { get; set; }
+
+        public bool IsActive { get; set; } = true;
 
         [Required]
         [Display(Name = "Pénznem")]

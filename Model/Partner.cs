@@ -28,6 +28,8 @@ namespace Cloud9_2.Models
         [Display(Name = "Weboldal")]
         public string? Website { get; set; }             // Partner's website (optional)
 
+        public bool IsActive { get; set; } = true;
+
         // Business Details
         
         [Display(Name = "Teljes név")]
@@ -101,7 +103,6 @@ namespace Cloud9_2.Models
         [Display(Name = "Státusz")]
         public int? StatusId { get; set; }
         public Status? Status { get; set; }
-        
 
         // Audit Fields
 

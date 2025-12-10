@@ -39,6 +39,7 @@ namespace Cloud9_2.Models
         public DateTime? LastContactDate { get; set; }
         public DateTime? NextFollowUpDate { get; set; }
         public string? Notes { get; set; }
+        public bool IsActive { get; set; } = true;
 
         public int? PartnerId { get; set; } // Links to Partner
         [ForeignKey("PartnerId")]

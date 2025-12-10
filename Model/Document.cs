@@ -19,6 +19,7 @@ namespace Cloud9_2.Models
         public ICollection<DocumentMetadata> DocumentMetadata { get; set; }
         public ICollection<DocumentLink> DocumentLinks { get; set; }
         public ICollection<DocumentStatusHistory> StatusHistory { get; set; }
+public virtual ICollection<TaskDocumentLink> TaskDocuments { get; set; } = new List<TaskDocumentLink>();        
         // public int? EmployeeId { get; set; }
         // public Employee Employee { get; set; }
     }

@@ -41,6 +41,7 @@ namespace Cloud9_2.Models
         public int? JobTitleId { get; set; }
 
         public int? StatusId { get; set; }
+        public bool IsActive { get; set; } = true;
 
         public int? DefaultSiteId { get; set; }
 
@@ -99,6 +100,8 @@ namespace Cloud9_2.Models
         public int? DepartmentId { get; set; }
 
         public int? JobTitleId { get; set; }
+
+        public bool IsActive { get; set; } = true;
 
         public int? DefaultSiteId { get; set; }
 

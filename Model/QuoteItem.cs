@@ -18,10 +18,10 @@ namespace Cloud9_2.Models
 
         [Required]
         [Display(Name = "ÁFA típus")]
-        public int VatTypeId { get; set; }
+        public int? VatTypeId { get; set; }
         
         [ForeignKey(nameof(VatTypeId))]
-        public VatType VatType { get; set; }
+        public VatType? VatType { get; set; }
 
         [StringLength(200)]
         [Display(Name = "Tétel leírása")]

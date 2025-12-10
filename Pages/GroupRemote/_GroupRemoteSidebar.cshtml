@@ -12,6 +12,12 @@
         {
             <ul class="nav flex-column">
                 <li class="nav-item">
+                    <a class="nav-link px-3 py-2 @(Html.IsActive("TasksIntezkedes/TasksIntezkedes", "GroupRemote") ? "active" : "")" asp-area="" asp-page="/GroupRemote/TasksIntezkedes/TasksIntezkedes">
+                        <i class="bi bi-people-fill me-2"></i>Intézkedések
+                    </a>
+                    <a class="nav-link px-3 py-2 @(Html.IsActive("TaskBejelentes/TaskBejelentes", "GroupRemote") ? "active" : "")" asp-area="" asp-page="/GroupRemote/TaskBejelentes/TaskBejelentes">
+                        <i class="bi bi-people-fill me-2"></i>Bejelentések
+                    </a>
                     <a class="nav-link px-3 py-2 @(Html.IsActive("Tasks/Index", "GroupRemote") ? "active" : "")" asp-area="" asp-page="/GroupRemote/Tasks/Index">
                         <i class="bi bi-people-fill me-2"></i>Feladatok
                     </a>

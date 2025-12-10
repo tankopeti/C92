@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
 using Cloud9_2.Data;
 using Cloud9_2.Models;
+using Cloud9_2.Services;
 
 namespace Cloud9_2.Pages.HR.WorkGroup
 {
@@ -10,9 +11,10 @@ namespace Cloud9_2.Pages.HR.WorkGroup
     {
         private readonly ApplicationDbContext _context;
 
-        public EmployeesModel(ApplicationDbContext context)
+        public EmployeesModel(ApplicationDbContext context, EmployeeService employeeService)
         {
             _context = context;
+            _employeeService = employeeService;
         }
 
         public IList<Employees> Employees { get; set; } = new List<Employees>();
@@ -21,6 +23,7 @@ namespace Cloud9_2.Pages.HR.WorkGroup
 
         [BindProperty]
         public EmployeesCreateDto EmployeeCreate { get; set; } = new EmployeesCreateDto();
+        private readonly EmployeeService _employeeService;
 
         [BindProperty]
         public EmployeesUpdateDto EmployeeUpdate { get; set; } = new EmployeesUpdateDto();
@@ -28,6 +31,7 @@ namespace Cloud9_2.Pages.HR.WorkGroup
         public async Task OnGetAsync()
         {
             Employees = await _context.Employees
+                .Where(e => e.IsActive)
                 .Include(e => e.JobTitle)
                 .Include(e => e.Status)
                 .ToListAsync();
@@ -144,25 +148,25 @@ namespace Cloud9_2.Pages.HR.WorkGroup
 
         public async Task<IActionResult> OnPostDeleteAsync(int id)
         {
-            var employee = await _context.Employees.FindAsync(id);
-            if (employee == null)
-            {
-                TempData["ErrorMessage"] = "Employee not found.";
-                return RedirectToPage();
-            }
-
-            _context.Employees.Remove(employee);
             try
             {
-                await _context.SaveChangesAsync();
-                TempData["SuccessMessage"] = "Employee deleted successfully.";
+                await _employeeService.SoftDeleteEmployeeAsync(id);
+                TempData["SuccessMessage"] = "Employee has been deactivated successfully.";
             }
-            catch (Exception)
+            catch (KeyNotFoundException)
             {
-                TempData["ErrorMessage"] = "An error occurred while deleting the employee.";
+                TempData["ErrorMessage"] = "Employee not found.";
+            }
+            catch (Exception ex)
+            {
+                // This should almost never happen with soft delete
+                TempData["ErrorMessage"] = "An unexpected error occurred while deactivating the employee.";
+                // Optional: log it
+                //_logger?.LogError(ex, "Soft delete failed for employee {Id}", id);
             }
 
             return RedirectToPage();
         }
+
     }
 }

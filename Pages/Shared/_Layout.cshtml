@@ -649,6 +649,8 @@
                             <li class="nav-item dropdown">
                                 <a class="nav-link dropdown-toggle" href="/GroupRemote/Sites/Index" data-bs-toggle="dropdown" aria-expanded="false">Táv és csoportmunka</a>
                                 <ul class="dropdown-menu">
+                                    <li><a class="dropdown-item" asp-area="" asp-page="/GroupRemote/TasksIntezkedes/TasksIntezkedes">Intézkedések</a></li>
+                                    <li><a class="dropdown-item" asp-area="" asp-page="/GroupRemote/TaskBejelentes/TaskBejelentes">Bejelentések</a></li>
                                     <li><a class="dropdown-item" asp-area="" asp-page="/GroupRemote/Tasks/Index">Feladatok</a></li>
                                     <li><a class="dropdown-item" asp-area="" asp-page="/GroupRemote/Projects/Index">Projektek</a></li>
                                     <li><a class="dropdown-item" asp-area="" asp-page="/GroupRemote/Resources/Index">Eszközök</a></li>
@@ -669,24 +671,44 @@
                             <div class="form-check form-switch ms-3">
                                 <input class="form-check-input" type="checkbox" id="themeToggle" onchange="toggleTheme()">
                                 <label class="form-check-label" for="themeToggle">
-                                    <i class="bi bi-moon-stars-fill"></i>
+                                    @* <i class="bi bi-moon-stars-fill"></i> *@
                                 </label>
                             </div>
                         </li>
-                        <li class="nav-item dropdown">
-                            <a class="nav-link dropdown-toggle d-flex align-items-center" href="#" data-bs-toggle="dropdown" aria-expanded="false">
-                                <img src="/Images/person-fill-gear.svg" alt="User settings" style="width: 24px; height: 24px;">
-                            </a>
-                            <ul class="dropdown-menu dropdown-menu-end">
-                                @if (User.IsInRole("SuperAdmin") || User.IsInRole("Admin"))
-                                {
-                                    <li><a class="dropdown-item" asp-page="/Admin/Index">Admin</a></li>
-                                }
-                                <li><a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#userSettingsModal">Beállítások</a></li>
-                                <li><hr class="dropdown-divider"></li>
-                                <li><a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#authModal">Kilépés</a></li>
-                            </ul>
-                        </li>
+<li class="nav-item dropdown">
+    <a class="nav-link dropdown-toggle d-flex align-items-center gap-2" 
+       href="#" 
+       id="userDropdown" 
+       role="button" 
+       data-bs-toggle="dropdown" 
+       aria-expanded="false">
+        
+        <span class="d-none d-md-block fw-medium">
+            @User.Identity?.Name
+        </span>
+    </a>
+
+    <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
+        @if (User.IsInRole("SuperAdmin") || User.IsInRole("Admin"))
+        {
+            <li><a class="dropdown-item" asp-page="/Admin/Index">Admin felület</a></li>
+        }
+        
+        <li>
+            <a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#userSettingsModal">
+                Beállítások
+            </a>
+        </li>
+        
+        <li><hr class="dropdown-divider"></li>
+        
+        <li>
+            <a class="dropdown-item text-danger" href="#" data-bs-toggle="modal" data-bs-target="#authModal">
+                Kilépés
+            </a>
+        </li>
+    </ul>
+</li>
                     </ul>
                 </div>
             </div>

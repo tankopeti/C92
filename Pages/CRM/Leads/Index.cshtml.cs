@@ -46,6 +46,7 @@ namespace Cloud9_2.Pages.CRM.Leads
             SearchTerm = searchTerm;
 
             IQueryable<Lead> leadsQuery = _context.Leads
+                .Where(l => l.IsActive)
                 .Include(l => l.LeadHistories)
                 .AsQueryable();
 
@@ -137,28 +138,31 @@ namespace Cloud9_2.Pages.CRM.Leads
 
         public async Task<IActionResult> OnPostDeleteLeadAsync(int leadId)
         {
-            var lead = await _context.Leads.FindAsync(leadId);
-            if (lead == null)
-            {
-                TempData["ErrorMessage"] = "Lead not found!";
-                return RedirectToPage();
-            }
+            var userId = (await _userManager.GetUserAsync(User))?.Id ?? "Unknown";
 
             try
             {
-                await _leadService.LogHistoryAsync(lead, (await _userManager.GetUserAsync(User))?.Id, "Deleted");
-                _context.Leads.Remove(lead);
-                await _context.SaveChangesAsync();
-                TempData["SuccessMessage"] = "Lead deleted successfully!";
+                var success = await _leadService.DeleteLeadAsync(leadId, userId);
+
+                if (!success)
+                {
+                    TempData["ErrorMessage"] = "Lead not found or already deleted.";
+                }
+                else
+                {
+                    TempData["SuccessMessage"] = "Lead has been deleted successfully.";
+                }
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error deleting lead with ID {LeadId}", leadId);
-                TempData["ErrorMessage"] = "Failed to delete lead. Please try again.";
+                TempData["ErrorMessage"] = "An error occurred while deleting the lead.";
             }
 
             return RedirectToPage();
         }
+
+
+
 
         public async Task<IActionResult> OnPostCreatePartnerAsync(
             int? leadId, string name, string email, string phoneNumber, string alternatePhone,
@@ -302,22 +306,6 @@ namespace Cloud9_2.Pages.CRM.Leads
 
             return Partial("_LeadDetailsPartial", lead);
         }
-public async Task<IActionResult> OnGetCheckRelatedRecordsAsync(int id)
-{
-    try
-    {
-        // Check if the lead has related LeadHistories or is linked to a Partner
-        var hasRelatedRecords = await _context.LeadHistories.AnyAsync(h => h.LeadId == id)
-            || await _context.Leads.AnyAsync(l => l.LeadId == id && l.PartnerId.HasValue);
-
-        return new JsonResult(new { hasRelatedRecords });
-    }
-    catch (Exception ex)
-    {
-        _logger.LogError(ex, "Error checking related records for LeadId {LeadId}", id);
-        return StatusCode(500, new { error = "Error checking related records" });
-    }
-}
     }
     
 }

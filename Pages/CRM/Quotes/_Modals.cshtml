@@ -9,10 +9,10 @@
     <div class="modal fade" id="editQuoteModal_@quote.QuoteId" tabindex="-1"
          aria-labelledby="editQuoteModalLabel_@quote.QuoteId" aria-hidden="true" data-bs-backdrop="static"
          data-bs-keyboard="false" data-quote-date="@(quote.QuoteDate?.ToString("yyyy-MM-dd") ?? DateTime.Now.ToString("yyyy-MM-dd"))">
-        <div class="modal-dialog" style="max-width: 95%;">
+        <div class="modal-dialog" style="min-width: 80%;">
             <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="editQuoteModalLabel_@quote.QuoteId">Árajánlat szerkesztése: @quote.QuoteNumber</h5>
+                <div class="modal-header py-2 bg-warning text-dark">
+                    <h5 class="modal-title fs-5 fw-semibold" id="editQuoteModalLabel_@quote.QuoteId"><i class="bi bi-pencil me-2"></i> Árajánlat szerkesztése: @quote.QuoteNumber</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
@@ -356,8 +356,8 @@
          aria-labelledby="viewQuoteModalLabel_@quote.QuoteId" aria-hidden="true">
         <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
             <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="viewQuoteModalLabel_@quote.QuoteId">Részletek: @quote.QuoteNumber</h5>
+                <div class="modal-header py-2 bg-info text-white">
+                    <h5 class="modal-title fs-5 fw-semibold" id="convertQuoteModalLabel_@quote.QuoteId"><i class="bi bi-arrow-right-circle me-2"></i> Árajánlat átalakítása rendeléssé</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Bezárás"></button>
                 </div>
                 <div class="modal-body">
@@ -478,7 +478,7 @@
          aria-labelledby="convertQuoteModalLabel_@quote.QuoteId" aria-hidden="true">
         <div class="modal-dialog">
             <div class="modal-content">
-                <div class="modal-header">
+                <div class="modal-header py-2 bg-success text-white">
                     <h5 class="modal-title" id="convertQuoteModalLabel_@quote.QuoteId">Árajánlat átalakítása rendeléssé</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
@@ -525,8 +525,8 @@
          aria-labelledby="deleteQuoteModalLabel_@quote.QuoteId" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="deleteQuoteModalLabel_@quote.QuoteId">Árajánlat törlése</h5>
+                <div class="modal-header py-2 bg-danger text-white">
+                    <h5 class="modal-title fs-5 fw-semibold" id="deleteQuoteModalLabel_@quote.QuoteId"><i class="bi bi-trash me-2"></i> Árajánlat törlése</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Bezárás"></button>
                 </div>
                 <div class="modal-body">
@@ -551,10 +551,10 @@
 
 <!-- New Quote Modal -->
 <div class="modal fade" id="newQuoteModal" tabindex="-1" aria-labelledby="newQuoteModalLabel" aria-hidden="true">
-    <div class="modal-dialog" style="max-width: 95%;">
+    <div class="modal-dialog" style="min-width: 80%;">
         <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="newQuoteModalLabel">Új árajánlat létrehozása</h5>
+            <div class="modal-header py-2 bg-primary text-white">
+                <h5 class="modal-title fs-5 fw-semibold" id="newQuoteModalLabel"><i class="bi bi-plus-circle me-2"></i> Új árajánlat létrehozása</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
@@ -747,8 +747,8 @@
 <div class="modal fade" id="editDescriptionModal" tabindex="-1" aria-labelledby="editDescriptionModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-md">
         <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="editDescriptionModalLabel">Tétel leírás szerkesztése</h5>
+            <div class="modal-header py-2 bg-warning text-dark">
+                <h5 class="modal-title fs-5 fw-semibold" id="editDescriptionModalLabel"><i class="bi bi-pencil me-2"></i> Tétel leírás szerkesztése</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">

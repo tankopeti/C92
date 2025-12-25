@@ -1,0 +1,323 @@
+@* _LeadModals.cshtml *@
+@using Cloud9_2.Models
+@model Cloud9_2.Pages.CRM.Leads.IndexModel
+
+<!-- ====================== 1. ÚJ LEAD MODAL ====================== -->
+<div class="modal fade" id="newLeadModal" tabindex="-1" aria-labelledby="newLeadModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content shadow-lg border-0">
+            <div class="modal-header py-2 bg-primary text-white">
+                <h5 class="modal-title fs-5 fw-semibold" id="newLeadModalLabel">
+                    <i class="bi bi-plus-circle me-2"></i> Új Lead
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Bezárás"></button>
+            </div>
+
+            <form method="post" asp-page-handler="CreateLead" class="needs-validation" novalidate>
+                <div class="modal-body py-4">
+                    <ul class="nav nav-tabs" id="newLeadTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="basic-tab" data-bs-toggle="tab" data-bs-target="#basic" type="button" role="tab">Basic Info</button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="details-tab" data-bs-toggle="tab" data-bs-target="#details" type="button" role="tab">Details</button>
+                        </li>
+                    </ul>
+                    <div class="tab-content mt-3">
+                        <div class="tab-pane fade show active" id="basic" role="tabpanel">
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label for="newLeadFirstName" class="form-label">Keresztnév <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control" id="newLeadFirstName" name="firstName" required>
+                                    <div class="invalid-feedback">Keresztnév megadása kötelező.</div>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="newLeadLastName" class="form-label">Vezetéknév <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control" id="newLeadLastName" name="lastName" required>
+                                    <div class="invalid-feedback">Vezetéknév megadása kötelező.</div>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="newLeadEmail" class="form-label">Email</label>
+                                    <input type="email" class="form-control" id="newLeadEmail" name="email">
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="newLeadPhoneNumber" class="form-label">Telefonszám</label>
+                                    <input type="tel" class="form-control" id="newLeadPhoneNumber" name="phoneNumber">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="tab-pane fade" id="details" role="tabpanel">
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label for="newLeadCompanyName" class="form-label">Cég</label>
+                                    <input type="text" class="form-control" id="newLeadCompanyName" name="companyName">
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="newLeadJobTitle" class="form-label">Beosztás</label>
+                                    <input type="text" class="form-control" id="newLeadJobTitle" name="jobTitle">
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="newLeadStatus" class="form-label">Státusz</label>
+                                    <select class="form-select" id="newLeadStatus" name="status">
+                                        <option value="New">Új</option>
+                                        <option value="Contacted">Kapcsolatfelvétel</option>
+                                        <option value="Qualified">Minősített</option>
+                                    </select>
+                                </div>
+                                <div class="col-12">
+                                    <label for="newLeadNotes" class="form-label">Jegyzetek</label>
+                                    <textarea class="form-control" id="newLeadNotes" name="notes" rows="4"></textarea>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="modal-footer py-3">
+                    <button type="button" class="btn btn-secondary px-4" data-bs-dismiss="modal">Mégse</button>
+                    <button type="submit" class="btn btn-primary px-4">
+                        <i class="bi bi-check2 me-1"></i> Lead mentése
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- ====================== 2. SZERKESZTÉS MODAL (minden leadhez) ====================== -->
+@foreach (var lead in Model.Leads)
+{
+    <div class="modal fade" id="editLeadModal_@lead.LeadId" tabindex="-1" aria-labelledby="editLeadModalLabel_@lead.LeadId" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+            <div class="modal-content shadow-lg border-0">
+                <div class="modal-header py-2 bg-warning text-dark">
+                    <h5 class="modal-title fs-5 fw-semibold" id="editLeadModalLabel_@lead.LeadId">
+                        <i class="bi bi-pencil me-2"></i> Lead szerkesztése
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Bezárás"></button>
+                </div>
+
+                <form method="post" asp-page-handler="EditLead" class="needs-validation" novalidate>
+                    <input type="hidden" name="leadId" value="@lead.LeadId" />
+                    <div class="modal-body py-4">
+                        <ul class="nav nav-tabs" id="editLeadTabs_@lead.LeadId" role="tablist">
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link active" id="basic-tab_@lead.LeadId" data-bs-toggle="tab" data-bs-target="#basic_@lead.LeadId" type="button" role="tab">Basic Info</button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="details-tab_@lead.LeadId" data-bs-toggle="tab" data-bs-target="#details_@lead.LeadId" type="button" role="tab">Details</button>
+                            </li>
+                            @if (lead.PartnerId.HasValue)
+                            {
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link" id="partner-tab_@lead.LeadId" data-bs-toggle="tab" data-bs-target="#partner_@lead.LeadId" type="button" role="tab">Partner</button>
+                                </li>
+                            }
+                        </ul>
+                        <div class="tab-content mt-3">
+                            <!-- Basic Info -->
+                            <div class="tab-pane fade show active" id="basic_@lead.LeadId" role="tabpanel">
+                                <div class="row g-3">
+                                    <div class="col-md-6">
+                                        <label for="editLeadFirstName_@lead.LeadId" class="form-label">Keresztnév <span class="text-danger">*</span></label>
+                                        <input type="text" class="form-control" id="editLeadFirstName_@lead.LeadId" name="firstName" value="@lead.FirstName" required>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label for="editLeadLastName_@lead.LeadId" class="form-label">Vezetéknév <span class="text-danger">*</span></label>
+                                        <input type="text" class="form-control" id="editLeadLastName_@lead.LeadId" name="lastName" value="@lead.LastName" required>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label for="editLeadEmail_@lead.LeadId" class="form-label">Email</label>
+                                        <input type="email" class="form-control" id="editLeadEmail_@lead.LeadId" name="email" value="@lead.Email">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label for="editLeadPhoneNumber_@lead.LeadId" class="form-label">Telefonszám</label>
+                                        <input type="tel" class="form-control" id="editLeadPhoneNumber_@lead.LeadId" name="phoneNumber" value="@lead.PhoneNumber">
+                                    </div>
+                                </div>
+                            </div>
+                            <!-- Details -->
+                            <div class="tab-pane fade" id="details_@lead.LeadId" role="tabpanel">
+                                <div class="row g-3">
+                                    <div class="col-md-6">
+                                        <label for="editLeadCompanyName_@lead.LeadId" class="form-label">Cég</label>
+                                        <input type="text" class="form-control" id="editLeadCompanyName_@lead.LeadId" name="companyName" value="@lead.CompanyName">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label for="editLeadJobTitle_@lead.LeadId" class="form-label">Beosztás</label>
+                                        <input type="text" class="form-control" id="editLeadJobTitle_@lead.LeadId" name="jobTitle" value="@lead.JobTitle">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label for="editLeadStatus_@lead.LeadId" class="form-label">Státusz</label>
+                                        <select class="form-select" id="editLeadStatus_@lead.LeadId" name="status">
+                                            <option value="New" selected="@(lead.Status == "New")">Új</option>
+                                            <option value="Contacted" selected="@(lead.Status == "Contacted")">Kapcsolatfelvétel</option>
+                                            <option value="Qualified" selected="@(lead.Status == "Qualified")">Minősített</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-12">
+                                        <label for="editLeadNotes_@lead.LeadId" class="form-label">Jegyzetek</label>
+                                        <textarea class="form-control" id="editLeadNotes_@lead.LeadId" name="notes" rows="4">@lead.Notes</textarea>
+                                    </div>
+                                </div>
+                            </div>
+                            <!-- Partner tab -->
+                            @if (lead.PartnerId.HasValue)
+                            {
+                                <div class="tab-pane fade" id="partner_@lead.LeadId" role="tabpanel">
+                                    <div class="row g-3">
+                                        <div class="col-md-6">
+                                            <label class="form-label">Partner ID</label>
+                                            <input type="text" class="form-control" value="@lead.PartnerId" disabled>
+                                        </div>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    </div>
+
+                    <div class="modal-footer py-3">
+                        <button type="button" class="btn btn-secondary px-4" data-bs-dismiss="modal">Mégse</button>
+                        <button type="submit" class="btn btn-warning px-4">
+                            <i class="bi bi-check2 me-1"></i> Változtatások mentése
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- ====================== 3. NÉZET MODAL ====================== -->
+@foreach (var lead in Model.Leads)
+{
+    <div class="modal fade" id="viewLeadModal_@lead.LeadId" tabindex="-1" aria-labelledby="viewLeadModalLabel_@lead.LeadId" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+            <div class="modal-content shadow-lg border-0">
+                <div class="modal-header py-2 bg-info text-white">
+                    <h5 class="modal-title fs-5 fw-semibold" id="viewLeadModalLabel_@lead.LeadId">
+                        <i class="bi bi-eye me-2"></i> Lead részletei
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Bezárás"></button>
+                </div>
+                <div class="modal-body py-4">
+                    <div class="row g-3">
+                        <!-- Alap információk -->
+                        <div class="col-12">
+                            <h5 class="mb-3">Alap információk</h5>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Keresztnév</label>
+                            <p class="form-control-plaintext">@lead.FirstName</p>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Vezetéknév</label>
+                            <p class="form-control-plaintext">@lead.LastName</p>
+                        </div>
+
+                        <hr class="my-4">
+
+                        <!-- Kapcsolatfelvételi adatok -->
+                        <div class="col-12">
+                            <h5 class="mb-3">Kapcsolatfelvételi adatok</h5>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">E-mail</label>
+                            <p class="form-control-plaintext">@(string.IsNullOrEmpty(lead.Email) ? "–" : lead.Email)</p>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Telefonszám</label>
+                            <p class="form-control-plaintext">@(string.IsNullOrEmpty(lead.PhoneNumber) ? "–" : lead.PhoneNumber)</p>
+                        </div>
+
+                        <hr class="my-4">
+
+                        <!-- Egyéb részletek -->
+                        <div class="col-12">
+                            <h5 class="mb-3">Egyéb részletek</h5>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Cég</label>
+                            <p class="form-control-plaintext">@(string.IsNullOrEmpty(lead.CompanyName) ? "–" : lead.CompanyName)</p>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Beosztás</label>
+                            <p class="form-control-plaintext">@(string.IsNullOrEmpty(lead.JobTitle) ? "–" : lead.JobTitle)</p>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Státusz</label>
+                            <p class="form-control-plaintext">
+                                @{
+                                    var statusText = lead.Status switch
+                                    {
+                                        "New" => "Új",
+                                        "Contacted" => "Kapcsolatfelvétel",
+                                        "Qualified" => "Minősített",
+                                        _ => lead.Status ?? "–"
+                                    };
+                                }
+                                @statusText
+                            </p>
+                        </div>
+                        @if (lead.PartnerId.HasValue)
+                        {
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">Átalakítva Partner-ré</label>
+                                <p class="form-control-plaintext">
+                                    <span class="badge bg-success">Partner (ID: @lead.PartnerId)</span>
+                                </p>
+                            </div>
+                        }
+
+                        <hr class="my-4">
+
+                        <!-- Jegyzetek -->
+                        <div class="col-12">
+                            <h5 class="mb-3">Jegyzetek</h5>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label fw-bold">Megjegyzés</label>
+                            <p class="form-control-plaintext" style="white-space: pre-wrap;">
+                                @(string.IsNullOrEmpty(lead.Notes) ? "–" : lead.Notes)
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer py-3">
+                    <button type="button" class="btn btn-secondary px-4" data-bs-dismiss="modal">Bezárás</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- ====================== 4. TÖRLÉS MODAL ====================== -->
+@foreach (var lead in Model.Leads)
+{
+    <div class="modal fade" id="deleteLeadModal_@lead.LeadId" tabindex="-1" aria-labelledby="deleteLeadModalLabel_@lead.LeadId" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content shadow-lg border-0">
+                <div class="modal-header py-2 bg-danger text-white">
+                    <h5 class="modal-title fs-5 fw-semibold" id="deleteLeadModalLabel_@lead.LeadId">
+                        <i class="bi bi-trash me-2"></i> Lead törlése
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Bezárás"></button>
+                </div>
+                <div class="modal-body py-4">
+                    <form id="deleteLeadForm_@lead.LeadId" method="post" asp-page-handler="DeleteLead">
+                        <input type="hidden" name="leadId" value="@lead.LeadId" />
+                        <p class="mb-2">Biztosan törölni szeretné a következő leadet?</p>
+                        <p class="lead"><strong>@lead.FirstName @lead.LastName</strong></p>
+                        <p class="text-muted small">Ez a művelet <strong>végleges</strong> és nem vonható vissza.</p>
+                    </form>
+                </div>
+                <div class="modal-footer py-3">
+                    <button type="button" class="btn btn-secondary px-4" data-bs-dismiss="modal">Mégse</button>
+                    <button type="button" class="btn btn-danger px-4" id="confirmDeleteBtn_@lead.LeadId">
+                        <i class="bi bi-trash me-1"></i> Törlés
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}

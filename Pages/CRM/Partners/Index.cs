@@ -113,10 +113,10 @@ namespace Cloud9_2.Pages.CRM.Partners
             TotalRecords = await partnersQuery.CountAsync();
             CurrentPage = Math.Max(1, Math.Min(CurrentPage, TotalPages > 0 ? TotalPages : 1));
             Partners = await partnersQuery
-                .Include(p => p.Sites)
-                .Include(p => p.Contacts)
-                .Include(p => p.Documents)
-                .Include(p => p.Status)
+                // .Include(p => p.Sites)
+                // .Include(p => p.Contacts)
+                // .Include(p => p.Documents)
+                // .Include(p => p.Status)
                 .OrderByDescending(p => p.PartnerId)
                 .Skip((CurrentPage - 1) * PageSize)
                 .Take(PageSize)
@@ -133,39 +133,39 @@ namespace Cloud9_2.Pages.CRM.Partners
                 .ToListAsync();
         }
 
-        public async Task<IActionResult> OnPostChangeStatusAsync(int partnerId, int newStatusId, string searchTerm, int pageNumber, int pageSize)
-        {
-            var user = await _userManager.GetUserAsync(User);
-            if (user == null) return Challenge();
+        // public async Task<IActionResult> OnPostChangeStatusAsync(int partnerId, int newStatusId, string searchTerm, int pageNumber, int pageSize)
+        // {
+        //     var user = await _userManager.GetUserAsync(User);
+        //     if (user == null) return Challenge();
 
-            var roles = await _userManager.GetRolesAsync(user);
-            bool canEdit = roles.Contains("SuperAdmin") || await _context.AccessPermissions
-                .Join(_context.Roles, p => p.RoleId, r => r.Id, (p, r) => new { Permission = p, RoleName = r.Name })
-                .AnyAsync(x => roles.Contains(x.RoleName) && x.Permission.PagePath == "/CRM/PartnersCanEdit");
+        //     var roles = await _userManager.GetRolesAsync(user);
+        //     bool canEdit = roles.Contains("SuperAdmin") || await _context.AccessPermissions
+        //         .Join(_context.Roles, p => p.RoleId, r => r.Id, (p, r) => new { Permission = p, RoleName = r.Name })
+        //         .AnyAsync(x => roles.Contains(x.RoleName) && x.Permission.PagePath == "/CRM/PartnersCanEdit");
 
-            if (!canEdit) return Forbid();
+        //     if (!canEdit) return Forbid();
 
-            var partner = await _context.Partners.FindAsync(partnerId);
-            if (partner == null)
-            {
-                _logger.LogWarning("Partner with ID {PartnerId} not found.", partnerId);
-                return NotFound();
-            }
+        //     var partner = await _context.Partners.FindAsync(partnerId);
+        //     if (partner == null)
+        //     {
+        //         _logger.LogWarning("Partner with ID {PartnerId} not found.", partnerId);
+        //         return NotFound();
+        //     }
 
-            var status = await _context.PartnerStatuses.FindAsync(newStatusId);
-            if (status == null)
-            {
-                _logger.LogWarning("Status with ID {StatusId} not found.", newStatusId);
-                return BadRequest("Invalid status.");
-            }
+        //     var status = await _context.PartnerStatuses.FindAsync(newStatusId);
+        //     if (status == null)
+        //     {
+        //         _logger.LogWarning("Status with ID {StatusId} not found.", newStatusId);
+        //         return BadRequest("Invalid status.");
+        //     }
 
-            partner.StatusId = newStatusId;
-            _context.Partners.Update(partner);
-            await _context.SaveChangesAsync();
-            _logger.LogInformation("Status for Partner ID {PartnerId} updated to {StatusName}.", partnerId, status.Name);
+        //     partner.StatusId = newStatusId;
+        //     _context.Partners.Update(partner);
+        //     await _context.SaveChangesAsync();
+        //     _logger.LogInformation("Status for Partner ID {PartnerId} updated to {StatusName}.", partnerId, status.Name);
 
-            return RedirectToPage("./Index", new { searchTerm, pageNumber, pageSize });
-        }
+        //     return RedirectToPage("./Index", new { searchTerm, pageNumber, pageSize });
+        // }
 
 
 

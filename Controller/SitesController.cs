@@ -37,36 +37,62 @@ namespace Cloud9_2.Controllers
         {
             try
             {
-                // Simple existence check without loading full Partner or navigation properties
+                // Gyors ellenőrzés: létezik-e a partner (indexelt PartnerId-n, nagyon gyors)
                 var partnerExists = await _context.Partners
-                    .AnyAsync(p => p.PartnerId == partnerId);
+                    .AnyAsync(p => p.PartnerId == partnerId && p.IsActive == true);
 
                 if (!partnerExists)
+                    return NotFound(new { message = "Partner nem található vagy inaktív" });
+
+                const int MaxResults = 300; // Egységes a Nyugalom keresővel
+
+                var query = _context.Sites
+                    .AsNoTracking()
+                    .Include(s => s.Partner) // Kell a partnerDetails-hez
+                    .Where(s => s.PartnerId == partnerId && s.IsActive == true);
+
+                if (!string.IsNullOrWhiteSpace(search))
                 {
-                    _logger.LogWarning("Partner not found for PartnerId: {PartnerId}", partnerId);
-                    return NotFound();
+                    var term = search.Trim();
+
+                    query = query.Where(s =>
+                        EF.Functions.Like(s.SiteName ?? "", $"%{term}%") ||
+                        EF.Functions.Like(s.City ?? "", $"%{term}%") ||
+                        EF.Functions.Like(s.AddressLine1 ?? "", $"%{term}%") ||
+                        EF.Functions.Like(s.Partner!.CompanyNameTrim ?? "", $"%{term}%") ||
+                        EF.Functions.Like(s.Partner!.NameTrim ?? "", $"%{term}%") ||
+                        EF.Functions.Like(s.Partner!.TaxIdTrim ?? "", $"%{term}%")
+                    );
                 }
 
-                var sites = await _context.Sites
-                    .AsNoTracking()
-                    .Where(c => c.PartnerId == partnerId &&
-                                (string.IsNullOrEmpty(search) || (!string.IsNullOrEmpty(c.SiteName) && c.SiteName.Contains(search))))
-                    .OrderBy(c => c.SiteName ?? "")
-                    .Select(c => new
+                var sites = await query
+                    .OrderBy(s => s.SiteName)
+                    .ThenBy(s => s.City)
+                    .Take(MaxResults)
+                    .Select(s => new
                     {
-                        id = c.SiteId,
-                        text = c.SiteName ?? "Unnamed Site"
+                        id = s.SiteId,
+                        text = string.IsNullOrWhiteSpace(s.SiteName)
+                            ? "Névtelen telephely"
+                            : $"{s.SiteName} – {s.City ?? ""} {(string.IsNullOrEmpty(s.AddressLine1) ? "" : $"– {s.AddressLine1}")}".Trim(' ', '–'),
+
+                        partnerId = s.PartnerId,
+                        partnerName = s.Partner != null
+                            ? (string.IsNullOrWhiteSpace(s.Partner.CompanyName) ? s.Partner.Name : s.Partner.CompanyName) ?? "Nincs név"
+                            : "Nincs partner",
+
+                        partnerDetails = s.Partner != null
+                            ? $"{(string.IsNullOrWhiteSpace(s.Partner.CompanyName) ? s.Partner.Name : s.Partner.CompanyName)} {(s.Partner.TaxId != null ? $"({s.Partner.TaxId})" : "")}".Trim()
+                            : "Nincs partner"
                     })
-                    .Take(50)
                     .ToListAsync();
 
-                _logger.LogInformation("Fetched {SiteCount} sites for PartnerId: {PartnerId}", sites.Count, partnerId);
                 return Ok(sites);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error fetching sites for PartnerId: {PartnerId}. StackTrace: {StackTrace}", partnerId, ex.StackTrace);
-                return StatusCode(500, new { title = "Internal server error", errors = new { General = new[] { ex.Message } } });
+                _logger.LogError(ex, "Hiba a telephelyek lekérdezésekor PartnerId: {PartnerId}", partnerId);
+                return StatusCode(500, new { message = "Szerveroldali hiba a telephelyek betöltésekor" });
             }
         }
 

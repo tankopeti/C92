@@ -85,14 +85,34 @@ namespace Cloud9_2.Data
         public DbSet<ResourceHistory> ResourceHistories { get; set; }
         public DbSet<TaskResourceAssignment> TaskResourceAssignments { get; set; }
         public DbSet<TaskEmployeeAssignment> TaskEmployeeAssignments { get; set; }
-        public DbSet<TaskDocumentLink> TaskDocumentLinks { get; set; } = null!;
+        public DbSet<TaskDocumentLink> TaskDocumentLinks { get; set; }
+        public DbSet<TaskHistory> TaskHistories { get; set; }
 
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
 
+            modelBuilder.Entity<Partner>(entity =>
+            {
+// Computed columnok – EF ne próbálja frissíteni/insertelni őket
+        entity.Property(p => p.CompanyNameTrim)
+            .HasComputedColumnSql("CASE WHEN [CompanyName] IS NULL THEN NULL ELSE CONVERT([nvarchar](450), LEFT(LTRIM(RTRIM([CompanyName])), 450)) END PERSISTED")
+            .ValueGeneratedOnAddOrUpdate();
+
+        entity.Property(p => p.NameTrim)
+            .HasComputedColumnSql("CASE WHEN [Name] IS NULL THEN NULL ELSE CONVERT([nvarchar](450), LEFT(LTRIM(RTRIM([Name])), 450)) END PERSISTED")
+            .ValueGeneratedOnAddOrUpdate();
+
+        entity.Property(p => p.TaxIdTrim)
+            .HasComputedColumnSql("CASE WHEN [TaxId] IS NULL THEN NULL ELSE CONVERT([nvarchar](50), LEFT(LTRIM(RTRIM([TaxId])), 50)) END PERSISTED")
+            .ValueGeneratedOnAddOrUpdate();
+            });
+
+
             modelBuilder.Entity<ResourceHistory>().ToTable("ResourceHistory");
+            
+            modelBuilder.Entity<TaskHistory>().ToTable("TaskHistory");
 
             modelBuilder.Entity<ResourceHistory>(entity =>
             {
@@ -134,6 +154,24 @@ namespace Cloud9_2.Data
               .HasForeignKey(e => e.LinkedById)
               .OnDelete(DeleteBehavior.SetNull);
     });
+
+    modelBuilder.Entity<Partner>()
+    .HasMany(p => p.Sites)
+    .WithOne(s => s.Partner)
+    .HasForeignKey(s => s.PartnerId)
+    .OnDelete(DeleteBehavior.Cascade);
+
+modelBuilder.Entity<Partner>()
+    .HasMany(p => p.Contacts)
+    .WithOne(c => c.Partner)
+    .HasForeignKey(c => c.PartnerId)
+    .OnDelete(DeleteBehavior.Cascade);
+
+modelBuilder.Entity<Partner>()
+    .HasMany(p => p.Documents)
+    .WithOne(d => d.Partner)
+    .HasForeignKey(d => d.PartnerId)
+    .OnDelete(DeleteBehavior.Cascade);
 
 // TaskPM
     modelBuilder.Entity<TaskPM>(entity =>
@@ -514,9 +552,6 @@ namespace Cloud9_2.Data
                 .HasForeignKey(s => s.StatusId);
 
             modelBuilder.Entity<Site>()
-                .Property(s => s.SiteName)
-                .IsRequired();
-            modelBuilder.Entity<Site>()
                 .Property(s => s.PartnerId)
                 .IsRequired();
 
@@ -565,11 +600,6 @@ namespace Cloud9_2.Data
                 .Property(d => d.Status)
                 .HasConversion<int>();
 
-            modelBuilder.Entity<DocumentMetadata>()
-                .HasIndex(m => m.Key);
-
-            modelBuilder.Entity<DocumentMetadata>()
-                .HasIndex(m => m.Value);
 
 
             modelBuilder.Entity<TaskPM>(entity =>

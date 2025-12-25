@@ -191,42 +191,39 @@ namespace Cloud9_2.Services
         }
 
         // Get an order by ID
-        public async Task<Order?> GetOrderByIdAsync(int orderId)
-        {
-            return await _context.Orders
-                .Include(o => o.OrderItems)
-                    .ThenInclude(oi => oi.Product)
-                .Include(o => o.OrderItems)
-                    .ThenInclude(oi => oi.VatType)
-                .Include(o => o.Partner)
-                .Include(o => o.Site)
-                .Include(o => o.Currency)
-                .Include(o => o.ShippingMethod)
-                .Include(o => o.OrderStatusType)
-                .Include(o => o.PaymentTerm)
-                .Include(o => o.Contact)
-                .Include(o => o.Quote)
-                .FirstOrDefaultAsync(o => o.OrderId == orderId);
-        }
+public async Task<Order?> GetOrderByIdAsync(int orderId)
+{
+    return await _context.Orders
+        .Include(o => o.OrderItems).ThenInclude(oi => oi.Product)
+        .Include(o => o.OrderItems).ThenInclude(oi => oi.VatType)
+        .Include(o => o.Partner) // csak egyszer!
+        .Include(o => o.Site)
+        .Include(o => o.Currency)
+        .Include(o => o.ShippingMethod)
+        .Include(o => o.OrderStatusType)
+        .Include(o => o.PaymentTerm)
+        .Include(o => o.Contact)
+        .Include(o => o.Quote)
+        .FirstOrDefaultAsync(o => o.OrderId == orderId);
+}
 
         // Get all orders
-        public async Task<List<Order>> GetAllOrdersAsync()
-        {
-            return await _context.Orders
-                .Include(o => o.OrderItems)
-                    .ThenInclude(oi => oi.Product)
-                .Include(o => o.OrderItems)
-                    .ThenInclude(oi => oi.VatType)
-                .Include(o => o.Partner)
-                .Include(o => o.Site)
-                .Include(o => o.Currency)
-                .Include(o => o.ShippingMethod)
-                .Include(o => o.OrderStatusType)
-                .Include(o => o.PaymentTerm)
-                .Include(o => o.Contact)
-                .Include(o => o.Quote)
-                .ToListAsync();
-        }
+public async Task<List<Order>> GetAllOrdersAsync()
+{
+    return await _context.Orders
+        .Include(o => o.OrderItems).ThenInclude(oi => oi.Product)
+        .Include(o => o.OrderItems).ThenInclude(oi => oi.VatType)
+        .Include(o => o.Partner)
+        .Include(o => o.Site)
+        .Include(o => o.Currency)
+        .Include(o => o.ShippingMethod)
+        .Include(o => o.OrderStatusType)
+        .Include(o => o.PaymentTerm)
+        .Include(o => o.Contact)
+        .Include(o => o.Quote)
+        .ToListAsync();
+}
+
 
         public async Task<Order?> UpdateOrderAsync(OrderUpdateDTO orderDto, string userId)
         {

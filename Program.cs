@@ -8,6 +8,7 @@ using Microsoft.EntityFrameworkCore;
   using Microsoft.AspNetCore.Localization;
   using System.Globalization;
   using System.Text.Json.Serialization;
+  using Cloud9_2.Interceptors;
 
   var builder = WebApplication.CreateBuilder(args);
   builder.Configuration.AddEnvironmentVariables();
@@ -36,6 +37,19 @@ builder.Services.AddControllers();
   
 // Register Twilio settings from appsettings.json
 builder.Services.Configure<TwilioSettings>(builder.Configuration.GetSection("Twilio"));
+
+builder.Services.AddHttpContextAccessor();
+
+// A connectionString-et csak egyszer deklaráld
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
+    ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
+
+builder.Services.AddDbContext<ApplicationDbContext>(options =>
+    options.UseSqlServer(connectionString)
+           .AddInterceptors(new AuditInterceptor(
+               builder.Services.BuildServiceProvider().GetRequiredService<IHttpContextAccessor>(),
+               builder.Services.BuildServiceProvider().GetRequiredService<ILogger<AuditInterceptor>>()
+           )));
 
 // // Initialize Twilio client (optional but recommended)
 var twilio = builder.Configuration.GetSection("Twilio").Get<TwilioSettings>();

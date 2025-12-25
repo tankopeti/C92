@@ -42,62 +42,60 @@ namespace Cloud9_2.Services
             return _httpContextAccessor.HttpContext?.User?.Identity?.Name ?? "System";
         }
 
-        public async Task<PartnerDto> GetPartnerAsync(int id)
+public async Task<PartnerDto> GetPartnerAsync(int id)
+{
+    try
+    {
+        _logger.LogInformation("Fetching partner {PartnerId}", id);
+
+        var partner = await _context.Partners
+            .AsNoTracking()
+            .Where(p => p.IsActive) // CSAK aktív partnerek!
+            .Include(p => p.Sites)
+            .Include(p => p.Contacts)
+            .Include(p => p.Orders)
+            .Include(p => p.Quotes)
+            // .Include(p => p.Documents)
+            // .ThenInclude(d => d.DocumentType)
+            .Include(p => p.Status)
+            .FirstOrDefaultAsync(p => p.PartnerId == id);
+
+        if (partner == null)
         {
-            try
-            {
-                _logger.LogInformation("Fetching partner {PartnerId}", id);
-                var partner = await _context.Partners
-                    .AsNoTracking()
-                    .Include(p => p.Sites)
-                    .Include(p => p.Contacts)
-                    .Include(p => p.Orders)
-                    .Include(p => p.Quotes)
-                    .Include(p => p.Documents)
-                    .ThenInclude(d => d.DocumentType)
-                    .FirstOrDefaultAsync(p => p.PartnerId == id);
-
-                if (partner == null)
-                {
-                    _logger.LogWarning("Partner {PartnerId} not found", id);
-                    return null;
-                }
-
-                _logger.LogInformation("Partner {PartnerId} has {DocumentCount} documents", id, partner.Documents?.Count ?? 0);
-                if (partner.Documents != null)
-                {
-                    foreach (var doc in partner.Documents)
-                    {
-                        _logger.LogInformation("Document raw data: ID={DocumentId}, FileName={FileName}, FilePath={FilePath}, DocumentTypeId={DocumentTypeId}, UploadDate={UploadDate}, Status={Status}, SiteId={SiteId}, PartnerId={PartnerId}",
-                            doc.DocumentId, doc.FileName, doc.FilePath, doc.DocumentTypeId, doc.UploadDate, doc.Status, doc.SiteId, doc.PartnerId);
-                    }
-                }
-
-                var partnerDto = MapToDto(partner);
-                _logger.LogInformation("Mapped partner {PartnerId} with {DocumentCount} documents in DTO", id, partnerDto.Documents?.Count ?? 0);
-                return partnerDto;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error fetching partner {PartnerId}", id);
-                throw;
-            }
+            _logger.LogWarning("Partner {PartnerId} not found or inactive", id);
+            return null;
         }
 
-        public async Task<List<PartnerDto>> GetPartnersAsync(string searchTerm, string statusFilter, string sortBy, int skip, int take)
+        // Null biztonság
+        partner.Sites ??= new List<Site>();
+        partner.Contacts ??= new List<Contact>();
+        partner.Documents ??= new List<Document>();
+        partner.Orders ??= new List<Order>();
+        partner.Quotes ??= new List<Quote>();
+
+        return MapToDto(partner);
+    }
+    catch (Exception ex)
+    {
+        _logger.LogError(ex, "Error fetching partner {PartnerId}", id);
+        throw; // marad a 500, de legalább logolva van
+    }
+}
+
+public async Task<List<PartnerDto>> GetPartnersAsync(string searchTerm, string statusFilter, string sortBy, int skip, int take)
         {
             try
             {
                 var query = _context.Partners
-                    .AsNoTracking()
-                    .Include(p => p.Status) // Include Status for filtering
-                    .Include(p => p.Sites)
-                    .Include(p => p.Contacts)
-                    .Include(p => p.Orders)
-                    .Include(p => p.Quotes)
-                    .Include(p => p.Documents)
-                        .ThenInclude(d => d.DocumentType)
-                    .AsQueryable();
+                .AsNoTracking()
+                        .Where(p => p.IsActive)
+                        .Include(p => p.Status) // Státusz szűréshez kell
+                        .Include(p => p.Sites)
+                        .Include(p => p.Contacts)
+                        .Include(p => p.Orders)
+                        .Include(p => p.Quotes)
+                        .Include(p => p.Documents).ThenInclude(d => d.DocumentType)
+                        .AsQueryable();
 
                 if (!string.IsNullOrWhiteSpace(searchTerm))
                 {
@@ -145,212 +143,202 @@ namespace Cloud9_2.Services
             }
         }
 
-public async Task<PartnerDto> CreatePartnerAsync(PartnerDto partnerDto)
-{
-    if (partnerDto == null)
-    {
-        _logger.LogError("CreatePartnerAsync received null partnerDto");
-        throw new ArgumentNullException(nameof(partnerDto));
-    }
-
-    if (_context == null)
-    {
-        _logger.LogError("Database context is null for CreatePartnerAsync");
-        throw new InvalidOperationException("Adatbázis kapcsolat nem érhető el");
-    }
-
-    _logger.LogInformation("Validating partner: Name={Name}, Email={Email}, StatusId={StatusId}",
-        partnerDto.Name, partnerDto.Email, partnerDto.StatusId);
-
-    // Validate required fields
-    if (string.IsNullOrWhiteSpace(partnerDto.Name))
-    {
-        _logger.LogError("Invalid Name: Name is required");
-        throw new ArgumentException("A név megadása kötelező");
-    }
-
-    // Validate StatusId
-    int? statusId = partnerDto.StatusId;
-    if (statusId.HasValue)
-    {
-        var statusExists = await _context.PartnerStatuses.AnyAsync(s => s.Id == statusId.Value);
-        if (!statusExists)
+        public async Task<PartnerDto> CreatePartnerAsync(PartnerDto partnerDto)
         {
-            _logger.LogError("Invalid StatusId: {StatusId}", statusId);
-            throw new ArgumentException($"Érvénytelen státusz azonosító: {statusId}");
-        }
-    }
-    else
-    {
-        // Default to Prospect (Id = 3)
-        var prospectStatus = await _context.PartnerStatuses
-            .FirstOrDefaultAsync(s => s.Name == "Prospect");
-        statusId = prospectStatus?.Id ?? 3; // Fallback to 3
-    }
-
-    var currentUser = GetCurrentUser();
-    var currentTime = DateTime.UtcNow;
-
-    var partner = new Partner
-    {
-        Name = partnerDto.Name,
-        Email = partnerDto.Email,
-        PhoneNumber = partnerDto.PhoneNumber,
-        AlternatePhone = partnerDto.AlternatePhone,
-        Website = partnerDto.Website,
-        CompanyName = partnerDto.CompanyName,
-        TaxId = partnerDto.TaxId,
-        IntTaxId = partnerDto.IntTaxId,
-        Industry = partnerDto.Industry,
-        AddressLine1 = partnerDto.AddressLine1,
-        AddressLine2 = partnerDto.AddressLine2,
-        City = partnerDto.City,
-        State = partnerDto.State,
-        PostalCode = partnerDto.PostalCode,
-        Country = partnerDto.Country,
-        StatusId = statusId,
-        LastContacted = partnerDto.LastContacted,
-        Notes = partnerDto.Notes,
-        AssignedTo = partnerDto.AssignedTo,
-        BillingContactName = partnerDto.BillingContactName,
-        BillingEmail = partnerDto.BillingEmail,
-        PaymentTerms = partnerDto.PaymentTerms,
-        CreditLimit = partnerDto.CreditLimit,
-        PreferredCurrency = partnerDto.PreferredCurrency,
-        IsTaxExempt = partnerDto.IsTaxExempt ?? false,
-        PartnerGroupId = partnerDto.PartnerGroupId,
-        CreatedDate = currentTime,
-        CreatedBy = currentUser,
-        UpdatedDate = currentTime,
-        UpdatedBy = currentUser
-    };
-
-    using var transaction = await _context.Database.BeginTransactionAsync();
-    try
-    {
-        _context.Partners.Add(partner);
-        _logger.LogInformation("Saving partner: Name={Name}", partner.Name);
-        await _context.SaveChangesAsync();
-        await transaction.CommitAsync();
-
-        var createdPartner = await _context.Partners
-            .AsNoTracking()
-            .Include(p => p.Status) // Include Status for DTO
-            .Include(p => p.Sites)
-            .Include(p => p.Contacts)
-            .FirstOrDefaultAsync(p => p.PartnerId == partner.PartnerId);
-
-        if (createdPartner == null)
-        {
-            _logger.LogError("Failed to retrieve created partner for PartnerId: {PartnerId}", partner.PartnerId);
-            throw new InvalidOperationException($"Nem sikerült lekérni a létrehozott partnert: PartnerId {partner.PartnerId}");
-        }
-
-        var resultDto = MapToDto(createdPartner);
-        _logger.LogInformation("Created partner with PartnerId: {PartnerId}, Name: {Name}", createdPartner.PartnerId, createdPartner.Name);
-        return resultDto;
-    }
-    catch (DbUpdateException ex)
-    {
-        await transaction.RollbackAsync();
-        _logger.LogError(ex, "Database error creating partner: {Message}", ex.InnerException?.Message ?? ex.Message);
-        throw new InvalidOperationException($"Adatbázis hiba a partner létrehozásakor: {ex.InnerException?.Message ?? ex.Message}", ex);
-    }
-    catch (Exception ex)
-    {
-        await transaction.RollbackAsync();
-        _logger.LogError(ex, "Unexpected error creating partner: {Message}", ex.Message);
-        throw new InvalidOperationException($"Hiba a partner létrehozásakor: {ex.Message}", ex);
-    }
-}
-
-        public async Task<PartnerDto> UpdatePartnerAsync(int partnerId, PartnerDto partnerUpdate)
-        {
-            _logger.LogInformation("UpdatePartnerAsync called for PartnerId: {PartnerId}", partnerId);
-
-            if (partnerUpdate == null)
+            if (partnerDto == null)
             {
-                _logger.LogWarning("UpdatePartnerAsync received null partnerUpdate for PartnerId: {PartnerId}", partnerId);
-                throw new ArgumentNullException(nameof(partnerUpdate));
+                _logger.LogError("CreatePartnerAsync received null partnerDto");
+                throw new ArgumentNullException(nameof(partnerDto));
             }
 
-            var partner = await _context.Partners
-                .Include(p => p.Status)
-                .Include(p => p.Sites).ThenInclude(s => s.Status)
-                .Include(p => p.Contacts).ThenInclude(s => s.Status) 
-                .Include(p => p.Documents)
-                .FirstOrDefaultAsync(p => p.PartnerId == partnerId);
-
-            if (partner == null)
+            if (_context == null)
             {
-                _logger.LogWarning("Partner not found for PartnerId: {PartnerId}", partnerId);
-                return null;
+                _logger.LogError("Database context is null for CreatePartnerAsync");
+                throw new InvalidOperationException("Adatbázis kapcsolat nem érhető el");
             }
+
+            _logger.LogInformation("Validating partner: Name={Name}, Email={Email}, StatusId={StatusId}",
+                partnerDto.Name, partnerDto.Email, partnerDto.StatusId);
+
+            // Validate required fields
+            if (string.IsNullOrWhiteSpace(partnerDto.Name))
+            {
+                _logger.LogError("Invalid Name: Name is required");
+                throw new ArgumentException("A név megadása kötelező");
+            }
+
+            // Validate StatusId
+            int? statusId = partnerDto.StatusId;
+            if (statusId.HasValue)
+            {
+                var statusExists = await _context.PartnerStatuses.AnyAsync(s => s.Id == statusId.Value);
+                if (!statusExists)
+                {
+                    _logger.LogError("Invalid StatusId: {StatusId}", statusId);
+                    throw new ArgumentException($"Érvénytelen státusz azonosító: {statusId}");
+                }
+            }
+            else
+            {
+                // Default to Prospect (Id = 3)
+                var prospectStatus = await _context.PartnerStatuses
+                    .FirstOrDefaultAsync(s => s.Name == "Prospect");
+                statusId = prospectStatus?.Id ?? 3; // Fallback to 3
+            }
+
+            var currentUser = GetCurrentUser();
+            var currentTime = DateTime.UtcNow;
+
+            var partner = new Partner
+            {
+                Name = partnerDto.Name,
+                Email = partnerDto.Email,
+                PhoneNumber = partnerDto.PhoneNumber,
+                AlternatePhone = partnerDto.AlternatePhone,
+                Website = partnerDto.Website,
+                CompanyName = partnerDto.CompanyName,
+                TaxId = partnerDto.TaxId,
+                IntTaxId = partnerDto.IntTaxId,
+                Industry = partnerDto.Industry,
+                AddressLine1 = partnerDto.AddressLine1,
+                AddressLine2 = partnerDto.AddressLine2,
+                City = partnerDto.City,
+                State = partnerDto.State,
+                PostalCode = partnerDto.PostalCode,
+                Country = partnerDto.Country,
+                StatusId = statusId,
+                LastContacted = partnerDto.LastContacted,
+                Notes = partnerDto.Notes,
+                AssignedTo = partnerDto.AssignedTo,
+                BillingContactName = partnerDto.BillingContactName,
+                BillingEmail = partnerDto.BillingEmail,
+                PaymentTerms = partnerDto.PaymentTerms,
+                CreditLimit = partnerDto.CreditLimit,
+                PreferredCurrency = partnerDto.PreferredCurrency,
+                IsTaxExempt = partnerDto.IsTaxExempt ?? false,
+                PartnerGroupId = partnerDto.PartnerGroupId,
+                CreatedDate = currentTime,
+                CreatedBy = currentUser,
+                UpdatedDate = currentTime,
+                UpdatedBy = currentUser
+            };
 
             using var transaction = await _context.Database.BeginTransactionAsync();
             try
             {
-                partner.Name = partnerUpdate.Name ?? partner.Name;
-                partner.Email = partnerUpdate.Email ?? partner.Email;
-                partner.PhoneNumber = partnerUpdate.PhoneNumber ?? partner.PhoneNumber;
-                partner.AlternatePhone = partnerUpdate.AlternatePhone ?? partner.AlternatePhone;
-                partner.Website = partnerUpdate.Website ?? partner.Website;
-                partner.CompanyName = partnerUpdate.CompanyName ?? partner.CompanyName;
-                partner.TaxId = partnerUpdate.TaxId ?? partner.TaxId;
-                partner.IntTaxId = partnerUpdate.IntTaxId ?? partner.IntTaxId;
-                partner.Industry = partnerUpdate.Industry ?? partner.Industry;
-                partner.AddressLine1 = partnerUpdate.AddressLine1 ?? partner.AddressLine1;
-                partner.AddressLine2 = partnerUpdate.AddressLine2 ?? partner.AddressLine2;
-                partner.City = partnerUpdate.City ?? partner.City;
-                partner.State = partnerUpdate.State ?? partner.State;
-                partner.PostalCode = partnerUpdate.PostalCode ?? partner.PostalCode;
-                partner.Country = partnerUpdate.Country ?? partner.Country;
-                partner.StatusId = partnerUpdate.StatusId ?? partner.StatusId; // Use StatusId
-                partner.LastContacted = partnerUpdate.LastContacted ?? partner.LastContacted;
-                partner.Notes = partnerUpdate.Notes ?? partner.Notes;
-                partner.AssignedTo = partnerUpdate.AssignedTo ?? partner.AssignedTo;
-                partner.BillingContactName = partnerUpdate.BillingContactName ?? partner.BillingContactName;
-                partner.BillingEmail = partnerUpdate.BillingEmail ?? partner.BillingEmail;
-                partner.PaymentTerms = partnerUpdate.PaymentTerms ?? partner.PaymentTerms;
-                partner.CreditLimit = partnerUpdate.CreditLimit ?? partner.CreditLimit;
-                partner.PreferredCurrency = partnerUpdate.PreferredCurrency ?? partner.PreferredCurrency;
-                partner.IsTaxExempt = partnerUpdate.IsTaxExempt ?? partner.IsTaxExempt;
-                partner.PartnerGroupId = partnerUpdate.PartnerGroupId ?? partner.PartnerGroupId;
-                partner.UpdatedBy = GetCurrentUser();
-                partner.UpdatedDate = DateTime.UtcNow;
-
-                // Validate required fields
-                if (string.IsNullOrWhiteSpace(partner.Name))
-                {
-                    _logger.LogError("Invalid Name: Name is required for PartnerId: {PartnerId}", partnerId);
-                    throw new ArgumentException("A név megadása kötelező");
-                }
-
-                // Validate StatusId
-                if (partner.StatusId.HasValue)
-                {
-                    var statusExists = await _context.PartnerStatuses.AnyAsync(s => s.Id == partner.StatusId.Value);
-                    if (!statusExists)
-                    {
-                        _logger.LogError("Invalid StatusId: {StatusId} for PartnerId: {PartnerId}", partner.StatusId, partnerId);
-                        throw new ArgumentException($"Érvénytelen státusz azonosító: {partner.StatusId}");
-                    }
-                }
-
+                _context.Partners.Add(partner);
+                _logger.LogInformation("Saving partner: Name={Name}", partner.Name);
                 await _context.SaveChangesAsync();
                 await transaction.CommitAsync();
-                var resultDto = MapToDto(partner);
-                _logger.LogInformation("Updated partner with PartnerId: {PartnerId}, Name: {Name}", partnerId, partner.Name);
+
+                var createdPartner = await _context.Partners
+                    .AsNoTracking()
+                    .Include(p => p.Status) // Include Status for DTO
+                    .Include(p => p.Sites)
+                    .Include(p => p.Contacts)
+                    .FirstOrDefaultAsync(p => p.PartnerId == partner.PartnerId);
+
+                if (createdPartner == null)
+                {
+                    _logger.LogError("Failed to retrieve created partner for PartnerId: {PartnerId}", partner.PartnerId);
+                    throw new InvalidOperationException($"Nem sikerült lekérni a létrehozott partnert: PartnerId {partner.PartnerId}");
+                }
+
+                var resultDto = MapToDto(createdPartner);
+                _logger.LogInformation("Created partner with PartnerId: {PartnerId}, Name: {Name}", createdPartner.PartnerId, createdPartner.Name);
                 return resultDto;
+            }
+            catch (DbUpdateException ex)
+            {
+                await transaction.RollbackAsync();
+                _logger.LogError(ex, "Database error creating partner: {Message}", ex.InnerException?.Message ?? ex.Message);
+                throw new InvalidOperationException($"Adatbázis hiba a partner létrehozásakor: {ex.InnerException?.Message ?? ex.Message}", ex);
             }
             catch (Exception ex)
             {
                 await transaction.RollbackAsync();
-                _logger.LogError(ex, "Error updating partner for PartnerId: {PartnerId}", partnerId);
-                throw;
+                _logger.LogError(ex, "Unexpected error creating partner: {Message}", ex.Message);
+                throw new InvalidOperationException($"Hiba a partner létrehozásakor: {ex.Message}", ex);
             }
         }
 
+public async Task<PartnerDto> UpdatePartnerAsync(int partnerId, PartnerDto partnerUpdate)
+{
+    _logger.LogInformation("UpdatePartnerAsync called for PartnerId: {PartnerId}", partnerId);
+
+    if (partnerUpdate == null)
+    {
+        throw new ArgumentNullException(nameof(partnerUpdate));
+    }
+
+    // CSAK a partner rekord kell, a kapcsolódó entitások nem szükségesek frissítéskor
+    var partner = await _context.Partners
+        .FirstOrDefaultAsync(p => p.PartnerId == partnerId);
+
+    if (partner == null)
+    {
+        _logger.LogWarning("Partner not found for PartnerId: {PartnerId}", partnerId);
+        return null;
+    }
+
+    using var transaction = await _context.Database.BeginTransactionAsync();
+    try
+    {
+        // Frissítendő mezők
+        partner.Name = partnerUpdate.Name ?? partner.Name;
+        partner.Email = partnerUpdate.Email ?? partner.Email;
+        partner.PhoneNumber = partnerUpdate.PhoneNumber ?? partner.PhoneNumber;
+        partner.AlternatePhone = partnerUpdate.AlternatePhone ?? partner.AlternatePhone;
+        partner.Website = partnerUpdate.Website ?? partner.Website;
+        partner.CompanyName = partnerUpdate.CompanyName ?? partner.CompanyName;
+        partner.TaxId = partnerUpdate.TaxId ?? partner.TaxId;
+        partner.AddressLine1 = partnerUpdate.AddressLine1 ?? partner.AddressLine1;
+        partner.AddressLine2 = partnerUpdate.AddressLine2 ?? partner.AddressLine2;
+        partner.City = partnerUpdate.City ?? partner.City;
+        partner.State = partnerUpdate.State ?? partner.State;
+        partner.PostalCode = partnerUpdate.PostalCode ?? partner.PostalCode;
+        partner.Country = partnerUpdate.Country ?? partner.Country;
+        partner.Notes = partnerUpdate.Notes ?? partner.Notes;
+
+        // Státusz csak ha változott
+        if (partnerUpdate.StatusId.HasValue)
+        {
+            var statusExists = await _context.PartnerStatuses.AnyAsync(s => s.Id == partnerUpdate.StatusId.Value);
+            if (!statusExists)
+            {
+                throw new ArgumentException($"Érvénytelen státusz azonosító: {partnerUpdate.StatusId}");
+            }
+            partner.StatusId = partnerUpdate.StatusId.Value;
+        }
+
+        partner.UpdatedBy = GetCurrentUser();
+        partner.UpdatedDate = DateTime.UtcNow;
+
+        if (string.IsNullOrWhiteSpace(partner.Name))
+        {
+            throw new ArgumentException("A név megadása kötelező");
+        }
+
+        await _context.SaveChangesAsync();
+        await transaction.CommitAsync();
+
+        // Friss DTO visszaadása (most már Include-okkal, mert olvasunk)
+        var refreshedPartner = await _context.Partners
+            .AsNoTracking()
+            .Include(p => p.Sites)
+            .Include(p => p.Contacts)
+            .Include(p => p.Status)
+            .FirstOrDefaultAsync(p => p.PartnerId == partnerId);
+
+        return MapToDto(refreshedPartner!);
+    }
+    catch (Exception ex)
+    {
+        await transaction.RollbackAsync();
+        _logger.LogError(ex, "Error updating partner for PartnerId: {PartnerId}", partnerId);
+        throw;
+    }
+}
         public async Task<ContactDto> AddOrUpdateContactAsync(int partnerId, ContactDto contactDto)
         {
             _logger.LogInformation("AddOrUpdateContactAsync called for PartnerId: {PartnerId}, ContactId: {ContactId}", partnerId, contactDto.ContactId);
@@ -622,38 +610,38 @@ public async Task<PartnerDto> CreatePartnerAsync(PartnerDto partnerDto)
                 Status = p.Status,
                 Sites = p.Sites.Select(s => new SiteDto
                 {
-                SiteId = s.SiteId,
-                            SiteName = s.SiteName,
-                            AddressLine1 = s.AddressLine1,
-                            AddressLine2 = s.AddressLine2,
-                            City = s.City,
-                            State = s.State,
-                            PostalCode = s.PostalCode,
-                            Country = s.Country,
-                            IsPrimary = s.IsPrimary,
-                            ContactPerson1 = s.ContactPerson1,
-                            ContactPerson2 = s.ContactPerson2,
-                            ContactPerson3 = s.ContactPerson3,
-                            Comment1 = s.Comment1,
-                            Comment2 = s.Comment2,
-                            StatusId = s.StatusId,
+                    SiteId = s.SiteId,
+                    SiteName = s.SiteName,
+                    AddressLine1 = s.AddressLine1,
+                    AddressLine2 = s.AddressLine2,
+                    City = s.City,
+                    State = s.State,
+                    PostalCode = s.PostalCode,
+                    Country = s.Country,
+                    IsPrimary = s.IsPrimary,
+                    ContactPerson1 = s.ContactPerson1,
+                    ContactPerson2 = s.ContactPerson2,
+                    ContactPerson3 = s.ContactPerson3,
+                    Comment1 = s.Comment1,
+                    Comment2 = s.Comment2,
+                    StatusId = s.StatusId,
                 }).ToList(),
                 Contacts = p.Contacts.Select(c => new ContactDto
                 {
-ContactId = c.ContactId,
-            FirstName = c.FirstName,
-            LastName = c.LastName,
-            Email = c.Email,
-            PhoneNumber = c.PhoneNumber,
-            PhoneNumber2 = c.PhoneNumber2,
-            JobTitle = c.JobTitle,
-            Comment = c.Comment,
-            Comment2 = c.Comment2,
-            IsPrimary = c.IsPrimary,
-            StatusId = c.StatusId,
-            Status = c.Status != null ? new Status { Id = c.Status.Id, Name = c.Status.Name } : null,
-            CreatedDate = c.CreatedDate,
-            UpdatedDate = c.UpdatedDate
+                    ContactId = c.ContactId,
+                    FirstName = c.FirstName,
+                    LastName = c.LastName,
+                    Email = c.Email,
+                    PhoneNumber = c.PhoneNumber,
+                    PhoneNumber2 = c.PhoneNumber2,
+                    JobTitle = c.JobTitle,
+                    Comment = c.Comment,
+                    Comment2 = c.Comment2,
+                    IsPrimary = c.IsPrimary,
+                    StatusId = c.StatusId,
+                    Status = c.Status != null ? new Status { Id = c.Status.Id, Name = c.Status.Name } : null,
+                    CreatedDate = c.CreatedDate,
+                    UpdatedDate = c.UpdatedDate
                 }).ToList(),
                 Documents = p.Documents.Select(d => new DocumentDto
                 {

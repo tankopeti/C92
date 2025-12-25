@@ -28,34 +28,58 @@ namespace Cloud9_2.Controllers
 
         // GET: api/partners/select?search=abc
         [HttpGet("select")]
-        [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
         public async Task<IActionResult> GetPartnersForSelect([FromQuery] string search = "")
         {
             try
             {
-                var partners = await _context.Partners
+                const int MaxResults = 300; // Egységes a Sites és Nyugalom keresővel
+
+                var query = _context.Partners
                     .AsNoTracking()
-                    .Where(p => string.IsNullOrEmpty(search) ||
-                                p.Name.Contains(search) ||
-                                (p.CompanyName != null && p.CompanyName.Contains(search)))
-                    .OrderBy(p => p.Name)
+                    .Where(p => p.IsActive == true); // Csak aktív partnerek!
+
+                if (!string.IsNullOrWhiteSpace(search))
+                {
+                    var term = search.Trim();
+
+                    query = query.Where(p =>
+                        EF.Functions.Like(p.NameTrim ?? "", $"%{term}%") ||
+                        EF.Functions.Like(p.CompanyNameTrim ?? "", $"%{term}%") ||
+                        EF.Functions.Like(p.TaxIdTrim ?? "", $"%{term}%") ||
+                        EF.Functions.Like(p.City ?? "", $"%{term}%") ||
+                        EF.Functions.Like(p.Email ?? "", $"%{term}%")
+                    );
+                }
+
+                var partners = await query
+                    .OrderBy(p => p.CompanyName ?? p.Name)
+                    .ThenBy(p => p.Name)
+                    .Take(MaxResults)
                     .Select(p => new
                     {
                         id = p.PartnerId,
-                        text = p.Name + (p.CompanyName != null ? $" ({p.CompanyName})" : "")
+                        text = string.IsNullOrWhiteSpace(p.CompanyName)
+                            ? p.Name ?? "Névtelen partner"
+                            : $"{p.CompanyName} ({p.Name ?? "nincs magánnév"})",
+
+                        // Extra infók a dropdownhoz és JS-hez
+                        partnerName = string.IsNullOrWhiteSpace(p.CompanyName) ? p.Name : p.CompanyName,
+                        partnerDetails = $"{(string.IsNullOrWhiteSpace(p.CompanyName) ? p.Name : p.CompanyName)} " +
+                                         $"{(string.IsNullOrWhiteSpace(p.City) ? "" : $"– {p.City}")} " +
+                                         $"{(string.IsNullOrWhiteSpace(p.TaxId) ? "" : $"({p.TaxId})")}".Trim()
                     })
-                    .Take(50)
                     .ToListAsync();
 
-                _logger.LogInformation("Fetched {PartnerCount} partners for select", partners.Count);
+                _logger.LogInformation("Fetched {Count} partners for TomSelect search='{Search}'", partners.Count, search);
                 return Ok(partners);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error fetching partners for select");
-                return StatusCode(500, new { title = "Internal server error", errors = new { General = new[] { "Failed to retrieve partners for select" } } });
+                _logger.LogError(ex, "Hiba a partnerek lekérdezésekor TomSelecthez, search='{Search}'", search);
+                return StatusCode(500, new { message = "Szerver hiba a partnerek betöltésekor" });
             }
         }
+
 
         // GET: api/partners?searchTerm=&statusFilter=&sortBy=createddate&skip=0&take=50
         [HttpGet]
@@ -205,62 +229,99 @@ namespace Cloud9_2.Controllers
             }
         }
 
-        // POST: api/partners/{id}/copy
-        [HttpPost("{id}/copy")]
-        public async Task<IActionResult> CopyPartner(int id)
+// POST: api/partners/{id}/copy
+[HttpPost("{id}/copy")]
+public async Task<IActionResult> CopyPartner(int id)
+{
+    try
+    {
+        var existing = await _partnerService.GetPartnerAsync(id);
+        if (existing == null)
         {
-            try
-            {
-                var existing = await _partnerService.GetPartnerAsync(id);
-                if (existing == null)
-                {
-                    _logger.LogWarning("Partner not found for copy, PartnerId: {PartnerId}", id);
-                    return NotFound(new { title = "Not found", errors = new { Id = new[] { $"Partner {id} not found" } } });
-                }
-
-                var newPartnerDto = new PartnerDto
-                {
-                    Name = existing.Name + " (másolat)",
-                    CompanyName = existing.CompanyName,
-                    Email = existing.Email,
-                    PhoneNumber = existing.PhoneNumber,
-                    AlternatePhone = existing.AlternatePhone,
-                    Website = existing.Website,
-                    TaxId = existing.TaxId,
-                    IntTaxId = existing.IntTaxId,
-                    Industry = existing.Industry,
-                    AddressLine1 = existing.AddressLine1,
-                    AddressLine2 = existing.AddressLine2,
-                    City = existing.City,
-                    State = existing.State,
-                    PostalCode = existing.PostalCode,
-                    Country = existing.Country,
-                    StatusId = existing.StatusId,
-                    LastContacted = existing.LastContacted,
-                    Notes = existing.Notes,
-                    AssignedTo = existing.AssignedTo,
-                    BillingContactName = existing.BillingContactName,
-                    BillingEmail = existing.BillingEmail,
-                    PaymentTerms = existing.PaymentTerms,
-                    CreditLimit = existing.CreditLimit,
-                    PreferredCurrency = existing.PreferredCurrency,
-                    IsTaxExempt = existing.IsTaxExempt,
-                    PartnerGroupId = existing.PartnerGroupId,
-                    Sites = existing.Sites,
-                    Contacts = existing.Contacts,
-                    Documents = existing.Documents
-                };
-
-                var createdPartner = await _partnerService.CreatePartnerAsync(newPartnerDto);
-                _logger.LogInformation("Copied partner from {OriginalId} to new PartnerId: {NewId}", id, createdPartner.PartnerId);
-                return CreatedAtAction(nameof(GetPartner), new { id = createdPartner.PartnerId }, createdPartner);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error copying PartnerId: {PartnerId}", id);
-                return StatusCode(500, new { title = "Internal server error", errors = new { General = new[] { "An unexpected error occurred" } } });
-            }
+            _logger.LogWarning("Partner not found for copy, PartnerId: {PartnerId}", id);
+            return NotFound(new { title = "Not found", errors = new { Id = new[] { $"Partner {id} not found" } } });
         }
+
+        // Új DTO létrehozása másolatként – minden scalar mező másolása
+        var newPartnerDto = new PartnerDto
+        {
+            Name = existing.Name + " (másolat)",
+            CompanyName = existing.CompanyName,
+            Email = existing.Email,
+            PhoneNumber = existing.PhoneNumber,
+            AlternatePhone = existing.AlternatePhone,
+            Website = existing.Website,
+            TaxId = existing.TaxId,
+            IntTaxId = existing.IntTaxId,
+            Industry = existing.Industry,
+            AddressLine1 = existing.AddressLine1,
+            AddressLine2 = existing.AddressLine2,
+            City = existing.City,
+            State = existing.State,
+            PostalCode = existing.PostalCode,
+            Country = existing.Country,
+            StatusId = existing.StatusId,
+            LastContacted = existing.LastContacted,
+            Notes = existing.Notes + (string.IsNullOrEmpty(existing.Notes) ? "" : "\n\n") + 
+                    $"--- Másolat a(z) {existing.PartnerId} azonosítójú partnerből ({DateTime.Now:yyyy-MM-dd HH:mm}) ---",
+            AssignedTo = existing.AssignedTo,
+            BillingContactName = existing.BillingContactName,
+            BillingEmail = existing.BillingEmail,
+            PaymentTerms = existing.PaymentTerms,
+            CreditLimit = existing.CreditLimit,
+            PreferredCurrency = existing.PreferredCurrency,
+            IsTaxExempt = existing.IsTaxExempt,
+            PartnerGroupId = existing.PartnerGroupId,
+
+            // Sites másolása – új SiteDto objektumokkal (mély másolat!)
+            Sites = existing.Sites?.Select(s => new SiteDto
+            {
+                SiteName = s.SiteName,
+                AddressLine1 = s.AddressLine1,
+                AddressLine2 = s.AddressLine2,
+                City = s.City,
+                State = s.State,
+                PostalCode = s.PostalCode,
+                Country = s.Country,
+                IsPrimary = s.IsPrimary,
+                ContactPerson1 = s.ContactPerson1,
+                ContactPerson2 = s.ContactPerson2,
+                ContactPerson3 = s.ContactPerson3,
+                Comment1 = s.Comment1,
+                Comment2 = s.Comment2
+                // Ha van StatusId vagy más mező a SiteDto-ban, azt is másold
+            }).ToList() ?? new List<SiteDto>(),
+
+            // Contacts másolása – új ContactDto objektumokkal (mély másolat!)
+            Contacts = existing.Contacts?.Select(c => new ContactDto
+            {
+                FirstName = c.FirstName,
+                LastName = c.LastName,
+                Email = c.Email,
+                PhoneNumber = c.PhoneNumber,
+                PhoneNumber2 = c.PhoneNumber2,
+                JobTitle = c.JobTitle,
+                Comment = c.Comment,
+                Comment2 = c.Comment2,
+                IsPrimary = c.IsPrimary
+                // StatusId, CreatedDate stb. általában nem másolandó új kontakt esetén
+            }).ToList() ?? new List<ContactDto>(),
+
+            // Dokumentumokat NEM másoljuk – új partnerhez új fájlokat kell feltölteni
+            Documents = new List<DocumentDto>()
+        };
+
+        var createdPartner = await _partnerService.CreatePartnerAsync(newPartnerDto);
+
+        _logger.LogInformation("Copied partner from {OriginalId} to new PartnerId: {NewId}", id, createdPartner.PartnerId);
+        return CreatedAtAction(nameof(GetPartner), new { id = createdPartner.PartnerId }, createdPartner);
+    }
+    catch (Exception ex)
+    {
+        _logger.LogError(ex, "Error copying PartnerId: {PartnerId}", id);
+        return StatusCode(500, new { title = "Internal server error", errors = new { General = new[] { "An unexpected error occurred during copying" } } });
+    }
+}
 
 
         // DELETE: api/partners/{id}
@@ -291,38 +352,59 @@ namespace Cloud9_2.Controllers
             }
         }
 
+        // GET: api/partners/statuses
+[HttpGet("statuses")]
+public async Task<IActionResult> GetStatuses()
+{
+    try
+    {
+        var statuses = await _context.PartnerStatuses
+            .AsNoTracking()
+            .Select(s => new { s.Id, s.Name })
+            .OrderBy(s => s.Name)
+            .ToListAsync();
 
-        // POST: api/partners/OnPostCreatePartner
-        [HttpPost("OnPostCreatePartner")]
-        public async Task<IActionResult> OnPostCreatePartner([FromBody] PartnerDto partnerDto)
-        {
-            if (!ModelState.IsValid)
-            {
-                _logger.LogWarning("Invalid model state for partnerDto: {Errors}", ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage));
-                return BadRequest(new
-                {
-                    title = "One or more validation errors occurred",
-                    errors = ModelState.ToDictionary(
-                        kvp => kvp.Key,
-                        kvp => kvp.Value.Errors.Select(e => e.ErrorMessage).ToArray())
-                });
-            }
+        return Ok(statuses);
+    }
+    catch (Exception ex)
+    {
+        _logger.LogError(ex, "Error fetching statuses");
+        return StatusCode(500, new { message = "Hiba a státuszok betöltésekor" });
+    }
+}
 
-            try
-            {
-                var createdPartner = await _partnerService.CreatePartnerAsync(partnerDto);
-                return new JsonResult(new { success = true, partnerId = createdPartner.PartnerId });
-            }
-            catch (ArgumentException ex)
-            {
-                _logger.LogWarning(ex, "Validation error in OnPostCreatePartner: {Message}", ex.Message);
-                return BadRequest(new { title = "Validation error", errors = new { General = new[] { ex.Message } } });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error creating partner");
-                return StatusCode(500, new { title = "Internal server error", errors = new { General = new[] { "An unexpected error occurred" } } });
-            }
-        }
+
+        // // POST: api/partners/OnPostCreatePartner
+        // [HttpPost("OnPostCreatePartner")]
+        // public async Task<IActionResult> OnPostCreatePartner([FromBody] PartnerDto partnerDto)
+        // {
+        //     if (!ModelState.IsValid)
+        //     {
+        //         _logger.LogWarning("Invalid model state for partnerDto: {Errors}", ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage));
+        //         return BadRequest(new
+        //         {
+        //             title = "One or more validation errors occurred",
+        //             errors = ModelState.ToDictionary(
+        //                 kvp => kvp.Key,
+        //                 kvp => kvp.Value.Errors.Select(e => e.ErrorMessage).ToArray())
+        //         });
+        //     }
+
+        //     try
+        //     {
+        //         var createdPartner = await _partnerService.CreatePartnerAsync(partnerDto);
+        //         return new JsonResult(new { success = true, partnerId = createdPartner.PartnerId });
+        //     }
+        //     catch (ArgumentException ex)
+        //     {
+        //         _logger.LogWarning(ex, "Validation error in OnPostCreatePartner: {Message}", ex.Message);
+        //         return BadRequest(new { title = "Validation error", errors = new { General = new[] { ex.Message } } });
+        //     }
+        //     catch (Exception ex)
+        //     {
+        //         _logger.LogError(ex, "Error creating partner");
+        //         return StatusCode(500, new { title = "Internal server error", errors = new { General = new[] { "An unexpected error occurred" } } });
+        //     }
+        // }
     }
 }

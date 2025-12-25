@@ -1,7 +1,9 @@
+using Cloud9_2.Data;
 using Cloud9_2.Models;
 using Cloud9_2.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Twilio.Rest.Api.V2010.Account;
 using Twilio.Types;
@@ -12,14 +14,50 @@ namespace Cloud9_2.Pages.GroupRemote.TaskBejelentes
     {
         private readonly TaskPMService _taskService;
         private readonly TwilioSettings _twilioSettings;
+        private readonly ApplicationDbContext _context;
+        private readonly ILogger<TaskBejelentesModel> _logger;
 
         public TaskBejelentesModel(
             TaskPMService taskService,
-            IOptions<TwilioSettings> twilioSettings)
+            IOptions<TwilioSettings> twilioSettings,
+            ApplicationDbContext context,
+            ILogger<TaskBejelentesModel> logger)
         {
             _taskService = taskService;
             _twilioSettings = twilioSettings.Value;
+            _context = context;
+            _logger = logger;
         }
+
+        [BindProperty(SupportsGet = true)]
+    public int? StatusId { get; set; }
+
+    [BindProperty(SupportsGet = true)]
+    public int? PriorityId { get; set; }
+
+    [BindProperty(SupportsGet = true)]
+    public int? TaskTypeId { get; set; }
+
+    [BindProperty(SupportsGet = true)]
+    public int? PartnerId { get; set; }
+
+    [BindProperty(SupportsGet = true)]
+    public int? SiteId { get; set; }
+
+    [BindProperty(SupportsGet = true)]
+    public string? AssignedToId { get; set; }
+
+    [BindProperty(SupportsGet = true)]
+    public DateTime? DueDateFrom { get; set; }
+
+    [BindProperty(SupportsGet = true)]
+    public DateTime? DueDateTo { get; set; }
+
+    [BindProperty(SupportsGet = true)]
+    public DateTime? CreatedDateFrom { get; set; }
+
+    [BindProperty(SupportsGet = true)]
+    public DateTime? CreatedDateTo { get; set; }
 
         // === Query Parameters ===
         [BindProperty(SupportsGet = true, Name = "pageNumber")]
@@ -35,13 +73,7 @@ namespace Cloud9_2.Pages.GroupRemote.TaskBejelentes
         public string? Sort { get; set; }
 
         [BindProperty(SupportsGet = true)]
-        public string? Order { get; set; } = "desc";   // ← FIXED: newest first!
-
-        [BindProperty(SupportsGet = true)]
-        public int? StatusId { get; set; }
-
-        [BindProperty(SupportsGet = true)]
-        public int? PriorityId { get; set; }
+        public string? Order { get; set; } = "desc";
 
         // === SMS POST Data ===
         [BindProperty]
@@ -55,19 +87,58 @@ namespace Cloud9_2.Pages.GroupRemote.TaskBejelentes
         public int TotalPages => TaskBejelentes.TotalPages;
         public int TotalRecords => TaskBejelentes.TotalCount;
 
-        public async Task OnGetAsync()
-        {
-            TaskBejelentes = await _taskService.GetPagedTasksAsync(
-                page: CurrentPage,
-                pageSize: PageSize,
-                searchTerm: SearchTerm,
-                sort: Sort,
-                order: Order,
-                statusId: StatusId,
-                priorityId: PriorityId,
-                assignedToId: null
-            );
-        }
+        // Státuszok és prioritások a gyors módosító modalokhoz
+        public List<TaskStatusPM> Statuses { get; set; } = new();
+        public List<TaskPriorityPM> Priorities { get; set; } = new();
+
+public async Task OnGetAsync()
+{
+    TaskBejelentes = await _taskService.GetPagedTasksAsync(
+        page: CurrentPage,
+        pageSize: PageSize,
+        searchTerm: SearchTerm,
+        sort: Sort,
+        order: Order,
+        statusId: StatusId,
+        priorityId: PriorityId,
+        taskTypeId: TaskTypeId,
+        partnerId: PartnerId,
+        siteId: SiteId,
+        assignedToId: AssignedToId,
+        dueDateFrom: DueDateFrom,
+        dueDateTo: DueDateTo,
+        createdDateFrom: CreatedDateFrom,
+        createdDateTo: CreatedDateTo
+    );
+
+    // --- Gyors módosító modalokhoz (maradnak, mert ott Model.Statuses-t használsz) ---
+    Statuses = await _context.TaskStatusesPM
+        .OrderBy(s => s.Name)
+        .ToListAsync();
+
+    Priorities = await _context.TaskPrioritiesPM
+        .Where(p => p.IsActive == true)
+        .OrderBy(p => p.DisplayOrder ?? 999)
+        .ThenBy(p => p.Name)
+        .ToListAsync();
+
+    // --- ÚJ: Összetett szűrő + új feladat modalhoz ViewData feltöltése ---
+    ViewData["Statuses"] = Statuses; // újrahasznosítjuk a már lekérdezettet
+
+    ViewData["Priorities"] = Priorities; // ugyanígy
+
+    ViewData["Types"] = await _context.TaskTypePMs
+        .OrderBy(t => t.TaskTypePMName)
+        .ToListAsync();
+
+    ViewData["Partners"] = await _context.Partners
+        .OrderBy(p => p.CompanyName ?? p.Name ?? p.NameTrim ?? "")
+        .ToListAsync();
+
+
+
+    // Sites nem kell ViewData-ba, mert TomSelect remote load-dal működik mindkét modalban
+}
 
         public async Task<IActionResult> OnPostSendSmsAsync()
         {
@@ -90,7 +161,6 @@ namespace Cloud9_2.Pages.GroupRemote.TaskBejelentes
                 TempData["Error"] = $"SMS hiba: {ex.Message}";
             }
 
-            // ← PRESERVE ALL FILTERS & PAGINATION
             return RedirectToPage(new
             {
                 CurrentPage,

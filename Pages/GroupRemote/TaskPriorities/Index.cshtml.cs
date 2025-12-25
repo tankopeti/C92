@@ -70,7 +70,7 @@ namespace Cloud9_2.Pages.GroupRemote
             existingTaskPriority.Description = TaskPriority.Description;
             existingTaskPriority.DisplayOrder = TaskPriority.DisplayOrder ?? 0;
             existingTaskPriority.IsActive = TaskPriority.IsActive ?? true;
-            existingTaskPriority.ColorCode = TaskPriority.ColorCode;
+            existingTaskPriority.PriorityColorCode = TaskPriority.PriorityColorCode;
             existingTaskPriority.Icon = TaskPriority.Icon;
 
             await _context.SaveChangesAsync();

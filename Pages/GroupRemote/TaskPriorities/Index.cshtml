@@ -64,9 +64,9 @@
                             <td>@(taskPriority.Description ?? "-")</td>
                             <td>@(taskPriority.DisplayOrder?.ToString() ?? "-")</td>
                             <td>
-                                @if (taskPriority.ColorCode != null)
+                                @if (taskPriority.PriorityColorCode != null)
                                 {
-                                    <span class="badge" style="background-color: @taskPriority.ColorCode">@taskPriority.ColorCode</span>
+                                    <span class="badge" style="background-color: @taskPriority.PriorityColorCode">@taskPriority.PriorityColorCode</span>
                                 }
                                 else
                                 {
@@ -119,9 +119,9 @@
                             <span asp-validation-for="TaskPriority.DisplayOrder" class="text-danger"></span>
                         </div>
                         <div class="mb-3">
-                            <label asp-for="TaskPriority.ColorCode" class="form-label">Color Code</label>
-                            <input asp-for="TaskPriority.ColorCode" type="text" class="form-control" maxlength="20" placeholder="#FFFFFF" data-val="true" data-val-maxlength="The Color Code field must not exceed 20 characters." data-val-maxlength-max="20" />
-                            <span asp-validation-for="TaskPriority.ColorCode" class="text-danger"></span>
+                            <label asp-for="TaskPriority.PriorityColorCode" class="form-label">Color Code</label>
+                            <input asp-for="TaskPriority.PriorityColorCode" type="text" class="form-control" maxlength="20" placeholder="#FFFFFF" data-val="true" data-val-maxlength="The Color Code field must not exceed 20 characters." data-val-maxlength-max="20" />
+                            <span asp-validation-for="TaskPriority.PriorityColorCode" class="text-danger"></span>
                         </div>
                         <div class="mb-3">
                             <label asp-for="TaskPriority.Icon" class="form-label">Icon</label>
@@ -172,9 +172,9 @@
                                 <span asp-validation-for="TaskPriority.DisplayOrder" class="text-danger"></span>
                             </div>
                             <div class="mb-3">
-                                <label asp-for="TaskPriority.ColorCode" class="form-label">Color Code</label>
-                                <input asp-for="TaskPriority.ColorCode" type="text" class="form-control" value="@taskPriority.ColorCode" maxlength="20" placeholder="#FFFFFF" data-val="true" data-val-maxlength="The Color Code field must not exceed 20 characters." data-val-maxlength-max="20" />
-                                <span asp-validation-for="TaskPriority.ColorCode" class="text-danger"></span>
+                                <label asp-for="TaskPriority.PriorityColorCode" class="form-label">Color Code</label>
+                                <input asp-for="TaskPriority.PriorityColorCode" type="text" class="form-control" value="@taskPriority.PriorityColorCode" maxlength="20" placeholder="#FFFFFF" data-val="true" data-val-maxlength="The Color Code field must not exceed 20 characters." data-val-maxlength-max="20" />
+                                <span asp-validation-for="TaskPriority.PriorityColorCode" class="text-danger"></span>
                             </div>
                             <div class="mb-3">
                                 <label asp-for="TaskPriority.Icon" class="form-label">Icon</label>

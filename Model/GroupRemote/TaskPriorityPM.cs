@@ -18,7 +18,7 @@ namespace Cloud9_2.Models
         public bool? IsActive { get; set; }
 
         [StringLength(20)]
-        public string? ColorCode { get; set; }
+        public string? PriorityColorCode { get; set; }
 
         [StringLength(50)]
         public string? Icon { get; set; }

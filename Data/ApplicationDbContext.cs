@@ -87,15 +87,24 @@ namespace Cloud9_2.Data
         public DbSet<TaskEmployeeAssignment> TaskEmployeeAssignments { get; set; }
         public DbSet<TaskDocumentLink> TaskDocumentLinks { get; set; }
         public DbSet<TaskHistory> TaskHistories { get; set; }
+        public DbSet<AuditLog> AuditLogs { get; set; } = null!;
 
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
 
+            modelBuilder.Entity<AuditLog>(entity =>
+            {
+                entity.HasIndex(e => e.EntityType);
+                entity.HasIndex(e => e.ChangedAt);
+                entity.HasIndex(e => e.ChangedById);
+                entity.Property(e => e.Changes).HasMaxLength(2000); // vagy nagyobb, ha kell
+            });
+
             modelBuilder.Entity<Partner>(entity =>
             {
-// Computed columnok – EF ne próbálja frissíteni/insertelni őket
+            // Computed columnok – EF ne próbálja frissíteni/insertelni őket
         entity.Property(p => p.CompanyNameTrim)
             .HasComputedColumnSql("CASE WHEN [CompanyName] IS NULL THEN NULL ELSE CONVERT([nvarchar](450), LEFT(LTRIM(RTRIM([CompanyName])), 450)) END PERSISTED")
             .ValueGeneratedOnAddOrUpdate();
@@ -545,11 +554,6 @@ modelBuilder.Entity<Partner>()
                 .HasOne(p => p.Status)
                 .WithMany()
                 .HasForeignKey(p => p.StatusId);
-
-            modelBuilder.Entity<SiteDto>()
-                .HasOne(s => s.Status)
-                .WithMany()
-                .HasForeignKey(s => s.StatusId);
 
             modelBuilder.Entity<Site>()
                 .Property(s => s.PartnerId)

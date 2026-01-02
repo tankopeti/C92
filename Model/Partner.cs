@@ -128,6 +128,16 @@ namespace Cloud9_2.Models
         public List<Quote>? Quotes { get; set; } 
         public ICollection<Order>? Orders { get; set; }
         public ICollection<CustomerCommunication>? Communications { get; set; }
+
+        [Column("CompanyNameTrim")]
+        public string? CompanyNameTrim { get; set; }
+
+        [Column("NameTrim")]
+        public string? NameTrim { get; set; }
+
+        [Column("TaxIdTrim")]
+        public string? TaxIdTrim { get; set; }
+
  
         // Constructor to initialize collections
         public Partner()

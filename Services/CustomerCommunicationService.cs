@@ -184,7 +184,11 @@ namespace Cloud9_2.Services
                         }).ToList()
                 });
 
-            return await query.OrderBy(c => c.Date).ToListAsync();
+            return await query
+                .OrderByDescending(c => c.Date)
+                .ThenByDescending(c => c.CustomerCommunicationId)
+                .ToListAsync();
+
         }
 
         public async Task AddCommunicationPostAsync(int communicationId, string content, string createdByUserId)

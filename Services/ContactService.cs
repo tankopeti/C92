@@ -53,6 +53,7 @@ namespace Cloud9_2.Services
         {
             var contact = await _context.Contacts
                 .Include(c => c.Status)
+                .Include(c => c.Partner)
                 .FirstOrDefaultAsync(c => c.ContactId == id);
 
             if (contact == null)
@@ -76,6 +77,7 @@ namespace Cloud9_2.Services
                 StatusId = contact.StatusId,
                 Status = contact.Status,
                 PartnerId = contact.PartnerId,
+                PartnerName = contact.Partner?.Name,  
                 CreatedDate = contact.CreatedDate,
                 UpdatedDate = contact.UpdatedDate
             };
@@ -213,16 +215,27 @@ namespace Cloud9_2.Services
         {
             var query = _context.Contacts
                 .Include(c => c.Status)
+                .Include(c => c.Partner) 
                 .AsQueryable();
 
-            if (!string.IsNullOrEmpty(searchTerm))
+            if (!string.IsNullOrWhiteSpace(searchTerm))
             {
                 searchTerm = searchTerm.ToLower();
-                query = query.Where(c => 
+
+                query = query.Where(c =>
                     (c.FirstName != null && c.FirstName.ToLower().Contains(searchTerm)) ||
                     (c.LastName != null && c.LastName.ToLower().Contains(searchTerm)) ||
                     (c.Email != null && c.Email.ToLower().Contains(searchTerm)) ||
-                    (c.PhoneNumber != null && c.PhoneNumber.Contains(searchTerm)));
+                    (c.PhoneNumber != null && c.PhoneNumber.Contains(searchTerm)) ||
+
+                    // 👇 ÚJ: Partner névben keresés
+                    (c.Partner != null &&
+                        (
+                            (c.Partner.Name != null && c.Partner.Name.ToLower().Contains(searchTerm)) ||
+                            (c.Partner.CompanyName != null && c.Partner.CompanyName.ToLower().Contains(searchTerm))
+                        )
+                    )
+                );
             }
 
             if (!string.IsNullOrEmpty(filter))
@@ -256,6 +269,7 @@ namespace Cloud9_2.Services
                 StatusId = c.StatusId,
                 Status = c.Status,
                 PartnerId = c.PartnerId,
+                PartnerName = c.Partner?.Name, 
                 CreatedDate = c.CreatedDate,
                 UpdatedDate = c.UpdatedDate
             }).ToList();

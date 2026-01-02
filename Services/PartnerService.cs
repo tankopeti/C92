@@ -7,6 +7,8 @@ using Microsoft.Extensions.Logging;
 using Cloud9_2.Models;
 using Cloud9_2.Data;
 using Microsoft.AspNetCore.Http; // Add for IHttpContextAccessor
+using System.Security.Claims;
+
 
 namespace Cloud9_2.Services
 {
@@ -41,6 +43,12 @@ namespace Cloud9_2.Services
         {
             return _httpContextAccessor.HttpContext?.User?.Identity?.Name ?? "System";
         }
+
+        private string? GetCurrentUserId()
+        {
+            return _httpContextAccessor.HttpContext?.User?.FindFirstValue(ClaimTypes.NameIdentifier);
+        }
+
 
 public async Task<PartnerDto> GetPartnerAsync(int id)
 {
@@ -424,22 +432,28 @@ public async Task<PartnerDto> UpdatePartnerAsync(int partnerId, PartnerDto partn
 
         public async Task<SiteDto> AddOrUpdateSiteAsync(int partnerId, SiteDto siteDto)
         {
-            _logger.LogInformation("AddOrUpdateSiteAsync called for PartnerId: {PartnerId}, SiteId: {SiteId}", partnerId, siteDto.SiteId);
+            _logger.LogInformation("AddOrUpdateSiteAsync called for PartnerId: {PartnerId}, SiteId: {SiteId}",
+                partnerId, siteDto.SiteId);
 
-            var partner = await _context.Partners
-                .Include(p => p.Sites)
-                .FirstOrDefaultAsync(p => p.PartnerId == partnerId);
+            // Bejelentkezett user Id (AspNetUsers.Id) – lehet null
+            var userId = GetCurrentUserId();
 
-            if (partner == null)
-            {
-                _logger.LogWarning("Partner not found for PartnerId: {PartnerId}", partnerId);
-                throw new ArgumentException($"Partner {partnerId} not found");
-            }
-
-            Site site;
+            // CREATE
             if (siteDto.SiteId == 0)
             {
-                site = new Site
+                // ha a modalból jön PartnerId, azt használjuk; különben a paramétert
+                var targetPartnerId = siteDto.PartnerId != 0 ? siteDto.PartnerId : partnerId;
+
+                var partner = await _context.Partners
+                    .FirstOrDefaultAsync(p => p.PartnerId == targetPartnerId);
+
+                if (partner == null)
+                {
+                    _logger.LogWarning("Partner not found for PartnerId: {PartnerId}", targetPartnerId);
+                    throw new ArgumentException($"Partner {targetPartnerId} not found");
+                }
+
+                var site = new Site
                 {
                     SiteName = siteDto.SiteName,
                     AddressLine1 = siteDto.AddressLine1,
@@ -449,34 +463,78 @@ public async Task<PartnerDto> UpdatePartnerAsync(int partnerId, PartnerDto partn
                     PostalCode = siteDto.PostalCode,
                     Country = siteDto.Country,
                     IsPrimary = siteDto.IsPrimary,
-                    PartnerId = partnerId,
-                    CreatedDate = DateTime.UtcNow,
-                    CreatedById = GetCurrentUser(),
-                    LastModifiedDate = DateTime.UtcNow,
-                    LastModifiedById = GetCurrentUser()
-                };
-                partner.Sites.Add(site);
-            }
-            else
-            {
-                site = partner.Sites.FirstOrDefault(s => s.SiteId == siteDto.SiteId);
-                if (site == null)
-                {
-                    _logger.LogWarning("Site not found for SiteId: {SiteId}", siteDto.SiteId);
-                    throw new ArgumentException($"Site {siteDto.SiteId} not found for Partner {partnerId}");
-                }
 
-                site.SiteName = siteDto.SiteName;
-                site.AddressLine1 = siteDto.AddressLine1;
-                site.AddressLine2 = siteDto.AddressLine2;
-                site.City = siteDto.City;
-                site.State = siteDto.State;
-                site.PostalCode = siteDto.PostalCode;
-                site.Country = siteDto.Country;
-                site.IsPrimary = siteDto.IsPrimary;
-                site.LastModifiedDate = DateTime.UtcNow;
-                site.LastModifiedById = GetCurrentUser();
+                    PartnerId = targetPartnerId,
+                    StatusId = siteDto.StatusId, // ✅ státusz mentése
+
+                    CreatedDate = DateTime.UtcNow,
+                    CreatedById = userId,
+                    LastModifiedDate = DateTime.UtcNow,
+                    LastModifiedById = userId
+                };
+
+                _context.Sites.Add(site);
+
+                await _context.SaveChangesAsync();
+
+                return new SiteDto
+                {
+                    SiteId = site.SiteId,
+                    SiteName = site.SiteName,
+                    AddressLine1 = site.AddressLine1,
+                    AddressLine2 = site.AddressLine2,
+                    City = site.City,
+                    State = site.State,
+                    PostalCode = site.PostalCode,
+                    Country = site.Country,
+                    IsPrimary = site.IsPrimary,
+                    PartnerId = site.PartnerId,
+                    StatusId = site.StatusId
+                };
             }
+
+            // UPDATE – a Site-ot közvetlenül a Sites táblából keressük (partner váltás miatt!)
+            var existing = await _context.Sites
+                .FirstOrDefaultAsync(s => s.SiteId == siteDto.SiteId);
+
+            if (existing == null)
+            {
+                _logger.LogWarning("Site not found for SiteId: {SiteId}", siteDto.SiteId);
+                throw new ArgumentException($"Site {siteDto.SiteId} not found");
+            }
+
+            // Opcionális: ellenőrizheted, hogy a route szerinti partnerId-hoz tartozott-e eredetileg
+            // (ha ezt el akarod engedni, töröld)
+            if (partnerId != 0 && existing.PartnerId != partnerId)
+            {
+                _logger.LogWarning("Site {SiteId} does not belong to Partner {PartnerId} (actual PartnerId: {Actual})",
+                    existing.SiteId, partnerId, existing.PartnerId);
+                // Ha itt akarsz tiltani:
+                // throw new ArgumentException($"Site {siteDto.SiteId} not found for Partner {partnerId}");
+            }
+
+            // Mezők frissítése
+            existing.SiteName = siteDto.SiteName;
+            existing.AddressLine1 = siteDto.AddressLine1;
+            existing.AddressLine2 = siteDto.AddressLine2;
+            existing.City = siteDto.City;
+            existing.State = siteDto.State;
+            existing.PostalCode = siteDto.PostalCode;
+            existing.Country = siteDto.Country;
+            existing.IsPrimary = siteDto.IsPrimary;
+
+            // ✅ státusz mentése
+            existing.StatusId = siteDto.StatusId;
+
+            // ✅ partner mentése (ha küldte a modal)
+            if (siteDto.PartnerId != 0)
+                existing.PartnerId = siteDto.PartnerId;
+
+            existing.LastModifiedDate = DateTime.UtcNow;
+
+            // ✅ csak akkor írunk FK mezőt, ha van valid userId
+            if (!string.IsNullOrWhiteSpace(userId))
+                existing.LastModifiedById = userId;
 
             try
             {
@@ -484,23 +542,27 @@ public async Task<PartnerDto> UpdatePartnerAsync(int partnerId, PartnerDto partn
             }
             catch (DbUpdateException ex)
             {
-                _logger.LogError(ex, "Database error saving site for PartnerId: {PartnerId}, SiteId: {SiteId}", partnerId, siteDto.SiteId);
+                _logger.LogError(ex, "Database error saving site for PartnerId: {PartnerId}, SiteId: {SiteId}",
+                    partnerId, siteDto.SiteId);
                 throw;
             }
 
             return new SiteDto
             {
-                SiteId = site.SiteId,
-                SiteName = site.SiteName,
-                AddressLine1 = site.AddressLine1,
-                AddressLine2 = site.AddressLine2,
-                City = site.City,
-                State = site.State,
-                PostalCode = site.PostalCode,
-                Country = site.Country,
-                IsPrimary = site.IsPrimary
+                SiteId = existing.SiteId,
+                SiteName = existing.SiteName,
+                AddressLine1 = existing.AddressLine1,
+                AddressLine2 = existing.AddressLine2,
+                City = existing.City,
+                State = existing.State,
+                PostalCode = existing.PostalCode,
+                Country = existing.Country,
+                IsPrimary = existing.IsPrimary,
+                PartnerId = existing.PartnerId,
+                StatusId = existing.StatusId
             };
         }
+
 
         public async Task<bool> DeleteSiteAsync(int partnerId, int siteId)
         {
@@ -607,7 +669,9 @@ public async Task<PartnerDto> UpdatePartnerAsync(int partnerId, PartnerDto partn
                 IsTaxExempt = p.IsTaxExempt,
                 PartnerGroupId = p.PartnerGroupId,
                 StatusId = p.StatusId,
-                Status = p.Status,
+                Status = p.Status != null 
+        ? new StatusDto { Id = p.Status.Id, Name = p.Status.Name, Color = p.Status.Color }
+        : null,
                 Sites = p.Sites.Select(s => new SiteDto
                 {
                     SiteId = s.SiteId,

@@ -13,4 +13,11 @@ namespace Cloud9_2.Models
         public string? Color { get; set; } // e.g., "#28a745" (green)
         public string? Description { get; set; }
     }
+
+    public class StatusDto
+    {
+        public int Id { get; set; }
+        public string Name { get; set; } = null!;
+        public string? Color { get; set; }
+    }
 }

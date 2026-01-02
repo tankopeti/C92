@@ -12,7 +12,7 @@ namespace Cloud9_2.Models
 
         [Required(ErrorMessage = "Title is required")]
         [StringLength(100, ErrorMessage = "Title cannot exceed 100 characters")]
-        public string Title { get; set; }
+        public string Title { get; set; } = string.Empty;
 
         public string? Description { get; set; }
 
@@ -20,9 +20,6 @@ namespace Cloud9_2.Models
 
         public int? TaskTypePMId { get; set; }
         public TaskTypePM? TaskTypePM { get; set; }
-
-        // public int? ProjectId { get; set; }
-        // public Project? Project { get; set; }
 
         public int? TaskStatusPMId { get; set; }
         public TaskStatusPM? TaskStatusPM { get; set; }
@@ -33,7 +30,7 @@ namespace Cloud9_2.Models
         [Display(Name = "Due Date")]
         public DateTime? DueDate { get; set; }
 
-        [Display(Name = "Beütemeézés dátuma")]
+        [Display(Name = "Beütemezés dátuma")]
         public DateTime? ScheduledDate { get; set; }
 
         [Display(Name = "Estimated Hours")]
@@ -45,13 +42,13 @@ namespace Cloud9_2.Models
         public decimal? ActualHours { get; set; }
 
         public string? CreatedById { get; set; }
+        public ApplicationUser? CreatedBy { get; set; }
 
         [Display(Name = "Kommunikáció módja")]
         public string? CommunicationDescription { get; set; }
-        public ApplicationUser? CreatedBy { get; set; }
 
         [Display(Name = "Created Date")]
-        public DateTime? CreatedDate { get; set; } = DateTime.UtcNow;
+        public DateTime? CreatedDate { get; set; }
 
         public string? AssignedToId { get; set; }
         public ApplicationUser? AssignedTo { get; set; }
@@ -62,11 +59,10 @@ namespace Cloud9_2.Models
         [Display(Name = "Completed Date")]
         public DateTime? CompletedDate { get; set; }
 
-        // public int? ProjectPMId { get; set; }
-        // public ProjectPM? ProjectPM { get; set; }
-
         // New fields
         public int? PartnerId { get; set; }
+
+        [ForeignKey("PartnerId")]
         public Partner? Partner { get; set; }
 
         public int? SiteId { get; set; }
@@ -83,8 +79,6 @@ namespace Cloud9_2.Models
 
         public int? OrderId { get; set; }
         public Order? Order { get; set; }
-        // public int? ProjectId { get; set; }
-        // public ProjectPM? Project { get; set; }
 
         public int? CustomerCommunicationId { get; set; }
         public CustomerCommunication? CustomerCommunication { get; set; }
@@ -101,7 +95,7 @@ namespace Cloud9_2.Models
     public class TaskPMDto
     {
         public int Id { get; set; }
-        public string Title { get; set; }
+        public string Title { get; set; } = string.Empty;
         public string? Description { get; set; }
         public bool IsActive { get; set; }
         public int? TaskTypePMId { get; set; }
@@ -110,6 +104,7 @@ namespace Cloud9_2.Models
         public string? ProjectName { get; set; }
         public int? TaskStatusPMId { get; set; }
         public string? TaskStatusPMName { get; set; }
+        public string? PriorityColorCode { get; set; }
         public string? ColorCode { get; set; }
         public int? TaskPriorityPMId { get; set; }
         public string? TaskPriorityPMName { get; set; }
@@ -124,8 +119,6 @@ namespace Cloud9_2.Models
         public string? AssignedToName { get; set; }
         public DateTime? UpdatedDate { get; set; }
         public DateTime? CompletedDate { get; set; }
-        // public int? ProjectPMId { get; set; }
-        // public string? ProjectPMName { get; set; }
         public int? PartnerId { get; set; }
         public string? PartnerName { get; set; }
         public int? SiteId { get; set; }
@@ -155,7 +148,7 @@ namespace Cloud9_2.Models
     {
         [Required(ErrorMessage = "Title is required")]
         [StringLength(100, ErrorMessage = "Title cannot exceed 100 characters")]
-        public string Title { get; set; }
+        public string Title { get; set; } = string.Empty;
 
         public string? Description { get; set; }
         public string? CommunicationDescription { get; set; }
@@ -181,8 +174,6 @@ namespace Cloud9_2.Models
 
         public string? AssignedToId { get; set; }
 
-        // public int? ProjectPMId { get; set; }
-
         public int? PartnerId { get; set; }
 
         public int? SiteId { get; set; }
@@ -196,7 +187,6 @@ namespace Cloud9_2.Models
         public int? CustomerCommunicationId { get; set; }
         public int? CommunicationTypeId { get; set; }
 
-
         public List<int> ResourceIds { get; set; } = new List<int>();
 
         public List<int> EmployeeIds { get; set; } = new List<int>();
@@ -209,7 +199,7 @@ namespace Cloud9_2.Models
 
         [Required(ErrorMessage = "Title is required")]
         [StringLength(100, ErrorMessage = "Title cannot exceed 100 characters")]
-        public string Title { get; set; }
+        public string Title { get; set; } = string.Empty;
 
         public string? Description { get; set; }
         public string? CommunicationDescription { get; set; }
@@ -235,8 +225,6 @@ namespace Cloud9_2.Models
         public decimal? ActualHours { get; set; }
 
         public string? AssignedToId { get; set; }
-
-        // public int? ProjectPMId { get; set; }
 
         public int? PartnerId { get; set; }
 

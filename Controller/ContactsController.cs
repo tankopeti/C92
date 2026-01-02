@@ -56,21 +56,50 @@ namespace Cloud9_2.Controllers
             }
         }
 
+        // [HttpGet]
+        // public async Task<ActionResult<List<ContactDto>>> GetAll()
+        // {
+        //     try
+        //     {
+        //         var contacts = await _service.GetAllAsync();
+        //         _logger.LogInformation("Fetched {ContactCount} contacts", contacts.Count);
+        //         return Ok(contacts);
+        //     }
+        //     catch (Exception ex)
+        //     {
+        //         _logger.LogError(ex, "Error retrieving contacts");
+        //         return StatusCode(500, new { success = false, message = "Error retrieving contacts: " + ex.Message });
+        //     }
+        // }
+
         [HttpGet]
-        public async Task<ActionResult<List<ContactDto>>> GetAll()
+        public async Task<ActionResult<List<ContactDto>>> Get(
+            [FromQuery] int pageNumber = 1,
+            [FromQuery] int pageSize = 20,
+            [FromQuery] string search = "",
+            [FromQuery] string filter = "")
         {
             try
             {
-                var contacts = await _service.GetAllAsync();
-                _logger.LogInformation("Fetched {ContactCount} contacts", contacts.Count);
-                return Ok(contacts);
+                pageNumber = pageNumber < 1 ? 1 : pageNumber;
+                pageSize = pageSize < 1 ? 20 : pageSize;
+
+                var (pagedContacts, totalCount) = await _service.GetPagedAsync(pageNumber, pageSize, search, filter);
+
+                Response.Headers["X-Total-Count"] = totalCount.ToString();
+                _logger.LogInformation("Fetched paged contacts: Page {PageNumber}, Size {PageSize}, Total {TotalCount}",
+                    pageNumber, pageSize, totalCount);
+
+                return Ok(pagedContacts);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error retrieving contacts");
+                _logger.LogError(ex, "Error retrieving paged contacts");
                 return StatusCode(500, new { success = false, message = "Error retrieving contacts: " + ex.Message });
             }
         }
+
+
 
         [HttpGet("{id}")]
         public async Task<ActionResult<ContactDto>> GetById(int id)
@@ -125,44 +154,41 @@ namespace Cloud9_2.Controllers
             }
         }
 
-        [HttpPut("{id}")]
-        public async Task<IActionResult> Update(int id, UpdateContactDto dto)
+[HttpPut("{id}")]
+public async Task<IActionResult> Update(int id, [FromBody] UpdateContactDto dto)
+{
+    try
+    {
+        if (!ModelState.IsValid)
         {
-            try
-            {
-                if (!ModelState.IsValid)
-                {
-                    _logger.LogWarning("Invalid model state for UpdateContactDto");
-                    return BadRequest(new { success = false, message = "Érvénytelen adatok." });
-                }
-                var updated = await _service.UpdateAsync(id, dto);
-                if (updated == null)
-                {
-                    _logger.LogWarning("Contact not found for ContactId: {ContactId}", id);
-                    return Request.Headers["X-Requested-With"] == "XMLHttpRequest"
-                        ? NotFound(new { success = false, message = "Kontakt nem található!" })
-                        : NotFound();
-                }
-                _logger.LogInformation("Updated contact with ContactId: {ContactId}", id);
-                if (Request.Headers["X-Requested-With"] == "XMLHttpRequest")
-                {
-                    return Ok(new { success = true, message = "Kontakt frissítve sikeresen!", data = updated });
-                }
-                return NoContent();
-            }
-            catch (ArgumentException ex)
-            {
-                _logger.LogWarning(ex, "Validation error updating contact {Id}", id);
-                return BadRequest(new { success = false, message = ex.Message });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error updating contact {Id}", id);
-                return Request.Headers["X-Requested-With"] == "XMLHttpRequest"
-                    ? BadRequest(new { success = false, message = "Kontakt frissítése sikertelen. Próbálja újra." })
-                    : BadRequest("Kontakt frissítése sikertelen.");
-            }
+            _logger.LogWarning("Invalid model state for UpdateContactDto");
+            return BadRequest(new { success = false, message = "Érvénytelen adatok." });
         }
+
+        var updated = await _service.UpdateAsync(id, dto);
+        if (updated == null)
+        {
+            _logger.LogWarning("Contact not found for ContactId: {ContactId}", id);
+            return NotFound(new { success = false, message = "Kontakt nem található!" });
+        }
+
+        _logger.LogInformation("Updated contact with ContactId: {ContactId}", id);
+
+        // AJAX-ra mindig ezt add vissza, egyszerűbb:
+        return Ok(new { success = true, message = "Kontakt frissítve sikeresen!", data = updated });
+    }
+    catch (ArgumentException ex)
+    {
+        _logger.LogWarning(ex, "Validation error updating contact {Id}", id);
+        return BadRequest(new { success = false, message = ex.Message });
+    }
+    catch (Exception ex)
+    {
+        _logger.LogError(ex, "Error updating contact {Id}", id);
+        return BadRequest(new { success = false, message = "Kontakt frissítése sikertelen. Próbálja újra." });
+    }
+}
+
 
         [HttpDelete("{id}")]
         public async Task<IActionResult> Delete(int id)

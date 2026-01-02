@@ -44,40 +44,103 @@ namespace Cloud9_2.Pages.CRM.Sites
         [BindProperty]
         public bool IsPrimary { get; set; }
 
-        public async Task OnGetAsync()
+public async Task OnGetAsync()
+{
+    // 🔎 0) Nyers querystring log
+    _logger.LogInformation("=== SITES INDEX GET START ===");
+    _logger.LogInformation("QueryString: {QueryString}", Request.QueryString.Value);
+    _logger.LogInformation("Query[SearchTerm]: {Q}", Request.Query["SearchTerm"].ToString());
+    _logger.LogInformation("Query[searchTerm]: {q}", Request.Query["searchTerm"].ToString());
+    _logger.LogInformation("Bound SearchTerm: '{SearchTerm}'", SearchTerm);
+    _logger.LogInformation("PageSize={PageSize}, CurrentPage={CurrentPage}", PageSize, CurrentPage);
+
+    // Segédadatok
+    Partners = await _context.Partners.OrderBy(p => p.Name).ToListAsync();
+    Statuses = await _context.PartnerStatuses.OrderBy(s => s.Name).ToListAsync();
+    _logger.LogInformation("Statuses loaded: {Count}", Statuses.Count);
+
+    // Alap query (csak aktív)
+    var query = _context.Sites
+        .AsNoTracking()
+        .Include(s => s.Partner)
+        .Include(s => s.Status)
+        .Where(s => s.IsActive == true)
+        .AsQueryable();
+
+    // 1) Szűrés előtti darabszám
+    var before = await query.CountAsync();
+    _logger.LogInformation("Count BEFORE search filter: {Before}", before);
+
+    // ✅ Biztos forrás: ha a Bind valamiért nem adná át, a Query-ből is beolvassuk
+    // (így azonnal látjuk, hol a hiba)
+    var effectiveSearch = !string.IsNullOrWhiteSpace(SearchTerm)
+        ? SearchTerm
+        : (Request.Query["SearchTerm"].ToString() ?? Request.Query["searchTerm"].ToString());
+
+    _logger.LogInformation("EffectiveSearch: '{EffectiveSearch}'", effectiveSearch);
+
+    // 🔎 Keresés
+    if (!string.IsNullOrWhiteSpace(effectiveSearch))
+    {
+        var words = effectiveSearch
+            .Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+        _logger.LogInformation("Words ({Count}): {Words}", words.Length, string.Join("|", words));
+
+        query = query.Where(s =>
+            words.Any(word =>
+                (s.SiteName != null && s.SiteName.Contains(word)) ||
+                (s.Partner != null && (
+                    (s.Partner.Name != null && s.Partner.Name.Contains(word)) ||
+                    (s.Partner.CompanyName != null && s.Partner.CompanyName.Contains(word))
+                )) ||
+                (s.AddressLine1 != null && s.AddressLine1.Contains(word)) ||
+                (s.City != null && s.City.Contains(word))
+            )
+        );
+
+        // 2) Szűrés UTÁNI darabszám
+        var after = await query.CountAsync();
+        _logger.LogInformation("Count AFTER search filter: {After}", after);
+
+        // 3) Generált SQL (nagyon hasznos!)
+        try
         {
-            Partners = await _context.Partners.OrderBy(p => p.Name).ToListAsync();
-            Statuses = await _context.PartnerStatuses.OrderBy(s => s.Name).ToListAsync();
-            _logger.LogInformation("Statuses loaded: {Count}", Statuses.Count);
-
-            var query = _context.Sites
-                .Include(s => s.Partner)
-                .Include(s => s.Status)
-                .AsQueryable();
-
-            if (!string.IsNullOrEmpty(SearchTerm))
-            {
-                query = query.Where(s =>
-                    (s.SiteName != null && s.SiteName.Contains(SearchTerm)) ||
-                    (s.Partner != null && s.Partner.Name != null && s.Partner.Name.Contains(SearchTerm)) ||
-                    (s.AddressLine1 != null && s.AddressLine1.Contains(SearchTerm)) ||
-                    (s.City != null && s.City.Contains(SearchTerm)));
-            }
-
-            TotalRecords = await query.CountAsync();
-            TotalPages = (int)Math.Ceiling(TotalRecords / (double)PageSize);
-
-            Sites = await query
-                .OrderByDescending(s => s.SiteId)
-                .Skip((CurrentPage - 1) * PageSize)
-                .Take(PageSize)
-                .ToListAsync();
-
-            foreach (var site in Sites)
-            {
-                _logger.LogInformation($"SiteId: {site.SiteId}, SiteName: '{(site.SiteName ?? "null")}', PartnerId: {site.PartnerId}, Partner: {(site.Partner != null ? (site.Partner.Name ?? "null") : "null")}, Status: {(site.Status != null ? (site.Status.Name ?? "null") : "null")}");
-            }
+            _logger.LogInformation("Generated SQL:\n{Sql}", query.ToQueryString());
         }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "ToQueryString() failed (provider?)");
+        }
+
+        // ✅ Keresésnél: minden találat, NINCS lapozás
+        Sites = await query
+            .OrderByDescending(s => s.SiteId)
+            .ToListAsync();
+
+        TotalRecords = Sites.Count;
+        TotalPages = 1;
+        CurrentPage = 1;
+
+        _logger.LogInformation("Returning {Count} results for search '{Search}'", Sites.Count, effectiveSearch);
+        _logger.LogInformation("=== SITES INDEX GET END (SEARCH) ===");
+        return;
+    }
+
+    // Nincs keresés → lapozás
+    TotalRecords = await query.CountAsync();
+    TotalPages = (int)Math.Ceiling(TotalRecords / (double)PageSize);
+
+    Sites = await query
+        .OrderByDescending(s => s.SiteId)
+        .Skip((CurrentPage - 1) * PageSize)
+        .Take(PageSize)
+        .ToListAsync();
+
+    _logger.LogInformation("No search → paged results returned: {Count}", Sites.Count);
+    _logger.LogInformation("=== SITES INDEX GET END (PAGED) ===");
+}
+
 
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> OnPostCreateSiteAsync(string siteName, int partnerId, string addressLine1, string addressLine2, string city, string state, string postalCode, string country, bool isPrimary, string contactPerson1, string contactPerson2, string contactPerson3, string comment1, string comment2, int statusId = 1)

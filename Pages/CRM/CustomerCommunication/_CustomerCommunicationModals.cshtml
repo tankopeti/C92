@@ -1,0 +1,333 @@
+@using Microsoft.AspNetCore.Mvc.Rendering
+@model Cloud9_2.Pages.CRM.CustomerCommunication.IndexModel
+
+<!-- ============================================================= -->
+<!-- 0. MESSAGE MODAL (Sites mintára) -->
+<!-- ============================================================= -->
+<div class="modal fade" id="messageModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content shadow-lg border-0">
+            <div class="modal-header py-2 bg-info text-white">
+                <h5 class="modal-title fs-5 fw-semibold" id="messageModalLabel">
+                    <i class="bi bi-info-circle me-2"></i> Értesítés
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Bezárás"></button>
+            </div>
+            <div class="modal-body py-4" id="messageModalBody"></div>
+            <div class="modal-footer py-2">
+                <button type="button" class="btn btn-secondary px-4" data-bs-dismiss="modal">
+                    <i class="bi bi-x-circle me-1"></i> Bezárás
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ============================================================= -->
+<!-- 1. CREATE COMMUNICATION MODAL (Razor POST marad – Sites mintára) -->
+<!-- ============================================================= -->
+<div class="modal fade" id="createCommunicationModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content shadow-lg border-0">
+            <form method="post" asp-page-handler="CreateCommunication" class="needs-validation" novalidate>
+                @Html.AntiForgeryToken()
+
+                <div class="modal-header py-2 bg-primary text-white">
+                    <h5 class="modal-title fs-5 fw-semibold">
+                        <i class="bi bi-chat-square-text me-2"></i> Új kommunikáció
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Bezárás"></button>
+                </div>
+
+                <div class="modal-body py-4">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-medium">Típus <span class="text-danger">*</span></label>
+                            <select id="createCommunicationTypeId" name="communicationTypeId" class="form-select" required>
+                                <option value="">-- Válasszon típust --</option>
+                            </select>
+                            <div class="invalid-feedback">Típus megadása kötelező.</div>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label fw-medium">Partner <span class="text-danger">*</span></label>
+                            <select id="createPartnerId" name="partnerId" class="form-select" required>
+                                <option value="">-- Válasszon partnert --</option>
+                            </select>
+                            <div class="invalid-feedback">Partner megadása kötelező.</div>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label fw-medium">Telephely</label>
+                            <select id="createSiteId" name="siteId" class="form-select">
+                                <option value="">-- Válasszon telephelyet --</option>
+                            </select>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label fw-medium">Felelős <span class="text-danger">*</span></label>
+                            <select id="createResponsibleContactId" name="responsibleId" class="form-select" required>
+                                <option value="">-- Válasszon felelőst --</option>
+                            </select>
+                            <div class="invalid-feedback">Felelős megadása kötelező.</div>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label fw-medium">Dátum <span class="text-danger">*</span></label>
+                            <input type="date" class="form-control" id="createDate" name="date"
+                                   value="@DateTime.Today.ToString("yyyy-MM-dd")" required />
+                            <div class="invalid-feedback">Dátum megadása kötelező.</div>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label fw-medium">Státusz <span class="text-danger">*</span></label>
+                            <select id="createStatusId" name="statusId" class="form-select" required>
+                                <option value="">-- Válasszon státuszt --</option>
+                            </select>
+                            <div class="invalid-feedback">Státusz megadása kötelező.</div>
+                        </div>
+                    </div>
+
+                    <hr class="my-5" />
+
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <label class="form-label fw-medium">Tárgy <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="createSubject" name="subject"
+                                   required maxlength="1000" placeholder="Rövid, egyértelmű tárgy..." />
+                            <div class="invalid-feedback">Tárgy megadása kötelező.</div>
+                        </div>
+
+                        <div class="col-12">
+                            <label class="form-label fw-medium">Kezdeti hozzászólás</label>
+                            <textarea class="form-control" id="createInitialPost" name="initialPost"
+                                      rows="3" maxlength="2000" placeholder="Opcionális..."></textarea>
+                        </div>
+
+                        <div class="col-12">
+                            <label class="form-label fw-medium">Tartalom</label>
+                            <textarea class="form-control" id="createNote" name="note"
+                                      rows="6" maxlength="2000" placeholder="Részletes leírás"></textarea>
+                        </div>
+
+                        <div class="col-12">
+                            <label class="form-label fw-medium">Megjegyzések</label>
+                            <textarea class="form-control" id="createMetadata" name="metadata"
+                                      rows="3" maxlength="1000"></textarea>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="modal-footer py-2">
+                    <button type="button" class="btn btn-secondary px-4" data-bs-dismiss="modal">
+                        <i class="bi bi-x-circle me-1"></i> Mégse
+                    </button>
+                    <button type="button" class="btn btn-primary px-4" id="createCommunicationSaveBtn">
+                        <i class="bi bi-check2-circle me-1"></i> Létrehozás
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- ============================================================= -->
+<!-- 2. VIEW COMMUNICATION MODAL (AJAX) -->
+<!-- ============================================================= -->
+<div class="modal fade" id="viewCommunicationModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content shadow-lg border-0">
+            <div class="modal-header py-2 bg-info text-white">
+                <h5 class="modal-title fs-5 fw-semibold">
+                    <i class="bi bi-eye me-2"></i> Kommunikáció részletei
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Bezárás"></button>
+            </div>
+
+            <div class="modal-body py-4" id="viewCommunicationContent">
+                <!-- JS tölti -->
+            </div>
+
+            <div class="modal-footer py-2">
+                <button type="button" class="btn btn-secondary px-4" data-bs-dismiss="modal">
+                    <i class="bi bi-x-circle me-1"></i> Bezárás
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ============================================================= -->
+<!-- 3. EDIT COMMUNICATION MODAL (AJAX PUT/POST) -->
+<!-- ============================================================= -->
+<div class="modal fade" id="editCommunicationModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content shadow-lg border-0">
+            <form id="editCommunicationForm" class="needs-validation" novalidate>
+                @* Anti-forgery input itt is kell az AJAX-hoz *@
+                @Html.AntiForgeryToken()
+
+                <div class="modal-header py-2 bg-warning text-dark">
+                    <h5 class="modal-title fs-5 fw-semibold">
+                        <i class="bi bi-pencil-square me-2"></i> Kommunikáció szerkesztése
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Bezárás"></button>
+                </div>
+
+                <div class="modal-body py-4">
+                    <input type="hidden" id="editCommunicationId" />
+
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-medium">Típus <span class="text-danger">*</span></label>
+                            <select id="editCommunicationTypeId" class="form-select" required>
+                                <option value="">-- Válasszon típust --</option>
+                            </select>
+                            <div class="invalid-feedback">Típus megadása kötelező.</div>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label fw-medium">Partner <span class="text-danger">*</span></label>
+                            <select id="editPartnerId" class="form-select" required>
+                                <option value="">-- Válasszon partnert --</option>
+                            </select>
+                            <div class="invalid-feedback">Partner megadása kötelező.</div>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label fw-medium">Telephely</label>
+                            <select id="editSiteId" class="form-select">
+                                <option value="">-- Válasszon telephelyet --</option>
+                            </select>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label fw-medium">Felelős <span class="text-danger">*</span></label>
+                            <select id="editResponsibleContactId" class="form-select" required>
+                                <option value="">-- Válasszon felelőst --</option>
+                            </select>
+                            <div class="invalid-feedback">Felelős megadása kötelező.</div>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label fw-medium">Dátum <span class="text-danger">*</span></label>
+                            <input type="date" class="form-control" id="editDate" required />
+                            <div class="invalid-feedback">Dátum megadása kötelező.</div>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label fw-medium">Státusz <span class="text-danger">*</span></label>
+                            <select id="editStatusId" class="form-select" required>
+                                <option value="">-- Válasszon státuszt --</option>
+                            </select>
+                            <div class="invalid-feedback">Státusz megadása kötelező.</div>
+                        </div>
+                    </div>
+
+                    <hr class="my-5" />
+
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <label class="form-label fw-medium">Tárgy <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="editSubject" required maxlength="1000" />
+                            <div class="invalid-feedback">Tárgy megadása kötelező.</div>
+                        </div>
+
+                        <div class="col-12">
+                            <label class="form-label fw-medium">Tartalom</label>
+                            <textarea class="form-control" id="editNote" rows="6" maxlength="2000"></textarea>
+                        </div>
+
+                        <div class="col-12">
+                            <label class="form-label fw-medium">Megjegyzések</label>
+                            <textarea class="form-control" id="editMetadata" rows="3" maxlength="1000"></textarea>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="modal-footer py-2">
+                    <button type="button" class="btn btn-secondary px-4" data-bs-dismiss="modal">
+                        <i class="bi bi-x-circle me-1"></i> Mégse
+                    </button>
+                    <button type="submit" class="btn btn-primary px-4">Mentés</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- ============================================================= -->
+<!-- 4. DELETE COMMUNICATION MODAL (AJAX DELETE) -->
+<!-- ============================================================= -->
+<div class="modal fade" id="deleteCommunicationModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content shadow-lg border-0">
+            <div class="modal-header py-2 bg-danger text-white">
+                <h5 class="modal-title fs-5 fw-semibold">
+                    <i class="bi bi-trash me-2"></i> Kommunikáció törlése
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Bezárás"></button>
+            </div>
+
+            <div class="modal-body py-4">
+                <p>Biztosan törölni szeretné a következő kommunikációt?</p>
+                <p class="fw-bold mb-0" id="deleteCommunicationSubject">—</p>
+                <p class="text-danger mt-3 small">Ez a művelet <strong>végleges</strong> és nem vonható vissza.</p>
+                <input type="hidden" id="deleteCommunicationId" />
+            </div>
+
+            <div class="modal-footer py-2">
+                <button type="button" class="btn btn-secondary px-4" data-bs-dismiss="modal">
+                    <i class="bi bi-x-circle me-1"></i> Mégse
+                </button>
+                <button type="button" class="btn btn-danger px-4" id="confirmDeleteCommunicationBtn">
+                    <i class="bi bi-trash me-1"></i> Törlés
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ============================================================= -->
+<!-- 5. HISTORY COMMUNICATION MODAL (AJAX) -->
+<!-- ============================================================= -->
+<div class="modal fade" id="historyCommunicationModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content shadow-lg border-0">
+            <div class="modal-header py-2 bg-secondary text-white">
+                <h5 class="modal-title fs-5 fw-semibold">
+                    <i class="bi bi-clock-history me-2"></i> Előzmények
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Bezárás"></button>
+            </div>
+
+            <div class="modal-body py-4">
+                <div class="small text-muted mb-3" id="historyCommunicationSubtitle">—</div>
+
+                <div class="table-responsive">
+                    <table class="table table-sm table-striped align-middle mb-0">
+                        <thead>
+                            <tr>
+                                <th class="text-nowrap">Időpont</th>
+                                <th class="text-nowrap">Művelet</th>
+                                <th class="text-nowrap">Felhasználó</th>
+                                <th>Változás</th>
+                            </tr>
+                        </thead>
+                        <tbody id="historyCommunicationTbody">
+                            <tr>
+                                <td colspan="4" class="text-center py-4 text-muted">Betöltés...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="modal-footer py-2">
+                <button type="button" class="btn btn-secondary px-4" data-bs-dismiss="modal">
+                    <i class="bi bi-x-circle me-1"></i> Bezárás
+                </button>
+            </div>
+        </div>
+    </div>
+</div>

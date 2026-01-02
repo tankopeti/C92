@@ -1,4 +1,3 @@
-
 using Cloud9_2.Models;
 using Cloud9_2.Services;
 using Microsoft.AspNetCore.Mvc;
@@ -36,21 +35,26 @@ namespace Cloud9_2.Pages.CRM.Contacts
         public int TotalRecords { get; set; }
         public string SearchTerm { get; set; } = string.Empty;
 
-        public SelectList Statuses { get; set; } = new SelectList(new List<Status>());
-        public SelectList Partners { get; set; } = new SelectList(new List<Partner>());
+        public SelectList Statuses { get; set; } = new(new List<Status>());
+        public SelectList Partners { get; set; } = new(new List<Partner>());
 
-        public async Task OnGetAsync(int pageNumber = 1, int pageSize = 10, string searchTerm = "", string filter = "")
+        public async Task OnGetAsync(
+            int pageNumber = 1,
+            int pageSize = 10,
+            string searchTerm = "",
+            string filter = "")
         {
-            CurrentPage = pageNumber < 1 ? 1 : pageNumber;
+            // ⚠️ A lista betöltését a JS végzi (/api/Contact)
+            CurrentPage = 1;
             PageSize = pageSize < 1 ? 10 : pageSize;
-            SearchTerm = searchTerm;
+            SearchTerm = searchTerm ?? string.Empty;
 
             try
             {
-                var (pagedContacts, totalCount) = await _service.GetPagedAsync(CurrentPage, PageSize, SearchTerm, filter);
-                Contacts = pagedContacts;
-                TotalRecords = totalCount;
-                TotalPages = (int)Math.Ceiling((double)totalCount / PageSize);
+                // SSR lista helyett üres -> JS tölti
+                Contacts = new();
+                TotalRecords = 0;
+                TotalPages = 0;
 
                 var statuses = await _context.Statuses.ToListAsync();
                 Statuses = new SelectList(statuses, "Id", "Name");
@@ -65,6 +69,8 @@ namespace Cloud9_2.Pages.CRM.Contacts
             }
         }
 
+        /* ================= CREATE ================= */
+
         public async Task<IActionResult> OnPostCreateContactAsync([Bind] CreateContactDto dto)
         {
             try
@@ -77,10 +83,20 @@ namespace Cloud9_2.Pages.CRM.Contacts
                 _logger.LogError(ex, "Error creating contact");
                 TempData["ErrorMessage"] = "Kontakt létrehozása sikertelen. Próbálja újra.";
             }
-            return RedirectToPage("./Index", new { pageNumber = 1, searchTerm = SearchTerm, pageSize = PageSize });
+
+            return RedirectToPage("./Index", new
+            {
+                pageNumber = 1,
+                searchTerm = SearchTerm,
+                pageSize = PageSize
+            });
         }
 
-        public async Task<IActionResult> OnPostUpdateContactAsync(int contactId, [Bind] UpdateContactDto dto)
+        /* ================= UPDATE ================= */
+
+        public async Task<IActionResult> OnPostUpdateContactAsync(
+            int contactId,
+            [Bind] UpdateContactDto dto)
         {
             try
             {
@@ -88,43 +104,69 @@ namespace Cloud9_2.Pages.CRM.Contacts
                 if (updated == null)
                 {
                     TempData["ErrorMessage"] = "Kontakt nem található!";
-                    return RedirectToPage("./Index", new { pageNumber = CurrentPage, searchTerm = SearchTerm, pageSize = PageSize });
                 }
-                TempData["SuccessMessage"] = "Kontakt frissítve sikeresen!";
+                else
+                {
+                    // ✅ CSAK popup (toast), NEM alert sáv
+                    TempData["ContactUpdated"] = true;
+                }
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error updating contact {ContactId}", contactId);
                 TempData["ErrorMessage"] = "Kontakt frissítése sikertelen. Próbálja újra.";
             }
-            return RedirectToPage("./Index", new { pageNumber = CurrentPage, searchTerm = SearchTerm, pageSize = PageSize });
+
+            return RedirectToPage("./Index", new
+            {
+                pageNumber = CurrentPage,
+                searchTerm = SearchTerm,
+                pageSize = PageSize
+            });
         }
+
+        /* ================= DELETE ================= */
 
         public async Task<IActionResult> OnPostDeleteContactAsync(int contactId)
         {
             try
             {
-                var hasRelated = await _context.CustomerCommunications.AnyAsync(cc => cc.ContactId == contactId);
+                var hasRelated = await _context.CustomerCommunications
+                    .AnyAsync(cc => cc.ContactId == contactId);
+
                 if (hasRelated)
                 {
                     TempData["ErrorMessage"] = "Kontakt nem törölhető, mert van hozzákapcsolt adat!";
-                    return RedirectToPage("./Index", new { pageNumber = CurrentPage, searchTerm = SearchTerm, pageSize = PageSize });
+                    return RedirectToPage("./Index", new
+                    {
+                        pageNumber = CurrentPage,
+                        searchTerm = SearchTerm,
+                        pageSize = PageSize
+                    });
                 }
 
                 var success = await _service.DeleteAsync(contactId);
                 if (!success)
                 {
                     TempData["ErrorMessage"] = "Kontakt nem található!";
-                    return RedirectToPage("./Index", new { pageNumber = CurrentPage, searchTerm = SearchTerm, pageSize = PageSize });
                 }
-                TempData["SuccessMessage"] = "Kontakt törölve sikeresen!";
+                else
+                {
+                    TempData["SuccessMessage"] = "Kontakt törölve sikeresen!";
+                }
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error deleting contact {ContactId}", contactId);
                 TempData["ErrorMessage"] = "Kontakt törlése sikertelen. Próbálja újra.";
             }
-            return RedirectToPage("./Index", new { pageNumber = CurrentPage, searchTerm = SearchTerm, pageSize = PageSize });
+
+            return RedirectToPage("./Index", new
+            {
+                pageNumber = CurrentPage,
+                searchTerm = SearchTerm,
+                pageSize = PageSize
+            });
         }
     }
 }

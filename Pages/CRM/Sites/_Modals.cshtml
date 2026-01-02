@@ -1,0 +1,342 @@
+@using Microsoft.AspNetCore.Mvc.Rendering
+@model Cloud9_2.Pages.CRM.Sites.IndexModel
+
+<!-- ============================================================= -->
+<!-- 0. MESSAGE MODAL (ha akarod megtartani) -->
+<!-- ============================================================= -->
+<div class="modal fade" id="messageModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content shadow-lg border-0">
+            <div class="modal-header py-2 bg-info text-white">
+                <h5 class="modal-title fs-5 fw-semibold" id="messageModalLabel">
+                    <i class="bi bi-info-circle me-2"></i> Értesítés
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Bezárás"></button>
+            </div>
+            <div class="modal-body py-4" id="messageModalBody"></div>
+            <div class="modal-footer py-2">
+                <button type="button" class="btn btn-secondary px-4" data-bs-dismiss="modal">
+                    <i class="bi bi-x-circle me-1"></i> Bezárás
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ============================================================= -->
+<!-- 1. CREATE SITE MODAL (Razor POST marad) -->
+<!-- ============================================================= -->
+<div class="modal fade" id="createSiteModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content shadow-lg border-0">
+            <form method="post" asp-page-handler="CreateSite" class="needs-validation" novalidate>
+                @Html.AntiForgeryToken()
+
+                <div class="modal-header py-2 bg-primary text-white">
+                    <h5 class="modal-title fs-5 fw-semibold">
+                        <i class="bi bi-plus-circle me-2"></i> Új Telephely
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Bezárás"></button>
+                </div>
+
+                <div class="modal-body py-4">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-medium">Telephely neve <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" name="siteName" required placeholder="Pl. Központi iroda" />
+                            <div class="invalid-feedback">A telephely neve kötelező.</div>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label fw-medium">Partner <span class="text-danger">*</span></label>
+                            <!-- TomSelect csak modálban -->
+                            <select id="createPartnerId" name="partnerId" class="form-select" required>
+                            <option value="">-- Válassz partnert --</option>
+                            </select>
+
+                            <div class="invalid-feedback">Partner megadása kötelező.</div>
+                        </div>
+                    </div>
+
+                    <hr class="my-5">
+
+                    <h6 class="mb-3 text-primary fw-semibold"><i class="bi bi-house-door me-2"></i> Cím adatok</h6>
+
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-medium">Cím 1</label>
+                            <input type="text" class="form-control" name="addressLine1" />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-medium">Cím 2</label>
+                            <input type="text" class="form-control" name="addressLine2" />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-medium">Város</label>
+                            <input type="text" class="form-control" name="city" />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-medium">Állam/Megye</label>
+                            <input type="text" class="form-control" name="state" />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-medium">Irányítószám</label>
+                            <input type="text" class="form-control" name="postalCode" />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-medium">Ország</label>
+                            <input type="text" class="form-control" name="country" value="Magyarország" />
+                        </div>
+                    </div>
+
+                    <hr class="my-5">
+
+                    <h6 class="mb-3 text-primary fw-semibold"><i class="bi bi-person-lines-fill me-2"></i> Kapcsolattartók</h6>
+
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label class="form-label fw-medium">Kapcsolattartó 1</label>
+                            <input type="text" class="form-control" name="contactPerson1" />
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-medium">Kapcsolattartó 2</label>
+                            <input type="text" class="form-control" name="contactPerson2" />
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-medium">Kapcsolattartó 3</label>
+                            <input type="text" class="form-control" name="contactPerson3" />
+                        </div>
+                    </div>
+
+                    <hr class="my-5">
+
+                    <h6 class="mb-3 text-primary fw-semibold"><i class="bi bi-chat-square-text me-2"></i> Megjegyzések</h6>
+
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <label class="form-label fw-medium">Megjegyzés 1</label>
+                            <textarea class="form-control" name="comment1" rows="3"></textarea>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label fw-medium">Megjegyzés 2</label>
+                            <textarea class="form-control" name="comment2" rows="3"></textarea>
+                        </div>
+                    </div>
+
+                    <div class="row g-3 mt-4">
+                        <div class="col-md-6">
+                            <label class="form-label fw-medium">Státusz</label>
+                            <select id="createSiteStatusId" class="form-select" name="statusId">
+                                <option value="">-- Válasszon státuszt --</option>
+                                @foreach (var status in Model.Statuses)
+                                {
+                                    <option value="@status.Id" selected="@(status.Id == 1)">@status.Name</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-check mt-4">
+                                <input type="checkbox" class="form-check-input" name="isPrimary" value="true" id="createSiteIsPrimary">
+                                <label class="form-check-label fw-medium" for="createSiteIsPrimary">Elsődleges telephely</label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="modal-footer py-2">
+                    <button type="button" class="btn btn-secondary px-4" data-bs-dismiss="modal">
+                        <i class="bi bi-x-circle me-1"></i> Mégse
+                    </button>
+                    <button type="submit" class="btn btn-primary px-4">
+                        <i class="bi bi-check2-circle me-1"></i> Létrehozás
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- ============================================================= -->
+<!-- 2. VIEW SITE MODAL (AJAX) -->
+<!-- ============================================================= -->
+<div class="modal fade" id="viewSiteModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content shadow-lg border-0">
+            <div class="modal-header py-2 bg-info text-white">
+                <h5 class="modal-title fs-5 fw-semibold">
+                    <i class="bi bi-eye me-2"></i> Telephely részletei
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Bezárás"></button>
+            </div>
+
+            <div class="modal-body py-4" id="viewSiteContent">
+                <!-- JS tölti -->
+            </div>
+
+            <div class="modal-footer py-2">
+                <button type="button" class="btn btn-secondary px-4" data-bs-dismiss="modal">
+                    <i class="bi bi-x-circle me-1"></i> Bezárás
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ============================================================= -->
+<!-- 3. EDIT SITE MODAL (AJAX PUT) -->
+<!-- ============================================================= -->
+<div class="modal fade" id="editSiteModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content shadow-lg border-0">
+            <form id="editSiteForm" class="needs-validation" novalidate>
+                <div class="modal-header py-2 bg-warning text-dark">
+                    <h5 class="modal-title fs-5 fw-semibold">
+                        <i class="bi bi-pencil-square me-2"></i> Telephely szerkesztése
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Bezárás"></button>
+                </div>
+
+                <div class="modal-body py-4">
+                    <input type="hidden" id="editSiteId" />
+
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-medium">Telephely neve <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="editSiteName" required maxlength="255" />
+                            <div class="invalid-feedback">A telephely neve kötelező.</div>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label fw-medium">Partner <span class="text-danger">*</span></label>
+                            <select id="editPartnerId" name="partnerId" class="form-select" required>
+                            <option value="">-- Válassz partnert --</option>
+                            </select>
+
+                            <div class="invalid-feedback">Partner megadása kötelező.</div>
+                        </div>
+                    </div>
+
+                    <hr class="my-5">
+                    <h6 class="mb-3 text-primary fw-semibold"><i class="bi bi-house-door me-2"></i> Cím adatok</h6>
+
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-medium">Cím 1</label>
+                            <input type="text" class="form-control" id="editAddressLine1" />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-medium">Cím 2</label>
+                            <input type="text" class="form-control" id="editAddressLine2" />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-medium">Város</label>
+                            <input type="text" class="form-control" id="editCity" />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-medium">Állam/Megye</label>
+                            <input type="text" class="form-control" id="editState" />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-medium">Irányítószám</label>
+                            <input type="text" class="form-control" id="editPostalCode" />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-medium">Ország</label>
+                            <input type="text" class="form-control" id="editCountry" />
+                        </div>
+                    </div>
+
+                    <hr class="my-5">
+                    <h6 class="mb-3 text-primary fw-semibold"><i class="bi bi-person-lines-fill me-2"></i> Kapcsolattartók</h6>
+
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label class="form-label fw-medium">Kapcsolattartó 1</label>
+                            <input type="text" class="form-control" id="editContactPerson1" />
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-medium">Kapcsolattartó 2</label>
+                            <input type="text" class="form-control" id="editContactPerson2" />
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-medium">Kapcsolattartó 3</label>
+                            <input type="text" class="form-control" id="editContactPerson3" />
+                        </div>
+                    </div>
+
+                    <hr class="my-5">
+                    <h6 class="mb-3 text-primary fw-semibold"><i class="bi bi-chat-square-text me-2"></i> Megjegyzések</h6>
+
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <label class="form-label fw-medium">Megjegyzés 1</label>
+                            <textarea class="form-control" id="editComment1" rows="3"></textarea>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label fw-medium">Megjegyzés 2</label>
+                            <textarea class="form-control" id="editComment2" rows="3"></textarea>
+                        </div>
+                    </div>
+
+                    <div class="row g-3 mt-4">
+                        <div class="col-md-6">
+                            <label class="form-label fw-medium">Státusz</label>
+                            <select id="editStatusId" class="form-select">
+                                <option value="">-- Válasszon státuszt --</option>
+                                @foreach (var status in Model.Statuses)
+                                {
+                                    <option value="@status.Id">@status.Name</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-check mt-4">
+                                <input type="checkbox" class="form-check-input" id="editIsPrimary">
+                                <label class="form-check-label fw-medium" for="editIsPrimary">Elsődleges telephely</label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="modal-footer py-2">
+                    <button type="button" class="btn btn-secondary px-4" data-bs-dismiss="modal">
+                        <i class="bi bi-x-circle me-1"></i> Mégse
+                    </button>
+                    <button type="submit" class="btn btn-primary">Mentés</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- ============================================================= -->
+<!-- 4. DELETE SITE MODAL (AJAX DELETE) -->
+<!-- ============================================================= -->
+<div class="modal fade" id="deleteSiteModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content shadow-lg border-0">
+            <div class="modal-header py-2 bg-danger text-white">
+                <h5 class="modal-title fs-5 fw-semibold">
+                    <i class="bi bi-trash me-2"></i> Telephely törlése
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Bezárás"></button>
+            </div>
+
+            <div class="modal-body py-4">
+                <p>Biztosan törölni szeretné a következő telephelyet?</p>
+                <p class="fw-bold mb-0" id="deleteSiteName">—</p>
+                <p class="text-danger mt-3 small">Ez a művelet <strong>végleges</strong> és nem vonható vissza.</p>
+                <input type="hidden" id="deleteSiteId" />
+            </div>
+
+            <div class="modal-footer py-2">
+                <button type="button" class="btn btn-secondary px-4" data-bs-dismiss="modal">
+                    <i class="bi bi-x-circle me-1"></i> Mégse
+                </button>
+                <button type="button" class="btn btn-danger px-4" id="confirmDeleteSiteBtn">
+                    <i class="bi bi-trash me-1"></i> Törlés
+                </button>
+            </div>
+        </div>
+    </div>
+</div>

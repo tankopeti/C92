@@ -118,9 +118,10 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Bezárás"></button>
             </div>
             <div class="modal-body">
-                <form method="post" asp-page-handler="UpdateContact">
+                <form id="editContactForm" method="post" asp-page-handler="UpdateContact">
                     @Html.AntiForgeryToken()
                     <input type="hidden" id="editContactId" name="contactId" />
+                    <input type="hidden" name="isPrimary" value="false" />
                     <h5 class="mb-2">Alap információk</h5>
                     <br>
                     <div class="row g-3">
@@ -206,7 +207,7 @@
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Mégse</button>
                         <button type="submit" class="btn btn-warning">
-                            <i class="bi bi-pencil"></i> Frissítés
+                            <i class="bi bi-pencil"></i> Mentés
                         </button>
                     </div>
                 </form>
@@ -255,90 +256,9 @@
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Bezárás"></button>
             </div>
             <div class="modal-body">
-                <div id="viewContactBody">
-                    <h5 class="mb-2">Alap információk</h5>
-                    <br>
-                    <div class="row g-3">
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label fw-bold">Vezetéknév</label>
-                            <p class="form-control-plaintext" id="viewFirstName"></p>
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label fw-bold">Keresztnév</label>
-                            <p class="form-control-plaintext" id="viewLastName"></p>
-                        </div>
-                    </div>
-                    <hr class="my-4">
-                    <h5 class="mb-2">Kapcsolatfelvételi adatok</h5>
-                    <br>
-                    <div class="row g-3">
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label fw-bold">E-mail</label>
-                            <p class="form-control-plaintext" id="viewEmail"></p>
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <label for="viewPhoneNumber" class="form-label fw-bold">Telefonszám</label>
-                            <p class="form-control-plaintext" id="viewPhoneNumber"></p>
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <label for="viewPhoneNumber2" class="form-label fw-bold">Második telefonszám</label>
-                            <p class="form-control-plaintext" id="viewPhoneNumber2"></p>
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <label for="viewJobTitle" class="form-label fw-bold">Beosztás</label>
-                            <p class="form-control-plaintext" id="viewJobTitle"></p>
-                        </div>
-                    </div>
-                    <hr class="my-4">
-                    <h5 class="mb-2">Hozzárendelés</h5>
-                    <br>
-                    <div class="row g-3">
-                        <div class="col-md-6 mb-3">
-                            <label for="viewStatusName" class="form-label fw-bold">Státusz</label>
-                            <p class="form-control-plaintext" id="viewStatusName"></p>
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <label for="viewPartnerName" class="form-label fw-bold">Partner</label>
-                            <p class="form-control-plaintext" id="viewPartnerName"></p>
-                        </div>
-                    </div>
-                    <hr class="my-4">
-                    <h5 class="mb-2">További beállítások</h5>
-                    <br>
-                    <div class="row g-3">
-                        <div class="col-12 mb-3">
-                            <label for="viewIsPrimary" class="form-label fw-bold">Elsődleges kontakt</label>
-                            <p class="form-control-plaintext" id="viewIsPrimary"></p>
-                        </div>
-                    </div>
-                    <hr class="my-4">
-                    <h5 class="mb-2">Jegyzetek</h5>
-                    <br>
-                    <div class="row g-3">
-                        <div class="col-md-12 mb-3">
-                            <label for="viewComment" class="form-label fw-bold">Megjegyzés</label>
-                            <p class="form-control-plaintext" id="viewComment" style="white-space: pre-wrap;"></p>
-                        </div>
-                        <div class="col-md-12 mb-3">
-                            <label for="viewComment2" class="form-label fw-bold">További megjegyzés</label>
-                            <p class="form-control-plaintext" id="viewComment2" style="white-space: pre-wrap;"></p>
-                        </div>
-                    </div>
-                    <hr class="my-4">
-                    <h5 class="mb-2">Időbélyegek</h5>
-                    <br>
-                    <div class="row g-3">
-                        <div class="col-md-6 mb-3">
-                            <label for="viewCreatedDate" class="form-label fw-bold">Létrehozva</label>
-                            <p class="form-control-plaintext" id="viewCreatedDate"></p>
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <label for="viewUpdatedDate" class="form-label fw-bold">Frissítve</label>
-                            <p class="form-control-plaintext" id="viewUpdatedDate"></p>
-                        </div>
-                    </div>
-                </div>
+            <div id="viewContactContent"></div>
             </div>
+
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Bezárás</button>
                 <a href="@Url.Page("./Details", new { id = "PLACEHOLDER_CONTACT_ID" })" class="btn btn-info" target="_blank" id="viewDetailsLink">

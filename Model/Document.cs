@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using System.Collections.Generic;
 
@@ -13,7 +14,10 @@ namespace Cloud9_2.Models
         public DateTime? UploadDate { get; set; }
         public string UploadedBy { get; set; }
         public int? SiteId { get; set; }
+        public Site? Site { get; set; }    
         public int? PartnerId { get; set; }
+        [ForeignKey("PartnerId")]
+        public Partner? Partner { get; set; }
         public DocumentType DocumentType { get; set; }
         public DocumentStatusEnum Status { get; set; }
         public ICollection<DocumentMetadata> DocumentMetadata { get; set; }

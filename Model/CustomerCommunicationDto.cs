@@ -32,7 +32,7 @@ public int CustomerCommunicationId { get; set; }
         public int? SiteId { get; set; }
         public string? SiteName { get; set; }
         public List<CommunicationPostDto> Posts { get; set; }
-        public CommunicationResponsibleDto CurrentResponsible { get; set; }
+        public CommunicationResponsibleDto? CurrentResponsible { get; set; }
         public List<CommunicationResponsibleDto> ResponsibleHistory { get; set; }
     }
 

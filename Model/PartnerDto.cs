@@ -64,8 +64,10 @@ namespace Cloud9_2.Models
         [Display(Name = "Státusz")]
         public int? StatusId { get; set; } // Foreign key, nullable to match original string?
 
-        [ForeignKey("StatusId")]
-        public Status? Status { get; set; } // Navigation property
+        // [ForeignKey("StatusId")]
+        // public Status? Status { get; set; } // Navigation property
+
+        public StatusDto? Status { get; set; }
 
         public DateTime? LastContacted { get; set; }
 

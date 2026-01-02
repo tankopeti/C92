@@ -1,5 +1,6 @@
-    using System.ComponentModel.DataAnnotations;
-    using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
+using System.Collections.Generic;
 
     namespace Cloud9_2.Models
     {
@@ -46,8 +47,10 @@
             // Foreign key to Partner
             [Required(ErrorMessage = "Partner azonosító kötelező")]
             [Display(Name = "Partner")]
-            public int? PartnerId { get; set; }
-            public Partner? Partner { get; set; }
+            public int PartnerId { get; set; }
+            
+            [ForeignKey("PartnerId")]
+            public Partner Partner { get; set; }
 
             // Navigation properties
             public ICollection<Quote>? Quotes { get; set; } = new List<Quote>();
@@ -97,10 +100,9 @@
 
             [Display(Name = "Státusz")]
             public int? StatusId { get; set; }
-            [Display(Name = "Partner")]
-            public int? PartnerId { get; set; }
-            public Partner? Partner { get; set; }
-            public Status? Status { get; set; }
+            
+            public int PartnerId { get; set; }
+
 
             public bool IsActive { get; set; } = true;
         }

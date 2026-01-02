@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace Cloud9_2.Models
 {
@@ -21,6 +22,8 @@ namespace Cloud9_2.Models
         public int? StatusId { get; set; }
         public Status? Status { get; set; }
         public int? PartnerId { get; set; }
+
+        [ForeignKey(nameof(PartnerId))]
         public Partner Partner { get; set; } = null!;
         public DateTime CreatedDate { get; set; }
         public DateTime? UpdatedDate { get; set; }
@@ -46,7 +49,8 @@ namespace Cloud9_2.Models
         public int? StatusId { get; set; }
         public Status? Status { get; set; }
         public int? PartnerId { get; set; }
-        public Partner? Partner { get; set; }
+        
+        public string? PartnerName { get; set; }
         public DateTime CreatedDate { get; set; }
         public DateTime? UpdatedDate { get; set; }
         public bool IsActive { get; set; }

@@ -753,6 +753,7 @@ left: var(--sidebar-width);
 [data-theme="dark"] .dropdown-menu {
     background-color: #2a2a2a;
     border: 1px solid #444;
+        z-index: 1055;
 }
 
 [data-theme="dark"] .dropdown-item {
@@ -1061,9 +1062,27 @@ left: var(--sidebar-width);
     }
 }
 
-.table-dynamic-height { min-height: 400px; overflow-y: auto; transition: max-height 0.35s ease; }
-.table-dynamic-height[data-page-size="10"],
-.table-dynamic-height[data-page-size="20"]  { max-height: 60vh; }
-.table-dynamic-height[data-page-size="25"],
-.table-dynamic-height[data-page-size="50"]  { max-height: 75vh; }
-.table-dynamic-height[data-page-size="100"] { max-height: 85vh; }
+.table-dynamic-height {
+    height: calc(100vh - 260px); /* header + breadcrumb + filter */
+    overflow-y: auto;
+}
+
+
+.dropdown-menu {
+    z-index: 1055;
+}
+
+/* TomSelect dropdown mindig a modal fölé kerüljön */
+.ts-dropdown {
+  z-index: 2000 !important;
+}
+
+/* ha valami overlay ráül a modal-body-ra, ettől a TomSelect control kattintható marad */
+.ts-wrapper, .ts-control {
+  position: relative;
+  z-index: 1;
+}
+
+table thead.sticky-top {
+  z-index: 1; /* Bootstrap sticky általában magasabb – ezt levesszük */
+}

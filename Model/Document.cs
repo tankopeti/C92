@@ -3,10 +3,12 @@ using System.ComponentModel.DataAnnotations.Schema;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using System.Collections.Generic;
 
+
 namespace Cloud9_2.Models
 {
     public class Document
     {
+        [Key]
         public int DocumentId { get; set; }
         public string FileName { get; set; }
         public string FilePath { get; set; }
@@ -19,18 +21,19 @@ namespace Cloud9_2.Models
         [ForeignKey("PartnerId")]
         public Partner? Partner { get; set; }
         public DocumentType DocumentType { get; set; }
+        public bool? isActive { get; set; }
         public DocumentStatusEnum Status { get; set; }
-        public ICollection<DocumentMetadata> DocumentMetadata { get; set; }
+        public ICollection<DocumentMetadata> DocumentMetadata { get; set; } = new List<DocumentMetadata>();
         public ICollection<DocumentLink> DocumentLinks { get; set; }
         public ICollection<DocumentStatusHistory> StatusHistory { get; set; }
-public virtual ICollection<TaskDocumentLink> TaskDocuments { get; set; } = new List<TaskDocumentLink>();        
+        public virtual ICollection<TaskDocumentLink> TaskDocuments { get; set; } = new List<TaskDocumentLink>();        
         // public int? EmployeeId { get; set; }
         // public Employee Employee { get; set; }
     }
 
     public class DocumentDto
     {
-         [Key]
+        [Key]
         public int DocumentId { get; set; }
         public string? FileName { get; set; }
         public string? FilePath { get; set; }
@@ -46,6 +49,9 @@ public virtual ICollection<TaskDocumentLink> TaskDocuments { get; set; } = new L
         public List<DocumentLinkDto>? DocumentLinks { get; set; }
         public List<DocumentStatusHistoryDto>? StatusHistory { get; set; } = new List<DocumentStatusHistoryDto>();
         public static IDictionary<string, string> StatusDisplayNames { get; } = GetStatusDisplayNames();
+
+        public List<MetadataEntry> CustomMetadata { get; set; } = new();
+        public bool? isActive { get; set; }
 
         private static IDictionary<string, string> GetStatusDisplayNames()
         {
@@ -85,7 +91,8 @@ public virtual ICollection<TaskDocumentLink> TaskDocuments { get; set; } = new L
 
     public class MetadataEntry
     {
-        public string? Key { get; set; }
+        [Key]
+        public string Key { get; set; } = "";
         public string? Value { get; set; }
     }
 
@@ -101,7 +108,8 @@ public virtual ICollection<TaskDocumentLink> TaskDocuments { get; set; } = new L
         public int? PartnerId { get; set; }
         [Required]
         public DocumentStatusEnum Status { get; set; }
-        public List<MetadataEntry>? CustomMetadata { get; set; } = new List<MetadataEntry>();
+        public List<MetadataEntry>? CustomMetadata { get; set; } = new();
+
     }
 
     public class DocumentModalViewModel
@@ -112,6 +120,21 @@ public virtual ICollection<TaskDocumentLink> TaskDocuments { get; set; } = new L
         public List<SelectListItem>? Partners { get; set; }
         public List<SelectListItem>? Sites { get; set; }
         public string? NextDocumentNumber { get; set; }
+        
     }
+
+    public class DocumentListItemDto
+{
+    public int DocumentId { get; set; }
+    public string? FileName { get; set; }
+    public string? DocumentTypeName { get; set; }
+    public DateTime? UploadDate { get; set; }
+    public string? UploadedBy { get; set; }
+    public string? PartnerName { get; set; }
+    public int? PartnerId { get; set; }
+    public int? SiteId { get; set; }
+    public DocumentStatusEnum Status { get; set; }
+}
+
     
 }

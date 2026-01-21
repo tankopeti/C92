@@ -46,6 +46,10 @@ namespace Cloud9_2.Models
 
         [Display(Name = "Kommunikáció módja")]
         public string? CommunicationDescription { get; set; }
+        public short? TaskPMcomMethodID { get; set; }
+
+        [ForeignKey(nameof(TaskPMcomMethodID))]
+        public TaskPMcomMethod? TaskPMcomMethod { get; set; }
 
         [Display(Name = "Created Date")]
         public DateTime? CreatedDate { get; set; }
@@ -95,6 +99,9 @@ namespace Cloud9_2.Models
     public class TaskPMDto
     {
         public int Id { get; set; }
+        public short? TaskPMcomMethodID { get; set; }
+public string? TaskPMcomMethodName { get; set; }
+
         public string Title { get; set; } = string.Empty;
         public string? Description { get; set; }
         public bool IsActive { get; set; }
@@ -134,6 +141,7 @@ namespace Cloud9_2.Models
         public string? CustomerCommunicationSubject { get; set; }
         public int? CommunicationTypeId { get; set; }
         public string? CommunicationTypeName { get; set; }
+        [Display(Name = "Kommunikáció leírás")]
         public string? CommunicationDescription { get; set; }
         public List<int> ResourceIds { get; set; } = new List<int>();
         public List<int> EmployeeIds { get; set; } = new List<int>();
@@ -152,6 +160,8 @@ namespace Cloud9_2.Models
 
         public string? Description { get; set; }
         public string? CommunicationDescription { get; set; }
+        public short? TaskPMcomMethodID { get; set; }
+
 
         public bool IsActive { get; set; } = true;
 
@@ -189,6 +199,8 @@ namespace Cloud9_2.Models
 
         public List<int> ResourceIds { get; set; } = new List<int>();
 
+        public List<int>? AttachedDocumentIds { get; set; } = new List<int>();
+
         public List<int> EmployeeIds { get; set; } = new List<int>();
     }
 
@@ -203,6 +215,8 @@ namespace Cloud9_2.Models
 
         public string? Description { get; set; }
         public string? CommunicationDescription { get; set; }
+        public short? TaskPMcomMethodID { get; set; }
+
 
         public bool IsActive { get; set; }
 
@@ -240,6 +254,7 @@ namespace Cloud9_2.Models
         public int? CommunicationTypeId { get; set; }
 
         public List<int>? ResourceIds { get; set; }
+        public List<int>? AttachedDocumentIds { get; set; }
 
         public List<int>? EmployeeIds { get; set; }
     }

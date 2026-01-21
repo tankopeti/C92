@@ -67,7 +67,13 @@
             </div>
         </div>
 
-        <div class="table-responsive table-dynamic-height" data-page-size="@Model.PageSize">
+        <div class="table-responsive table-dynamic-height"
+     id="tasksTableWrap"
+     data-page-size="20"
+     data-sort="@Request.Query["sort"]"
+     data-order="@Request.Query["order"]"
+     data-search="@Model.SearchTerm">
+
             <table class="table table-striped table-hover">
                 <thead class="sticky-top custom-thead">
                     <tr>
@@ -86,89 +92,26 @@
                     </tr>
                 </thead>
 
-                <tbody>
-                    @if (filteredTasks.Any())
-                    {
-                        @foreach (var t in filteredTasks)
-                        {
-                            <tr data-task-id="@t.Id">
-                                <td class="text-nowrap" onclick="Tasks.openViewModal(@t.Id)">@t.Id</td>
-                                <td class="text-nowrap" onclick="Tasks.openViewModal(@t.Id)">@t.SiteName</td>
-                                <td class="text-nowrap" onclick="Tasks.openViewModal(@t.Id)">@t.City</td>
-                                <td class="text-nowrap" onclick="Tasks.openViewModal(@t.Id)">@t.PartnerName</td>
-                                <td class="text-nowrap" onclick="Tasks.openViewModal(@t.Id)">@t.Title</td>
+<tbody id="tasksTbody">
+    <!-- Load-more JS tölti -->
+</tbody>
 
-                                <!-- PRIORITÁS – külön class, külön data-attribútum -->
-                                <td class="text-center">
-                                    <span class="badge text-white clickable-priority-badge"
-                                        style="background-color:@(t.PriorityColorCode ?? "#6c757d"); cursor: pointer;"
-                                        data-priority-id="@t.TaskPriorityPMId"
-                                        title="Kattints a prioritás módosításához">
-                                        @t.TaskPriorityPMName
-                                    </span>
-                                </td>
-
-                                <td class="text-nowrap" onclick="Tasks.openViewModal(@t.Id)">@t.DueDate</td>
-
-                                <!-- STÁTUSZ – külön class, külön data-attribútum -->
-                                <td class="text-center">
-                                    <span class="badge text-white clickable-status-badge"
-                                          style="background-color:@(string.IsNullOrWhiteSpace(t.ColorCode) ? "#6c757d" : t.ColorCode); cursor: pointer;"
-                                          data-status-id="@t.TaskStatusPMId"
-                                          title="Kattints a státusz módosításához">
-                                        @t.TaskStatusPMName
-                                    </span>
-                                </td>
-
-                                <td class="text-nowrap" onclick="Tasks.openViewModal(@t.Id)">@(t.CreatedDate?.ToString("yyyy. MM. dd. HH:mm") ?? "–")</td>
-                                <td class="text-nowrap" onclick="Tasks.openViewModal(@t.Id)">@(t.UpdatedDate?.ToString("yyyy. MM. dd. HH:mm") ?? "–")</td>
-                                <td class="text-nowrap" onclick="Tasks.openViewModal(@t.Id)">@t.AssignedToName</td>
-
-                                <td>
-                                    <div class="btn-group btn-group-sm" role="group">
-                                        <button type="button" class="btn btn-outline-info" onclick="Tasks.openViewModal(@t.Id)">
-                                            <i class="bi bi-eye"></i>
-                                        </button>
-                                        <div class="dropdown">
-                                            <button class="btn btn-outline-secondary dropdown-toggle btn-sm" type="button" data-bs-toggle="dropdown">
-                                                <i class="bi bi-three-dots-vertical"></i>
-                                            </button>
-                                            <ul class="dropdown-menu dropdown-menu-end">
-                                                <li><a class="dropdown-item" onclick="Tasks.openEditModal(@t.Id)">Szerkesztés</a></li>
-                                                <li><a class="dropdown-item btn-show-history" data-task-id="@t.Id">Előzmények</a></li>
-                                                <li><hr class="dropdown-divider"></li>
-                                                <li><a class="dropdown-item text-danger" onclick="Tasks.openDeleteModal(@t.Id)">Törlés</a></li>
-                                            </ul>
-                                        </div>
-                                    </div>
-                                </td>
-                            </tr>
-                        }
-                    }
-                    else
-                    {
-                        <tr>
-                            <td colspan="12" class="text-center py-5">
-                                <div class="alert alert-info">
-                                    Nincs megjeleníthető intézkedés.
-                                </div>
-                            </td>
-                        </tr>
-                    }
-                </tbody>
             </table>
+            <form id="__af" method="post" style="display:none">
+  @Html.AntiForgeryToken()
+</form>
+
         </div>
 
         <!-- Pagination -->
-        @await Html.PartialAsync("~/Pages/Shared/_PaginationFooter.cshtml", new PaginationViewModel
-        {
-            CurrentPage = Model.CurrentPage,
-            TotalPages = Model.TotalPages,
-            PageSize = Model.PageSize,
-            SearchTerm = Model.SearchTerm,
-            PageRoute = "./Index",
-            EntityName = "Feladatok"
-        })
+<div class="d-flex justify-content-center my-3">
+    <button id="btnLoadMoreTasks" class="btn btn-outline-primary">
+        Több betöltése
+    </button>
+</div>
+
+<div id="tasksLoadInfo" class="text-center text-muted small mb-3"></div>
+
 
     <div id="toastContainer" class="position-fixed bottom-0 end-0 p-3" style="z-index: 1100;"></div>
 </div>
@@ -216,7 +159,21 @@
 @await Html.PartialAsync("_TaskModals")
 
 @section Scripts {
-    <script src="~/js/Task/tasks.js"></script>
     <script src="~/js/Task/fileattach.js"></script>
-    <script src="~/js/Task/tasks_nyugalom.js" defer></script>
+
+    <!-- TomSelect + create modal site kereső + task type fill + filter site tomselect -->
+    <script src="~/js/Task/tasks_nyugalom_tomselect.js"></script>
+
+    <!-- status / priority quick change + history (TomSelect nélkül) -->
+    <script src="~/js/Task/tasks_nyugalom.js"></script>
+
+    <!-- list -->
+    <script src="~/js/Task/taskBejelentesLoadMore.js"></script>
+
+    <!-- create / view / delete -->
+    <script src="~/js/Task/taskBejelentesCreate.js"></script>
+    <script src="/js/Task/taskBejelentesEdit.js"></script>
+    <script src="~/js/Task/taskBejelentesViewModal.js"></script>
+    <script src="/js/Task/taskDelete.js"></script>
+
 }

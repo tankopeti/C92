@@ -1,367 +1,125 @@
 @page
 @using Cloud9_2.Models
-@using Cloud9_2.Data
-@using Cloud9_2.Services
 @model Cloud9_2.Pages.DocManagement.Doc.IndexModel
 @using System.Globalization
-@using Microsoft.AspNetCore.Antiforgery
-@using Microsoft.AspNetCore.Mvc.Rendering
-@{
-    ViewData["Title"] = "Dokumentumok";
-    Layout = "_Layout";
-}
-@section Styles {
-    <link rel="stylesheet" href="~/css/Quotes.css" />
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-}
 
-@functions {
-    public string GetAntiForgeryToken()
-    {
-        var antiForgery = PageContext.HttpContext.RequestServices.GetService<IAntiforgery>();
-        var tokenSet = antiForgery?.GetAndStoreTokens(PageContext.HttpContext);
-        return tokenSet?.RequestToken ?? string.Empty;
-    }
+@{
+    Layout = "_Layout";
+    ViewData["Title"] = "Dokumentumok";
 }
 
 @await Html.PartialAsync("_DocManSidebar")
 
 <div class="right-content">
     <div class="page-header-fixed-top">
+
+        <!-- Breadcrumb -->
         <div class="d-flex justify-content-between align-items-center mb-2">
             <nav aria-label="breadcrumb">
                 <ol class="breadcrumb bg-body-tertiary rounded-3 p-2 mb-0">
                     <li class="breadcrumb-item"><a href="../../">Főoldal</a></li>
                     <li class="breadcrumb-item"><a href="../">CRM Dashboard</a></li>
-                    <li class="breadcrumb-item active" aria-current="page">Dokumentumok</li>
-                    <li class="breadcrumb-item active" aria-current="page">@Model.Documents.Count of @Model.TotalRecords dokumentum@(Model.TotalRecords != 1 ? "ok" : "") (Page @Model.CurrentPage of @Model.TotalPages)</li>
+                    <li class="breadcrumb-item active">Dokumentumok</li>
                 </ol>
             </nav>
         </div>
+
+        <!-- Header actions -->
         <div class="d-flex justify-content-between align-items-center mb-3">
             <div class="d-flex align-items-center gap-2">
-                <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#createDocumentModal" aria-label="Új dokumentum létrehozása">
+                <button class="btn btn-outline-primary"
+                        data-bs-toggle="modal"
+                        data-bs-target="#createDocumentModal">
                     + Új Dokumentum
                 </button>
+                <button class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#docFilterModal">
+                <i class="bi bi-funnel me-2"></i>Szűrő
+                </button>
+
             </div>
+
             <div class="d-flex align-items-center gap-2">
-                <form method="get" asp-page="./Index" class="input-group input-group-sm" style="width: 250px;">
-                    <input type="text" class="form-control" placeholder="Keresés..." id="searchInput" name="SearchTerm" value="@Model.SearchTerm" autocomplete="off" aria-label="Keresés dokumentumok között">
-                    <input type="hidden" name="pageSize" value="@Model.PageSize" />
-                    <button class="btn btn-outline-secondary" type="submit" aria-label="Keresés indítása">
+                <form method="get" asp-page="./Index"
+                      class="input-group input-group-sm"
+                      style="width: 250px;">
+                    <input type="text"
+                           class="form-control"
+                           placeholder="Dokumentumok keresése..."
+                           name="SearchTerm"
+                           value="@Model.SearchTerm">
+                    <input type="hidden" name="PageSize" value="@Model.PageSize" />
+                    <button class="btn btn-outline-secondary" type="submit">
                         <i class="bi bi-search"></i>
                     </button>
                 </form>
+
                 <div class="dropdown">
-                    <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Rendezési és szűrési opciók">
-                        <i class="bi bi-funnel me-1"></i>Rendezés/Szűrés
+                    <button class="btn btn-outline-secondary btn-sm dropdown-toggle"
+                            type="button"
+                            data-bs-toggle="dropdown">
+                        <i class="bi bi-funnel me-1"></i>Rendezés / Szűrés
                     </button>
                     <ul class="dropdown-menu dropdown-menu-end">
-                        <li><a class="dropdown-item" href="?SearchTerm=@Model.SearchTerm&PageSize=@Model.PageSize&StatusFilter=all&SortBy=uploaddate">Összes dokumentum (Legújabb elöl)</a></li>
-                        <li><a class="dropdown-item" href="?SearchTerm=@Model.SearchTerm&PageSize=@Model.PageSize&StatusFilter=Beérkezett">Beérkezett</a></li>
-                        <li><a class="dropdown-item" href="?SearchTerm=@Model.SearchTerm&PageSize=@Model.PageSize&StatusFilter=Függőben">Függőben</a></li>
-                        <li><a class="dropdown-item" href="?SearchTerm=@Model.SearchTerm&PageSize=@Model.PageSize&StatusFilter=Elfogadott">Elfogadott</a></li>
-                        <li><a class="dropdown-item" href="?SearchTerm=@Model.SearchTerm&PageSize=@Model.PageSize&StatusFilter=Lezárt">Lezárt</a></li>
-                        <li><a class="dropdown-item" href="?SearchTerm=@Model.SearchTerm&PageSize=@Model.PageSize&StatusFilter=Jóváhagyandó">Jóváhagyandó</a></li>
-                        <li><a class="dropdown-item" href="?SearchTerm=@Model.SearchTerm&PageSize=@Model.PageSize&StatusFilter=all&SortBy=documentid">Rendezés: Dokumentum ID</a></li>
-                        <li><a class="dropdown-item" href="?SearchTerm=@Model.SearchTerm&PageSize=@Model.PageSize&StatusFilter=all&SortBy=filename">Rendezés: Fájlnév</a></li>
+                        <li><a class="dropdown-item" href="?SortBy=uploaddate">Legújabb elöl</a></li>
+                        <li><a class="dropdown-item" href="?SortBy=documentid">Dokumentum ID</a></li>
+                        <li><a class="dropdown-item" href="?SortBy=filename">Fájlnév</a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item" href="?StatusFilter=Beérkezett">Beérkezett</a></li>
+                        <li><a class="dropdown-item" href="?StatusFilter=Függőben">Függőben</a></li>
+                        <li><a class="dropdown-item" href="?StatusFilter=Elfogadott">Elfogadott</a></li>
+                        <li><a class="dropdown-item" href="?StatusFilter=Lezárt">Lezárt</a></li>
+                        <li><a class="dropdown-item" href="?StatusFilter=Jóváhagyandó">Jóváhagyandó</a></li>
                     </ul>
                 </div>
             </div>
         </div>
 
-<div class="table-responsive table-dynamic-height" data-page-size="@Model.PageSize">
-    <table class="table table-striped table-hover">
+        <!-- TABLE -->
+        <div class="table-dynamic-height" data-page-size="@Model.PageSize">
+            <table class="table table-striped table-hover mb-0">
                 <thead class="sticky-top custom-thead">
                     <tr>
-                        @foreach (var column in new[] { "DocumentId", "FileName", "PartnerName", "UploadDate", "Status" })
-                        {
-                            <th class="text-nowrap">@(column == "DocumentId" ? "Dokumentum ID" : column == "FileName" ? "Fájlnév" : column == "PartnerName" ? "Partner" : column == "UploadDate" ? "Dátum" : "Státusz")</th>
-                        }
-                        <th class="text-nowrap">Műveletek</th>
+                        <th>Dokumentum ID</th>
+                        <th>Fájlnév</th>
+                        <th>Partner</th>
+                        <th>Dátum</th>
+                        <th>Státusz</th>
+                        <th class="text-center">Műveletek</th>
                     </tr>
                 </thead>
-                <tbody>
-                    @if (Model.Documents != null && Model.Documents.Any())
-                    {
-                        @foreach (var doc in Model.Documents)
-                        {
-                            <tr>
-                                @foreach (var column in new[] { "DocumentId", "FileName", "PartnerName", "UploadDate", "Status" })
-                                {
-                                    <td class="text-nowrap">
-                                        @switch (column)
-                                        {
-                                            case "DocumentId":
-                                                <i class="bi bi-file-earmark-text me-1"></i> @doc.DocumentId
-                                                break;
-                                            case "FileName":
-                                                <i class="bi bi-file-earmark me-1"></i>
-                                                <a href="/file/@doc.DocumentId" target="_blank" aria-label="Dokumentum megnyitása: @doc.FileName">
-                                                    @(doc.FileName != null && doc.FileName.Length > 40 ? doc.FileName.Substring(0, 40) + "..." : doc.FileName ?? "N/A")
-                                                </a>
-                                                break;
-                                            case "PartnerName":
-                                                <i class="bi bi-person me-1"></i> @(doc.PartnerName ?? "N/A")
-                                                break;
-                                            case "UploadDate":
-                                                <i class="bi bi-calendar me-1"></i> @(doc.UploadDate?.ToString("d MMMM yyyy", CultureInfo.CreateSpecificCulture("hu-HU")) ?? "N/A")
-                                                break;
-                                            case "Status":
-                                                <i class="bi bi-info-circle me-1"></i>
-                                                <span class="badge" style="background-color: @(Model.StatusDisplayNames.ContainsKey(doc.Status.ToString()) ? "#6c757d" : "#6c757d"); color: white">
-                                                    @(Model.StatusDisplayNames.ContainsKey(doc.Status.ToString()) ? Model.StatusDisplayNames[doc.Status.ToString()] : "N/A")
-                                                </span>
-                                                break;
-                                            default:
-                                                @:N/A
-                                                break;
-                                        }
-                                    </td>
-                                }
-                                <td>
-                                    <div class="btn-group btn-group-sm" role="group">
-                                        <button type="button"
-                                                class="btn btn-outline-info view-document-btn"
-                                                data-bs-toggle="modal"
-                                                data-bs-target="#viewDocumentModal_@doc.DocumentId"
-                                                aria-label="Dokumentum részleteinek megtekintése">
-                                            <i class="bi bi-eye"></i>
-                                        </button>
-                                        <div class="dropdown">
-                                            <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button"
-                                                    data-bs-toggle="dropdown" aria-expanded="false"
-                                                    aria-label="További műveletek">
-                                                <i class="bi bi-three-dots-vertical"></i>
-                                            </button>
-                                            <ul class="dropdown-menu dropdown-menu-end">
-                                                <li>
-                                                    <a class="dropdown-item change-status-btn" href="#"
-                                                       data-bs-toggle="modal"
-                                                       data-bs-target="#changeStatusModal_@doc.DocumentId"
-                                                       data-document-id="@doc.DocumentId">
-                                                        <i class="bi bi-toggle-on me-2"></i>Státusz módosítás
-                                                    </a>
-                                                </li>
-                                                <li>
-                                                    <form asp-page="./Index" asp-page-handler="Delete" method="post" onsubmit="return confirm('Biztosan törli a dokumentumot?');">
-                                                        <input type="hidden" name="documentId" value="@doc.DocumentId" />
-                                                        <input type="hidden" name="returnUrl" value="@Request.Path@Request.QueryString" />
-                                                        @Html.AntiForgeryToken()
-                                                        <button type="submit" class="dropdown-item text-danger">
-                                                            <i class="bi bi-trash me-2"></i>Törlés
-                                                        </button>
-                                                    </form>
-                                                </li>
-                                            </ul>
-                                        </div>
-                                    </div>
-                                </td>
-                            </tr>
-                        }
-                    }
-                    else
-                    {
-                        <tr>
-                            <td colspan="6" class="text-center">
-                                <div class="alert alert-warning" role="alert">
-                                    @if (!string.IsNullOrEmpty(Model.SearchTerm))
-                                    {
-                                        @:Nem található dokumentum a "@Model.SearchTerm" keresési kifejezésre.
-                                    }
-                                    else
-                                    {
-                                        @:Nem található dokumentum. <button type="button" class="btn btn-link alert-link p-0 align-baseline" data-bs-toggle="modal" data-bs-target="#createDocumentModal">Hozzon létre egyet?</button>
-                                    }
-                                </div>
-                            </td>
-                        </tr>
-                    }
+
+                <!-- JS IDE TÖLT -->
+                <tbody id="documentsTableBody">
+                    <tr>
+                        <td colspan="6" class="text-center py-5 text-muted">
+                            Betöltés...
+                        </td>
+                    </tr>
                 </tbody>
             </table>
         </div>
+
+        <!-- LOAD MORE -->
+        <div id="loadMoreDocsContainer" class="text-center py-2">
+            <button id="loadMoreDocsBtn" class="btn btn-outline-primary btn-sm">
+                Több betöltése
+            </button>
+        </div>
+
     </div>
 
-    @await Html.PartialAsync("_PaginationFooter", new PaginationViewModel
-    {
-        CurrentPage = Model.CurrentPage,
-        TotalPages = Model.TotalPages,
-        PageSize = Model.PageSize,
-        SearchTerm = Model.SearchTerm,
-        PageRoute = "./Index",
-        EntityName = "Documents"
-    })
+    <!-- CREATE / VIEW / EDIT modals -->
+    @await Html.PartialAsync("_Modals")
 
-    <!-- Render Creation and View Modals -->
-    @await Html.PartialAsync("_Modals", ViewData["ModalViewModel"])
-    @foreach (var doc in Model.Documents ?? new List<DocumentDto>())
-    {
-        @await Html.PartialAsync("_Modals", new DocumentModalViewModel { Document = doc })
-    }
 
-    <form id="antiForgeryForm">
-        @Html.AntiForgeryToken()
-    </form>
-    <div id="toastContainer" class="position-fixed bottom-0 end-0 p-3" style="z-index: 1055;"></div>
-</div>
-
-<script src="https://code.jquery.com/jquery-3.6.0.min.js" integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4=" crossorigin="anonymous"></script>
-<link href="https://cdn.jsdelivr.net/npm/tom-select@2.4.3/dist/css/tom-select.bootstrap5.css" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/tom-select@2.4.3/dist/js/tom-select.complete.min.js"></script>
 
 @section Scripts {
-    <partial name="_ValidationScriptsPartial" />
-    <script src="/js/utils.js"></script>
-    <script src="/js/tomSelectUtils.js"></script>
-    <script>
-        $(document).ready(function () {
-            // Fallback showToast function
-            window.showToast = window.showToast || function (type, message) {
-                console.log(`Toast [${type}]: ${message}`);
-                const toastContainer = document.getElementById('toastContainer');
-                if (toastContainer) {
-                    const toast = document.createElement('div');
-                    toast.className = `toast align-items-center text-bg-${type === 'success' ? 'success' : 'danger'} border-0`;
-                    toast.setAttribute('role', 'alert');
-                    toast.setAttribute('aria-live', 'assertive');
-                    toast.setAttribute('aria-atomic', 'true');
-                    toast.innerHTML = `
-                        <div class="d-flex">
-                            <div class="toast-body">${message}</div>
-                            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
-                        </div>
-                    `;
-                    toastContainer.appendChild(toast);
-                    const bsToast = new bootstrap.Toast(toast);
-                    bsToast.show();
-                }
-            };
-
-            // Initialize TomSelect for DocumentType
-            const docTypeSelect = document.querySelector('#docDocumentTypeId');
-            if (docTypeSelect) {
-                new TomSelect('#docDocumentTypeId', {
-                    maxOptions: 50,
-                    placeholder: 'Válasszon típust'
-                });
-            }
-
-            // Initialize TomSelect for Partner
-            const partnerSelect = document.querySelector('#docPartnerId');
-            if (partnerSelect) {
-                new TomSelect('#docPartnerId', {
-                    maxOptions: 50,
-                    placeholder: 'Válasszon partnert'
-                });
-            }
-
-            // Initialize TomSelect for Site
-            const siteSelect = document.querySelector('#docSiteId');
-            if (siteSelect) {
-                new TomSelect('#docSiteId', {
-                    maxOptions: 50,
-                    placeholder: 'Válasszon telephelyet'
-                }).disable();
-            }
-
-            // Initialize TomSelect for Status
-            const statusSelect = document.querySelector('#Status');
-            if (statusSelect) {
-                new TomSelect('#Status', {
-                    maxOptions: 50,
-                    placeholder: 'Válasszon státuszt'
-                });
-            }
-
-            // Handle Partner change to populate Site dropdown
-            if (partnerSelect && siteSelect) {
-                partnerSelect.addEventListener('change', async function () {
-                    const partnerId = this.value;
-                    console.log('Partner changed, partnerId:', partnerId);
-                    if (siteSelect.tomselect) {
-                        siteSelect.tomselect.destroy();
-                    }
-
-                    if (partnerId) {
-                        try {
-                            const searchUrl = `/api/sites/by-partner/${partnerId}?search=`;
-                            const headers = {
-                                'Content-Type': 'application/json',
-                                'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]')?.value
-                            };
-                            const response = await fetch(searchUrl, { headers, credentials: 'include' });
-                            if (!response.ok) {
-                                console.error('Fetch sites failed:', response.status);
-                                window.showToast('error', 'Telephelyek betöltése sikertelen');
-                                return;
-                            }
-                            const sites = await response.json();
-                            const options = sites.map(item => ({
-                                value: item.id,
-                                text: item.text || `Site ${item.id}`
-                            }));
-                            const tomSelect = new TomSelect('#docSiteId', {
-                                maxOptions: 50,
-                                placeholder: 'Válasszon telephelyet',
-                                options: options.length ? options : [{ value: null, text: 'Nincs találat' }]
-                            });
-                            tomSelect.enable();
-                            siteSelect.disabled = false;
-                        } catch (error) {
-                            console.error('Error fetching sites:', error);
-                            window.showToast('error', 'Hiba a telephelyek betöltése közben: ' + error.message);
-                            const tomSelect = new TomSelect('#docSiteId', {
-                                maxOptions: 50,
-                                placeholder: 'Válasszon telephelyet',
-                                options: [{ value: null, text: 'Hiba a betöltés során' }]
-                            });
-                            tomSelect.disable();
-                            siteSelect.disabled = true;
-                        }
-                    } else {
-                        const tomSelect = new TomSelect('#docSiteId', {
-                            maxOptions: 50,
-                            placeholder: 'Válasszon telephelyet',
-                            options: [{ value: null, text: 'Válasszon partnert előbb' }]
-                        });
-                        tomSelect.disable();
-                        siteSelect.disabled = true;
-                    }
-                });
-            }
-
-            // Handle dynamic metadata fields
-            let metadataIndex = 1;
-            $('#add-metadata').click(function () {
-                const newRow = `
-                    <div class="metadata-row mb-2 row">
-                        <div class="col-md-5">
-                            <input type="text" name="CreateDocument.CustomMetadata[${metadataIndex}].Key" class="form-control" placeholder="Kulcs" />
-                        </div>
-                        <div class="col-md-5">
-                            <input type="text" name="CreateDocument.CustomMetadata[${metadataIndex}].Value" class="form-control" placeholder="Érték" />
-                        </div>
-                        <div class="col-md-2">
-                            <button type="button" class="btn btn-danger remove-metadata">Törlés</button>
-                        </div>
-                    </div>`;
-                $('#metadata-container').append(newRow);
-                metadataIndex++;
-            });
-
-            $('#metadata-container').on('click', '.remove-metadata', function () {
-                $(this).closest('.metadata-row').remove();
-            });
-
-            // Show toasts for TempData messages
-            @if (TempData["SuccessMessage"] != null)
-            {
-                @:window.showToast('success', '@TempData["SuccessMessage"]');
-            }
-            @if (TempData["ErrorMessage"] != null)
-            {
-                @:window.showToast('error', '@TempData["ErrorMessage"]');
-            }
-        });
-    </script>
+    <script src="~/js/Doc/documentFilter.js"></script>
+    <script src="/js/Doc/docLoadMore.js"></script>
+    <script src="/js/Doc/viewDocument.js"></script>
+    <script src="/js/Doc/doc-create.js"></script>
+    <script src="/js/Doc/editDocument.js"></script>
+    <script src="/js/Doc/documentHistory.js"></script>
 }
+
+</div>

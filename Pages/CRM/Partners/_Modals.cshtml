@@ -1,315 +1,328 @@
 <!-- Create Partner Modal -->
 <div class="modal fade" id="createPartnerModal" tabindex="-1" aria-labelledby="createPartnerLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
-        <div class="modal-content shadow-lg border-0 overflow-hidden">
-            <div class="modal-header py-2 bg-primary text-white">
-                <h5 class="modal-title fs-5 fw-semibold" id="createPartnerLabel">
-                    <i class="bi bi-person-plus-fill me-2"></i> Új Partner létrehozása
-                </h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Bezárás"></button>
+  <div class="modal-dialog modal-xl modal-dialog-scrollable">
+    <div class="modal-content">
+
+      <div class="modal-header bg-success text-white">
+        <h5 class="modal-title" id="createPartnerLabel">
+          <i class="bi bi-person-plus-fill me-2"></i> Új Partner létrehozása
+        </h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Bezárás"></button>
+      </div>
+
+      <div class="modal-body">
+        <form id="createPartnerForm">
+          <h6 class="mb-3">Alap információk</h6>
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label">Partner neve *</label>
+              <input type="text" class="form-control" name="Name" required maxlength="100">
             </div>
-            <div class="modal-body">
-                <form id="createPartnerForm">
-                    <!-- Alap információk -->
-                    <h6 class="fw-bold mb-3">Alap információk</h6>
-                    <div class="row g-3">
-                        <div class="col-md-6">
-                            <label class="form-label fw-bold">Partner neve *</label>
-                            <input type="text" class="form-control" name="Name" required maxlength="100">
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label fw-bold">Cégnév</label>
-                            <input type="text" class="form-control" name="CompanyName" maxlength="100">
-                        </div>
-                    </div>
-
-                    <!-- Kapcsolat -->
-                    <hr class="my-4">
-                    <h6 class="fw-bold mb-3">Kapcsolatfelvétel</h6>
-                    <div class="row g-3">
-                        <div class="col-md-6">
-                            <label class="form-label fw-bold">E-mail</label>
-                            <input type="email" class="form-control" name="Email">
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label fw-bold">Telefonszám</label>
-                            <input type="text" class="form-control" name="PhoneNumber">
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label fw-bold">Másodlagos telefonszám</label>
-                            <input type="text" class="form-control" name="AlternatePhone">
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label fw-bold">Weboldal</label>
-                            <input type="url" class="form-control" name="Website">
-                        </div>
-                    </div>
-
-                    <!-- Cím -->
-                    <hr class="my-4">
-                    <h6 class="fw-bold mb-3">Cím</h6>
-                    <div class="row g-3">
-                        <div class="col-md-6">
-                            <label class="form-label fw-bold">Utca, házszám</label>
-                            <input type="text" class="form-control" name="AddressLine1">
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label fw-bold">Kiegészítő cím</label>
-                            <input type="text" class="form-control" name="AddressLine2">
-                        </div>
-                        <div class="col-md-4">
-                            <label class="form-label fw-bold">Város</label>
-                            <input type="text" class="form-control" name="City">
-                        </div>
-                        <div class="col-md-4">
-                            <label class="form-label fw-bold">Megye</label>
-                            <input type="text" class="form-control" name="State">
-                        </div>
-                        <div class="col-md-4">
-                            <label class="form-label fw-bold">Irányítószám</label>
-                            <input type="text" class="form-control" name="PostalCode">
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label fw-bold">Ország</label>
-                            <input type="text" class="form-control" name="Country" value="Magyarország">
-                        </div>
-                    </div>
-
-                    <!-- Üzleti adatok -->
-                    <hr class="my-4">
-                    <h6 class="fw-bold mb-3">Üzleti adatok</h6>
-                    <div class="row g-3">
-                        <div class="col-md-6">
-                            <label class="form-label fw-bold">Adószám</label>
-                            <input type="text" class="form-control" name="TaxId">
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label fw-bold">Státusz</label>
-                            <select class="form-select" id="partnerStatus" name="StatusId">
-                                <option value="">Válasszon...</option>
-                            </select>
-                        </div>
-                    </div>
-
-                    <!-- Jegyzetek -->
-                    <hr class="my-4">
-                    <div class="mb-3">
-                        <label class="form-label fw-bold">Jegyzetek</label>
-                        <textarea class="form-control" name="Notes" rows="3"></textarea>
-                    </div>
-                </form>
+            <div class="col-md-6">
+              <label class="form-label">Cégnév</label>
+              <input type="text" class="form-control" name="CompanyName" maxlength="100">
             </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Mégse</button>
-                <button type="button" class="btn btn-primary" id="saveNewPartnerBtn">Mentés</button>
+          </div>
+
+          <hr class="my-4">
+
+          <h6 class="mb-3">Kapcsolatfelvétel</h6>
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label">E-mail</label>
+              <input type="email" class="form-control" name="Email">
             </div>
-        </div>
+            <div class="col-md-6">
+              <label class="form-label">Telefonszám</label>
+              <input type="text" class="form-control" name="PhoneNumber">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Másodlagos telefonszám</label>
+              <input type="text" class="form-control" name="AlternatePhone">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Weboldal</label>
+              <input type="url" class="form-control" name="Website">
+            </div>
+          </div>
+
+          <hr class="my-4">
+
+          <h6 class="mb-3">Cím</h6>
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label">Utca, házszám</label>
+              <input type="text" class="form-control" name="AddressLine1">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Kiegészítő cím</label>
+              <input type="text" class="form-control" name="AddressLine2">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Város</label>
+              <input type="text" class="form-control" name="City">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Megye</label>
+              <input type="text" class="form-control" name="State">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Irányítószám</label>
+              <input type="text" class="form-control" name="PostalCode">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Ország</label>
+              <input type="text" class="form-control" name="Country" value="Magyarország">
+            </div>
+          </div>
+
+          <hr class="my-4">
+
+          <h6 class="mb-3">Üzleti adatok</h6>
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label">Adószám</label>
+              <input type="text" class="form-control" name="TaxId">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Státusz</label>
+              <select class="form-select" id="partnerStatus" name="StatusId">
+                <option value="">Válasszon...</option>
+              </select>
+            </div>
+          </div>
+
+          <hr class="my-4">
+
+          <div>
+            <label class="form-label">Jegyzetek</label>
+            <textarea class="form-control" name="Notes" rows="3"></textarea>
+          </div>
+        </form>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Mégse</button>
+        <button type="button" class="btn btn-primary" id="saveNewPartnerBtn">Mentés</button>
+      </div>
+
     </div>
+  </div>
 </div>
 
 <!-- View Partner Modal -->
-<div class="modal fade" id="viewPartnerModal" tabindex="-1"
-     aria-labelledby="viewPartnerLabel" aria-hidden="true">
+<div class="modal fade" id="viewPartnerModal" tabindex="-1" aria-labelledby="viewPartnerLabel" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-scrollable">
+    <div class="modal-content">
 
-    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
-        <div class="modal-content shadow-lg border-0 overflow-hidden">
+      <div class="modal-header bg-success text-white">
+        <h5 class="modal-title" id="viewPartnerLabel">
+          <i class="bi bi-person-lines-fill me-2"></i> Partner megtekintése
+        </h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Bezárás"></button>
+      </div>
 
-            <!-- HEADER -->
-            <div class="modal-header py-2 bg-info text-white">
-                <h5 class="modal-title fw-semibold" id="viewPartnerLabel">
-                    <i class="bi bi-person-lines-fill me-2"></i> Partner megtekintése
-                </h5>
-                <button type="button" class="btn-close btn-close-white"
-                        data-bs-dismiss="modal" aria-label="Bezárás"></button>
-            </div>
-
-            <!-- BODY -->
-            <div class="modal-body p-0">
-                <div id="viewPartnerContent" class="p-4 text-center">
-                    <div class="spinner-border text-primary" role="status"></div>
-                    <p class="mt-3">Betöltés...</p>
-                </div>
-            </div>
-
-            <!-- FOOTER -->
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary"
-                        data-bs-dismiss="modal">Bezárás</button>
-            </div>
-
+      <div class="modal-body">
+        <div id="viewPartnerContent" class="text-center">
+          <div class="spinner-border" role="status" aria-hidden="true"></div>
+          <p class="mt-3 mb-0">Betöltés...</p>
         </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Bezárás</button>
+      </div>
+
     </div>
+  </div>
 </div>
 
 
 <div class="modal fade" id="editPartnerModal" tabindex="-1" aria-labelledby="editPartnerLabel" aria-hidden="true">
-    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
-        <div class="modal-content shadow-lg border-0 overflow-hidden">
-            <div class="modal-header py-2 bg-primary text-white">
-                <h5 class="modal-title fs-5 fw-semibold" id="editPartnerLabel">
-                    <i class="bi bi-pencil-square me-2"></i> Partner szerkesztése
-                </h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Bezárás"></button>
+  <div class="modal-dialog modal-xl modal-dialog-scrollable">
+    <div class="modal-content">
+
+      <div class="modal-header bg-success text-white">
+        <h5 class="modal-title" id="editPartnerLabel">
+          <i class="bi bi-pencil-square me-2"></i> Partner szerkesztése
+        </h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Bezárás"></button>
+      </div>
+
+      <div class="modal-body">
+        <form id="editPartnerForm">
+          <input type="hidden" id="editPartnerId" name="PartnerId" />
+
+          <h6 class="mb-3">Alap információk</h6>
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label">Partner neve *</label>
+              <input type="text" class="form-control" id="editPartnerName" name="Name" required>
             </div>
-            <div class="modal-body">
-                <form id="editPartnerForm">
-                    <input type="hidden" id="editPartnerId" name="PartnerId" />
-                    <div class="container-fluid">
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label fw-bold">Partner neve *</label>
-                                <input type="text" class="form-control" id="editPartnerName" name="Name" required>
-                            </div>
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label fw-bold">Cégnév</label>
-                                <input type="text" class="form-control" id="editPartnerCompanyName" name="CompanyName">
-                            </div>
-                        </div>
-                        <hr class="my-4">
-                        <h5 class="mb-3">Kapcsolatfelvétel</h5>
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label fw-bold">E-mail</label>
-                                <input type="email" class="form-control" id="editPartnerEmail" name="Email">
-                            </div>
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label fw-bold">Telefonszám</label>
-                                <input type="text" class="form-control" id="editPartnerPhone" name="PhoneNumber">
-                            </div>
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label fw-bold">Másodlagos telefonszám</label>
-                                <input type="text" class="form-control" id="editPartnerAlternatePhone" name="AlternatePhone">
-                            </div>
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label fw-bold">Weboldal</label>
-                                <input type="url" class="form-control" id="editPartnerWebsite" name="Website">
-                            </div>
-                        </div>
-                        <hr class="my-4">
-                        <h5 class="mb-3">Cím</h5>
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label fw-bold">Utca, házszám</label>
-                                <input type="text" class="form-control" id="editPartnerAddressLine1" name="AddressLine1">
-                            </div>
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label fw-bold">Kiegészítő cím</label>
-                                <input type="text" class="form-control" id="editPartnerAddressLine2" name="AddressLine2">
-                            </div>
-                            <div class="col-md-4 mb-3">
-                                <label class="form-label fw-bold">Város</label>
-                                <input type="text" class="form-control" id="editPartnerCity" name="City">
-                            </div>
-                            <div class="col-md-4 mb-3">
-                                <label class="form-label fw-bold">Megye</label>
-                                <input type="text" class="form-control" id="editPartnerState" name="State">
-                            </div>
-                            <div class="col-md-4 mb-3">
-                                <label class="form-label fw-bold">Irányítószám</label>
-                                <input type="text" class="form-control" id="editPartnerPostalCode" name="PostalCode">
-                            </div>
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label fw-bold">Ország</label>
-                                <input type="text" class="form-control" id="editPartnerCountry" name="Country">
-                            </div>
-                        </div>
-                        <hr class="my-4">
-                        <h5 class="mb-3">Üzleti adatok</h5>
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label fw-bold">Adószám</label>
-                                <input type="text" class="form-control" id="editPartnerTaxId" name="TaxId">
-                            </div>
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label fw-bold">Státusz</label>
-                                <select class="form-select" id="editPartnerStatus" name="StatusId">
-                                    <option value="">Válasszon...</option>
-                                    <!-- JS tölti fel, vagy szerveroldalon -->
-                                </select>
-                            </div>
-                        </div>
-                        <hr class="my-4">
-                        <h5 class="mb-3">Jegyzetek</h5>
-                        <div class="mb-3">
-                            <textarea class="form-control" id="editPartnerNotes" name="Notes" rows="4"></textarea>
-                        </div>
-                        <div class="modal-footer">
-                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Mégse</button>
-                            <button type="submit" class="btn btn-primary">Mentés</button>
-                        </div>
-                    </div>
-                </form>
-                <!-- Sites, Contacts, Documents readonly -->
-                <hr class="my-4">
-                <h5>Telephelyek</h5>
-                <div id="sites-edit-content"></div>
-                <hr class="my-4">
-                <h5>Kapcsolattartók</h5>
-                <div id="contacts-edit-content"></div>
-                <hr class="my-4">
-                <h5>Dokumentumok</h5>
-                <div id="documents-edit-content"></div>
+            <div class="col-md-6">
+              <label class="form-label">Cégnév</label>
+              <input type="text" class="form-control" id="editPartnerCompanyName" name="CompanyName">
             </div>
-        </div>
+          </div>
+
+          <hr class="my-4">
+
+          <h6 class="mb-3">Kapcsolatfelvétel</h6>
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label">E-mail</label>
+              <input type="email" class="form-control" id="editPartnerEmail" name="Email">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Telefonszám</label>
+              <input type="text" class="form-control" id="editPartnerPhone" name="PhoneNumber">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Másodlagos telefonszám</label>
+              <input type="text" class="form-control" id="editPartnerAlternatePhone" name="AlternatePhone">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Weboldal</label>
+              <input type="url" class="form-control" id="editPartnerWebsite" name="Website">
+            </div>
+          </div>
+
+          <hr class="my-4">
+
+          <h6 class="mb-3">Cím</h6>
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label">Utca, házszám</label>
+              <input type="text" class="form-control" id="editPartnerAddressLine1" name="AddressLine1">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Kiegészítő cím</label>
+              <input type="text" class="form-control" id="editPartnerAddressLine2" name="AddressLine2">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Város</label>
+              <input type="text" class="form-control" id="editPartnerCity" name="City">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Megye</label>
+              <input type="text" class="form-control" id="editPartnerState" name="State">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Irányítószám</label>
+              <input type="text" class="form-control" id="editPartnerPostalCode" name="PostalCode">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Ország</label>
+              <input type="text" class="form-control" id="editPartnerCountry" name="Country">
+            </div>
+          </div>
+
+          <hr class="my-4">
+
+          <h6 class="mb-3">Üzleti adatok</h6>
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label">Adószám</label>
+              <input type="text" class="form-control" id="editPartnerTaxId" name="TaxId">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Státusz</label>
+              <select class="form-select" id="editPartnerStatus" name="StatusId">
+                <option value="">Válasszon...</option>
+              </select>
+            </div>
+          </div>
+
+          <hr class="my-4">
+
+          <h6 class="mb-3">Jegyzetek</h6>
+          <textarea class="form-control" id="editPartnerNotes" name="Notes" rows="4"></textarea>
+        </form>
+
+        <hr class="my-4">
+        <h6 class="mb-3">Telephelyek</h6>
+        <div id="sites-edit-content"></div>
+
+        <hr class="my-4">
+        <h6 class="mb-3">Kapcsolattartók</h6>
+        <div id="contacts-edit-content"></div>
+
+        <hr class="my-4">
+        <h6 class="mb-3">Dokumentumok</h6>
+        <div id="documents-edit-content"></div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Mégse</button>
+        <button type="submit" class="btn btn-primary" form="editPartnerForm">Mentés</button>
+      </div>
+
     </div>
+  </div>
 </div>
 
 <!-- Delete Confirmation Modal -->
 <div class="modal fade" id="deletePartnerModal" tabindex="-1" aria-labelledby="deletePartnerModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content shadow-lg border-0 overflow-hidden">
-            <div class="modal-header py-2 bg-danger text-white">
-                <h5 class="modal-title fs-5 fw-semibold" id="deletePartnerModalLabel">
-                    <i class="bi bi-exclamation-triangle me-2"></i> Partner törlése
-                </h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Bezárás"></button>
-            </div>
-            <div class="modal-body">
-                <p>Biztosan törölni szeretné a <strong id="deletePartnerName"></strong> nevű partnert?</p>
-                <p class="text-muted small">Ez egy soft delete művelet – a rekord inaktív lesz.</p>
-                <!-- REJTETT INPUT A PARTNER ID TÁROLÁSÁRA -->
-                <input type="hidden" id="deletePartnerId" value="">
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Mégse</button>
-                <button type="button" class="btn btn-danger" id="confirmDeleteBtn">Törlés</button>
-            </div>
-        </div>
+  <div class="modal-dialog">
+    <div class="modal-content">
+
+      <div class="modal-header bg-danger text-white">
+        <h5 class="modal-title" id="deletePartnerModalLabel">
+          <i class="bi bi-exclamation-triangle me-2"></i> Partner törlése
+        </h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Bezárás"></button>
+      </div>
+
+      <div class="modal-body">
+        <p>Biztosan törölni szeretné a <strong id="deletePartnerName"></strong> nevű partnert?</p>
+        <p class="text-muted small mb-0">Ez egy soft delete művelet – a rekord inaktív lesz.</p>
+        <input type="hidden" id="deletePartnerId" value="">
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Mégse</button>
+        <button type="button" class="btn btn-danger" id="confirmDeleteBtn">Törlés</button>
+      </div>
+
     </div>
+  </div>
 </div>
 
 <!-- Partner History Modal -->
 <div class="modal fade" id="partnerHistoryModal" tabindex="-1" aria-labelledby="partnerHistoryModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="partnerHistoryModalLabel">
-                    <span id="history-partner-name"></span> – Történet
-                </h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Bezárás"></button>
-            </div>
-            <div class="modal-body">
-                <div id="history-loading" class="text-center py-4">
-                    <div class="spinner-border text-primary" role="status">
-                        <span class="visually-hidden">Betöltés...</span>
-                    </div>
-                    <p class="mt-3">Történet betöltése...</p>
-                </div>
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content">
 
-                <div id="history-content" class="d-none">
-                    <div id="history-empty" class="text-muted text-center py-4 d-none">
-                        <i class="bi bi-inbox display-6"></i>
-                        <p class="mt-3">Nincs rögzített változás ehhez a partnerhez.</p>
-                    </div>
+      <div class="modal-header bg-success text-white">
+        <h5 class="modal-title" id="partnerHistoryModalLabel">
+          <i class="bi bi-clock-history me-2"></i>
+          <span id="history-partner-name"></span> – Történet
+        </h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Bezárás"></button>
+      </div>
 
-                    <div id="history-list"></div>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Bezárás</button>
-            </div>
+      <div class="modal-body">
+        <div id="history-loading" class="text-center py-4">
+          <div class="spinner-border" role="status" aria-hidden="true"></div>
+          <p class="mt-3 mb-0">Történet betöltése...</p>
         </div>
+
+        <div id="history-content" class="d-none">
+          <div id="history-empty" class="text-muted text-center py-4 d-none">
+            <i class="bi bi-inbox display-6"></i>
+            <p class="mt-3 mb-0">Nincs rögzített változás ehhez a partnerhez.</p>
+          </div>
+
+          <div id="history-list"></div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Bezárás</button>
+      </div>
+
     </div>
+  </div>
 </div>
 
 <!-- Advanced Filter Modal -->

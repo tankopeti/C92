@@ -61,7 +61,15 @@
                         data-bs-target="#createCommunicationModal">
                     <i class="bi bi-plus-circle me-1"></i> Új kommunikáció
                 </button>
+                <button type="button"
+                        id="openFilterButton"
+                        class="btn btn-outline-secondary px-4"
+                        data-bs-toggle="modal"
+                        data-bs-target="#filterModal">
+                    <i class="bi bi-funnel me-1"></i> Szűrés
+                </button>
             </div>
+            
 
             <div class="d-flex align-items-center gap-2">
                 <form method="get" asp-page="./Index" class="input-group input-group-sm" style="width: 250px;">
@@ -175,6 +183,7 @@
     <partial name="_ValidationScriptsPartial" />
 
     <!-- Sites-szerkezet mintájára -->
+    @* <script src="~/js/CustomerCommunication/cc-advanced-filter.js"></script> *@
     <script src="~/js/CustomerCommunication/communicationFilter.js"></script>
     <script src="~/js/CustomerCommunication/customerCommunicationTomSelect.js"></script>
     <script src="~/js/CustomerCommunication/viewCommunication.js"></script>

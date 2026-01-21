@@ -331,3 +331,78 @@
         </div>
     </div>
 </div>
+
+<div class="modal fade" id="filterModal" tabindex="-1" aria-labelledby="filterModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="filterModalLabel">
+          <i class="bi bi-funnel me-2"></i>Összetett szűrés
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Bezárás"></button>
+      </div>
+
+      <div class="modal-body">
+        <form id="filterForm">
+          <div class="row g-3">
+
+            <div class="col-md-6">
+              <label class="form-label">Partner</label>
+              <select id="filterPartnerId" class="form-select"></select>
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label">Site</label>
+              <select id="filterSiteId" class="form-select"></select>
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label">Státusz</label>
+              <select id="filterStatusId" class="form-select"></select>
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label">Típus</label>
+              <select id="filterTypeId" class="form-select"></select>
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label">Felelős</label>
+              <select id="filterResponsibleId" class="form-select"></select>
+            </div>
+
+            <div class="col-md-3">
+              <label class="form-label">Dátum - tól</label>
+              <input type="date" id="filterDateFrom" class="form-control" />
+            </div>
+
+            <div class="col-md-3">
+              <label class="form-label">Dátum - ig</label>
+              <input type="date" id="filterDateTo" class="form-control" />
+            </div>
+
+            <div class="col-12">
+              <label class="form-label">Szöveges keresés</label>
+              <input type="text" id="filterSearchText" class="form-control"
+                     placeholder="pl. tárgy, megjegyzés, azonosító..." />
+            </div>
+
+          </div>
+        </form>
+      </div>
+
+      <div class="modal-footer d-flex justify-content-between">
+        <button type="button" id="clearFiltersButton" class="btn btn-outline-secondary">
+          <i class="bi bi-x-circle me-1"></i> Szűrők törlése
+        </button>
+
+        <div class="d-flex gap-2">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Mégse</button>
+          <button type="button" id="applyFiltersButton" class="btn btn-primary">
+            <i class="bi bi-check2-circle me-1"></i> Alkalmaz
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,24 @@
+@model List<Cloud9_2.Pages.DocManagement.Search.IndexModel.DocumentResult>
+
+@if (Model == null || !Model.Any())
+{
+    <div class="mt-3 text-muted">Nincs találat.</div>
+}
+else
+{
+    <ul>
+    @foreach (var doc in Model)
+    {
+        <li>
+            <strong>@doc.FileName</strong><br />
+            @if (doc.Metadata != null)
+            {
+                foreach (var kv in doc.Metadata)
+                {
+                    <span>@kv.Key: @kv.Value</span><br />
+                }
+            }
+        </li>
+    }
+    </ul>
+}

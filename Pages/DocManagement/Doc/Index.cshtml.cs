@@ -18,14 +18,14 @@ namespace Cloud9_2.Pages.DocManagement.Doc
     {
         private readonly ApplicationDbContext _context;
         private readonly ILogger<IndexModel> _logger;
-        private readonly IDocumentService _documentService;
+        private readonly DocumentService _documentService;
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly IWebHostEnvironment _environment; // Added
 
         public IndexModel(
             ApplicationDbContext context,
             ILogger<IndexModel> logger,
-            IDocumentService documentService,
+            DocumentService documentService,
             UserManager<ApplicationUser> userManager,
             IWebHostEnvironment environment) // Added
         {
@@ -84,15 +84,20 @@ namespace Cloud9_2.Pages.DocManagement.Doc
                     status = parsedStatus;
                 }
 
-                Documents = await _documentService.GetDocumentsAsync(
-                    SearchTerm,
-                    documentTypeId: null,
-                    partnerId: null,
-                    siteId: null,
-                    status,
-                    SortBy,
-                    skip: (CurrentPage - 1) * PageSize,
-                    take: PageSize);
+Documents = await _documentService.GetDocumentsAsync(
+    searchTerm: SearchTerm,
+    documentTypeId: null,
+    partnerId: null,
+    siteId: null,
+    status: status,
+    dateFrom: null,
+    dateTo: null,
+    sortBy: SortBy,
+    sortDir: "desc",
+    skip: (CurrentPage - 1) * PageSize,
+    take: PageSize
+);
+
 
                 TotalRecords = await _documentService.GetDocumentsCountAsync(
                     SearchTerm,

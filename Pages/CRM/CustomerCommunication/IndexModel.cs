@@ -44,7 +44,7 @@ namespace Cloud9_2.Pages.CRM.CustomerCommunication
         [BindProperty(SupportsGet = true)]
         public int CurrentPage { get; set; } = 1;
         [BindProperty(SupportsGet = true)]
-        public int PageSize { get; set; } = 10;
+        public int PageSize { get; set; } = 20;
         public int TotalPages { get; set; }
         public int TotalRecords { get; set; }
         public int DistinctCommunicationIdCount { get; set; }

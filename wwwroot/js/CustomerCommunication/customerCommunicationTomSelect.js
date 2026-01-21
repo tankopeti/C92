@@ -14,17 +14,14 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   document.addEventListener('shown.bs.modal', (ev) => {
-    const modal = ev.target;
+    const modal = ev.target?.closest?.('.modal') || ev.target;
     if (!modal?.id) return;
 
-    if (modal.id === 'createCommunicationModal') {
-      initCreate(modal);
-    }
-
-    if (modal.id === 'editCommunicationModal') {
-      ensureEditInitialized(modal);
-    }
+    if (modal.id === 'createCommunicationModal') initCreate(modal);
+    if (modal.id === 'editCommunicationModal') ensureEditInitialized(modal);
+    if (modal.id === 'filterModal') initFilter(modal);
   });
+
 
   // fallback
   const createModal = document.getElementById('createCommunicationModal');
@@ -68,15 +65,76 @@ document.addEventListener('DOMContentLoaded', () => {
       placeholder: '— Válasszon felelőst —'
     });
 
-    const siteTs = createSitesTomSelect(els.site, () => partnerTs.getValue());
+    // Partner előbb, utána Site (stabil)
+    const partnerTs = els.partner
+      ? createPartnersTomSelect(els.partner, (partnerId) => {
+          if (siteTs) onPartnerChanged(partnerId, siteTs);
+        })
+      : null;
 
-    const partnerTs = createPartnersTomSelect(els.partner, (partnerId) => {
-      onPartnerChanged(partnerId, siteTs);
-    });
+    const siteTs = els.site
+      ? createSitesTomSelect(els.site, () => partnerTs?.getValue() || '')
+      : null;
 
-    // initial state
-    if (!partnerTs.getValue()) siteTs.disable();
+    if (partnerTs && siteTs && !partnerTs.getValue()) siteTs.disable();
+
   }
+
+    // -------------------------
+  // FILTER (Advanced)
+  // -------------------------
+  function initFilter(modalEl) {
+    if (modalEl.dataset.ccTsFilterReady === '1') return;
+
+    const els = {
+      type: modalEl.querySelector('#filterTypeId'),
+      partner: modalEl.querySelector('#filterPartnerId'),
+      site: modalEl.querySelector('#filterSiteId'),
+      responsible: modalEl.querySelector('#filterResponsibleId'),
+      status: modalEl.querySelector('#filterStatusId')
+    };
+
+    console.log('🔧 initFilter', mapExists(els));
+
+    // itt lehet, hogy nem mind az 5 mező van még bent a modalban → legyen "soft"
+    // de ha te már mindet beraktad, maradhat a strict is.
+    const hasAny = !!(els.type || els.partner || els.site || els.responsible || els.status);
+    if (!hasAny) return;
+
+    modalEl.dataset.ccTsFilterReady = '1';
+
+    Object.values(els).forEach(destroyIfExists);
+
+    // ugyanazok az endpointok / builder-ek
+    const typeTs = els.type
+      ? createStaticLookupTomSelect(els.type, '/api/CustomerCommunication/types', { placeholder: '— Típus —' })
+      : null;
+
+    const statusTs = els.status
+      ? createStaticLookupTomSelect(els.status, '/api/CustomerCommunication/statuses', { placeholder: '— Státusz —' })
+      : null;
+
+    const responsibleTs = els.responsible
+      ? createUsersTomSelect(els.responsible, '/api/CustomerCommunication', { placeholder: '— Felelős —' })
+      : null;
+
+    // partner-site függés
+    const siteTs = els.site
+      ? createSitesTomSelect(els.site, () => partnerTs?.getValue())
+      : null;
+
+    const partnerTs = els.partner
+      ? createPartnersTomSelect(els.partner, (partnerId) => {
+          if (siteTs) onPartnerChanged(partnerId, siteTs);
+        })
+      : null;
+
+    if (partnerTs && siteTs && !partnerTs.getValue()) siteTs.disable();
+
+    // eltesszük ref-nek, hogy máshonnan is elérhető legyen
+    modalEl._ccTsFilter = { els, typeTs, statusTs, responsibleTs, partnerTs, siteTs };
+  }
+
 
   // -------------------------
   // EDIT

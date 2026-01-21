@@ -7,6 +7,22 @@ document.addEventListener('DOMContentLoaded', () => {
   const searchInput = document.getElementById('communicationSearchInput');
   const searchForm = searchInput?.closest('form');
 
+  // ✅ Advanced filter modal elemek
+  const filterModalEl = document.getElementById('filterModal');
+  const openFilterBtn = document.getElementById('openFilterButton'); // csak sync-hez, ha kell
+  const applyFiltersBtn = document.getElementById('applyFiltersButton');
+  const clearFiltersBtn = document.getElementById('clearFiltersButton');
+
+  // ✅ Advanced filter mezők (modal)
+  const filterPartnerId = document.getElementById('filterPartnerId');
+  const filterSiteId = document.getElementById('filterSiteId');
+  const filterStatusId = document.getElementById('filterStatusId');
+  const filterTypeId = document.getElementById('filterTypeId');
+  const filterResponsibleId = document.getElementById('filterResponsibleId');
+  const filterDateFrom = document.getElementById('filterDateFrom');
+  const filterDateTo = document.getElementById('filterDateTo');
+  const filterSearchText = document.getElementById('filterSearchText');
+
   if (!tbody) {
     console.error('Hiányzik a communicationsTableBody');
     return;
@@ -14,7 +30,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
   console.log('✅ communicationFilter.js betöltve', {
     hasLoadMoreBtn: !!loadMoreBtn,
-    hasSearchInput: !!searchInput
+    hasSearchInput: !!searchInput,
+    hasFilterModal: !!filterModalEl,
+    hasApplyFiltersBtn: !!applyFiltersBtn
   });
 
   let currentPage = 1;
@@ -26,19 +44,43 @@ document.addEventListener('DOMContentLoaded', () => {
   let hasMore = true;
   let totalCount = 0;
 
+  // ✅ Minden szűrő egy helyen (legacy + advanced)
   let filters = {
+    // legacy
     search: '',
     typeFilter: 'all',            // all | E-mail | Telefonhívás | Találkozó
-    sortBy: 'CommunicationDate'   // CommunicationDate | CommunicationId | PartnerName
+    sortBy: 'CommunicationDate',  // CommunicationDate | CommunicationId | PartnerName
+
+    // advanced
+    partnerId: '',
+    siteId: '',
+    statusId: '',
+    communicationTypeId: '',
+    responsibleId: '',
+    dateFrom: '',
+    dateTo: '',
+    searchText: ''
   };
 
   function buildUrl(page) {
     const p = new URLSearchParams({
       pageNumber: String(page),
       pageSize: String(pageSize),
+
+      // legacy
       search: filters.search || '',
       typeFilter: filters.typeFilter || 'all',
-      sortBy: filters.sortBy || 'CommunicationDate'
+      sortBy: filters.sortBy || 'CommunicationDate',
+
+      // advanced
+      partnerId: filters.partnerId || '',
+      siteId: filters.siteId || '',
+      statusId: filters.statusId || '',
+      communicationTypeId: filters.communicationTypeId || '',
+      responsibleId: filters.responsibleId || '',
+      dateFrom: filters.dateFrom || '',
+      dateTo: filters.dateTo || '',
+      searchText: filters.searchText || ''
     });
 
     const url = `/api/CustomerCommunicationIndex?${p.toString()}`;
@@ -93,9 +135,7 @@ document.addEventListener('DOMContentLoaded', () => {
         totalCount,
         currentPage,
         pageSize,
-        search: filters.search,
-        typeFilter: filters.typeFilter,
-        sortBy: filters.sortBy
+        filters: { ...filters }
       });
 
       if (reset) tbody.innerHTML = '';
@@ -241,6 +281,105 @@ document.addEventListener('DOMContentLoaded', () => {
     loadCommunications(true);
   });
 
+  // -------------------------
+  // ✅ Advanced filter: Apply / Clear
+  // -------------------------
+  function getTsValueOrSelectValue(selectEl) {
+    if (!selectEl) return '';
+    if (selectEl.tomselect && typeof selectEl.tomselect.getValue === 'function') {
+      return selectEl.tomselect.getValue() || '';
+    }
+    return selectEl.value || '';
+  }
+
+  function hideFilterModal() {
+    if (!filterModalEl) return;
+    if (window.bootstrap?.Modal) {
+      const instance =
+        window.bootstrap.Modal.getInstance(filterModalEl) ||
+        new window.bootstrap.Modal(filterModalEl);
+      instance.hide();
+    }
+  }
+
+  function syncFiltersToModal() {
+    // opcionális: ha openFilterButton-ra akarsz előtöltést
+    if (filterPartnerId?.tomselect) filterPartnerId.tomselect.setValue(filters.partnerId || '', true);
+    else if (filterPartnerId) filterPartnerId.value = filters.partnerId || '';
+
+    if (filterSiteId?.tomselect) filterSiteId.tomselect.setValue(filters.siteId || '', true);
+    else if (filterSiteId) filterSiteId.value = filters.siteId || '';
+
+    if (filterStatusId?.tomselect) filterStatusId.tomselect.setValue(filters.statusId || '', true);
+    else if (filterStatusId) filterStatusId.value = filters.statusId || '';
+
+    if (filterTypeId?.tomselect) filterTypeId.tomselect.setValue(filters.communicationTypeId || '', true);
+    else if (filterTypeId) filterTypeId.value = filters.communicationTypeId || '';
+
+    if (filterResponsibleId?.tomselect) filterResponsibleId.tomselect.setValue(filters.responsibleId || '', true);
+    else if (filterResponsibleId) filterResponsibleId.value = filters.responsibleId || '';
+
+    if (filterDateFrom) filterDateFrom.value = filters.dateFrom || '';
+    if (filterDateTo) filterDateTo.value = filters.dateTo || '';
+    if (filterSearchText) filterSearchText.value = filters.searchText || '';
+  }
+
+  // modal megnyitáskor töltse vissza az aktuális state-et
+  openFilterBtn?.addEventListener('click', () => {
+    syncFiltersToModal();
+  });
+
+  applyFiltersBtn?.addEventListener('click', () => {
+    filters.partnerId = getTsValueOrSelectValue(filterPartnerId);
+    filters.siteId = getTsValueOrSelectValue(filterSiteId);
+    filters.statusId = getTsValueOrSelectValue(filterStatusId);
+    filters.communicationTypeId = getTsValueOrSelectValue(filterTypeId);
+    filters.responsibleId = getTsValueOrSelectValue(filterResponsibleId);
+
+    filters.dateFrom = (filterDateFrom?.value || '').trim();
+    filters.dateTo = (filterDateTo?.value || '').trim();
+    filters.searchText = (filterSearchText?.value || '').trim();
+
+    console.log('🧩 advanced filters applied:', {
+      partnerId: filters.partnerId,
+      siteId: filters.siteId,
+      statusId: filters.statusId,
+      communicationTypeId: filters.communicationTypeId,
+      responsibleId: filters.responsibleId,
+      dateFrom: filters.dateFrom,
+      dateTo: filters.dateTo,
+      searchText: filters.searchText
+    });
+
+    hideFilterModal();
+    loadCommunications(true);
+  });
+
+  clearFiltersBtn?.addEventListener('click', () => {
+    filters.partnerId = '';
+    filters.siteId = '';
+    filters.statusId = '';
+    filters.communicationTypeId = '';
+    filters.responsibleId = '';
+    filters.dateFrom = '';
+    filters.dateTo = '';
+    filters.searchText = '';
+
+    if (filterPartnerId?.tomselect) filterPartnerId.tomselect.clear(true); else if (filterPartnerId) filterPartnerId.value = '';
+    if (filterSiteId?.tomselect) filterSiteId.tomselect.clear(true); else if (filterSiteId) filterSiteId.value = '';
+    if (filterStatusId?.tomselect) filterStatusId.tomselect.clear(true); else if (filterStatusId) filterStatusId.value = '';
+    if (filterTypeId?.tomselect) filterTypeId.tomselect.clear(true); else if (filterTypeId) filterTypeId.value = '';
+    if (filterResponsibleId?.tomselect) filterResponsibleId.tomselect.clear(true); else if (filterResponsibleId) filterResponsibleId.value = '';
+
+    if (filterDateFrom) filterDateFrom.value = '';
+    if (filterDateTo) filterDateTo.value = '';
+    if (filterSearchText) filterSearchText.value = '';
+
+    hideFilterModal();
+    loadCommunications(true);
+  });
+
+  // ✅ initial load
   loadCommunications(true);
 
   function debounce(fn, delay) {

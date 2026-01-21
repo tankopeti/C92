@@ -42,18 +42,46 @@ namespace Cloud9_2.Controllers
 public async Task<IActionResult> CustomerCommunicationIndex(
     [FromQuery] int pageNumber = 1,
     [FromQuery] int pageSize = 20,
+
+    // legacy
     [FromQuery] string search = "",
     [FromQuery] string typeFilter = "all",
-    [FromQuery] string sortBy = "CommunicationDate")
+    [FromQuery] string sortBy = "CommunicationDate",
+
+    // ✅ advanced (a JS ezeket küldi)
+    [FromQuery] int? partnerId = null,
+    [FromQuery] int? siteId = null,
+    [FromQuery] int? statusId = null,
+    [FromQuery] int? communicationTypeId = null,
+    [FromQuery] string responsibleId = null,
+    [FromQuery] string dateFrom = "",
+    [FromQuery] string dateTo = "",
+    [FromQuery] string searchText = ""
+)
 {
     try
     {
         pageNumber = pageNumber <= 0 ? 1 : pageNumber;
         pageSize = pageSize <= 0 ? 20 : pageSize;
+
         search = (search ?? "").Trim();
         typeFilter = string.IsNullOrWhiteSpace(typeFilter) ? "all" : typeFilter;
 
-        // Base query (csak a "core" tábla)
+        searchText = (searchText ?? "").Trim();
+        responsibleId = (responsibleId ?? "").Trim();
+
+        // ✅ ha akarod: unify (hogy bármelyik működjön)
+        var effectiveSearch = !string.IsNullOrWhiteSpace(searchText) ? searchText : search;
+
+        // date parse (YYYY-MM-DD)
+        DateTime? fromDate = null;
+        DateTime? toDate = null;
+        if (!string.IsNullOrWhiteSpace(dateFrom) && DateTime.TryParse(dateFrom, out var df))
+            fromDate = df.Date;
+        if (!string.IsNullOrWhiteSpace(dateTo) && DateTime.TryParse(dateTo, out var dt))
+            toDate = dt.Date;
+
+        // Base query
         var baseQ = _context.CustomerCommunications.AsNoTracking().AsQueryable();
 
         // JOIN források
@@ -61,8 +89,6 @@ public async Task<IActionResult> CustomerCommunicationIndex(
         var statuses = _context.CommunicationStatuses.AsNoTracking();
         var users = _context.Users.AsNoTracking();
         var partners = _context.Partners.AsNoTracking();
-
-        // felelősök (CommunicationResponsibles) – current responsible = legutolsó AssignedAt
         var responsibles = _context.CommunicationResponsibles.AsNoTracking();
 
         // PROJEKCIÓ
@@ -93,14 +119,12 @@ public async Task<IActionResult> CustomerCommunicationIndex(
 
                 c.SiteId,
 
-                // ✅ current responsible id (CommunicationResponsibles legutolsó)
                 CurrentResponsibleId = responsibles
                     .Where(r => r.CustomerCommunicationId == c.CustomerCommunicationId)
                     .OrderByDescending(r => r.AssignedAt)
                     .Select(r => r.ResponsibleId)
                     .FirstOrDefault(),
 
-                // ✅ current responsible name (Users alapján)
                 CurrentResponsibleName = users
                     .Where(u2 => u2.Id == responsibles
                         .Where(r => r.CustomerCommunicationId == c.CustomerCommunicationId)
@@ -111,21 +135,33 @@ public async Task<IActionResult> CustomerCommunicationIndex(
                     .FirstOrDefault()
             };
 
-        // TypeFilter: name alapján (ha nálad inkább id, akkor ezt majd átírjuk)
-        if (typeFilter != "all")
-        {
-            q = q.Where(x => x.CommunicationTypeName == typeFilter);
-        }
+        // ✅ advanced: gyors equality filterek
+        if (partnerId.HasValue) q = q.Where(x => x.PartnerId == partnerId.Value);
+        if (siteId.HasValue) q = q.Where(x => x.SiteId == siteId.Value);
+        if (statusId.HasValue) q = q.Where(x => x.StatusId == statusId.Value);
+        if (communicationTypeId.HasValue) q = q.Where(x => x.CommunicationTypeId == communicationTypeId.Value);
 
-        // Search: Subject + PartnerName + ResponsibleName
-        if (!string.IsNullOrWhiteSpace(search))
+        // ✅ responsibleId: aktuális felelősre szűr
+        if (!string.IsNullOrWhiteSpace(responsibleId))
+            q = q.Where(x => x.CurrentResponsibleId == responsibleId);
+
+        // ✅ dátum szűrés
+        if (fromDate.HasValue) q = q.Where(x => x.Date.Date >= fromDate.Value);
+        if (toDate.HasValue) q = q.Where(x => x.Date.Date <= toDate.Value);
+
+        // legacy typeFilter: név alapú (ahogy eddig)
+        if (!string.IsNullOrWhiteSpace(typeFilter) && typeFilter != "all")
+            q = q.Where(x => x.CommunicationTypeName == typeFilter);
+
+        // ✅ search (searchText vagy search)
+        if (!string.IsNullOrWhiteSpace(effectiveSearch))
         {
             q = q.Where(x =>
-                (x.Subject != null && x.Subject.Contains(search)) ||
-                (x.PartnerName != null && x.PartnerName.Contains(search)) ||
-                (x.CurrentResponsibleName != null && x.CurrentResponsibleName.Contains(search)) ||
-                (x.CommunicationTypeName != null && x.CommunicationTypeName.Contains(search)) ||
-                (x.StatusName != null && x.StatusName.Contains(search))
+                (x.Subject != null && x.Subject.Contains(effectiveSearch)) ||
+                (x.PartnerName != null && x.PartnerName.Contains(effectiveSearch)) ||
+                (x.CurrentResponsibleName != null && x.CurrentResponsibleName.Contains(effectiveSearch)) ||
+                (x.CommunicationTypeName != null && x.CommunicationTypeName.Contains(effectiveSearch)) ||
+                (x.StatusName != null && x.StatusName.Contains(effectiveSearch))
             );
         }
 
@@ -137,7 +173,7 @@ public async Task<IActionResult> CustomerCommunicationIndex(
         {
             "CommunicationId" => q.OrderByDescending(x => x.CustomerCommunicationId),
             "PartnerName" => q.OrderBy(x => x.PartnerName),
-            _ => q.OrderByDescending(x => x.CustomerCommunicationId) // "legutóbbi" közelítés
+            _ => q.OrderByDescending(x => x.CustomerCommunicationId)
         };
 
         var items = await q

@@ -13,7 +13,10 @@ namespace Cloud9_2.Services
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly ILogger<TaskPMService> _logger;
 
-        public TaskPMService(ApplicationDbContext context, UserManager<ApplicationUser> userManager, ILogger<TaskPMService> logger)
+        public TaskPMService(
+            ApplicationDbContext context,
+            UserManager<ApplicationUser> userManager,
+            ILogger<TaskPMService> logger)
         {
             _context = context;
             _userManager = userManager;
@@ -21,30 +24,35 @@ namespace Cloud9_2.Services
         }
 
         #region === Helpers ===
-        private static string FullName(ApplicationUser? user) =>
-            user == null ? null! : user.UserName;   // <-- only property that ALWAYS exists
 
-private static IQueryable<TaskPM> BaseQuery(ApplicationDbContext ctx) =>
-    ctx.TaskPMs
-        .AsNoTracking()
-        .Include(t => t.TaskTypePM)
-        .Include(t => t.TaskStatusPM)
-        .Include(t => t.TaskPriorityPM)
-        .Include(t => t.CreatedBy)
-        .Include(t => t.AssignedTo)
-        .Include(t => t.Partner)
-        .Include(t => t.Site)
-        .Include(t => t.Contact)
-        .Include(t => t.Quote)
-        .Include(t => t.Order)
-        .Include(t => t.CustomerCommunication)
-        .Include(t => t.CommunicationType)
-        .Include(t => t.TaskResourceAssignments).ThenInclude(ra => ra.Resource)
-        .Include(t => t.TaskEmployeeAssignments).ThenInclude(ea => ea.Employee)
-        .Include(t => t.TaskHistories).ThenInclude(th => th.ModifiedBy)
-        .Include(t => t.TaskDocuments)
-            // .ThenInclude(td => td.Document)   
-        ;
+        // ✅ Safe: can return null if user missing
+        private static string? FullName(ApplicationUser? user) => user?.UserName;
+
+        // ✅ Base query for listing: AsNoTracking is ok, but keep Includes consistent with MapToDto
+        private static IQueryable<TaskPM> BaseQuery(ApplicationDbContext ctx) =>
+            ctx.TaskPMs
+                .AsNoTracking()
+                .Include(t => t.TaskTypePM)
+                .Include(t => t.TaskStatusPM)
+                .Include(t => t.TaskPriorityPM)
+                .Include(t => t.CreatedBy)
+                .Include(t => t.AssignedTo)
+                .Include(t => t.Partner)
+                .Include(t => t.Site)
+                .Include(t => t.Contact)
+                .Include(t => t.TaskPMcomMethod)
+                .Include(t => t.Quote)
+                .Include(t => t.Order)
+                .Include(t => t.CustomerCommunication)
+                .Include(t => t.CommunicationType)
+                .Include(t => t.TaskResourceAssignments).ThenInclude(ra => ra.Resource)
+                .Include(t => t.TaskEmployeeAssignments).ThenInclude(ea => ea.Employee)
+                .Include(t => t.TaskHistories).ThenInclude(th => th.ModifiedBy)
+                // ✅ IMPORTANT: Document is used in MapToDto
+                .Include(t => t.TaskDocuments).ThenInclude(td => td.Document)
+                // ✅ IMPORTANT: LinkedBy is used in MapToDto
+                .Include(t => t.TaskDocuments).ThenInclude(td => td.LinkedBy);
+
         #endregion
 
         // -----------------------------------------------------------------
@@ -61,30 +69,60 @@ private static IQueryable<TaskPM> BaseQuery(ApplicationDbContext ctx) =>
         // -----------------------------------------------------------------
         // GET BY ID
         // -----------------------------------------------------------------
-public async Task<TaskPMDto?> GetTaskByIdAsync(int id)
-{
-    // Tracking szükséges a nested collectionök (TaskHistories) betöltéséhez
-    var task = await _context.TaskPMs
-        .Include(t => t.TaskTypePM)
-        .Include(t => t.TaskStatusPM)
-        .Include(t => t.TaskPriorityPM)
-        .Include(t => t.CreatedBy)
-        .Include(t => t.AssignedTo)
-        .Include(t => t.Partner)
-        .Include(t => t.Site)
-        .Include(t => t.Contact)
-        .Include(t => t.Quote)
-        .Include(t => t.Order)
-        .Include(t => t.CustomerCommunication)
-        .Include(t => t.CommunicationType)
-        .Include(t => t.TaskResourceAssignments).ThenInclude(ra => ra.Resource)
-        .Include(t => t.TaskEmployeeAssignments).ThenInclude(ea => ea.Employee)
-        .Include(t => t.TaskHistories).ThenInclude(th => th.ModifiedBy) // most betöltődik!
-        .Include(t => t.TaskDocuments)
-        .FirstOrDefaultAsync(t => t.Id == id && t.IsActive);
+        public async Task<TaskPMDto?> GetTaskByIdAsync(int id)
+        {
+            // Tracking can be used if you later want to modify; for read-only DTO it’s not required.
+            // Keeping as tracking is fine; but make Includes match MapToDto.
+            var task = await _context.TaskPMs
+                .Include(t => t.TaskTypePM)
+                .Include(t => t.TaskStatusPM)
+                .Include(t => t.TaskPriorityPM)
+                .Include(t => t.CreatedBy)
+                .Include(t => t.AssignedTo)
+                .Include(t => t.Partner)
+                .Include(t => t.Site)
+                .Include(t => t.Contact)
+                .Include(t => t.Quote)
+                .Include(t => t.TaskPMcomMethod)
+                .Include(t => t.Order)
+                .Include(t => t.CustomerCommunication)
+                .Include(t => t.CommunicationType)
+                .Include(t => t.TaskResourceAssignments).ThenInclude(ra => ra.Resource)
+                .Include(t => t.TaskEmployeeAssignments).ThenInclude(ea => ea.Employee)
+                .Include(t => t.TaskHistories).ThenInclude(th => th.ModifiedBy)
+                .Include(t => t.TaskDocuments).ThenInclude(td => td.Document)
+                .Include(t => t.TaskDocuments).ThenInclude(td => td.LinkedBy)
+                .FirstOrDefaultAsync(t => t.Id == id && t.IsActive);
 
-    return task == null ? null : MapToDto(task);
-}
+            if (task == null) return null;
+
+            // ✅ DTO alap
+            var dto = MapToDto(task);
+
+            // ✅ attachments külön töltése a TaskDocumentLinks-ből (ez a biztos forrás)
+            var docLinks = await _context.TaskDocumentLinks
+                .AsNoTracking()
+                .Where(x => x.TaskId == id)
+                .Include(x => x.Document)
+                .Include(x => x.LinkedBy)
+                .OrderByDescending(x => x.LinkedDate)
+                .ToListAsync();
+
+            // ✅ DTO Attachments felülírása
+            dto.Attachments = docLinks.Select(td => new TaskDocumentDto
+            {
+                Id = td.Id,
+                DocumentId = td.DocumentId,
+                FileName = td.Document?.FileName ?? "",
+                FilePath = td.Document?.FilePath ?? "",
+                LinkedDate = td.LinkedDate,
+                LinkedByName = td.LinkedBy?.UserName,
+                Note = td.Note
+            }).ToList();
+
+            return dto;
+
+        }
 
         // -----------------------------------------------------------------
         // CREATE
@@ -93,14 +131,13 @@ public async Task<TaskPMDto?> GetTaskByIdAsync(int id)
         {
             _logger.LogInformation("CreateTaskAsync started - User: {UserId}, DTO: {@DTO}", currentUserId, dto);
 
-            // 1. VALIDATION
+            // 1) VALIDATION
             if (string.IsNullOrWhiteSpace(dto.Title))
                 throw new ValidationException("A cím megadása kötelező.");
 
             if (dto.TaskTypePMId == null)
                 throw new ValidationException("A feladat típusának kiválasztása kötelező.");
 
-            // Check if the required Task Type ID actually exists to prevent Foreign Key failure
             var taskTypeExists = await _context.TaskTypePMs
                 .AnyAsync(t => t.TaskTypePMId == dto.TaskTypePMId.Value);
 
@@ -110,13 +147,15 @@ public async Task<TaskPMDto?> GetTaskByIdAsync(int id)
                 throw new ValidationException("A kiválasztott feladat típus nem létezik.");
             }
 
-            // Site validation (Existing logic for conditional Site dependency)
+            // Site validation
             if (dto.SiteId.HasValue && dto.SiteId.Value != 0)
             {
                 if (dto.PartnerId == null || dto.PartnerId.Value == 0)
                     throw new ValidationException("Helyszín megadásakor Partner kiválasztása kötelező.");
 
-                var siteExists = await _context.Sites.AnyAsync(s => s.SiteId == dto.SiteId.Value && s.PartnerId == dto.PartnerId);
+                var siteExists = await _context.Sites.AnyAsync(s =>
+                    s.SiteId == dto.SiteId.Value && s.PartnerId == dto.PartnerId);
+
                 if (!siteExists)
                     throw new ValidationException("A Site nem tartozik a kiválasztott Partnerhez vagy nem létezik.");
             }
@@ -127,9 +166,11 @@ public async Task<TaskPMDto?> GetTaskByIdAsync(int id)
                 Title = dto.Title,
                 Description = dto.Description,
                 IsActive = dto.IsActive,
-                TaskTypePMId = dto.TaskTypePMId.Value, // Safe now
+
+                TaskTypePMId = dto.TaskTypePMId.Value,
                 TaskStatusPMId = dto.TaskStatusPMId ?? 1,
                 TaskPriorityPMId = dto.TaskPriorityPMId ?? 2,
+
                 DueDate = dto.DueDate,
                 EstimatedHours = dto.EstimatedHours,
                 ActualHours = dto.ActualHours,
@@ -137,8 +178,8 @@ public async Task<TaskPMDto?> GetTaskByIdAsync(int id)
                 ScheduledDate = dto.ScheduledDate,
                 CommunicationTypeId = dto.CommunicationTypeId,
                 CommunicationDescription = dto.CommunicationDescription,
+                TaskPMcomMethodID = dto.TaskPMcomMethodID,
 
-                // Defensive check for optional integer FKs (TomSelect sometimes sends 0 for blank)
                 PartnerId = dto.PartnerId == 0 ? null : dto.PartnerId,
                 SiteId = dto.SiteId == 0 ? null : dto.SiteId,
                 ContactId = dto.ContactId == 0 ? null : dto.ContactId,
@@ -147,24 +188,62 @@ public async Task<TaskPMDto?> GetTaskByIdAsync(int id)
                 CustomerCommunicationId = dto.CustomerCommunicationId == 0 ? null : dto.CustomerCommunicationId,
 
                 CreatedById = currentUserId,
-                CreatedDate = DateTime.Now,
-                UpdatedDate = DateTime.Now
+                CreatedDate = DateTime.UtcNow,
+                UpdatedDate = DateTime.UtcNow
             };
 
-            // 2. TRANSACTION BLOCK
             using var transaction = await _context.Database.BeginTransactionAsync();
             try
             {
                 _logger.LogInformation("Adding task to context - Title: {Title}", task.Title);
                 _context.TaskPMs.Add(task);
-                // Save the task first to get its ID (Task.Id)
                 await _context.SaveChangesAsync();
                 _logger.LogInformation("Task saved - Id: {Id}", task.Id);
 
-                // --- Resources Assignment (with validation) ---
+                // --- Documents attach (TaskDocumentLinks) ---
+                if (dto.AttachedDocumentIds?.Any() == true)
+                {
+                    var docIds = dto.AttachedDocumentIds
+                        .Where(x => x > 0)
+                        .Distinct()
+                        .ToList();
+
+                    // csak létező dokumentumokat engedünk
+                    var existingDocIds = await _context.Documents
+                        .Where(d => docIds.Contains(d.DocumentId))
+                        .Select(d => d.DocumentId)
+                        .ToListAsync();
+
+                    if (existingDocIds.Count > 0)
+                    {
+                        // ne duplázzunk (ha esetleg valamiért már létezik)
+                        var already = await _context.TaskDocumentLinks
+                            .Where(x => x.TaskId == task.Id && existingDocIds.Contains(x.DocumentId))
+                            .Select(x => x.DocumentId)
+                            .ToListAsync();
+
+                        var alreadySet = new HashSet<int>(already);
+
+                        var links = existingDocIds
+                            .Where(id => !alreadySet.Contains(id))
+                            .Select(id => new TaskDocumentLink
+                            {
+                                TaskId = task.Id,                 // ⚠️ nálad TaskId (nem TaskPMId!)
+                                DocumentId = id,
+                                LinkedDate = DateTime.UtcNow,
+                                LinkedById = currentUserId
+                            })
+                            .ToList();
+
+                        if (links.Count > 0)
+                            _context.TaskDocumentLinks.AddRange(links);
+                    }
+                }
+
+
+                // --- Resources Assignment ---
                 if (dto.ResourceIds?.Any() == true)
                 {
-                    // Filter out any ResourceIds that do not exist in the database
                     var validResourceIds = await _context.Resources
                         .Where(r => dto.ResourceIds.Contains(r.ResourceId))
                         .Select(r => r.ResourceId)
@@ -177,15 +256,15 @@ public async Task<TaskPMDto?> GetTaskByIdAsync(int id)
                             TaskPMId = task.Id,
                             ResourceId = rid
                         });
+
                         _logger.LogInformation("Adding {Count} valid resources", res.Count());
                         _context.TaskResourceAssignments.AddRange(res);
                     }
                 }
 
-                // --- Employees Assignment (with validation) ---
+                // --- Employees Assignment ---
                 if (dto.EmployeeIds?.Any() == true)
                 {
-                    // Filter out any EmployeeIds that do not exist in the database
                     var validEmployeeIds = await _context.Employees
                         .Where(e => dto.EmployeeIds.Contains(e.EmployeeId))
                         .Select(e => e.EmployeeId)
@@ -198,181 +277,292 @@ public async Task<TaskPMDto?> GetTaskByIdAsync(int id)
                             TaskPMId = task.Id,
                             EmployeeId = eid
                         });
+
                         _logger.LogInformation("Adding {Count} valid employees", emp.Count());
                         _context.TaskEmployeeAssignments.AddRange(emp);
                     }
                 }
 
-                await _context.SaveChangesAsync(); // Save assignments (should be safe now)
-                await transaction.CommitAsync();   // Commit the transaction
+                await _context.SaveChangesAsync();
+                await transaction.CommitAsync();
 
                 _logger.LogInformation("Task with assignments saved successfully - Id: {Id}", task.Id);
             }
             catch (Exception ex)
             {
                 await transaction.RollbackAsync();
-
-                // CRITICAL: This is the log you MUST check now for the detailed error message
                 _logger.LogError(ex, "DATABASE ERROR in CreateTaskAsync for Task: {Title} by User: {UserId}.", task.Title, currentUserId);
-
-                throw; // Re-throw for the controller to catch and convert to HTTP 500
+                throw;
             }
 
-            // 3. MAP AND RETURN DTO (Ensure you pull names for the return DTO if needed)
             return await GetTaskByIdAsync(task.Id)
                    ?? throw new InvalidOperationException("Failed to retrieve the newly created task.");
         }
 
-// -----------------------------------------------------------------
-// UPDATE
-// -----------------------------------------------------------------
-public async Task<TaskPMDto> UpdateTaskAsync(TaskUpdateDto dto, string currentUserId)
-{
-    _logger.LogInformation("UpdateTaskAsync STARTED - TaskId: {TaskId}, User: {UserId}", dto.Id, currentUserId);
-
-    var task = await _context.TaskPMs
-        .Include(t => t.TaskResourceAssignments)
-        .Include(t => t.TaskEmployeeAssignments)
-        .FirstOrDefaultAsync(t => t.Id == dto.Id && t.IsActive);
-
-    if (task == null)
-    {
-        _logger.LogWarning("UpdateTaskAsync - Task not found or not active: {TaskId}", dto.Id);
-        throw new KeyNotFoundException($"Task {dto.Id} not found.");
-    }
-
-    _logger.LogInformation("Task loaded successfully - Current Title: {Title}, StatusId: {StatusId}, PriorityId: {PriorityId}",
-        task.Title, task.TaskStatusPMId, task.TaskPriorityPMId);
-
-    // ERŐSZAKOS Modified állapot – hogy az interceptor biztosan lefusson
-    _context.Entry(task).State = EntityState.Modified;
-    _logger.LogDebug("Task entity state set to Modified explicitly.");
-
-    // Mezők frissítése + logolás minden változásról
-    if (task.Title != dto.Title)
-        _logger.LogDebug("Title change: {Old} → {New}", task.Title, dto.Title);
-    task.Title = dto.Title;
-
-    if (task.Description != dto.Description)
-        _logger.LogDebug("Description change detected");
-    task.Description = dto.Description;
-
-    if (task.TaskTypePMId != (dto.TaskTypePMId ?? task.TaskTypePMId))
-        _logger.LogDebug("TaskType change: {Old} → {New}", task.TaskTypePMId, dto.TaskTypePMId);
-    task.TaskTypePMId = dto.TaskTypePMId ?? task.TaskTypePMId;
-
-    if (task.TaskStatusPMId != (dto.TaskStatusPMId ?? task.TaskStatusPMId))
-        _logger.LogDebug("Status change: {Old} → {New}", task.TaskStatusPMId, dto.TaskStatusPMId);
-    task.TaskStatusPMId = dto.TaskStatusPMId ?? task.TaskStatusPMId;
-
-    if (task.TaskPriorityPMId != (dto.TaskPriorityPMId ?? task.TaskPriorityPMId))
-        _logger.LogDebug("Priority change: {Old} → {New}", task.TaskPriorityPMId, dto.TaskPriorityPMId);
-    task.TaskPriorityPMId = dto.TaskPriorityPMId ?? task.TaskPriorityPMId;
-
-    if (task.AssignedToId != dto.AssignedToId)
-        _logger.LogDebug("AssignedTo change: {Old} → {New}", task.AssignedToId, dto.AssignedToId);
-    task.AssignedToId = dto.AssignedToId;
-
-    if (task.DueDate != dto.DueDate)
-        _logger.LogDebug("DueDate change: {Old} → {New}", task.DueDate, dto.DueDate);
-    task.DueDate = dto.DueDate;
-
-    // További mezők hasonlóan – nem írom ki mindet, de hasonló logolást tehetsz rájuk
-    task.EstimatedHours = dto.EstimatedHours;
-    task.ActualHours = dto.ActualHours;
-    task.PartnerId = dto.PartnerId;
-    task.SiteId = dto.SiteId;
-    task.ContactId = dto.ContactId;
-    task.QuoteId = dto.QuoteId;
-    task.OrderId = dto.OrderId;
-    task.ScheduledDate = dto.ScheduledDate;
-    task.CommunicationTypeId = dto.CommunicationTypeId;
-    task.CustomerCommunicationId = dto.CustomerCommunicationId;
-    task.CommunicationDescription = dto.CommunicationDescription;
-
-    task.UpdatedDate = DateTime.UtcNow;
-
-    // CompletedDate logika
-    if (task.TaskStatusPMId == 3 && task.CompletedDate == null)
-    {
-        task.CompletedDate = DateTime.UtcNow;
-        _logger.LogDebug("Task marked as Completed - setting CompletedDate");
-    }
-    else if (task.TaskStatusPMId != 3 && task.CompletedDate.HasValue)
-    {
-        task.CompletedDate = null;
-        _logger.LogDebug("Task no longer Completed - clearing CompletedDate");
-    }
-
-    // Resource és Employee kezelés (logolással)
-    if (dto.ResourceIds?.Any() == true)
-    {
-        _logger.LogInformation("Adding {Count} resources to task", dto.ResourceIds.Count);
-        var validResourceIds = await _context.Resources
-            .Where(r => dto.ResourceIds.Contains(r.ResourceId))
-            .Select(r => r.ResourceId)
-            .ToListAsync();
-
-        if (validResourceIds.Any())
+        // -----------------------------------------------------------------
+        // UPDATE
+        // -----------------------------------------------------------------
+        public async Task<TaskPMDto> UpdateTaskAsync(TaskUpdateDto dto, string currentUserId)
         {
-            var newRes = validResourceIds.Select(rid => new TaskResourceAssignment
+            _logger.LogInformation(
+                "UpdateTaskAsync STARTED - TaskId: {TaskId}, User: {UserId}",
+                dto.Id, currentUserId
+            );
+
+            var task = await _context.TaskPMs
+                .Include(t => t.TaskResourceAssignments)
+                .Include(t => t.TaskEmployeeAssignments)
+                .FirstOrDefaultAsync(t => t.Id == dto.Id && t.IsActive);
+
+            if (task == null)
+                throw new KeyNotFoundException($"Task {dto.Id} not found.");
+
+            // -------------------------------------------------
+            // FIELD UPDATES
+            // -------------------------------------------------
+            task.Title = dto.Title;
+            task.Description = dto.Description;
+
+            if (dto.TaskStatusPMId.HasValue)
+                task.TaskStatusPMId = dto.TaskStatusPMId.Value;
+
+            if (dto.TaskPriorityPMId.HasValue)
+                task.TaskPriorityPMId = dto.TaskPriorityPMId.Value;
+
+            task.AssignedToId = dto.AssignedToId;
+
+            task.DueDate = dto.DueDate;
+            task.EstimatedHours = dto.EstimatedHours;
+            task.ActualHours = dto.ActualHours;
+
+            task.PartnerId = dto.PartnerId;
+            task.SiteId = dto.SiteId;
+            task.ContactId = dto.ContactId;
+            task.QuoteId = dto.QuoteId;
+            task.OrderId = dto.OrderId;
+
+            task.TaskPMcomMethodID = dto.TaskPMcomMethodID;
+            task.CommunicationTypeId = dto.CommunicationTypeId;
+            task.CommunicationDescription = dto.CommunicationDescription;
+
+            task.ScheduledDate = dto.ScheduledDate;
+            task.CustomerCommunicationId = dto.CustomerCommunicationId;
+
+            task.UpdatedDate = DateTime.UtcNow;
+
+            // -------------------------------------------------
+            // 🔗 DOCUMENT LINKS SYNC (EDIT)
+            // -------------------------------------------------
+            if (dto.AttachedDocumentIds != null)
             {
-                TaskPMId = task.Id,
-                ResourceId = rid
-            });
-            _context.TaskResourceAssignments.AddRange(newRes);
-        }
-    }
+                // jelenlegi DB-s linkek
+                var existingLinks = await _context.TaskDocumentLinks
+                    .Where(x => x.TaskId == task.Id)
+                    .ToListAsync();
 
-    if (dto.EmployeeIds != null)
-    {
-        _logger.LogInformation("Replacing employee assignments - removing {OldCount}, adding {NewCount}",
-            task.TaskEmployeeAssignments.Count, dto.EmployeeIds.Count(e => true));
+                var incomingIds = dto.AttachedDocumentIds
+                    .Where(x => x > 0)
+                    .Distinct()
+                    .ToList();
 
-        _context.TaskEmployeeAssignments.RemoveRange(task.TaskEmployeeAssignments);
+                // 🗑️ TÖRLÉS – ami DB-ben van, de már nincs a payloadban
+                var toRemove = existingLinks
+                    .Where(x => !incomingIds.Contains(x.DocumentId))
+                    .ToList();
 
-        if (dto.EmployeeIds.Any())
-        {
-            var validEmployeeIds = await _context.Employees
-                .Where(e => dto.EmployeeIds.Contains(e.EmployeeId))
-                .Select(e => e.EmployeeId)
-                .ToListAsync();
-
-            if (validEmployeeIds.Any())
-            {
-                var newEmp = validEmployeeIds.Select(eid => new TaskEmployeeAssignment
+                if (toRemove.Any())
                 {
-                    TaskPMId = task.Id,
-                    EmployeeId = eid
-                });
-                _context.TaskEmployeeAssignments.AddRange(newEmp);
+                    _context.TaskDocumentLinks.RemoveRange(toRemove);
+                }
+
+                // ➕ HOZZÁADÁS – ami újonnan jött
+                var existingDocIds = existingLinks
+                    .Select(x => x.DocumentId)
+                    .ToHashSet();
+
+                var toAdd = incomingIds
+                    .Where(id => !existingDocIds.Contains(id))
+                    .Select(id => new TaskDocumentLink
+                    {
+                        TaskId = task.Id,
+                        DocumentId = id,
+                        LinkedDate = DateTime.UtcNow,
+                        LinkedById = currentUserId
+                    })
+                    .ToList();
+
+                if (toAdd.Any())
+                {
+                    _context.TaskDocumentLinks.AddRange(toAdd);
+                }
             }
+
+
+            // -------------------------------------------------
+            // COMPLETED DATE LOGIC
+            // -------------------------------------------------
+            if (task.TaskStatusPMId == 3 && task.CompletedDate == null)
+                task.CompletedDate = DateTime.UtcNow;
+
+            if (task.TaskStatusPMId != 3 && task.CompletedDate.HasValue)
+                task.CompletedDate = null;
+
+            // -------------------------------------------------
+            // DOCUMENTS SYNC (TaskDocumentLinks)
+            // -------------------------------------------------
+            if (dto.AttachedDocumentIds != null)
+            {
+                // amit a UI küld
+                var wantedDocIds = dto.AttachedDocumentIds
+                    .Where(x => x > 0)
+                    .Distinct()
+                    .ToHashSet();
+
+                // ami most a DB-ben van
+                var existingLinks = await _context.TaskDocumentLinks
+                    .Where(x => x.TaskId == task.Id)
+                    .ToListAsync();
+
+                var existingDocIds = existingLinks
+                    .Select(x => x.DocumentId)
+                    .ToHashSet();
+
+                // --- törlés (csak a LINK!)
+                var toRemove = existingLinks
+                    .Where(x => !wantedDocIds.Contains(x.DocumentId))
+                    .ToList();
+
+                if (toRemove.Count > 0)
+                {
+                    _context.TaskDocumentLinks.RemoveRange(toRemove);
+                    _logger.LogInformation(
+                        "Removed {Count} document links from Task {TaskId}",
+                        toRemove.Count, task.Id
+                    );
+                }
+
+                // --- hozzáadás
+                var toAddDocIds = wantedDocIds
+                    .Where(id => !existingDocIds.Contains(id))
+                    .ToList();
+
+                if (toAddDocIds.Count > 0)
+                {
+                    // csak létező dokumentumokat engedünk
+                    var validDocIds = await _context.Documents
+                        .Where(d => toAddDocIds.Contains(d.DocumentId))
+                        .Select(d => d.DocumentId)
+                        .ToListAsync();
+
+                    var newLinks = validDocIds.Select(docId => new TaskDocumentLink
+                    {
+                        TaskId = task.Id,
+                        DocumentId = docId,
+                        LinkedDate = DateTime.UtcNow,
+                        LinkedById = currentUserId
+                    }).ToList();
+
+                    _context.TaskDocumentLinks.AddRange(newLinks);
+
+                    _logger.LogInformation(
+                        "Added {Count} document links to Task {TaskId}",
+                        newLinks.Count, task.Id
+                    );
+                }
+            }
+
+            // -------------------------------------------------
+            // RESOURCES (ADD ONLY)
+            // -------------------------------------------------
+            if (dto.ResourceIds?.Any() == true)
+            {
+                var validResourceIds = await _context.Resources
+                    .Where(r => dto.ResourceIds.Contains(r.ResourceId))
+                    .Select(r => r.ResourceId)
+                    .ToListAsync();
+
+                var existing = new HashSet<int>(
+                    task.TaskResourceAssignments.Select(x => x.ResourceId)
+                );
+
+                var toAdd = validResourceIds
+                    .Where(id => !existing.Contains(id))
+                    .Select(id => new TaskResourceAssignment
+                    {
+                        TaskPMId = task.Id,
+                        ResourceId = id
+                    });
+
+                _context.TaskResourceAssignments.AddRange(toAdd);
+            }
+
+            // -------------------------------------------------
+            // EMPLOYEES (REPLACE)
+            // -------------------------------------------------
+            if (dto.EmployeeIds != null)
+            {
+                _context.TaskEmployeeAssignments.RemoveRange(task.TaskEmployeeAssignments);
+
+                if (dto.EmployeeIds.Any())
+                {
+                    var validEmployeeIds = await _context.Employees
+                        .Where(e => dto.EmployeeIds.Contains(e.EmployeeId))
+                        .Select(e => e.EmployeeId)
+                        .ToListAsync();
+
+                    var newEmp = validEmployeeIds.Select(eid => new TaskEmployeeAssignment
+                    {
+                        TaskPMId = task.Id,
+                        EmployeeId = eid
+                    });
+
+                    _context.TaskEmployeeAssignments.AddRange(newEmp);
+                }
+            }
+
+            // -------------------------------------------------
+            // SAVE
+            // -------------------------------------------------
+            await _context.SaveChangesAsync();
+
+            _logger.LogInformation(
+                "UpdateTaskAsync FINISHED - TaskId: {TaskId}",
+                task.Id
+            );
+
+            return await GetTaskByIdAsync(task.Id)
+                ?? throw new ValidationException("Failed to retrieve updated task.");
         }
-    }
 
-    _logger.LogInformation("Calling SaveChangesAsync for Task {TaskId}", task.Id);
-    await _context.SaveChangesAsync();
-    _logger.LogInformation("SaveChangesAsync completed successfully for Task {TaskId}", task.Id);
-
-    var result = await GetTaskByIdAsync(task.Id);
-    if (result == null)
-        throw new ValidationException("Failed to retrieve updated task.");
-
-    _logger.LogInformation("UpdateTaskAsync FINISHED - TaskId: {TaskId}", dto.Id);
-    return result;
-}
         // -----------------------------------------------------------------
         // SOFT DELETE
         // -----------------------------------------------------------------
         public async Task DeleteTaskAsync(int id)
         {
+            if (id <= 0)
+                throw new ValidationException("Invalid task id.");
+
+            _logger.LogWarning("SoftDelete START id={Id}", id);
+
             var task = await _context.TaskPMs
                 .FirstOrDefaultAsync(t => t.Id == id && t.IsActive)
                 ?? throw new KeyNotFoundException($"Task {id} not found.");
 
             task.IsActive = false;
             task.UpdatedDate = DateTime.UtcNow;
-            await _context.SaveChangesAsync();
+            // Debug: milyen mezők változnak ezen az entitáson?
+            var entry = _context.Entry(task);
+            foreach (var p in entry.Properties)
+            {
+                if (p.IsModified)
+                    _logger.LogWarning("DELETE Task {Id}: modified {Prop} = {Val}", id, p.Metadata.Name, p.CurrentValue);
+            }
+
+            var affected = await _context.SaveChangesAsync();
+            var changed = await _context.TaskPMs.CountAsync(t => !t.IsActive);
+            _logger.LogWarning("Inactive count after delete: {Count}", changed);
+
+            _logger.LogWarning("SoftDelete DONE id={Id} SaveChanges={Affected}", id, affected);
         }
 
         // -----------------------------------------------------------------
@@ -386,25 +576,23 @@ public async Task<TaskPMDto> UpdateTaskAsync(TaskUpdateDto dto, string currentUs
             string? order = "desc",
             int? statusId = null,
             int? priorityId = null,
-            int? taskTypeId = null,           // ÚJ: Feladat típusa / Task Type
-            int? partnerId = null,            // ÚJ: Partner
-            int? siteId = null,               // ÚJ: Telephely / Site
-            string? assignedToId = null,      // Technikus / Technician
-            DateTime? dueDateFrom = null,     // Határidő tól / Due Date From
-            DateTime? dueDateTo = null,       // Határidő ig / Due Date To
-            DateTime? createdDateFrom = null, // Létrehozás tól / Created From
-            DateTime? createdDateTo = null)   // Létrehozás ig / Created To
+            int? taskTypeId = null,
+            int? partnerId = null,
+            int? siteId = null,
+            string? assignedToId = null,
+            DateTime? dueDateFrom = null,
+            DateTime? dueDateTo = null,
+            DateTime? createdDateFrom = null,
+            DateTime? createdDateTo = null)
         {
-            // --- Biztonságos értékek ---
             page = Math.Max(1, page);
             pageSize = Math.Max(1, Math.Min(100, pageSize));
             sort ??= "Id";
             order ??= "desc";
 
-            // --- Alap lekérdezés ---
             var query = BaseQuery(_context).Where(t => t.IsActive);
 
-            // === SZŰRŐK / FILTERS ===
+            // Filters
             if (statusId.HasValue) query = query.Where(t => t.TaskStatusPMId == statusId.Value);
             if (priorityId.HasValue) query = query.Where(t => t.TaskPriorityPMId == priorityId.Value);
             if (taskTypeId.HasValue) query = query.Where(t => t.TaskTypePMId == taskTypeId.Value);
@@ -413,7 +601,7 @@ public async Task<TaskPMDto> UpdateTaskAsync(TaskUpdateDto dto, string currentUs
             if (!string.IsNullOrWhiteSpace(assignedToId))
                 query = query.Where(t => t.AssignedToId == assignedToId);
 
-            // Dátumtartományok / Date ranges
+            // Date ranges
             if (dueDateFrom.HasValue)
                 query = query.Where(t => t.DueDate >= dueDateFrom.Value.Date);
 
@@ -426,7 +614,7 @@ public async Task<TaskPMDto> UpdateTaskAsync(TaskUpdateDto dto, string currentUs
             if (createdDateTo.HasValue)
                 query = query.Where(t => t.CreatedDate <= createdDateTo.Value.Date.AddDays(1).AddSeconds(-1));
 
-            // === KERESÉS / SEARCH ===
+            // Search
             if (!string.IsNullOrWhiteSpace(searchTerm))
             {
                 var term = searchTerm.Trim().ToLower();
@@ -439,10 +627,9 @@ public async Task<TaskPMDto> UpdateTaskAsync(TaskUpdateDto dto, string currentUs
                     (t.Site != null && t.Site.City.ToLower().Contains(term)));
             }
 
-            // --- Összes találat száma (lapozás előtt!) ---
             var totalCount = await query.CountAsync();
 
-            // === RENDEZÉS / SORTING ===
+            // Sorting
             query = sort.ToLowerInvariant() switch
             {
                 "title" => order == "desc" ? query.OrderByDescending(t => t.Title) : query.OrderBy(t => t.Title),
@@ -457,14 +644,12 @@ public async Task<TaskPMDto> UpdateTaskAsync(TaskUpdateDto dto, string currentUs
                 _ => order == "desc" ? query.OrderByDescending(t => t.Id) : query.OrderBy(t => t.Id)
             };
 
-            // --- Lapozás / Pagination ---
             var items = await query
                 .Skip((page - 1) * pageSize)
                 .Take(pageSize)
                 .Select(t => MapToDto(t))
                 .ToListAsync();
 
-            // --- Visszatérés ---
             return new PagedResult<TaskPMDto>
             {
                 Items = items,
@@ -492,10 +677,14 @@ public async Task<TaskPMDto> UpdateTaskAsync(TaskUpdateDto dto, string currentUs
                 TaskStatusPMId = task.TaskStatusPMId,
                 TaskStatusPMName = task.TaskStatusPM?.Name,
                 ColorCode = task.TaskStatusPM?.ColorCode,
-                PriorityColorCode = task.TaskPriorityPM.PriorityColorCode,
+
+                // ✅ KOMMUNIKÁCIÓS MÓD (LOOKUP)
+                TaskPMcomMethodID = task.TaskPMcomMethodID,
+                TaskPMcomMethodName = task.TaskPMcomMethod != null ? task.TaskPMcomMethod.Nev : null,
 
                 TaskPriorityPMId = task.TaskPriorityPMId,
                 TaskPriorityPMName = task.TaskPriorityPM?.Name,
+                PriorityColorCode = task.TaskPriorityPM?.PriorityColorCode,
 
                 CommunicationTypeId = task.CommunicationTypeId,
                 CommunicationTypeName = task.CommunicationType?.Name,
@@ -516,9 +705,6 @@ public async Task<TaskPMDto> UpdateTaskAsync(TaskUpdateDto dto, string currentUs
 
                 UpdatedDate = task.UpdatedDate,
                 CompletedDate = task.CompletedDate,
-
-                // ProjectPMId = task.ProjectPMId,
-                // ProjectPMName = task.ProjectPM?.Name,
 
                 PartnerId = task.PartnerId,
                 PartnerName = task.Partner?.Name,
@@ -544,7 +730,6 @@ public async Task<TaskPMDto> UpdateTaskAsync(TaskUpdateDto dto, string currentUs
                 ResourceIds = task.TaskResourceAssignments.Select(ra => ra.ResourceId).ToList(),
                 EmployeeIds = task.TaskEmployeeAssignments.Select(ea => ea.EmployeeId).ToList(),
 
-                // ----- History -----
                 TaskHistories = task.TaskHistories
                     .Select(th => new TaskHistoryDto
                     {
@@ -559,23 +744,24 @@ public async Task<TaskPMDto> UpdateTaskAsync(TaskUpdateDto dto, string currentUs
                     .ToList(),
 
                 Attachments = task.TaskDocuments
-            .Select(td => new TaskDocumentDto
-            {
-                Id = td.Id,
-                DocumentId = td.DocumentId,
-                FileName = td.Document.FileName,
-                FilePath = td.Document.FilePath,
-                LinkedDate = td.LinkedDate,
-                LinkedByName = td.LinkedBy != null ? td.LinkedBy.UserName : null,
-                Note = td.Note
-            })
-            .OrderByDescending(a => a.LinkedDate)
-            .ToList()
-
+                    .Select(td => new TaskDocumentDto
+                    {
+                        Id = td.Id,
+                        DocumentId = td.DocumentId,
+                        FileName = td.Document?.FileName ?? "",
+                        FilePath = td.Document?.FilePath ?? "",
+                        LinkedDate = td.LinkedDate,
+                        LinkedByName = td.LinkedBy != null ? td.LinkedBy.UserName : null,
+                        Note = td.Note
+                    })
+                    .OrderByDescending(a => a.LinkedDate)
+                    .ToList()
             };
         }
 
+        // -----------------------------------------------------------------
         // Attach existing document to task
+        // -----------------------------------------------------------------
         public async Task AttachDocumentAsync(int taskId, int documentId, string currentUserId, string? note = null)
         {
             if (!await _context.TaskPMs.AnyAsync(t => t.Id == taskId && t.IsActive))
@@ -603,7 +789,9 @@ public async Task<TaskPMDto> UpdateTaskAsync(TaskUpdateDto dto, string currentUs
             await _context.SaveChangesAsync();
         }
 
+        // -----------------------------------------------------------------
         // Remove document from task
+        // -----------------------------------------------------------------
         public async Task RemoveDocumentAsync(int taskId, int documentLinkId, string currentUserId)
         {
             var link = await _context.TaskDocumentLinks
@@ -616,8 +804,9 @@ public async Task<TaskPMDto> UpdateTaskAsync(TaskUpdateDto dto, string currentUs
             await _context.SaveChangesAsync();
         }
 
-
+        // -----------------------------------------------------------------
         // Optional: Attach multiple at once
+        // -----------------------------------------------------------------
         public async Task AttachDocumentsAsync(int taskId, List<int> documentIds, string currentUserId, string? note = null)
         {
             foreach (var docId in documentIds.Distinct())
@@ -625,7 +814,6 @@ public async Task<TaskPMDto> UpdateTaskAsync(TaskUpdateDto dto, string currentUs
                 await AttachDocumentAsync(taskId, docId, currentUserId, note);
             }
         }
-
     }
 
     // -----------------------------------------------------------------

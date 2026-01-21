@@ -7,9 +7,23 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using System.Security.Claims;
 using System.ComponentModel.DataAnnotations;
+using Microsoft.AspNetCore.Identity;
+
 
 namespace Cloud9_2.Controllers
 {
+    public class TaskAssigneeUpdateDto
+    {
+        public string? AssignedToId { get; set; }
+    }
+
+    public class AttachDocumentsRequest
+    {
+        public List<int> DocumentIds { get; set; } = new();
+        public string? Note { get; set; } // opcionális
+    }
+
+
     [Route("api/[controller]")]
     [ApiController]
     [Authorize]
@@ -70,6 +84,67 @@ namespace Cloud9_2.Controllers
                 return StatusCode(500, "An error occurred while retrieving the task.");
             }
         }
+
+        // -----------------------------------------------------------------
+        // POST: api/tasks/{taskId}/documents/attach
+        // Body: { documentIds: [136523, 137527], note: "..." }
+        // -----------------------------------------------------------------
+        [HttpPost("{taskId:int}/documents/attach")]
+        public async Task<IActionResult> AttachDocumentsToTask(int taskId, [FromBody] AttachDocumentsRequest req)
+        {
+            try
+            {
+                var ids = (req?.DocumentIds ?? new List<int>())
+                    .Where(x => x > 0)
+                    .Distinct()
+                    .ToList();
+
+                if (ids.Count == 0)
+                    return BadRequest("No document ids provided.");
+
+                await _taskService.AttachDocumentsAsync(taskId, ids, CurrentUserId, req?.Note);
+
+                // opcionális: visszaadhatod a friss taskot is (frontendnek kényelmes)
+                var updated = await _taskService.GetTaskByIdAsync(taskId);
+                return Ok(updated);
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(ex.Message);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "AttachDocumentsToTask failed taskId={TaskId}", taskId);
+                return StatusCode(500, new { error = ex.Message });
+            }
+        }
+
+        // -----------------------------------------------------------------
+        // DELETE: api/tasks/{taskId}/documents/{documentLinkId}
+        // ⚠️ documentLinkId = TaskDocumentLinks.Id (nem DocumentId)
+        // -----------------------------------------------------------------
+        [HttpDelete("{taskId:int}/documents/{documentLinkId:int}")]
+        public async Task<IActionResult> RemoveDocumentFromTask(int taskId, int documentLinkId)
+        {
+            try
+            {
+                await _taskService.RemoveDocumentAsync(taskId, documentLinkId, CurrentUserId);
+
+                // opcionális: visszaadhatod a friss taskot is
+                var updated = await _taskService.GetTaskByIdAsync(taskId);
+                return Ok(updated);
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(ex.Message);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "RemoveDocumentFromTask failed taskId={TaskId} linkId={LinkId}", taskId, documentLinkId);
+                return StatusCode(500, new { error = ex.Message });
+            }
+        }
+
 
         // -----------------------------------------------------------------
         // POST: api/tasks
@@ -134,24 +209,32 @@ namespace Cloud9_2.Controllers
         // -----------------------------------------------------------------
         // DELETE: api/tasks/{id}
         // -----------------------------------------------------------------
-        [HttpDelete("{id}")]
-        public async Task<IActionResult> DeleteTask(int id)
+        [HttpDelete("{id:int}")]
+        public async Task<IActionResult> DeleteTaskAsync(int id)
         {
-            try
-            {
-                await _taskService.DeleteTaskAsync(id);
-                return NoContent();
-            }
-            catch (KeyNotFoundException)
-            {
-                return NotFound($"Task with ID {id} not found.");
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error deleting task {TaskId}", id);
-                return StatusCode(500, "An error occurred while deleting the task.");
-            }
+            var affected = await _context.Database.ExecuteSqlInterpolatedAsync($@"
+            UPDATE dbo.TaskPM
+            SET 
+                IsActive = 0,
+                UpdatedDate = {DateTime.UtcNow}
+            WHERE 
+                Id = {id}
+                AND IsActive = 1;
+            ");
+
+            _logger.LogInformation(
+                "DeleteTaskAsync (SQL) TaskPM id={Id} affectedRows={Affected}",
+                id,
+                affected
+            );
+
+            if (affected == 0)
+                return NotFound($"Task {id} not found or already deleted.");
+
+            return NoContent(); // 204
         }
+
+
 
         // -----------------------------------------------------------------
         // GET: api/tasks/paged
@@ -203,6 +286,30 @@ namespace Cloud9_2.Controllers
             }
         }
 
+        [HttpGet("assignees/select")]
+        public async Task<IActionResult> GetAssigneesForSelect()
+        {
+            try
+            {
+                var users = await _context.Users
+                    .AsNoTracking()
+                    .OrderBy(u => u.NormalizedUserName)
+                    .Select(u => new
+                    {
+                        id = u.Id,
+                        text = u.UserName + (u.Email != null ? $" ({u.Email})" : "")
+                    })
+                    .ToListAsync();
+
+                return Ok(users);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error fetching assignees for select");
+                return StatusCode(500, new { error = ex.Message });
+            }
+        }
+
 
         // === ÚJ SELECT VÉGPONTOK ===
 
@@ -226,6 +333,36 @@ namespace Cloud9_2.Controllers
             }
         }
 
+        // === KOMMUNIKÁCIÓS MÓD SELECT VÉGPONT ===
+        [HttpGet("taskpm-communication-methods/select")]
+        public async Task<IActionResult> GetTaskPmCommunicationMethods()
+        {
+            try
+            {
+                var methods = await _context.Set<TaskPMcomMethod>()
+                    .AsNoTracking()
+                    .Where(m => m.Aktiv == true)
+                    .OrderBy(m => m.Sorrend ?? 0)
+                    .ThenBy(m => m.Nev)
+                    .Select(m => new
+                    {
+                        id = m.TaskPMcomMethodID,
+                        text = m.Nev
+                    })
+                    .ToListAsync();
+
+                return Ok(methods);
+            }
+            catch (Exception ex)
+            {
+                // EZ FONTOS: így a valódi hibát ki fogja írni (SQL hiba / mapping hiba / stb.)
+                _logger.LogError(ex, "Error fetching TaskPM communication methods for select");
+                return StatusCode(500, new { error = ex.Message });
+            }
+        }
+
+
+
         // -----------------------------------------------------------------
         // GET: api/tasks/taskstatuses/select
         // -----------------------------------------------------------------
@@ -248,6 +385,35 @@ namespace Cloud9_2.Controllers
             }
         }
 
+
+        [HttpPut("{id:int}/assignee/sql")]
+        public async Task<IActionResult> UpdateAssigneeSql(int id, [FromBody] TaskAssigneeUpdateDto dto)
+        {
+            try
+            {
+                var affected = await _context.Database.ExecuteSqlInterpolatedAsync($@"
+UPDATE dbo.TaskPM
+SET
+    AssignedTo = {dto.AssignedToId},
+    UpdatedDate = {DateTime.UtcNow}
+WHERE
+    Id = {id}
+    AND IsActive = 1;
+");
+
+                if (affected == 0)
+                    return NotFound($"Task {id} not found or already deleted.");
+
+                // visszaadjuk a frissített DTO-t, hogy a frontend csak a sort frissítse
+                var updated = await _taskService.GetTaskByIdAsync(id);
+                return Ok(updated);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "UpdateAssigneeSql failed for TaskId={TaskId}", id);
+                return StatusCode(500, new { error = ex.Message });
+            }
+        }
 
 
         // -----------------------------------------------------------------
@@ -281,10 +447,11 @@ namespace Cloud9_2.Controllers
             var term = q.Trim();
 
             var result = await _context.Partners
-                .Where(p => p.IsActive &&
-                           (p.Name.Contains(term, StringComparison.OrdinalIgnoreCase) ||
-                            p.TaxId.Contains(term, StringComparison.OrdinalIgnoreCase) ||     // adószám is jó keresési kulcs!
-                            p.CompanyName.Contains(term, StringComparison.OrdinalIgnoreCase))) // cégnév is
+            .Where(p => p.IsActive &&
+            (EF.Functions.Like(p.Name, "%" + term + "%") ||
+                EF.Functions.Like(p.TaxId, "%" + term + "%") ||
+                EF.Functions.Like(p.CompanyName, "%" + term + "%")))
+
                 .OrderBy(p => p.Name)
                 .Take(100)
                 .Select(p => new
@@ -299,8 +466,41 @@ namespace Cloud9_2.Controllers
             return Ok(result);
         }
 
+        // -----------------------------------------------------------------
+        // GET: api/tasks/documents/picker?q=...  (DOCUMENT PICKER LIST)
+        // -----------------------------------------------------------------
+        [HttpGet("documents/picker")]
+        public async Task<IActionResult> GetDocumentsForPicker([FromQuery] string? q = null, [FromQuery] int take = 50)
+        {
+            take = Math.Clamp(take, 1, 200);
+
+            var query = _context.Documents.AsNoTracking();
+
+            if (!string.IsNullOrWhiteSpace(q))
+            {
+                var term = q.Trim();
+                query = query.Where(d =>
+                    EF.Functions.Like(d.FileName, "%" + term + "%")
+                // ha van más meződ: cím, leírás, partner, stb.
+                );
+            }
+
+            var items = await query
+                .OrderByDescending(d => d.DocumentId) // vagy CreatedDate desc
+                .Take(take)
+                .Select(d => new
+                {
+                    id = d.DocumentId,
+                    fileName = d.FileName,
+                    filePath = d.FilePath
+                })
+                .ToListAsync();
+
+            return Ok(items);
+        }
+
 
     }
-    
-    
+
+
 }

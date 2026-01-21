@@ -87,12 +87,31 @@ namespace Cloud9_2.Data
         public DbSet<TaskEmployeeAssignment> TaskEmployeeAssignments { get; set; }
         public DbSet<TaskDocumentLink> TaskDocumentLinks { get; set; }
         public DbSet<TaskHistory> TaskHistories { get; set; }
+        public DbSet<TaskPMcomMethod> TaskPMcomMethods { get; set; }
         public DbSet<AuditLog> AuditLogs { get; set; } = null!;
 
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
+
+
+            // ----------------------------------------------------------------
+            modelBuilder.Entity<TaskPM>()
+                .HasOne(t => t.TaskPMcomMethod)
+                .WithMany() // lookup, nincs visszanavigáció
+                .HasForeignKey(t => t.TaskPMcomMethodID)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // (opcionális) tábla nevek fixálása, ha kell
+            modelBuilder.Entity<TaskPMcomMethod>()
+                .ToTable("TaskPMcomMethod");
+
+            // (opcionális) string hosszok / indexek
+            modelBuilder.Entity<TaskPMcomMethod>()
+                .Property(x => x.Nev)
+                .HasMaxLength(50)
+                .IsRequired();
 
             modelBuilder.Entity<AuditLog>(entity =>
             {
@@ -559,11 +578,12 @@ modelBuilder.Entity<Partner>()
                 .Property(s => s.PartnerId)
                 .IsRequired();
 
-            modelBuilder.Entity<Partner>()
-                .HasMany(p => p.Documents)
-                .WithOne() // No navigation property in Document
+            modelBuilder.Entity<Document>()
+                .HasOne(d => d.Partner)
+                .WithMany(p => p.Documents)
                 .HasForeignKey(d => d.PartnerId)
-                .OnDelete(DeleteBehavior.Cascade);
+                .OnDelete(DeleteBehavior.Restrict); // vagy Cascade, lásd lent
+
 
             modelBuilder.Entity<Document>()
                 .HasMany(d => d.DocumentMetadata)
@@ -592,16 +612,6 @@ modelBuilder.Entity<Partner>()
                 .HasConversion<int>();
             modelBuilder.Entity<DocumentStatusHistory>()
                 .Property(h => h.NewStatus)
-                .HasConversion<int>();
-
-            // Configure relationships
-            modelBuilder.Entity<DocumentStatusHistory>()
-                .HasOne(h => h.Document)
-                .WithMany(d => d.StatusHistory)
-                .HasForeignKey(h => h.DocumentId);
-
-            modelBuilder.Entity<Document>()
-                .Property(d => d.Status)
                 .HasConversion<int>();
 
 

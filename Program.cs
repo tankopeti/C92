@@ -13,6 +13,12 @@ using Microsoft.EntityFrameworkCore;
   var builder = WebApplication.CreateBuilder(args);
   builder.Configuration.AddEnvironmentVariables();
 
+  builder.Services.AddControllers()
+    .AddJsonOptions(o =>
+    {
+        o.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+    });
+
   builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAll", builder =>
@@ -40,16 +46,24 @@ builder.Services.Configure<TwilioSettings>(builder.Configuration.GetSection("Twi
 
 builder.Services.AddHttpContextAccessor();
 
-// A connectionString-et csak egyszer deklaráld
+builder.Services.AddScoped<GenericAuditInterceptor>();
+
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
     ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
 
-builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseSqlServer(connectionString)
-           .AddInterceptors(new AuditInterceptor(
-               builder.Services.BuildServiceProvider().GetRequiredService<IHttpContextAccessor>(),
-               builder.Services.BuildServiceProvider().GetRequiredService<ILogger<AuditInterceptor>>()
-           )));
+// CSAK EGYETLEN AddDbContext hívás!
+builder.Services.AddDbContext<ApplicationDbContext>((sp, options) =>
+{
+    options.UseSqlServer(connectionString);
+    options.AddInterceptors(sp.GetRequiredService<GenericAuditInterceptor>());
+});
+
+// builder.Services.AddDbContext<ApplicationDbContext>(options =>
+//     options.UseSqlServer(connectionString)
+//            .AddInterceptors(new AuditInterceptor(
+//                builder.Services.BuildServiceProvider().GetRequiredService<IHttpContextAccessor>(),
+//                builder.Services.BuildServiceProvider().GetRequiredService<ILogger<AuditInterceptor>>()
+//            )));
 
 // // Initialize Twilio client (optional but recommended)
 var twilio = builder.Configuration.GetSection("Twilio").Get<TwilioSettings>();
@@ -59,7 +73,7 @@ builder.Services.AddScoped<TaskPMService>();
 builder.Services.AddScoped<EmployeeService>();
 builder.Services.AddScoped<ResourceService>();
 builder.Services.AddScoped<EmailService>();
-  builder.Services.AddScoped<IDocumentService, DocumentService>();
+builder.Services.AddScoped<DocumentService>();
   builder.Services.AddScoped<QuoteService>();
   builder.Services.AddScoped<OrderService>();
   builder.Services.AddScoped<CustomerCommunicationService>();
@@ -67,6 +81,9 @@ builder.Services.AddScoped<IPartnerService, PartnerService>();
   builder.Services.AddScoped<ProductPriceService>();
   builder.Services.AddScoped<ContactService>();
   builder.Services.AddScoped<PartnerProductPriceService>();
+
+  
+  
   builder.Services.AddMemoryCache();
   builder.Services.AddResponseCaching();
 //   builder.Services.AddScoped<OpenSearchService>();

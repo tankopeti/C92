@@ -2,28 +2,16 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Logging;
-using Cloud9_2.Models;
 using Cloud9_2.Data;
+using Cloud9_2.Models;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace Cloud9_2.Services
 {
-    public interface IDocumentService
-    {
-        Task<DocumentDto> GetDocumentAsync(int documentId);
-        Task<List<DocumentDto>> GetDocumentsAsync(string searchTerm, int? documentTypeId, int? partnerId, int? siteId, DocumentStatusEnum? status, string sortBy, int skip, int take);
-        Task<int> GetDocumentsCountAsync(string searchTerm, int? documentTypeId, int? partnerId, int? siteId);
-        Task<DocumentDto> CreateDocumentAsync(CreateDocumentDto documentDto); // Updated to use CreateDocumentDto
-        Task<DocumentDto> UpdateDocumentAsync(int documentId, DocumentDto documentUpdate);
-        Task<bool> DeleteDocumentAsync(int documentId);
-        Task<string> GetNextDocumentNumberAsync();
-        Task<Document> GetDocumentByIdAsync(int documentId);
-    }
-
-    public class DocumentService : IDocumentService
+    public class DocumentService
     {
         private readonly ApplicationDbContext _context;
         private readonly ILogger<DocumentService> _logger;
@@ -45,10 +33,26 @@ namespace Cloud9_2.Services
         private string GetCurrentUser() =>
             _httpContextAccessor.HttpContext?.User?.Identity?.Name ?? "System";
 
+        private async Task<bool> IsAdminAsync()
+        {
+            var user = await _userManager.GetUserAsync(_httpContextAccessor.HttpContext!.User);
+            if (user == null) return false;
+
+            return await _userManager.IsInRoleAsync(user, "Admin")
+                   || await _userManager.IsInRoleAsync(user, "SuperAdmin");
+        }
+
+        private async Task<bool> IsEditorAsync()
+        {
+            var user = await _userManager.GetUserAsync(_httpContextAccessor.HttpContext!.User);
+            if (user == null) return false;
+
+            return await _userManager.IsInRoleAsync(user, "Editor");
+        }
+
         private async Task LogStatusChangeAsync(int documentId, DocumentStatusEnum oldStatus, DocumentStatusEnum newStatus)
         {
-            if (oldStatus == newStatus)
-                return;
+            if (oldStatus == newStatus) return;
 
             var history = new DocumentStatusHistory
             {
@@ -61,291 +65,569 @@ namespace Cloud9_2.Services
 
             _context.DocumentStatusHistory.Add(history);
             await _context.SaveChangesAsync();
-            _logger.LogInformation("Logged status change for document {DocumentId} from {OldStatus} to {NewStatus}", documentId, oldStatus, newStatus);
+
+            _logger.LogInformation(
+                "Logged status change for document {DocumentId} from {OldStatus} to {NewStatus}",
+                documentId, oldStatus, newStatus);
         }
 
-        public async Task<DocumentDto> GetDocumentAsync(int documentId)
+        // ----------------------------
+        // SEARCH (külön endpointhez)
+        // ----------------------------
+        public async Task<List<DocumentSearchResultDto>> SearchDocumentsAsync(string term, int take = 20)
+        {
+            term = (term ?? "").Trim();
+            if (term.Length < 2) return new List<DocumentSearchResultDto>();
+
+            take = Math.Clamp(take, 1, 50);
+
+            // 1) ID-k dokumentum mezők + partner név alapján (LEFT JOIN)
+            var docOrPartnerIds = await (
+                from d in _context.Documents.AsNoTracking()
+                join p in _context.Partners.AsNoTracking() on d.PartnerId equals p.PartnerId into pj
+                from p in pj.DefaultIfEmpty()
+                where
+                    (d.FileName != null && d.FileName.Contains(term)) ||
+                    (d.FilePath != null && d.FilePath.Contains(term)) ||
+                    (p != null && p.Name != null && p.Name.Contains(term))
+                select d.DocumentId
+            )
+            .Distinct()
+            .Take(1000)
+            .ToListAsync();
+
+            // 2) ID-k metaadatok alapján
+            var metaIds = await _context.DocumentMetadata
+                .AsNoTracking()
+                .Where(m => m.Value != null && m.Value.Contains(term))
+                .Select(m => m.DocumentId)
+                .Distinct()
+                .Take(2000)
+                .ToListAsync();
+
+            // 3) Union
+            var allIds = docOrPartnerIds
+                .Concat(metaIds)
+                .Distinct()
+                .Take(take)
+                .ToList();
+
+            if (allIds.Count == 0)
+                return new List<DocumentSearchResultDto>();
+
+            // 4) Dokumentumok + PartnerName (rendezve dátum szerint)
+            var docs = await (
+                from d in _context.Documents.AsNoTracking()
+                join p in _context.Partners.AsNoTracking() on d.PartnerId equals p.PartnerId into pj
+                from p in pj.DefaultIfEmpty()
+                where allIds.Contains(d.DocumentId)
+                orderby d.UploadDate descending
+                select new
+                {
+                    d.DocumentId,
+                    d.FileName,
+                    d.FilePath,
+                    d.UploadDate,
+                    d.PartnerId,
+                    PartnerName = p != null ? p.Name : null,
+                    d.Status
+                }
+            )
+            .Take(take)
+            .ToListAsync();
+
+            var ids = docs.Select(x => x.DocumentId).Distinct().ToList();
+
+            // 5) Metadata lekérés
+            var metas = await _context.DocumentMetadata
+                .AsNoTracking()
+                .Where(m => ids.Contains(m.DocumentId))
+                .ToListAsync();
+
+            var metaByDoc = metas
+                .GroupBy(m => m.DocumentId)
+                .ToDictionary(
+                    g => g.Key,
+                    g => g.GroupBy(x => x.Key)
+                          .ToDictionary(
+                              gg => gg.Key,
+                              gg => string.Join(", ", gg.Select(x => x.Value))
+                          )
+                );
+
+            return docs.Select(d => new DocumentSearchResultDto
+            {
+                DocumentId = d.DocumentId,
+                FileName = d.FileName ?? "",
+                FilePath = d.FilePath ?? "",
+                UploadDate = d.UploadDate,
+                PartnerId = d.PartnerId,
+                PartnerName = d.PartnerName ?? "",
+                Status = d.Status,
+                Metadata = metaByDoc.TryGetValue(d.DocumentId, out var md) ? md : new Dictionary<string, string>()
+            }).ToList();
+        }
+
+        // DTO a searchhöz
+        public class DocumentSearchResultDto
+        {
+            public int DocumentId { get; set; }
+            public string FileName { get; set; } = "";
+            public string FilePath { get; set; } = "";
+            public DateTime? UploadDate { get; set; }
+            public int? PartnerId { get; set; }
+            public DocumentStatusEnum Status { get; set; }
+            public string PartnerName { get; set; } = "";
+            public Dictionary<string, string> Metadata { get; set; } = new();
+        }
+
+        public class DocumentListItemDto
+        {
+            public int DocumentId { get; set; }
+            public string? FileName { get; set; }
+            public DateTime? UploadDate { get; set; }
+            public string? UploadedBy { get; set; }
+
+            public int? PartnerId { get; set; }
+            public string? PartnerName { get; set; }
+
+            public int? SiteId { get; set; }
+
+            public int? DocumentTypeId { get; set; }
+            public string? DocumentTypeName { get; set; }
+
+            public DocumentStatusEnum Status { get; set; }
+            public bool? IsActive { get; set; }
+        }
+
+        public async Task<List<DocumentListItemDto>> GetDocumentsListAsync(
+    string? searchTerm,
+    int? documentTypeId,
+    int? partnerId,
+    int? siteId,
+    DocumentStatusEnum? status,
+    DateTime? dateFrom,
+    DateTime? dateTo,
+    bool includeInactive,
+    string? sortBy,
+    string? sortDir,
+    int skip,
+    int take)
+{
+    take = Math.Clamp(take, 1, 200);
+    if (skip < 0) skip = 0;
+
+    var user = await _userManager.GetUserAsync(_httpContextAccessor.HttpContext!.User);
+    var isAdmin = user != null &&
+                  (await _userManager.IsInRoleAsync(user, "Admin") ||
+                   await _userManager.IsInRoleAsync(user, "SuperAdmin"));
+
+    // ✅ Könnyű list query (NINCS Include links/history/metadata)
+    var query =
+        from d in _context.Documents.AsNoTracking()
+        join p in _context.Partners.AsNoTracking() on d.PartnerId equals p.PartnerId into pj
+        from p in pj.DefaultIfEmpty()
+        join dt in _context.DocumentTypes.AsNoTracking() on d.DocumentTypeId equals dt.DocumentTypeId into dtj
+        from dt in dtj.DefaultIfEmpty()
+        select new DocumentListItemDto
+        {
+            DocumentId = d.DocumentId,
+            FileName = d.FileName,
+            UploadDate = d.UploadDate,
+            UploadedBy = d.UploadedBy,
+            PartnerId = d.PartnerId,
+            PartnerName = p != null ? p.Name : null,
+            SiteId = d.SiteId,
+            DocumentTypeId = d.DocumentTypeId,
+            DocumentTypeName = dt != null ? dt.Name : null,
+            Status = d.Status,
+            IsActive = d.isActive
+        };
+
+    if (!isAdmin)
+        query = query.Where(x => x.UploadedBy == GetCurrentUser());
+
+    // ✅ soft delete: default csak aktív
+    if (!includeInactive)
+        query = query.Where(x => x.IsActive == true);
+
+    // ✅ search (könnyű mezőkön)
+    if (!string.IsNullOrWhiteSpace(searchTerm))
+    {
+        var term = searchTerm.Trim();
+        query = query.Where(x =>
+            (x.FileName != null && x.FileName.Contains(term)) ||
+            (x.UploadedBy != null && x.UploadedBy.Contains(term)) ||
+            (x.PartnerName != null && x.PartnerName.Contains(term)) ||
+            (x.DocumentTypeName != null && x.DocumentTypeName.Contains(term))
+        );
+    }
+
+    // ✅ filters
+    if (documentTypeId.HasValue) query = query.Where(x => x.DocumentTypeId == documentTypeId);
+    if (partnerId.HasValue) query = query.Where(x => x.PartnerId == partnerId);
+    if (siteId.HasValue) query = query.Where(x => x.SiteId == siteId);
+    if (status.HasValue) query = query.Where(x => x.Status == status.Value);
+
+    // ✅ date range (UploadDate)
+    if (dateFrom.HasValue)
+    {
+        var from = dateFrom.Value.Date;
+        query = query.Where(x => x.UploadDate >= from);
+    }
+    if (dateTo.HasValue)
+    {
+        var toExclusive = dateTo.Value.Date.AddDays(1);
+        query = query.Where(x => x.UploadDate < toExclusive);
+    }
+
+    // ✅ sorting
+    sortBy = (sortBy ?? "uploaddate").Trim().ToLowerInvariant();
+    sortDir = string.Equals(sortDir, "asc", StringComparison.OrdinalIgnoreCase) ? "asc" : "desc";
+    bool asc = sortDir == "asc";
+
+    query = sortBy switch
+    {
+        "filename" => asc ? query.OrderBy(x => x.FileName) : query.OrderByDescending(x => x.FileName),
+        "documentid" => asc ? query.OrderBy(x => x.DocumentId) : query.OrderByDescending(x => x.DocumentId),
+        "status" => asc ? query.OrderBy(x => x.Status) : query.OrderByDescending(x => x.Status),
+        _ => asc ? query.OrderBy(x => x.UploadDate) : query.OrderByDescending(x => x.UploadDate),
+    };
+
+    return await query.Skip(skip).Take(take).ToListAsync();
+}
+
+public async Task<int> GetDocumentsListCountAsync(
+    string? searchTerm,
+    int? documentTypeId,
+    int? partnerId,
+    int? siteId,
+    DocumentStatusEnum? status,
+    DateTime? dateFrom,
+    DateTime? dateTo,
+    bool includeInactive)
+{
+    var user = await _userManager.GetUserAsync(_httpContextAccessor.HttpContext!.User);
+    var isAdmin = user != null &&
+                  (await _userManager.IsInRoleAsync(user, "Admin") ||
+                   await _userManager.IsInRoleAsync(user, "SuperAdmin"));
+
+    var query = _context.Documents.AsNoTracking().AsQueryable();
+
+    if (!isAdmin)
+        query = query.Where(d => d.UploadedBy == GetCurrentUser());
+
+    if (!includeInactive)
+        query = query.Where(d => d.isActive == true);
+
+    if (!string.IsNullOrWhiteSpace(searchTerm))
+    {
+        var term = searchTerm.Trim();
+        query = query.Where(d =>
+            (d.FileName != null && d.FileName.Contains(term)) ||
+            (d.UploadedBy != null && d.UploadedBy.Contains(term))
+        );
+        // PartnerName/DocumentTypeName kereséshez JOIN kéne -> ezt később bővíthetjük, ha kell.
+    }
+
+    if (documentTypeId.HasValue) query = query.Where(d => d.DocumentTypeId == documentTypeId);
+    if (partnerId.HasValue) query = query.Where(d => d.PartnerId == partnerId);
+    if (siteId.HasValue) query = query.Where(d => d.SiteId == siteId);
+    if (status.HasValue) query = query.Where(d => d.Status == status.Value);
+
+    if (dateFrom.HasValue)
+    {
+        var from = dateFrom.Value.Date;
+        query = query.Where(d => d.UploadDate >= from);
+    }
+    if (dateTo.HasValue)
+    {
+        var toExclusive = dateTo.Value.Date.AddDays(1);
+        query = query.Where(d => d.UploadDate < toExclusive);
+    }
+
+    return await query.CountAsync();
+}
+
+
+
+        // -----------------------------------
+        // GET ONE (View/Edit modalhoz)
+        // -----------------------------------
+        public async Task<DocumentDto?> GetDocumentAsync(int documentId)
         {
             try
             {
-                var user = await _userManager.GetUserAsync(_httpContextAccessor.HttpContext.User);
-                var isAdmin = user != null && (await _userManager.IsInRoleAsync(user, "Admin") || await _userManager.IsInRoleAsync(user, "SuperAdmin"));
+                var isAdmin = await IsAdminAsync();
 
-                var query = _context.Documents
-                    .AsNoTracking()
-                    .Include(d => d.DocumentType)
-                    .Include(d => d.DocumentLinks)
-                    .Include(d => d.StatusHistory)
-                    .GroupJoin(_context.Partners,
-                        d => d.PartnerId,
-                        p => p.PartnerId,
-                        (d, p) => new { Document = d, Partner = p })
-                    .SelectMany(
-                        dp => dp.Partner.DefaultIfEmpty(),
-                        (d, p) => new DocumentDto
-                        {
-                            DocumentId = d.Document.DocumentId,
-                            FileName = d.Document.FileName,
-                            FilePath = d.Document.FilePath,
-                            DocumentTypeId = d.Document.DocumentTypeId,
-                            DocumentTypeName = d.Document.DocumentType != null ? d.Document.DocumentType.Name : null,
-                            UploadDate = d.Document.UploadDate,
-                            UploadedBy = d.Document.UploadedBy,
-                            SiteId = d.Document.SiteId,
-                            PartnerId = d.Document.PartnerId,
-                            PartnerName = d.Document.PartnerId.HasValue ? p.Name ?? "Unknown" : "N/A",
-                            Status = d.Document.Status,
-                            DocumentLinks = d.Document.DocumentLinks.Select(l => new DocumentLinkDto
+                var query =
+                    _context.Documents
+                        .AsNoTracking()
+                        .Include(d => d.DocumentType)
+                        .Include(d => d.DocumentLinks)
+                        .Include(d => d.StatusHistory)
+                        .Include(d => d.DocumentMetadata)
+                        .GroupJoin(
+                            _context.Partners.AsNoTracking(),
+                            d => d.PartnerId,
+                            p => p.PartnerId,
+                            (d, p) => new { Document = d, Partner = p }
+                        )
+                        .SelectMany(
+                            dp => dp.Partner.DefaultIfEmpty(),
+                            (d, p) => new DocumentDto
                             {
-                                Id = l.ID,
-                                DocumentId = l.DocumentId,
-                                ModuleId = l.ModuleID,
-                                RecordId = l.RecordID
-                            }).ToList(),
-                            StatusHistory = d.Document.StatusHistory.Select(h => new DocumentStatusHistoryDto
-                            {
-                                Id = h.Id,
-                                DocumentId = h.DocumentId,
-                                OldStatus = h.OldStatus,
-                                NewStatus = h.NewStatus,
-                                ChangeDate = h.ChangeDate,
-                                ChangedBy = h.ChangedBy
-                            }).ToList()
-                        });
+                                DocumentId = d.Document.DocumentId,
+                                FileName = d.Document.FileName,
+                                FilePath = d.Document.FilePath,
+                                DocumentTypeId = d.Document.DocumentTypeId,
+                                DocumentTypeName = d.Document.DocumentType != null ? d.Document.DocumentType.Name : null,
+                                UploadDate = d.Document.UploadDate,
+                                UploadedBy = d.Document.UploadedBy,
+                                SiteId = d.Document.SiteId,
+                                PartnerId = d.Document.PartnerId,
+                                PartnerName = d.Document.PartnerId.HasValue
+                                    ? (p != null ? (p.Name ?? "Unknown") : "Unknown")
+                                    : "N/A",
+                                Status = d.Document.Status,
+
+                                DocumentLinks = d.Document.DocumentLinks.Select(l => new DocumentLinkDto
+                                {
+                                    Id = l.ID,
+                                    DocumentId = l.DocumentId,
+                                    ModuleId = l.ModuleID,
+                                    RecordId = l.RecordID
+                                }).ToList(),
+
+                                StatusHistory = d.Document.StatusHistory
+                                    .OrderByDescending(h => h.ChangeDate)
+                                    .Select(h => new DocumentStatusHistoryDto
+                                    {
+                                        Id = h.Id,
+                                        DocumentId = h.DocumentId,
+                                        OldStatus = h.OldStatus,
+                                        NewStatus = h.NewStatus,
+                                        ChangeDate = h.ChangeDate,
+                                        ChangedBy = h.ChangedBy
+                                    }).ToList(),
+
+                                CustomMetadata = d.Document.DocumentMetadata
+                                    .OrderBy(m => m.Key)
+                                    .Select(m => new MetadataEntry
+                                    {
+                                        Key = m.Key,
+                                        Value = m.Value
+                                    })
+                                    .ToList()
+                            });
 
                 if (!isAdmin)
-                {
                     query = query.Where(d => d.UploadedBy == GetCurrentUser());
-                }
 
-                var doc = await query.FirstOrDefaultAsync(d => d.DocumentId == documentId);
-                if (doc == null)
-                {
-                    _logger.LogWarning("Document {DocumentId} not found or user lacks permission", documentId);
-                    return null;
-                }
+                // soft delete: egy doc lekérésnél is alapból aktív
+                // (ha admin és töröltet is akarod: később külön param)
+                query = query.Where(d => d.DocumentId > 0); // placeholder - itt nincs isActive a DTO-ban
 
-                return doc;
+                return await query.FirstOrDefaultAsync(d => d.DocumentId == documentId);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error fetching document {DocumentId}: {Message}, StackTrace: {StackTrace}", documentId, ex.Message, ex.StackTrace);
+                _logger.LogError(ex, "Error fetching document {DocumentId}", documentId);
                 throw;
             }
         }
 
-        public static DocumentDto MapToDto(Document document, ApplicationDbContext context)
+        // ---------------------------------------------------------
+        // LISTA: régi hívások kompatibilitása (NINCS dátum/sortDir)
+        // ---------------------------------------------------------
+        public Task<List<DocumentDto>> GetDocumentsAsync(
+            string? searchTerm,
+            int? documentTypeId,
+            int? partnerId,
+            int? siteId,
+            DocumentStatusEnum? status,
+            string? sortBy,
+            int skip,
+            int take)
         {
-            return new DocumentDto
-            {
-                DocumentId = document.DocumentId,
-                FileName = document.FileName,
-                FilePath = document.FilePath,
-                DocumentTypeId = document.DocumentTypeId,
-                DocumentTypeName = document.DocumentType?.Name,
-                UploadDate = document.UploadDate,
-                UploadedBy = document.UploadedBy,
-                SiteId = document.SiteId,
-                PartnerId = document.PartnerId,
-                PartnerName = document.PartnerId.HasValue ? context.Partners
-                    .Where(p => p.PartnerId == document.PartnerId)
-                    .Select(p => p.Name)
-                    .FirstOrDefault() ?? "Unknown" : "N/A",
-                Status = document.Status,
-                DocumentLinks = document.DocumentLinks?.Select(l => new DocumentLinkDto
-                {
-                    Id = l.ID,
-                    DocumentId = l.DocumentId,
-                    ModuleId = l.ModuleID,
-                    RecordId = l.RecordID
-                }).ToList() ?? new List<DocumentLinkDto>(),
-                StatusHistory = document.StatusHistory?.Select(h => new DocumentStatusHistoryDto
-                {
-                    Id = h.Id,
-                    DocumentId = h.DocumentId,
-                    OldStatus = h.OldStatus,
-                    NewStatus = h.NewStatus,
-                    ChangeDate = h.ChangeDate,
-                    ChangedBy = h.ChangedBy
-                }).ToList() ?? new List<DocumentStatusHistoryDto>()
-            };
+            return GetDocumentsAsync(
+                searchTerm: searchTerm,
+                documentTypeId: documentTypeId,
+                partnerId: partnerId,
+                siteId: siteId,
+                status: status,
+                dateFrom: null,
+                dateTo: null,
+                sortBy: sortBy,
+                sortDir: "desc",
+                skip: skip,
+                take: take);
         }
 
-        public async Task<Document> GetDocumentByIdAsync(int documentId)
-        {
-            var user = await _userManager.GetUserAsync(_httpContextAccessor.HttpContext.User);
-            var isAdmin = user != null && (await _userManager.IsInRoleAsync(user, "Admin") || await _userManager.IsInRoleAsync(user, "SuperAdmin"));
-
-            var query = _context.Documents
-                .Include(d => d.DocumentType)
-                .AsQueryable();
-
-            if (!isAdmin)
-            {
-                query = query.Where(d => d.UploadedBy == GetCurrentUser());
-            }
-
-            var document = await query.FirstOrDefaultAsync(d => d.DocumentId == documentId);
-            if (document == null)
-            {
-                _logger.LogWarning("Document not found or user lacks permission for DocumentId: {DocumentId}", documentId);
-                throw new ArgumentException($"Érvénytelen DocumentId: {documentId}");
-            }
-            return document;
-        }
-
-        public async Task<List<DocumentDto>> GetDocumentsAsync(string searchTerm, int? documentTypeId, int? partnerId, int? siteId, DocumentStatusEnum? status, string sortBy, int skip, int take)
+        // ---------------------------------------------------------
+        // LISTA: teljes (összetett szűrőhöz) + soft delete + sortDir
+        // ---------------------------------------------------------
+        public async Task<List<DocumentDto>> GetDocumentsAsync(
+            string? searchTerm,
+            int? documentTypeId,
+            int? partnerId,
+            int? siteId,
+            DocumentStatusEnum? status,
+            DateTime? dateFrom,
+            DateTime? dateTo,
+            string? sortBy,
+            string? sortDir,
+            int skip,
+            int take)
         {
             try
             {
-                var user = await _userManager.GetUserAsync(_httpContextAccessor.HttpContext.User);
-                var isAdmin = user != null && (await _userManager.IsInRoleAsync(user, "Admin") || await _userManager.IsInRoleAsync(user, "SuperAdmin"));
+                take = Math.Clamp(take, 1, 200);
+                if (skip < 0) skip = 0;
 
-                var query = _context.Documents
-                    .AsNoTracking()
-                    .Include(d => d.DocumentType)
-                    .Include(d => d.DocumentLinks)
-                    .Include(d => d.StatusHistory)
-                    .GroupJoin(_context.Partners,
-                        d => d.PartnerId,
-                        p => p.PartnerId,
-                        (d, p) => new { Document = d, Partner = p })
-                    .SelectMany(
-                        dp => dp.Partner.DefaultIfEmpty(),
-                        (d, p) => new DocumentDto
-                        {
-                            DocumentId = d.Document.DocumentId,
-                            FileName = d.Document.FileName,
-                            FilePath = d.Document.FilePath,
-                            DocumentTypeId = d.Document.DocumentTypeId,
-                            DocumentTypeName = d.Document.DocumentType != null ? d.Document.DocumentType.Name : null,
-                            UploadDate = d.Document.UploadDate,
-                            UploadedBy = d.Document.UploadedBy,
-                            SiteId = d.Document.SiteId,
-                            PartnerId = d.Document.PartnerId,
-                            PartnerName = d.Document.PartnerId.HasValue ? p.Name ?? "Unknown" : "N/A",
-                            Status = d.Document.Status,
-                            DocumentLinks = d.Document.DocumentLinks.Select(l => new DocumentLinkDto
-                            {
-                                Id = l.ID,
-                                DocumentId = l.DocumentId,
-                                ModuleId = l.ModuleID,
-                                RecordId = l.RecordID
-                            }).ToList(),
-                            StatusHistory = d.Document.StatusHistory.Select(h => new DocumentStatusHistoryDto
-                            {
-                                Id = h.Id,
-                                DocumentId = h.DocumentId,
-                                OldStatus = h.OldStatus,
-                                NewStatus = h.NewStatus,
-                                ChangeDate = h.ChangeDate,
-                                ChangedBy = h.ChangedBy
-                            }).ToList()
-                        });
+                var isAdmin = await IsAdminAsync();
+
+                // LISTA: ne include-oljuk a heavy gyűjteményeket
+                var baseQuery =
+                    from d in _context.Documents.AsNoTracking()
+                    join p in _context.Partners.AsNoTracking() on d.PartnerId equals p.PartnerId into pj
+                    from p in pj.DefaultIfEmpty()
+                    join dt in _context.DocumentTypes.AsNoTracking() on d.DocumentTypeId equals dt.DocumentTypeId into dtj
+                    from dt in dtj.DefaultIfEmpty()
+                    where d.isActive == true // ✅ soft delete default
+                    select new DocumentDto
+                    {
+                        DocumentId = d.DocumentId,
+                        FileName = d.FileName,
+                        FilePath = d.FilePath,
+                        DocumentTypeId = d.DocumentTypeId,
+                        DocumentTypeName = dt != null ? dt.Name : null,
+                        UploadDate = d.UploadDate,
+                        UploadedBy = d.UploadedBy,
+                        SiteId = d.SiteId,
+                        PartnerId = d.PartnerId,
+                        PartnerName = p != null ? p.Name : "N/A",
+                        Status = d.Status,
+
+                        // listán nem kell
+                        DocumentLinks = new List<DocumentLinkDto>(),
+                        StatusHistory = new List<DocumentStatusHistoryDto>(),
+                        CustomMetadata = new List<MetadataEntry>()
+                    };
 
                 if (!isAdmin)
-                {
-                    query = query.Where(d => d.UploadedBy == GetCurrentUser());
-                }
+                    baseQuery = baseQuery.Where(x => x.UploadedBy == GetCurrentUser());
 
+                // search
                 if (!string.IsNullOrWhiteSpace(searchTerm))
                 {
-                    query = query.Where(d =>
-                        d.FileName.Contains(searchTerm) ||
-                        d.UploadedBy.Contains(searchTerm) ||
-                        d.DocumentLinks.Any(l => l.ModuleId.Contains(searchTerm)));
+                    var term = searchTerm.Trim();
+                    baseQuery = baseQuery.Where(x =>
+                        (x.FileName != null && x.FileName.Contains(term)) ||
+                        (x.UploadedBy != null && x.UploadedBy.Contains(term)) ||
+                        (x.PartnerName != null && x.PartnerName.Contains(term)) ||
+                        (x.DocumentTypeName != null && x.DocumentTypeName.Contains(term))
+                    );
                 }
 
-                if (documentTypeId.HasValue)
-                    query = query.Where(d => d.DocumentTypeId == documentTypeId);
+                // filters
+                if (documentTypeId.HasValue) baseQuery = baseQuery.Where(x => x.DocumentTypeId == documentTypeId);
+                if (partnerId.HasValue) baseQuery = baseQuery.Where(x => x.PartnerId == partnerId);
+                if (siteId.HasValue) baseQuery = baseQuery.Where(x => x.SiteId == siteId);
+                if (status.HasValue) baseQuery = baseQuery.Where(x => x.Status == status.Value);
 
-                if (partnerId.HasValue)
-                    query = query.Where(d => d.PartnerId == partnerId);
-
-                if (siteId.HasValue)
-                    query = query.Where(d => d.SiteId == siteId);
-
-                if (status.HasValue)
-                    query = query.Where(d => d.Status == status.Value);
-
-                sortBy = sortBy?.ToLower() ?? "uploaddate";
-                query = sortBy switch
+                // date range (UploadDate)
+                if (dateFrom.HasValue)
                 {
-                    "filename" => query.OrderBy(d => d.FileName),
-                    "documentid" => query.OrderByDescending(d => d.DocumentId),
-                    "status" => query.OrderBy(d => d.Status),
-                    _ => query.OrderByDescending(d => d.UploadDate)
+                    var from = dateFrom.Value.Date;
+                    baseQuery = baseQuery.Where(x => x.UploadDate >= from);
+                }
+                if (dateTo.HasValue)
+                {
+                    var toExclusive = dateTo.Value.Date.AddDays(1);
+                    baseQuery = baseQuery.Where(x => x.UploadDate < toExclusive);
+                }
+
+                // sorting
+                sortBy = (sortBy ?? "uploaddate").Trim().ToLowerInvariant();
+                sortDir = string.Equals(sortDir, "asc", StringComparison.OrdinalIgnoreCase) ? "asc" : "desc";
+                var asc = sortDir == "asc";
+
+                baseQuery = sortBy switch
+                {
+                    "filename" => asc ? baseQuery.OrderBy(x => x.FileName) : baseQuery.OrderByDescending(x => x.FileName),
+                    "documentid" => asc ? baseQuery.OrderBy(x => x.DocumentId) : baseQuery.OrderByDescending(x => x.DocumentId),
+                    "status" => asc ? baseQuery.OrderBy(x => x.Status) : baseQuery.OrderByDescending(x => x.Status),
+                    _ => asc ? baseQuery.OrderBy(x => x.UploadDate) : baseQuery.OrderByDescending(x => x.UploadDate)
                 };
 
-                var docs = await query
-                    .Skip(skip)
-                    .Take(take)
-                    .ToListAsync();
-
-                _logger.LogInformation("Fetched {DocumentCount} documents", docs.Count);
-                return docs;
+                return await baseQuery.Skip(skip).Take(take).ToListAsync();
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error fetching documents: {Message}, StackTrace: {StackTrace}", ex.Message, ex.StackTrace);
+                _logger.LogError(ex, "Error fetching documents");
                 throw;
             }
         }
 
-        public async Task<int> GetDocumentsCountAsync(string searchTerm, int? documentTypeId, int? partnerId, int? siteId)
+        // -----------------------------------
+        // COUNT (paginationhoz)
+        // -----------------------------------
+        public async Task<int> GetDocumentsCountAsync(
+            string? searchTerm,
+            int? documentTypeId,
+            int? partnerId,
+            int? siteId,
+            DocumentStatusEnum? status = null,
+            DateTime? dateFrom = null,
+            DateTime? dateTo = null)
         {
-            try
+            var isAdmin = await IsAdminAsync();
+
+            var query = _context.Documents.AsNoTracking().Where(d => d.isActive == true);
+
+            if (!isAdmin)
+                query = query.Where(d => d.UploadedBy == GetCurrentUser());
+
+            if (!string.IsNullOrWhiteSpace(searchTerm))
             {
-                var user = await _userManager.GetUserAsync(_httpContextAccessor.HttpContext.User);
-                var isAdmin = user != null && (await _userManager.IsInRoleAsync(user, "Admin") || await _userManager.IsInRoleAsync(user, "SuperAdmin"));
-
-                var query = _context.Documents.AsQueryable();
-
-                if (!isAdmin)
-                {
-                    query = query.Where(d => d.UploadedBy == GetCurrentUser());
-                }
-
-                if (!string.IsNullOrWhiteSpace(searchTerm))
-                {
-                    query = query.Where(d =>
-                        d.FileName.Contains(searchTerm) ||
-                        d.UploadedBy.Contains(searchTerm));
-                }
-
-                if (documentTypeId.HasValue)
-                    query = query.Where(d => d.DocumentTypeId == documentTypeId);
-
-                if (partnerId.HasValue)
-                    query = query.Where(d => d.PartnerId == partnerId);
-
-                if (siteId.HasValue)
-                    query = query.Where(d => d.SiteId == siteId);
-
-                var count = await query.CountAsync();
-                _logger.LogInformation("Counted {Count} documents", count);
-                return count;
+                var term = searchTerm.Trim();
+                query = query.Where(d =>
+                    (d.FileName != null && d.FileName.Contains(term)) ||
+                    (d.UploadedBy != null && d.UploadedBy.Contains(term)));
             }
-            catch (Exception ex)
+
+            if (documentTypeId.HasValue) query = query.Where(d => d.DocumentTypeId == documentTypeId);
+            if (partnerId.HasValue) query = query.Where(d => d.PartnerId == partnerId);
+            if (siteId.HasValue) query = query.Where(d => d.SiteId == siteId);
+            if (status.HasValue) query = query.Where(d => d.Status == status.Value);
+
+            if (dateFrom.HasValue)
             {
-                _logger.LogError(ex, "Error counting documents: {Message}, StackTrace: {StackTrace}", ex.Message, ex.StackTrace);
-                throw;
+                var from = dateFrom.Value.Date;
+                query = query.Where(d => d.UploadDate >= from);
             }
+            if (dateTo.HasValue)
+            {
+                var toExclusive = dateTo.Value.Date.AddDays(1);
+                query = query.Where(d => d.UploadDate < toExclusive);
+            }
+
+            return await query.CountAsync();
         }
 
+        // -----------------------------------
+        // CREATE
+        // -----------------------------------
         public async Task<DocumentDto> CreateDocumentAsync(CreateDocumentDto documentDto)
         {
-            if (documentDto == null) throw new ArgumentNullException(nameof(documentDto));
+            if (documentDto == null)
+                throw new ArgumentNullException(nameof(documentDto));
 
-            var user = await _userManager.GetUserAsync(_httpContextAccessor.HttpContext.User);
-            var isAdmin = user != null && (await _userManager.IsInRoleAsync(user, "Admin") || await _userManager.IsInRoleAsync(user, "SuperAdmin"));
-            var isEditor = user != null && await _userManager.IsInRoleAsync(user, "Editor");
-
+            var isAdmin = await IsAdminAsync();
+            var isEditor = await IsEditorAsync();
             if (!isAdmin && !isEditor)
-            {
-                _logger.LogWarning("User {User} lacks permission to create documents", GetCurrentUser());
                 throw new UnauthorizedAccessException("User lacks permission to create documents.");
-            }
 
             var doc = new Document
             {
@@ -356,217 +638,122 @@ namespace Cloud9_2.Services
                 UploadedBy = GetCurrentUser(),
                 PartnerId = documentDto.PartnerId,
                 SiteId = documentDto.SiteId,
-                Status = documentDto.Status
+                Status = documentDto.Status,
+                isActive = true, // ✅ default aktív
+                DocumentMetadata = new List<DocumentMetadata>()
             };
 
-            try
+            // custom meta mentése (üreseket kidobjuk)
+            if (documentDto.CustomMetadata != null && documentDto.CustomMetadata.Any())
             {
-                _context.Documents.Add(doc);
-                await _context.SaveChangesAsync();
-
-                // Log initial status
-                await LogStatusChangeAsync(doc.DocumentId, doc.Status, doc.Status);
-
-                // Fetch the document with related data to create DocumentDto
-                var result = await _context.Documents
-                    .AsNoTracking()
-                    .Include(d => d.DocumentType)
-                    .Include(d => d.DocumentLinks)
-                    .Include(d => d.StatusHistory) // Added to ensure StatusHistory is included
-                    .GroupJoin(_context.Partners,
-                        d => d.PartnerId,
-                        p => p.PartnerId,
-                        (d, p) => new { Document = d, Partner = p })
-                    .SelectMany(
-                        dp => dp.Partner.DefaultIfEmpty(),
-                        (d, p) => new DocumentDto
-                        {
-                            DocumentId = d.Document.DocumentId,
-                            FileName = d.Document.FileName,
-                            FilePath = d.Document.FilePath,
-                            DocumentTypeId = d.Document.DocumentTypeId,
-                            DocumentTypeName = d.Document.DocumentType != null ? d.Document.DocumentType.Name : null,
-                            UploadDate = d.Document.UploadDate,
-                            UploadedBy = d.Document.UploadedBy,
-                            SiteId = d.Document.SiteId,
-                            PartnerId = d.Document.PartnerId,
-                            PartnerName = d.Document.PartnerId.HasValue ? p.Name ?? "Unknown" : "N/A",
-                            Status = d.Document.Status,
-                            DocumentLinks = d.Document.DocumentLinks.Select(l => new DocumentLinkDto
-                            {
-                                Id = l.ID,
-                                DocumentId = l.DocumentId,
-                                ModuleId = l.ModuleID,
-                                RecordId = l.RecordID
-                            }).ToList(),
-                            StatusHistory = d.Document.StatusHistory.Select(h => new DocumentStatusHistoryDto
-                            {
-                                Id = h.Id,
-                                DocumentId = h.DocumentId,
-                                OldStatus = h.OldStatus,
-                                NewStatus = h.NewStatus,
-                                ChangeDate = h.ChangeDate,
-                                ChangedBy = h.ChangedBy
-                            }).ToList()
-                        })
-                    .FirstOrDefaultAsync(d => d.DocumentId == doc.DocumentId);
-
-                return result ?? throw new Exception("Failed to retrieve created document");
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error creating document {FileName}: {Message}, StackTrace: {StackTrace}", documentDto.FileName, ex.Message, ex.StackTrace);
-                throw;
-            }
-        }
-
-        public async Task<DocumentDto> UpdateDocumentAsync(int documentId, DocumentDto documentUpdate)
-        {
-            if (documentUpdate == null) throw new ArgumentNullException(nameof(documentUpdate));
-
-            var user = await _userManager.GetUserAsync(_httpContextAccessor.HttpContext.User);
-            var isAdmin = user != null && (await _userManager.IsInRoleAsync(user, "Admin") || await _userManager.IsInRoleAsync(user, "SuperAdmin"));
-            var isEditor = user != null && await _userManager.IsInRoleAsync(user, "Editor");
-
-            var doc = await _context.Documents
-                .Include(d => d.DocumentType)
-                .FirstOrDefaultAsync(d => d.DocumentId == documentId);
-            if (doc == null)
-            {
-                _logger.LogWarning("Document {DocumentId} not found", documentId);
-                return null;
-            }
-
-            if (!isAdmin && !isEditor)
-            {
-                _logger.LogWarning("User {User} lacks permission to update document {DocumentId}", GetCurrentUser(), documentId);
-                throw new UnauthorizedAccessException("User lacks permission to update documents.");
-            }
-
-            if (isEditor && doc.UploadedBy != GetCurrentUser())
-            {
-                _logger.LogWarning("Editor {User} lacks permission to update document {DocumentId}", GetCurrentUser(), documentId);
-                throw new UnauthorizedAccessException("Editor lacks permission to update this document.");
-            }
-
-            try
-            {
-                if (doc.Status != documentUpdate.Status)
+                foreach (var m in documentDto.CustomMetadata)
                 {
-                    await LogStatusChangeAsync(documentId, doc.Status, documentUpdate.Status);
+                    var key = (m?.Key ?? "").Trim();
+                    var value = (m?.Value ?? "").Trim();
+                    if (string.IsNullOrWhiteSpace(key) && string.IsNullOrWhiteSpace(value)) continue;
+
+                    doc.DocumentMetadata.Add(new DocumentMetadata
+                    {
+                        Key = key,
+                        Value = value
+                    });
                 }
-
-                doc.FileName = documentUpdate.FileName ?? doc.FileName;
-                doc.FilePath = documentUpdate.FilePath ?? doc.FilePath;
-                doc.DocumentTypeId = documentUpdate.DocumentTypeId ?? doc.DocumentTypeId;
-                doc.PartnerId = documentUpdate.PartnerId ?? doc.PartnerId;
-                doc.SiteId = documentUpdate.SiteId ?? doc.SiteId;
-                doc.Status = documentUpdate.Status;
-
-                await _context.SaveChangesAsync();
-
-                var result = await _context.Documents
-                    .AsNoTracking()
-                    .Include(d => d.DocumentType)
-                    .Include(d => d.DocumentLinks)
-                    .Include(d => d.StatusHistory) // Added to ensure StatusHistory is included
-                    .GroupJoin(_context.Partners,
-                        d => d.PartnerId,
-                        p => p.PartnerId,
-                        (d, p) => new { Document = d, Partner = p })
-                    .SelectMany(
-                        dp => dp.Partner.DefaultIfEmpty(),
-                        (d, p) => new DocumentDto
-                        {
-                            DocumentId = d.Document.DocumentId,
-                            FileName = d.Document.FileName,
-                            FilePath = d.Document.FilePath,
-                            DocumentTypeId = d.Document.DocumentTypeId,
-                            DocumentTypeName = d.Document.DocumentType != null ? d.Document.DocumentType.Name : null,
-                            UploadDate = d.Document.UploadDate,
-                            UploadedBy = d.Document.UploadedBy,
-                            SiteId = d.Document.SiteId,
-                            PartnerId = d.Document.PartnerId,
-                            PartnerName = d.Document.PartnerId.HasValue ? p.Name ?? "Unknown" : "N/A",
-                            Status = d.Document.Status,
-                            DocumentLinks = d.Document.DocumentLinks.Select(l => new DocumentLinkDto
-                            {
-                                Id = l.ID,
-                                DocumentId = l.DocumentId,
-                                ModuleId = l.ModuleID,
-                                RecordId = l.RecordID
-                            }).ToList(),
-                            StatusHistory = d.Document.StatusHistory.Select(h => new DocumentStatusHistoryDto
-                            {
-                                Id = h.Id,
-                                DocumentId = h.DocumentId,
-                                OldStatus = h.OldStatus,
-                                NewStatus = h.NewStatus,
-                                ChangeDate = h.ChangeDate,
-                                ChangedBy = h.ChangedBy
-                            }).ToList()
-                        })
-                    .FirstOrDefaultAsync(d => d.DocumentId == documentId);
-
-                return result ?? throw new Exception("Failed to retrieve updated document");
             }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error updating document {DocumentId}: {Message}, StackTrace: {StackTrace}", documentId, ex.Message, ex.StackTrace);
-                throw;
-            }
+
+            _context.Documents.Add(doc);
+            await _context.SaveChangesAsync();
+
+            // status history
+            await LogStatusChangeAsync(doc.DocumentId, doc.Status, doc.Status);
+
+            return await GetDocumentAsync(doc.DocumentId)
+                   ?? throw new Exception("Failed to retrieve created document");
         }
 
-        public async Task<bool> DeleteDocumentAsync(int documentId)
+        // -----------------------------------
+        // UPDATE
+        // -----------------------------------
+        public async Task<DocumentDto?> UpdateDocumentAsync(int documentId, DocumentDto documentUpdate)
         {
-            var user = await _userManager.GetUserAsync(_httpContextAccessor.HttpContext.User);
-            var isAdmin = user != null && (await _userManager.IsInRoleAsync(user, "Admin") || await _userManager.IsInRoleAsync(user, "SuperAdmin"));
+            if (documentUpdate == null)
+                throw new ArgumentNullException(nameof(documentUpdate));
+
+            var isAdmin = await IsAdminAsync();
+            var isEditor = await IsEditorAsync();
 
             var doc = await _context.Documents
                 .Include(d => d.DocumentMetadata)
-                .Include(d => d.DocumentLinks)
-                .Include(d => d.StatusHistory)
                 .FirstOrDefaultAsync(d => d.DocumentId == documentId);
 
-            if (doc == null)
+            if (doc == null) return null;
+
+            if (!isAdmin && !isEditor)
+                throw new UnauthorizedAccessException();
+
+            if (isEditor && doc.UploadedBy != GetCurrentUser())
+                throw new UnauthorizedAccessException();
+
+            if (doc.Status != documentUpdate.Status)
+                await LogStatusChangeAsync(documentId, doc.Status, documentUpdate.Status);
+
+            doc.FileName = documentUpdate.FileName ?? doc.FileName;
+            doc.FilePath = documentUpdate.FilePath ?? doc.FilePath;
+            doc.DocumentTypeId = documentUpdate.DocumentTypeId ?? doc.DocumentTypeId;
+            doc.PartnerId = documentUpdate.PartnerId ?? doc.PartnerId;
+            doc.SiteId = documentUpdate.SiteId ?? doc.SiteId;
+            doc.Status = documentUpdate.Status;
+
+            // metadata replace
+            var incoming = (documentUpdate.CustomMetadata ?? new List<MetadataEntry>())
+                .Select(m => new
+                {
+                    Key = (m?.Key ?? "").Trim(),
+                    Value = (m?.Value ?? "").Trim()
+                })
+                .Where(x => !(string.IsNullOrWhiteSpace(x.Key) && string.IsNullOrWhiteSpace(x.Value)))
+                .ToList();
+
+            _context.DocumentMetadata.RemoveRange(doc.DocumentMetadata);
+            doc.DocumentMetadata.Clear();
+
+            foreach (var m in incoming)
             {
-                _logger.LogWarning("Document {DocumentId} not found", documentId);
-                return false;
+                doc.DocumentMetadata.Add(new DocumentMetadata
+                {
+                    Key = m.Key,
+                    Value = m.Value,
+                    DocumentId = doc.DocumentId
+                });
             }
 
-            if (!isAdmin)
-            {
-                _logger.LogWarning("User {User} lacks permission to delete document {DocumentId}", GetCurrentUser(), documentId);
-                return false;
-            }
+            await _context.SaveChangesAsync();
 
-            try
-            {
-                if (doc.DocumentMetadata?.Any() == true)
-                    _context.DocumentMetadata.RemoveRange(doc.DocumentMetadata);
-                if (doc.DocumentLinks?.Any() == true)
-                    _context.DocumentLinks.RemoveRange(doc.DocumentLinks);
-                if (doc.StatusHistory?.Any() == true)
-                    _context.DocumentStatusHistory.RemoveRange(doc.StatusHistory);
+            return await GetDocumentAsync(documentId);
+        }
 
-                _context.Documents.Remove(doc);
-                var rowsAffected = await _context.SaveChangesAsync();
-                _logger.LogInformation("Deleted document {DocumentId}, rows affected: {RowsAffected}", documentId, rowsAffected);
-                return true;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error deleting document {DocumentId}: {Message}, InnerException: {InnerException}", documentId, ex.Message, ex.InnerException?.Message);
-                throw;
-            }
+        // -----------------------------------
+        // DELETE (soft)
+        // -----------------------------------
+        public async Task<bool> DeleteDocumentAsync(int documentId)
+        {
+            var isAdmin = await IsAdminAsync();
+            if (!isAdmin) return false;
+
+            var doc = await _context.Documents.FirstOrDefaultAsync(d => d.DocumentId == documentId);
+            if (doc == null) return false;
+
+            doc.isActive = false; // ✅ soft delete
+            await _context.SaveChangesAsync();
+            return true;
         }
 
         public async Task<string> GetNextDocumentNumberAsync()
         {
-            var yearDay = DateTime.UtcNow.DayOfYear;
-            var randomNum = new Random().Next(100, 1000);
+            var dayOfYear = DateTime.UtcNow.DayOfYear;
+            var random = new Random().Next(100, 1000);
             var count = await _context.Documents.CountAsync();
-            return $"TestDocument-{yearDay}-{count + 1:D4}-{randomNum}";
+
+            return $"TestDocument-{dayOfYear}-{count + 1:D4}-{random}";
         }
     }
 }

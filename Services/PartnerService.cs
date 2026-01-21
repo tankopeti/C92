@@ -63,8 +63,8 @@ public async Task<PartnerDto> GetPartnerAsync(int id)
             .Include(p => p.Contacts)
             .Include(p => p.Orders)
             .Include(p => p.Quotes)
-            // .Include(p => p.Documents)
-            // .ThenInclude(d => d.DocumentType)
+            .Include(p => p.Documents)
+            .ThenInclude(d => d.DocumentType)
             .Include(p => p.Status)
             .FirstOrDefaultAsync(p => p.PartnerId == id);
 

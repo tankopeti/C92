@@ -225,4 +225,75 @@ public async Task<IActionResult> GetById(int id)
             return NoContent();
         }
     }
+
+
+        [ApiController]
+    [Route("api/sites")]
+    [Authorize]
+    public class SitesController : ControllerBase
+    {
+        private readonly ApplicationDbContext _context;
+        private readonly ILogger<SitesController> _logger;
+
+        public SitesController(
+            ApplicationDbContext context,
+            ILogger<SitesController> logger)
+        {
+            _context = context;
+            _logger = logger;
+        }
+
+        // GET: /api/sites/by-partner/{partnerId}?search=
+        [HttpGet("by-partner/{partnerId:int}")]
+        public async Task<IActionResult> GetByPartner(
+            int partnerId,
+            [FromQuery] string search = "")
+        {
+            try
+            {
+                if (partnerId <= 0)
+                    return BadRequest(new { error = "Invalid partnerId" });
+
+                search ??= "";
+
+                var query = _context.Sites
+                    .AsNoTracking()
+                    .Where(s =>
+                        s.IsActive == true &&
+                        s.PartnerId == partnerId);
+
+                if (!string.IsNullOrWhiteSpace(search))
+                {
+                    var term = search.Trim().ToLower();
+                    query = query.Where(s =>
+                        (s.SiteName != null && s.SiteName.ToLower().Contains(term)) ||
+                        (s.City != null && s.City.ToLower().Contains(term)) ||
+                        (s.AddressLine1 != null && s.AddressLine1.ToLower().Contains(term))
+                    );
+                }
+
+                var result = await query
+                    .OrderBy(s => s.SiteName)
+                    .Take(100)
+                    .Select(s => new
+                    {
+                        id = s.SiteId,
+                        text = s.SiteName
+                    })
+                    .ToListAsync();
+
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex,
+                    "Error fetching sites for partner {PartnerId}", partnerId);
+
+                return StatusCode(500, new
+                {
+                    error = "Failed to retrieve sites"
+                });
+            }
+        }
+    }
 }

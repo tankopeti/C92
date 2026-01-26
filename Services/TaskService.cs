@@ -1,3 +1,4 @@
+// Services/TaskPMService.cs
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Cloud9_2.Models;
@@ -47,11 +48,7 @@ namespace Cloud9_2.Services
                 .Include(t => t.CommunicationType)
                 .Include(t => t.TaskResourceAssignments).ThenInclude(ra => ra.Resource)
                 .Include(t => t.TaskEmployeeAssignments).ThenInclude(ea => ea.Employee)
-                .Include(t => t.TaskHistories).ThenInclude(th => th.ModifiedBy)
-                // ✅ IMPORTANT: Document is used in MapToDto
-                .Include(t => t.TaskDocuments).ThenInclude(td => td.Document)
-                // ✅ IMPORTANT: LinkedBy is used in MapToDto
-                .Include(t => t.TaskDocuments).ThenInclude(td => td.LinkedBy);
+                .Include(t => t.TaskHistories).ThenInclude(th => th.ModifiedBy);
 
         #endregion
 
@@ -71,8 +68,8 @@ namespace Cloud9_2.Services
         // -----------------------------------------------------------------
         public async Task<TaskPMDto?> GetTaskByIdAsync(int id)
         {
-            // Tracking can be used if you later want to modify; for read-only DTO it’s not required.
-            // Keeping as tracking is fine; but make Includes match MapToDto.
+            // ❗️FONTOS: itt nem töltünk TaskDocuments/Document/LinkedBy navigációkat entity materializálással,
+            // mert egy NULL string mező SqlNullValueException-t okozhat. Attachments-et projectionnel töltjük.
             var task = await _context.TaskPMs
                 .Include(t => t.TaskTypePM)
                 .Include(t => t.TaskStatusPM)
@@ -90,38 +87,34 @@ namespace Cloud9_2.Services
                 .Include(t => t.TaskResourceAssignments).ThenInclude(ra => ra.Resource)
                 .Include(t => t.TaskEmployeeAssignments).ThenInclude(ea => ea.Employee)
                 .Include(t => t.TaskHistories).ThenInclude(th => th.ModifiedBy)
-                .Include(t => t.TaskDocuments).ThenInclude(td => td.Document)
-                .Include(t => t.TaskDocuments).ThenInclude(td => td.LinkedBy)
                 .FirstOrDefaultAsync(t => t.Id == id && t.IsActive);
 
             if (task == null) return null;
 
-            // ✅ DTO alap
+            // ✅ DTO alap (attachments itt üresre jön)
             var dto = MapToDto(task);
 
-            // ✅ attachments külön töltése a TaskDocumentLinks-ből (ez a biztos forrás)
-            var docLinks = await _context.TaskDocumentLinks
+            // ✅ Attachments: TaskDocumentLinks → PROJECTION (nem Include + entity materializálás)
+            dto.Attachments = await _context.TaskDocumentLinks
                 .AsNoTracking()
                 .Where(x => x.TaskId == id)
-                .Include(x => x.Document)
-                .Include(x => x.LinkedBy)
                 .OrderByDescending(x => x.LinkedDate)
+                .Select(x => new TaskDocumentDto
+                {
+                    Id = x.Id,
+                    DocumentId = x.DocumentId,
+
+                    // ✅ DB oldali COALESCE jellegű védelem: ne legyen SqlNullValueException
+                    FileName = (x.Document != null ? x.Document.FileName : null) ?? "",
+                    FilePath = (x.Document != null ? x.Document.FilePath : null) ?? "",
+
+                    LinkedDate = x.LinkedDate,
+                    LinkedByName = x.LinkedBy != null ? x.LinkedBy.UserName : null,
+                    Note = x.Note
+                })
                 .ToListAsync();
 
-            // ✅ DTO Attachments felülírása
-            dto.Attachments = docLinks.Select(td => new TaskDocumentDto
-            {
-                Id = td.Id,
-                DocumentId = td.DocumentId,
-                FileName = td.Document?.FileName ?? "",
-                FilePath = td.Document?.FilePath ?? "",
-                LinkedDate = td.LinkedDate,
-                LinkedByName = td.LinkedBy?.UserName,
-                Note = td.Note
-            }).ToList();
-
             return dto;
-
         }
 
         // -----------------------------------------------------------------
@@ -216,7 +209,7 @@ namespace Cloud9_2.Services
 
                     if (existingDocIds.Count > 0)
                     {
-                        // ne duplázzunk (ha esetleg valamiért már létezik)
+                        // ne duplázzunk
                         var already = await _context.TaskDocumentLinks
                             .Where(x => x.TaskId == task.Id && existingDocIds.Contains(x.DocumentId))
                             .Select(x => x.DocumentId)
@@ -228,7 +221,7 @@ namespace Cloud9_2.Services
                             .Where(id => !alreadySet.Contains(id))
                             .Select(id => new TaskDocumentLink
                             {
-                                TaskId = task.Id,                 // ⚠️ nálad TaskId (nem TaskPMId!)
+                                TaskId = task.Id,
                                 DocumentId = id,
                                 LinkedDate = DateTime.UtcNow,
                                 LinkedById = currentUserId
@@ -239,7 +232,6 @@ namespace Cloud9_2.Services
                             _context.TaskDocumentLinks.AddRange(links);
                     }
                 }
-
 
                 // --- Resources Assignment ---
                 if (dto.ResourceIds?.Any() == true)
@@ -322,6 +314,7 @@ namespace Cloud9_2.Services
             // -------------------------------------------------
             task.Title = dto.Title;
             task.Description = dto.Description;
+            task.TaskTypePMId = dto.TaskTypePMId;
 
             if (dto.TaskStatusPMId.HasValue)
                 task.TaskStatusPMId = dto.TaskStatusPMId.Value;
@@ -351,11 +344,10 @@ namespace Cloud9_2.Services
             task.UpdatedDate = DateTime.UtcNow;
 
             // -------------------------------------------------
-            // 🔗 DOCUMENT LINKS SYNC (EDIT)
+            // 🔗 DOCUMENT LINKS SYNC (EDIT) - EGYSZER!
             // -------------------------------------------------
             if (dto.AttachedDocumentIds != null)
             {
-                // jelenlegi DB-s linkek
                 var existingLinks = await _context.TaskDocumentLinks
                     .Where(x => x.TaskId == task.Id)
                     .ToListAsync();
@@ -381,11 +373,11 @@ namespace Cloud9_2.Services
                     .ToHashSet();
 
                 var toAdd = incomingIds
-                    .Where(id => !existingDocIds.Contains(id))
-                    .Select(id => new TaskDocumentLink
+                    .Where(docId => !existingDocIds.Contains(docId))
+                    .Select(docId => new TaskDocumentLink
                     {
                         TaskId = task.Id,
-                        DocumentId = id,
+                        DocumentId = docId,
                         LinkedDate = DateTime.UtcNow,
                         LinkedById = currentUserId
                     })
@@ -397,7 +389,6 @@ namespace Cloud9_2.Services
                 }
             }
 
-
             // -------------------------------------------------
             // COMPLETED DATE LOGIC
             // -------------------------------------------------
@@ -406,70 +397,6 @@ namespace Cloud9_2.Services
 
             if (task.TaskStatusPMId != 3 && task.CompletedDate.HasValue)
                 task.CompletedDate = null;
-
-            // -------------------------------------------------
-            // DOCUMENTS SYNC (TaskDocumentLinks)
-            // -------------------------------------------------
-            if (dto.AttachedDocumentIds != null)
-            {
-                // amit a UI küld
-                var wantedDocIds = dto.AttachedDocumentIds
-                    .Where(x => x > 0)
-                    .Distinct()
-                    .ToHashSet();
-
-                // ami most a DB-ben van
-                var existingLinks = await _context.TaskDocumentLinks
-                    .Where(x => x.TaskId == task.Id)
-                    .ToListAsync();
-
-                var existingDocIds = existingLinks
-                    .Select(x => x.DocumentId)
-                    .ToHashSet();
-
-                // --- törlés (csak a LINK!)
-                var toRemove = existingLinks
-                    .Where(x => !wantedDocIds.Contains(x.DocumentId))
-                    .ToList();
-
-                if (toRemove.Count > 0)
-                {
-                    _context.TaskDocumentLinks.RemoveRange(toRemove);
-                    _logger.LogInformation(
-                        "Removed {Count} document links from Task {TaskId}",
-                        toRemove.Count, task.Id
-                    );
-                }
-
-                // --- hozzáadás
-                var toAddDocIds = wantedDocIds
-                    .Where(id => !existingDocIds.Contains(id))
-                    .ToList();
-
-                if (toAddDocIds.Count > 0)
-                {
-                    // csak létező dokumentumokat engedünk
-                    var validDocIds = await _context.Documents
-                        .Where(d => toAddDocIds.Contains(d.DocumentId))
-                        .Select(d => d.DocumentId)
-                        .ToListAsync();
-
-                    var newLinks = validDocIds.Select(docId => new TaskDocumentLink
-                    {
-                        TaskId = task.Id,
-                        DocumentId = docId,
-                        LinkedDate = DateTime.UtcNow,
-                        LinkedById = currentUserId
-                    }).ToList();
-
-                    _context.TaskDocumentLinks.AddRange(newLinks);
-
-                    _logger.LogInformation(
-                        "Added {Count} document links to Task {TaskId}",
-                        newLinks.Count, task.Id
-                    );
-                }
-            }
 
             // -------------------------------------------------
             // RESOURCES (ADD ONLY)
@@ -550,13 +477,6 @@ namespace Cloud9_2.Services
 
             task.IsActive = false;
             task.UpdatedDate = DateTime.UtcNow;
-            // Debug: milyen mezők változnak ezen az entitáson?
-            var entry = _context.Entry(task);
-            foreach (var p in entry.Properties)
-            {
-                if (p.IsModified)
-                    _logger.LogWarning("DELETE Task {Id}: modified {Prop} = {Val}", id, p.Metadata.Name, p.CurrentValue);
-            }
 
             var affected = await _context.SaveChangesAsync();
             var changed = await _context.TaskPMs.CountAsync(t => !t.IsActive);
@@ -743,77 +663,149 @@ namespace Cloud9_2.Services
                     .OrderByDescending(th => th.ModifiedDate)
                     .ToList(),
 
-                Attachments = task.TaskDocuments
-                    .Select(td => new TaskDocumentDto
-                    {
-                        Id = td.Id,
-                        DocumentId = td.DocumentId,
-                        FileName = td.Document?.FileName ?? "",
-                        FilePath = td.Document?.FilePath ?? "",
-                        LinkedDate = td.LinkedDate,
-                        LinkedByName = td.LinkedBy != null ? td.LinkedBy.UserName : null,
-                        Note = td.Note
-                    })
-                    .OrderByDescending(a => a.LinkedDate)
-                    .ToList()
+                // ✅ Attachments itt üres, GetTaskByIdAsync tölti fel projectionnel (biztonságosan)
+                Attachments = new List<TaskDocumentDto>()
             };
         }
 
-        // -----------------------------------------------------------------
-        // Attach existing document to task
-        // -----------------------------------------------------------------
-        public async Task AttachDocumentAsync(int taskId, int documentId, string currentUserId, string? note = null)
+// -----------------------------------------------------------------
+// Attach existing document to task (MEGMARAD – ha már van DocumentId)
+// -----------------------------------------------------------------
+public async Task AttachDocumentAsync(int taskId, int documentId, string currentUserId, string? note = null)
+{
+    if (!await _context.TaskPMs.AnyAsync(t => t.Id == taskId && t.IsActive))
+        throw new KeyNotFoundException($"Task {taskId} not found.");
+
+    if (!await _context.Documents.AnyAsync(d => d.DocumentId == documentId))
+        throw new KeyNotFoundException($"Document {documentId} not found.");
+
+    var alreadyAttached = await _context.TaskDocumentLinks
+        .AnyAsync(x => x.TaskId == taskId && x.DocumentId == documentId);
+
+    if (alreadyAttached)
+        return;
+
+    var link = new TaskDocumentLink
+    {
+        TaskId = taskId,
+        DocumentId = documentId,
+        LinkedDate = DateTime.UtcNow,
+        LinkedById = currentUserId,
+        Note = string.IsNullOrWhiteSpace(note) ? null : note.Trim()
+    };
+
+    _context.TaskDocumentLinks.Add(link);
+    await _context.SaveChangesAsync();
+}
+
+// -----------------------------------------------------------------
+// ✅ NEW: Attach LINK to task (Document rekord csak meta+FilePath, NINCS upload)
+// -----------------------------------------------------------------
+public async Task AttachLinkAsync(
+    int taskId,
+    string filePath,
+    string currentUserId,
+    string? fileName = null,
+    string? note = null)
+{
+    if (!await _context.TaskPMs.AnyAsync(t => t.Id == taskId && t.IsActive))
+        throw new KeyNotFoundException($"Task {taskId} not found.");
+
+    if (string.IsNullOrWhiteSpace(filePath))
+        throw new ValidationException("FilePath is required.");
+
+    var normalizedPath = filePath.Trim();
+
+    // FileName ha nincs megadva: próbáljuk a path végéből kinyerni
+    var name = (fileName ?? "").Trim();
+    if (string.IsNullOrWhiteSpace(name))
+    {
+        try
         {
-            if (!await _context.TaskPMs.AnyAsync(t => t.Id == taskId && t.IsActive))
-                throw new KeyNotFoundException($"Task {taskId} not found.");
-
-            if (!await _context.Documents.AnyAsync(d => d.DocumentId == documentId))
-                throw new KeyNotFoundException($"Document {documentId} not found.");
-
-            var alreadyAttached = await _context.TaskDocumentLinks
-                .AnyAsync(x => x.TaskId == taskId && x.DocumentId == documentId);
-
-            if (alreadyAttached)
-                return;
-
-            var link = new TaskDocumentLink
-            {
-                TaskId = taskId,
-                DocumentId = documentId,
-                LinkedDate = DateTime.UtcNow,
-                LinkedById = currentUserId,
-                Note = note
-            };
-
-            _context.TaskDocumentLinks.Add(link);
-            await _context.SaveChangesAsync();
+            name = Path.GetFileName(normalizedPath.TrimEnd('\\', '/'));
         }
+        catch { /* ignore */ }
 
-        // -----------------------------------------------------------------
-        // Remove document from task
-        // -----------------------------------------------------------------
-        public async Task RemoveDocumentAsync(int taskId, int documentLinkId, string currentUserId)
+        if (string.IsNullOrWhiteSpace(name))
+            name = "Hivatkozás";
+    }
+
+    // 🔎 opcionális: ha ugyanaz a FilePath már létezik a Documents-ben, akkor azt reuse-oljuk
+    // (ha nem akarod: töröld ezt a blokkot, és mindig új Document rekord jön létre)
+    var existingDoc = await _context.Documents
+        .FirstOrDefaultAsync(d => d.FilePath == normalizedPath && d.FileName == name);
+
+    var doc = existingDoc;
+    if (doc == null)
+    {
+        doc = new Document
         {
-            var link = await _context.TaskDocumentLinks
-                .FirstOrDefaultAsync(x => x.Id == documentLinkId && x.TaskId == taskId);
+            FileName = name,
+            FilePath = normalizedPath
+        };
 
-            if (link == null)
-                throw new KeyNotFoundException($"Attachment {documentLinkId} not found on task {taskId}");
+        _context.Documents.Add(doc);
+        await _context.SaveChangesAsync(); // doc.DocumentId kell
+    }
 
-            _context.TaskDocumentLinks.Remove(link);
-            await _context.SaveChangesAsync();
-        }
+    // ne duplázzunk taskon belül
+    var alreadyAttached = await _context.TaskDocumentLinks
+        .AnyAsync(x => x.TaskId == taskId && x.DocumentId == doc.DocumentId);
 
-        // -----------------------------------------------------------------
-        // Optional: Attach multiple at once
-        // -----------------------------------------------------------------
-        public async Task AttachDocumentsAsync(int taskId, List<int> documentIds, string currentUserId, string? note = null)
-        {
-            foreach (var docId in documentIds.Distinct())
-            {
-                await AttachDocumentAsync(taskId, docId, currentUserId, note);
-            }
-        }
+    if (alreadyAttached)
+        return;
+
+    var link = new TaskDocumentLink
+    {
+        TaskId = taskId,
+        DocumentId = doc.DocumentId,
+        LinkedDate = DateTime.UtcNow,
+        LinkedById = currentUserId,
+        Note = string.IsNullOrWhiteSpace(note) ? null : note.Trim()
+    };
+
+    _context.TaskDocumentLinks.Add(link);
+    await _context.SaveChangesAsync();
+}
+
+// -----------------------------------------------------------------
+// Remove document link from task (MEGMARAD)
+// -----------------------------------------------------------------
+public async Task RemoveDocumentAsync(int taskId, int documentLinkId, string currentUserId)
+{
+    var link = await _context.TaskDocumentLinks
+        .FirstOrDefaultAsync(x => x.Id == documentLinkId && x.TaskId == taskId);
+
+    if (link == null)
+        throw new KeyNotFoundException($"Attachment {documentLinkId} not found on task {taskId}");
+
+    _context.TaskDocumentLinks.Remove(link);
+    await _context.SaveChangesAsync();
+}
+
+// -----------------------------------------------------------------
+// Optional: Attach multiple existing DocumentIds at once (MEGMARAD)
+// -----------------------------------------------------------------
+public async Task AttachDocumentsAsync(int taskId, List<int> documentIds, string currentUserId, string? note = null)
+{
+    foreach (var docId in (documentIds ?? new List<int>()).Distinct())
+    {
+        await AttachDocumentAsync(taskId, docId, currentUserId, note);
+    }
+}
+
+// -----------------------------------------------------------------
+// ✅ Optional: Attach multiple LINKS at once
+// -----------------------------------------------------------------
+public async Task AttachLinksAsync(int taskId, List<string> filePaths, string currentUserId, string? note = null)
+{
+    foreach (var p in (filePaths ?? new List<string>()))
+    {
+        if (string.IsNullOrWhiteSpace(p)) continue;
+        await AttachLinkAsync(taskId, p, currentUserId, fileName: null, note: note);
+    }
+}
+
     }
 
     // -----------------------------------------------------------------

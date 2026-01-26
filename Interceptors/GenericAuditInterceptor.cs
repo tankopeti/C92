@@ -19,13 +19,13 @@ namespace Cloud9_2.Interceptors
             { typeof(CustomerCommunication), "CustomerCommunication" },
             { typeof(CommunicationResponsible), "CommunicationResponsible" },
 
-            // ✅ Dokumentum
             { typeof(Document), "Document" }
         };
 
         private static readonly HashSet<string> ExcludedProperties = new()
         {
-            "CreatedDate", "ModifiedDate", "IsActive", "RowVersion"
+            "CreatedDate", "ModifiedDate", "IsActive", "RowVersion",
+            "UpdatedDate" // ✅ zaj csökkentése
         };
 
         public GenericAuditInterceptor(IHttpContextAccessor httpContextAccessor, ILogger<GenericAuditInterceptor> logger)
@@ -96,7 +96,6 @@ namespace Cloud9_2.Interceptors
             return string.IsNullOrWhiteSpace(name) ? $"#{statusId}" : name;
         }
 
-        // ✅ Document type név (nullable)
         private async Task<string> GetDocumentTypeNameAsync(DbContext context, int? typeId)
         {
             if (!typeId.HasValue || typeId.Value <= 0) return "—";
@@ -105,6 +104,45 @@ namespace Cloud9_2.Interceptors
                 .Select(t => t.Name)
                 .FirstOrDefaultAsync();
             return string.IsNullOrWhiteSpace(name) ? $"#{typeId.Value}" : name;
+        }
+
+        // ✅ TaskPM Priority név
+        private async Task<string> GetTaskPriorityNameAsync(DbContext context, int? priorityId)
+        {
+            if (!priorityId.HasValue || priorityId.Value <= 0) return "—";
+
+            var name = await context.Set<TaskPriorityPM>()
+                .Where(x => x.TaskPriorityPMId == priorityId.Value)
+                .Select(x => x.Name)
+                .FirstOrDefaultAsync();
+
+            return string.IsNullOrWhiteSpace(name) ? $"#{priorityId.Value}" : name;
+        }
+
+        private async Task<string> GetTaskTypeNameAsync(DbContext context, int? typeId)
+        {
+            if (!typeId.HasValue || typeId.Value <= 0) return "—";
+
+            var name = await context.Set<TaskTypePM>()   // <-- ha nálad más a típus neve, ezt cseréld
+                .Where(x => x.TaskTypePMId == typeId.Value)
+                .Select(x => x.TaskTypePMName)
+                .FirstOrDefaultAsync();
+
+            return string.IsNullOrWhiteSpace(name) ? $"#{typeId.Value}" : name;
+        }
+
+
+        // ✅ TaskPM Status név
+        private async Task<string> GetTaskStatusNameAsync(DbContext context, int? statusId)
+        {
+            if (!statusId.HasValue || statusId.Value <= 0) return "—";
+
+            var name = await context.Set<TaskStatusPM>()
+                .Where(x => x.TaskStatusPMId == statusId.Value)
+                .Select(x => x.Name)
+                .FirstOrDefaultAsync();
+
+            return string.IsNullOrWhiteSpace(name) ? $"#{statusId.Value}" : name;
         }
 
         private async Task AuditChangesAsync(DbContext context)
@@ -117,8 +155,10 @@ namespace Cloud9_2.Interceptors
 
             foreach (var entry in context.ChangeTracker.Entries())
             {
-                if (!AuditedEntities.TryGetValue(entry.Entity.GetType(), out var entityTypeName))
+                var clrType = entry.Metadata.ClrType; // ✅ proxy-biztos
+                if (!AuditedEntities.TryGetValue(clrType, out var entityTypeName))
                     continue;
+
 
                 int entityId = GetEntityId(entry);
 
@@ -137,6 +177,28 @@ namespace Cloud9_2.Interceptors
                                 ChangedByName = userName,
                                 ChangedAt = now,
                                 Changes = "Új partner létrehozva."
+                            });
+                            break;
+                        }
+
+                        // ✅ TaskPM Created (olvasható)
+                        if (entry.Entity is TaskPM tNew)
+                        {
+                            var assignedName = await GetUserNameAsync(context, tNew.AssignedToId);
+                            var prioName = await GetTaskPriorityNameAsync(context, tNew.TaskPriorityPMId);
+                            var statusName = await GetTaskStatusNameAsync(context, tNew.TaskStatusPMId);
+
+                            auditEntries.Add(new AuditLog
+                            {
+                                EntityType = entityTypeName,
+                                EntityId = entityId,
+                                Action = "Created",
+                                ChangedById = userId,
+                                ChangedByName = userName,
+                                ChangedAt = now,
+                                Changes =
+                                    $"Új feladat létrehozva. " +
+                                    $"Cím: {tNew.Title ?? "—"}; Felelős: {assignedName}; Prioritás: {prioName}; Státusz: {statusName}"
                             });
                             break;
                         }
@@ -180,14 +242,11 @@ namespace Cloud9_2.Interceptors
                             break;
                         }
 
-                        // ✅ Document Created (enum Status kezelve)
                         if (entry.Entity is Document dNew)
                         {
                             var partnerName = await GetPartnerNameAsync(context, dNew.PartnerId);
                             var siteName = await GetSiteNameAsync(context, dNew.SiteId);
                             var docTypeName = await GetDocumentTypeNameAsync(context, dNew.DocumentTypeId);
-
-                            // ha Status nullable enum, ez is jó:
                             var statusText = dNew.Status.ToString();
 
                             auditEntries.Add(new AuditLog
@@ -252,6 +311,69 @@ namespace Cloud9_2.Interceptors
                                     "Notes" => "Jegyzetek",
                                     _ => prop.Metadata.Name
                                 };
+
+                                changes.Add($"{displayName}: {oldValue} → {newValue}");
+                                continue;
+                            }
+
+                            // ✅ TaskPM Modified: ID-k -> nevek
+                            if (entry.Entity is TaskPM)
+                            {
+                                string displayName = prop.Metadata.Name switch
+                                {
+                                    "Title" => "Cím",
+                                    "Description" => "Leírás",
+                                    "DueDate" => "Határidő",
+                                    "AssignedToId" => "Felelős",
+                                    "TaskPriorityPMId" => "Prioritás",
+                                    "TaskStatusPMId" => "Státusz",
+                                    "TaskTypePMId" => "Feladat típusa",
+                                    _ => prop.Metadata.Name
+                                };
+
+                                if (prop.Metadata.Name == "TaskTypePMId")
+                                {
+                                    var oldId = int.TryParse(oldValue, out var oi) ? (int?)oi : null;
+                                    var newId = int.TryParse(newValue, out var ni) ? (int?)ni : null;
+
+                                    var oldName = await GetTaskTypeNameAsync(context, oldId);
+                                    var newName = await GetTaskTypeNameAsync(context, newId);
+
+                                    changes.Add($"{displayName}: {oldName} → {newName}");
+                                    continue;
+                                }
+
+                                if (prop.Metadata.Name == "AssignedToId")
+                                {
+                                    var oldName = await GetUserNameAsync(context, oldValue == "null" ? null : oldValue);
+                                    var newName = await GetUserNameAsync(context, newValue == "null" ? null : newValue);
+                                    changes.Add($"{displayName}: {oldName} → {newName}");
+                                    continue;
+                                }
+
+                                if (prop.Metadata.Name == "TaskPriorityPMId")
+                                {
+                                    var oldId = int.TryParse(oldValue, out var oi) ? (int?)oi : null;
+                                    var newId = int.TryParse(newValue, out var ni) ? (int?)ni : null;
+
+                                    var oldName = await GetTaskPriorityNameAsync(context, oldId);
+                                    var newName = await GetTaskPriorityNameAsync(context, newId);
+
+                                    changes.Add($"{displayName}: {oldName} → {newName}");
+                                    continue;
+                                }
+
+                                if (prop.Metadata.Name == "TaskStatusPMId")
+                                {
+                                    var oldId = int.TryParse(oldValue, out var oi) ? (int?)oi : null;
+                                    var newId = int.TryParse(newValue, out var ni) ? (int?)ni : null;
+
+                                    var oldName = await GetTaskStatusNameAsync(context, oldId);
+                                    var newName = await GetTaskStatusNameAsync(context, newId);
+
+                                    changes.Add($"{displayName}: {oldName} → {newName}");
+                                    continue;
+                                }
 
                                 changes.Add($"{displayName}: {oldValue} → {newValue}");
                                 continue;
@@ -376,7 +498,6 @@ namespace Cloud9_2.Interceptors
                                     continue;
                                 }
 
-                                // Status enum → string
                                 if (prop.Metadata.Name == "Status")
                                 {
                                     changes.Add($"{displayName}: {oldValue} → {newValue}");

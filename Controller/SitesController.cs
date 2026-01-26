@@ -13,10 +13,10 @@ namespace Cloud9_2.Controllers
     public class SitesIndexController : ControllerBase
     {
         private readonly ApplicationDbContext _context;
-        private readonly IPartnerService _partnerService;
+        private readonly PartnerService _partnerService;
         private readonly ILogger<SitesIndexController> _logger;
 
-        public SitesIndexController(ApplicationDbContext context, IPartnerService partnerService, ILogger<SitesIndexController> logger)
+        public SitesIndexController(ApplicationDbContext context, PartnerService partnerService, ILogger<SitesIndexController> logger)
         {
             _context = context;
             _partnerService = partnerService;

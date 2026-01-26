@@ -467,38 +467,237 @@ WHERE
         }
 
         // -----------------------------------------------------------------
-        // GET: api/tasks/documents/picker?q=...  (DOCUMENT PICKER LIST)
+        // GET: api/tasks/{taskId}/attachments
+        // ✅ KELL A MODAL LISTÁHOZ
         // -----------------------------------------------------------------
-        [HttpGet("documents/picker")]
-        public async Task<IActionResult> GetDocumentsForPicker([FromQuery] string? q = null, [FromQuery] int take = 50)
+        [HttpGet("{taskId:int}/attachments")]
+        public async Task<IActionResult> GetAttachments(int taskId)
         {
-            take = Math.Clamp(take, 1, 200);
+            var taskExists = await _context.TaskPMs.AnyAsync(t => t.Id == taskId && t.IsActive);
+            if (!taskExists) return NotFound($"Task {taskId} not found.");
 
-            var query = _context.Documents.AsNoTracking();
-
-            if (!string.IsNullOrWhiteSpace(q))
-            {
-                var term = q.Trim();
-                query = query.Where(d =>
-                    EF.Functions.Like(d.FileName, "%" + term + "%")
-                // ha van más meződ: cím, leírás, partner, stb.
-                );
-            }
-
-            var items = await query
-                .OrderByDescending(d => d.DocumentId) // vagy CreatedDate desc
-                .Take(take)
-                .Select(d => new
+            var items = await _context.TaskDocumentLinks
+                .AsNoTracking()
+                .Where(x => x.TaskId == taskId)
+                .Include(x => x.Document)
+                .Include(x => x.LinkedBy)
+                .OrderByDescending(x => x.LinkedDate)
+                .Select(x => new TaskDocumentDto
                 {
-                    id = d.DocumentId,
-                    fileName = d.FileName,
-                    filePath = d.FilePath
+                    Id = x.Id,
+                    DocumentId = x.DocumentId,
+                    FileName = x.Document != null ? (x.Document.FileName ?? "") : "",
+                    FilePath = x.Document != null ? (x.Document.FilePath ?? "") : "",
+                    LinkedDate = x.LinkedDate,
+                    LinkedByName = x.LinkedBy != null ? x.LinkedBy.UserName : null,
+                    Note = x.Note
                 })
                 .ToListAsync();
 
             return Ok(items);
         }
 
+        // -----------------------------------------------------------------
+        // POST: api/tasks/{taskId}/attachments/link
+        // ✅ CSAK LINKET CSATOL
+        // -----------------------------------------------------------------
+        public class AttachLinkRequest
+        {
+            public string? FileName { get; set; } // opcionális
+            public string Url { get; set; } = ""; // KÖTELEZŐ (link)
+            public string? Note { get; set; }
+        }
+
+        [HttpPost("{taskId:int}/attachments/link")]
+        public async Task<IActionResult> AttachLink(int taskId, [FromBody] AttachLinkRequest req)
+        {
+            if (req == null) return BadRequest("Missing body.");
+            if (string.IsNullOrWhiteSpace(req.Url)) return BadRequest("Url is required.");
+
+            var taskExists = await _context.TaskPMs.AnyAsync(t => t.Id == taskId && t.IsActive);
+            if (!taskExists) return NotFound($"Task {taskId} not found.");
+
+            var userId = CurrentUserId;
+            if (string.IsNullOrWhiteSpace(userId)) return Unauthorized();
+
+            var url = req.Url.Trim();
+            if (url.Length < 3) return BadRequest("Url is invalid.");
+
+            // FileName: ha nincs, próbáljuk a linkből kinyerni
+            var fileName = (req.FileName ?? "").Trim();
+            if (string.IsNullOrWhiteSpace(fileName))
+            {
+                try
+                {
+                    var uri = new Uri(url, UriKind.RelativeOrAbsolute);
+                    var last = uri.IsAbsoluteUri ? uri.LocalPath : url;
+                    fileName = Path.GetFileName(last.Trim().TrimEnd('\\', '/'));
+                }
+                catch { /* ignore */ }
+
+                if (string.IsNullOrWhiteSpace(fileName))
+                    fileName = "Hivatkozás";
+            }
+
+            // ✅ 1) próbáljuk meg a meglévő Document rekordot újrahasznosítani ugyanazzal a FilePath-tal
+            var existingDocId = await _context.Documents
+                .AsNoTracking()
+                .Where(d => d.FilePath == url)
+                .Select(d => (int?)d.DocumentId)
+                .FirstOrDefaultAsync();
+
+            int docId;
+            if (existingDocId.HasValue)
+            {
+                docId = existingDocId.Value;
+            }
+            else
+            {
+                var doc = new Document
+                {
+                    FileName = fileName,
+                    FilePath = url
+                };
+
+                _context.Documents.Add(doc);
+                await _context.SaveChangesAsync();
+                docId = doc.DocumentId;
+            }
+
+            // ✅ 2) duplikáció védelem a Task ↔ Document linkre
+            var already = await _context.TaskDocumentLinks
+                .AnyAsync(x => x.TaskId == taskId && x.DocumentId == docId);
+
+            if (already)
+            {
+                return await GetAttachments(taskId);
+            }
+
+            var link = new TaskDocumentLink
+            {
+                TaskId = taskId,
+                DocumentId = docId,
+                LinkedDate = DateTime.UtcNow,
+                LinkedById = userId,
+                Note = string.IsNullOrWhiteSpace(req.Note) ? null : req.Note.Trim()
+            };
+
+            _context.TaskDocumentLinks.Add(link);
+            await _context.SaveChangesAsync();
+
+            return await GetAttachments(taskId);
+        }
+
+
+        [HttpDelete("{taskId:int}/attachments/{linkId:int}")]
+        public async Task<IActionResult> RemoveAttachment(int taskId, int linkId)
+        {
+            var userId = CurrentUserId;
+            if (string.IsNullOrWhiteSpace(userId)) return Unauthorized();
+
+            var link = await _context.TaskDocumentLinks
+                .FirstOrDefaultAsync(x => x.Id == linkId && x.TaskId == taskId);
+
+            if (link == null) return NotFound();
+
+            var docId = link.DocumentId;
+
+            await using var tx = await _context.Database.BeginTransactionAsync();
+
+            _context.TaskDocumentLinks.Remove(link);
+            await _context.SaveChangesAsync();
+
+            // ✅ opcionális: Document törlés, ha már sehol nem hivatkozzák
+            var stillUsed = await _context.TaskDocumentLinks.AnyAsync(x => x.DocumentId == docId);
+            if (!stillUsed)
+            {
+                // ⚠️ NEM olvassuk be a Document sort (itt hasalt el nálad)!
+                var exists = await _context.Documents.AnyAsync(d => d.DocumentId == docId);
+                if (exists)
+                {
+                    var stub = new Document { DocumentId = docId };
+                    _context.Documents.Attach(stub);
+                    _context.Documents.Remove(stub);
+                    await _context.SaveChangesAsync();
+                }
+            }
+
+            await tx.CommitAsync();
+
+            return await GetAttachments(taskId);
+        }
+
+
+
+        [HttpPost("{taskId:int}/documents/upload")]
+        [RequestSizeLimit(200_000_000)]
+        public async Task<IActionResult> UploadAndAttach(int taskId, IFormFile file, [FromQuery] string? note = null)
+        {
+            if (file == null || file.Length == 0)
+                return BadRequest("No file uploaded.");
+
+            var taskExists = await _context.TaskPMs.AnyAsync(t => t.Id == taskId && t.IsActive);
+            if (!taskExists) return NotFound($"Task {taskId} not found.");
+
+            // DEV: fix folder
+            var uploadsRoot = "/Users/tp/Projects/fileok";
+            Directory.CreateDirectory(uploadsRoot);
+
+            var safeOriginalName = Path.GetFileName(file.FileName);
+            var storedName = $"{Guid.NewGuid():N}_{safeOriginalName}";
+            var absPath = Path.Combine(uploadsRoot, storedName);
+
+            await using (var fs = System.IO.File.Create(absPath))
+                await file.CopyToAsync(fs);
+
+            // amit a UI-n linkként akarsz megnyitni, az lehet egy "file://" url
+            var fileUrl = "file://" + absPath;
+
+            var doc = new Document
+            {
+                FileName = safeOriginalName,
+                FilePath = fileUrl
+            };
+
+            _context.Documents.Add(doc);
+            await _context.SaveChangesAsync();
+
+            var link = new TaskDocumentLink
+            {
+                TaskId = taskId,
+                DocumentId = doc.DocumentId,
+                LinkedDate = DateTime.UtcNow,
+                LinkedById = CurrentUserId,
+                Note = note
+            };
+
+            _context.TaskDocumentLinks.Add(link);
+            await _context.SaveChangesAsync();
+
+            // add vissza a friss listát (a modalnak ez kell)
+            return await GetAttachments(taskId);
+        }
+
+        // GET: api/tasks/{taskId}/audit
+        [HttpGet("{taskId:int}/audit")]
+        public async Task<IActionResult> GetTaskAudit(int taskId)
+        {
+            // csak TaskPM-hez tartozó audit logok
+            var items = await _context.Set<AuditLog>()
+                .AsNoTracking()
+                .Where(a => a.EntityType == "TaskPM" && a.EntityId == taskId)
+                .OrderByDescending(a => a.ChangedAt)
+                .Select(a => new
+                {
+                    a.Action,
+                    a.ChangedAt,
+                    a.ChangedByName,
+                    a.Changes
+                })
+                .ToListAsync();
+
+            return Ok(items);
+        }
 
     }
 

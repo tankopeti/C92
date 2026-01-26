@@ -75,7 +75,7 @@
      data-search="@Model.SearchTerm">
 
             <table class="table table-striped table-hover">
-                <thead class="sticky-top custom-thead">
+                <thead class="sticky-top custom-thead table-blur">
                     <tr>
                         <th>Th. Azon.</th>
                         <th>Telephely</th>
@@ -159,13 +159,12 @@
 @await Html.PartialAsync("_TaskModals")
 
 @section Scripts {
-    <script src="~/js/Task/fileattach.js"></script>
-
+    
     <!-- TomSelect + create modal site kereső + task type fill + filter site tomselect -->
     <script src="~/js/Task/tasks_nyugalom_tomselect.js"></script>
 
     <!-- status / priority quick change + history (TomSelect nélkül) -->
-    <script src="~/js/Task/tasks_nyugalom.js"></script>
+    @* <script src="~/js/Task/tasks_nyugalom.js"></script> *@
 
     <!-- list -->
     <script src="~/js/Task/taskBejelentesLoadMore.js"></script>
@@ -175,5 +174,7 @@
     <script src="/js/Task/taskBejelentesEdit.js"></script>
     <script src="~/js/Task/taskBejelentesViewModal.js"></script>
     <script src="/js/Task/taskDelete.js"></script>
+    <script src="~/js/Task/taskDocumentsModal.js"></script>
+    <script src="~/js/Task/taskbejelenteshistory.js" asp-append-version="true"></script>
 
 }

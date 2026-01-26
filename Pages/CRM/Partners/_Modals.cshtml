@@ -1,4 +1,4 @@
-<!-- Create Partner Modal -->
+<!-- Create Partner Modal (eredeti stílus, csak kibővítve a szükséges mezőkkel) -->
 <div class="modal fade" id="createPartnerModal" tabindex="-1" aria-labelledby="createPartnerLabel" aria-hidden="true">
   <div class="modal-dialog modal-xl modal-dialog-scrollable">
     <div class="modal-content">
@@ -20,8 +20,40 @@
             </div>
             <div class="col-md-6">
               <label class="form-label">Cégnév</label>
-              <input type="text" class="form-control" name="CompanyName" maxlength="100">
+              <input type="text" class="form-control" name="CompanyName" maxlength="450">
             </div>
+
+            <!-- + hozzáadva -->
+            <div class="col-md-4">
+              <label class="form-label">Rövid név</label>
+              <input type="text" class="form-control" name="ShortName" maxlength="100">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Partner kód</label>
+              <input type="text" class="form-control" name="PartnerCode" maxlength="100">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Saját azonosító</label>
+              <input type="text" class="form-control" name="OwnId" maxlength="100">
+            </div>
+
+            <div class="col-md-4">
+              <label class="form-label">GFO</label>
+              <select class="form-select" id="createGfoId" name="GFOId">
+                <option value="">Válasszon...</option>
+              </select>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Partner csoport</label>
+              <input type="number" class="form-control" name="PartnerGroupId" min="0" step="1">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Partner típus</label>
+              <select class="form-select" id="createPartnerTypeId" name="PartnerTypeId">
+                <option value="">Válasszon...</option>
+              </select>
+            </div>
+
           </div>
 
           <hr class="my-4">
@@ -30,19 +62,29 @@
           <div class="row g-3">
             <div class="col-md-6">
               <label class="form-label">E-mail</label>
-              <input type="email" class="form-control" name="Email">
+              <input type="email" class="form-control" name="Email" maxlength="255">
             </div>
             <div class="col-md-6">
               <label class="form-label">Telefonszám</label>
-              <input type="text" class="form-control" name="PhoneNumber">
+              <input type="text" class="form-control" name="PhoneNumber" maxlength="20">
             </div>
             <div class="col-md-6">
               <label class="form-label">Másodlagos telefonszám</label>
-              <input type="text" class="form-control" name="AlternatePhone">
+              <input type="text" class="form-control" name="AlternatePhone" maxlength="20">
             </div>
             <div class="col-md-6">
               <label class="form-label">Weboldal</label>
-              <input type="url" class="form-control" name="Website">
+              <input type="url" class="form-control" name="Website" maxlength="255">
+            </div>
+
+            <!-- + hozzáadva -->
+            <div class="col-md-6">
+              <label class="form-label">Értékesítő / Felelős</label>
+              <input type="text" class="form-control" name="AssignedTo" maxlength="50">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Utolsó kapcsolat</label>
+              <input type="datetime-local" class="form-control" name="LastContacted">
             </div>
           </div>
 
@@ -52,27 +94,27 @@
           <div class="row g-3">
             <div class="col-md-6">
               <label class="form-label">Utca, házszám</label>
-              <input type="text" class="form-control" name="AddressLine1">
+              <input type="text" class="form-control" name="AddressLine1" maxlength="100">
             </div>
             <div class="col-md-6">
               <label class="form-label">Kiegészítő cím</label>
-              <input type="text" class="form-control" name="AddressLine2">
+              <input type="text" class="form-control" name="AddressLine2" maxlength="100">
             </div>
             <div class="col-md-4">
               <label class="form-label">Város</label>
-              <input type="text" class="form-control" name="City">
+              <input type="text" class="form-control" name="City" maxlength="50">
             </div>
             <div class="col-md-4">
               <label class="form-label">Megye</label>
-              <input type="text" class="form-control" name="State">
+              <input type="text" class="form-control" name="State" maxlength="50">
             </div>
             <div class="col-md-4">
               <label class="form-label">Irányítószám</label>
-              <input type="text" class="form-control" name="PostalCode">
+              <input type="text" class="form-control" name="PostalCode" maxlength="20">
             </div>
             <div class="col-md-6">
               <label class="form-label">Ország</label>
-              <input type="text" class="form-control" name="Country" value="Magyarország">
+              <input type="text" class="form-control" name="Country" value="Magyarország" maxlength="50">
             </div>
           </div>
 
@@ -82,13 +124,74 @@
           <div class="row g-3">
             <div class="col-md-6">
               <label class="form-label">Adószám</label>
-              <input type="text" class="form-control" name="TaxId">
+              <input type="text" class="form-control" name="TaxId" maxlength="50">
             </div>
+
+            <!-- + hozzáadva -->
+            <div class="col-md-6">
+              <label class="form-label">Nemzetközi adószám</label>
+              <input type="text" class="form-control" name="IntTaxId" maxlength="50">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Adóazonosító jel (magánszemély)</label>
+              <input type="text" class="form-control" name="IndividualTaxId" maxlength="50">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Iparág</label>
+              <input type="text" class="form-control" name="Industry" maxlength="50">
+            </div>
+
             <div class="col-md-6">
               <label class="form-label">Státusz</label>
               <select class="form-select" id="partnerStatus" name="StatusId">
                 <option value="">Válasszon...</option>
               </select>
+            </div>
+
+            <!-- + hozzáadva -->
+            <div class="col-md-6">
+              <label class="form-label">Pénznem</label>
+              <input type="text" class="form-control" name="PreferredCurrency" minlength="3" maxlength="3" placeholder="HUF">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Fizetési feltételek</label>
+              <input type="text" class="form-control" name="PaymentTerms" maxlength="50">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Kredit limit</label>
+              <input type="number" class="form-control" name="CreditLimit" min="0" step="0.01">
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label">Számlázási kapcsolattartó</label>
+              <input type="text" class="form-control" name="BillingContactName" maxlength="100">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Számlázási email</label>
+              <input type="email" class="form-control" name="BillingEmail" maxlength="255">
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label">Komment 1</label>
+              <input type="text" class="form-control" name="Comment1" maxlength="255">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Komment 2</label>
+              <input type="text" class="form-control" name="Comment2" maxlength="255">
+            </div>
+
+            <div class="col-md-6 d-flex align-items-end">
+              <div class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" id="createIsTaxExempt" name="IsTaxExempt">
+                <label class="form-check-label" for="createIsTaxExempt">Adómentes</label>
+              </div>
+            </div>
+
+            <div class="col-md-6 d-flex align-items-end">
+              <div class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" id="createIsActive" name="IsActive" checked>
+                <label class="form-check-label" for="createIsActive">Aktív</label>
+              </div>
             </div>
           </div>
 
@@ -96,7 +199,7 @@
 
           <div>
             <label class="form-label">Jegyzetek</label>
-            <textarea class="form-control" name="Notes" rows="3"></textarea>
+            <textarea class="form-control" name="Notes" rows="3" maxlength="1000"></textarea>
           </div>
         </form>
       </div>
@@ -110,32 +213,26 @@
   </div>
 </div>
 
+
 <!-- View Partner Modal -->
-<div class="modal fade" id="viewPartnerModal" tabindex="-1" aria-labelledby="viewPartnerLabel" aria-hidden="true">
+<div class="modal fade" id="viewPartnerModal" tabindex="-1">
   <div class="modal-dialog modal-xl modal-dialog-scrollable">
     <div class="modal-content">
-
       <div class="modal-header bg-success text-white">
-        <h5 class="modal-title" id="viewPartnerLabel">
-          <i class="bi bi-person-lines-fill me-2"></i> Partner megtekintése
-        </h5>
-        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Bezárás"></button>
+        <h5 class="modal-title" id="viewPartnerModalTitle">Partner</h5>
+
+        <button id="editPartnerBtn" type="button" class="btn btn-sm btn-outline-primary me-2" style="display:none;">
+          <i class="bi bi-pencil"></i> Szerkesztés
+        </button>
+
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
 
-      <div class="modal-body">
-        <div id="viewPartnerContent" class="text-center">
-          <div class="spinner-border" role="status" aria-hidden="true"></div>
-          <p class="mt-3 mb-0">Betöltés...</p>
-        </div>
-      </div>
-
-      <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Bezárás</button>
-      </div>
-
+      <div class="modal-body" id="viewPartnerModalBody"></div>
     </div>
   </div>
 </div>
+
 
 
 <div class="modal fade" id="editPartnerModal" tabindex="-1" aria-labelledby="editPartnerLabel" aria-hidden="true">
@@ -157,12 +254,43 @@
           <div class="row g-3">
             <div class="col-md-6">
               <label class="form-label">Partner neve *</label>
-              <input type="text" class="form-control" id="editPartnerName" name="Name" required>
+              <input type="text" class="form-control" id="editPartnerName" name="Name" required maxlength="100">
             </div>
             <div class="col-md-6">
               <label class="form-label">Cégnév</label>
-              <input type="text" class="form-control" id="editPartnerCompanyName" name="CompanyName">
+              <input type="text" class="form-control" id="editPartnerCompanyName" name="CompanyName" maxlength="450">
             </div>
+
+            <div class="col-md-4">
+              <label class="form-label">Rövid név</label>
+              <input type="text" class="form-control" id="editShortName" name="ShortName" maxlength="100">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Partner kód</label>
+              <input type="text" class="form-control" id="editPartnerCode" name="PartnerCode" maxlength="100">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Saját azonosító</label>
+              <input type="text" class="form-control" id="editOwnId" name="OwnId" maxlength="100">
+            </div>
+
+            <div class="col-md-4">
+              <label class="form-label">GFO</label>
+              <select class="form-select" id="editGfoId" name="GFOId">
+                <option value="">Válasszon...</option>
+              </select>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Partner csoport</label>
+              <input type="number" class="form-control" id="editPartnerGroupId" name="PartnerGroupId" min="0" step="1">
+            </div>
+<div class="col-md-4">
+  <label class="form-label">Partner típus</label>
+  <select class="form-select" id="editPartnerTypeId" name="PartnerTypeId">
+    <option value="">Válasszon...</option>
+  </select>
+</div>
+
           </div>
 
           <hr class="my-4">
@@ -171,19 +299,28 @@
           <div class="row g-3">
             <div class="col-md-6">
               <label class="form-label">E-mail</label>
-              <input type="email" class="form-control" id="editPartnerEmail" name="Email">
+              <input type="email" class="form-control" id="editPartnerEmail" name="Email" maxlength="255">
             </div>
             <div class="col-md-6">
               <label class="form-label">Telefonszám</label>
-              <input type="text" class="form-control" id="editPartnerPhone" name="PhoneNumber">
+              <input type="text" class="form-control" id="editPartnerPhone" name="PhoneNumber" maxlength="20">
             </div>
             <div class="col-md-6">
               <label class="form-label">Másodlagos telefonszám</label>
-              <input type="text" class="form-control" id="editPartnerAlternatePhone" name="AlternatePhone">
+              <input type="text" class="form-control" id="editPartnerAlternatePhone" name="AlternatePhone" maxlength="20">
             </div>
             <div class="col-md-6">
               <label class="form-label">Weboldal</label>
-              <input type="url" class="form-control" id="editPartnerWebsite" name="Website">
+              <input type="url" class="form-control" id="editPartnerWebsite" name="Website" maxlength="255">
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label">Értékesítő / Felelős</label>
+              <input type="text" class="form-control" id="editAssignedTo" name="AssignedTo" maxlength="50">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Utolsó kapcsolat</label>
+              <input type="datetime-local" class="form-control" id="editLastContacted" name="LastContacted">
             </div>
           </div>
 
@@ -193,27 +330,27 @@
           <div class="row g-3">
             <div class="col-md-6">
               <label class="form-label">Utca, házszám</label>
-              <input type="text" class="form-control" id="editPartnerAddressLine1" name="AddressLine1">
+              <input type="text" class="form-control" id="editPartnerAddressLine1" name="AddressLine1" maxlength="100">
             </div>
             <div class="col-md-6">
               <label class="form-label">Kiegészítő cím</label>
-              <input type="text" class="form-control" id="editPartnerAddressLine2" name="AddressLine2">
+              <input type="text" class="form-control" id="editPartnerAddressLine2" name="AddressLine2" maxlength="100">
             </div>
             <div class="col-md-4">
               <label class="form-label">Város</label>
-              <input type="text" class="form-control" id="editPartnerCity" name="City">
+              <input type="text" class="form-control" id="editPartnerCity" name="City" maxlength="50">
             </div>
             <div class="col-md-4">
               <label class="form-label">Megye</label>
-              <input type="text" class="form-control" id="editPartnerState" name="State">
+              <input type="text" class="form-control" id="editPartnerState" name="State" maxlength="50">
             </div>
             <div class="col-md-4">
               <label class="form-label">Irányítószám</label>
-              <input type="text" class="form-control" id="editPartnerPostalCode" name="PostalCode">
+              <input type="text" class="form-control" id="editPartnerPostalCode" name="PostalCode" maxlength="20">
             </div>
             <div class="col-md-6">
               <label class="form-label">Ország</label>
-              <input type="text" class="form-control" id="editPartnerCountry" name="Country">
+              <input type="text" class="form-control" id="editPartnerCountry" name="Country" maxlength="50">
             </div>
           </div>
 
@@ -223,20 +360,81 @@
           <div class="row g-3">
             <div class="col-md-6">
               <label class="form-label">Adószám</label>
-              <input type="text" class="form-control" id="editPartnerTaxId" name="TaxId">
+              <input type="text" class="form-control" id="editPartnerTaxId" name="TaxId" maxlength="50">
             </div>
+
+            <div class="col-md-6">
+              <label class="form-label">Nemzetközi adószám</label>
+              <input type="text" class="form-control" id="editIntTaxId" name="IntTaxId" maxlength="50">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Adóazonosító jel (magánszemély)</label>
+              <input type="text" class="form-control" id="editIndividualTaxId" name="IndividualTaxId" maxlength="50">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Iparág</label>
+              <input type="text" class="form-control" id="editIndustry" name="Industry" maxlength="50">
+            </div>
+
             <div class="col-md-6">
               <label class="form-label">Státusz</label>
               <select class="form-select" id="editPartnerStatus" name="StatusId">
                 <option value="">Válasszon...</option>
               </select>
             </div>
+
+            <div class="col-md-6">
+              <label class="form-label">Pénznem</label>
+              <input type="text" class="form-control" id="editPreferredCurrency" name="PreferredCurrency" minlength="3" maxlength="3" placeholder="HUF">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Fizetési feltételek</label>
+              <input type="text" class="form-control" id="editPaymentTerms" name="PaymentTerms" maxlength="50">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Kredit limit</label>
+              <input type="number" class="form-control" id="editCreditLimit" name="CreditLimit" min="0" step="0.01">
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label">Számlázási kapcsolattartó</label>
+              <input type="text" class="form-control" id="editBillingContactName" name="BillingContactName" maxlength="100">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Számlázási email</label>
+              <input type="email" class="form-control" id="editBillingEmail" name="BillingEmail" maxlength="255">
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label">Komment 1</label>
+              <input type="text" class="form-control" id="editComment1" name="Comment1" maxlength="255">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Komment 2</label>
+              <input type="text" class="form-control" id="editComment2" name="Comment2" maxlength="255">
+            </div>
+
+            <div class="col-md-6 d-flex align-items-end">
+              <div class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" id="editIsTaxExempt" name="IsTaxExempt">
+                <label class="form-check-label" for="editIsTaxExempt">Adómentes</label>
+              </div>
+            </div>
+
+            <div class="col-md-6 d-flex align-items-end">
+              <div class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" id="editIsActive" name="IsActive">
+                <label class="form-check-label" for="editIsActive">Aktív</label>
+              </div>
+            </div>
           </div>
 
           <hr class="my-4">
 
-          <h6 class="mb-3">Jegyzetek</h6>
-          <textarea class="form-control" id="editPartnerNotes" name="Notes" rows="4"></textarea>
+          <div>
+            <label class="form-label">Jegyzetek</label>
+            <textarea class="form-control" id="editPartnerNotes" name="Notes" rows="3" maxlength="1000"></textarea>
+          </div>
         </form>
 
         <hr class="my-4">
@@ -329,7 +527,7 @@
 <div class="modal fade" id="advancedFilterModal" tabindex="-1" aria-labelledby="advancedFilterModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
-            <div class="modal-header">
+            <div class="modal-header bg-success text-white">
                 <h5 class="modal-title" id="advancedFilterModalLabel">
                     <i class="bi bi-funnel-fill me-2"></i> Összetett szűrés
                 </h5>

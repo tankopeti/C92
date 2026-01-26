@@ -7,8 +7,6 @@ namespace Cloud9_2.Models
         public int PartnerTypeId { get; set; }
         public string PartnerTypeName { get; set; }
 
-        // Foreign key to Partner
-        public int PartnerId { get; set; }
-        public Partner Partner { get; set; }
+        public ICollection<Partner>? Partners { get; set; }
     }
 }

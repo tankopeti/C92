@@ -16,6 +16,15 @@ namespace Cloud9_2.Models
         [Display(Name = "Név")]
         public string Name { get; set; }                // Individual or company name
 
+        [Display(Name = "Rövid név")]
+        public string? ShortName { get; set; } 
+
+        [Display(Name = "Partner Kód")]
+        public string? PartnerCode { get; set; } 
+
+        [Display(Name = "Saját azonosító")]
+        public string? OwnId { get; set; } 
+
         [Display(Name = "Email")]
         public string? Email { get; set; }               // Primary email for communication
         
@@ -40,6 +49,9 @@ namespace Cloud9_2.Models
         
         [Display(Name = "Nemzetközi Adószám")]
         public string? IntTaxId { get; set; }               // Tax identification number (e.g., EIN, VAT)
+        
+        [Display(Name = "Adóazonosító jel (Magánszemély)")]
+        public string? IndividualTaxId { get; set; }                // Adóazonosító jel, magánszemélyeknek
         
         [Display(Name = "Iparág")]
         public string? Industry { get; set; }            // e.g., "Technology", "Retail"
@@ -100,9 +112,24 @@ namespace Cloud9_2.Models
 
         [ForeignKey("PartnerGroupId")]
         public PartnerGroup? PartnerGroup { get; set; } // Navigation property
+
         [Display(Name = "Státusz")]
         public int? StatusId { get; set; }
         public Status? Status { get; set; }
+
+        [Display(Name = "Partner típus")]
+        public int? PartnerTypeId { get; set; }
+        public PartnerType? PartnerType { get; set; }
+
+        [Display(Name = "GFO")]
+        public int? GFOId { get; set; }
+        public GFO? GFO { get; set; }
+
+        [Display(Name = "Komment 1")]
+        public string? Comment1 { get; set; }
+
+        [Display(Name = "Komment 2")]
+        public string? Comment2 { get; set; }
 
         // Audit Fields
 
@@ -123,7 +150,8 @@ namespace Cloud9_2.Models
         public List<Site>? Sites { get; set; }         // Multiple sites per partner
         public List<Contact>? Contacts { get; set; }   // Multiple contacts per partner
         public List<Document>? Documents { get; set; } // Multiple documents per partner
-        public List<PartnerType>? PartnerTypes { get; set; } // Multiple Types per partner e.g., "Client", "Vendor", "Both"
+
+        // public List<PartnerType>? PartnerTypes { get; set; } // Multiple Types per partner e.g., "Client", "Vendor", "Both"
         public List<LeadSource>? LeadSources { get; set; } // Multiple Lead sources e.g., "Website", "Referral"
         public List<Quote>? Quotes { get; set; } 
         public ICollection<Order>? Orders { get; set; }

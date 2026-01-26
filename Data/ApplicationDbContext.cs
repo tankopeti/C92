@@ -89,6 +89,7 @@ namespace Cloud9_2.Data
         public DbSet<TaskHistory> TaskHistories { get; set; }
         public DbSet<TaskPMcomMethod> TaskPMcomMethods { get; set; }
         public DbSet<AuditLog> AuditLogs { get; set; } = null!;
+        public DbSet<GFO> GFOs { get; set; } = null!;
 
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -141,6 +142,8 @@ namespace Cloud9_2.Data
             modelBuilder.Entity<ResourceHistory>().ToTable("ResourceHistory");
             
             modelBuilder.Entity<TaskHistory>().ToTable("TaskHistory");
+
+            modelBuilder.Entity<GFO>().ToTable("GFO");
 
             modelBuilder.Entity<ResourceHistory>(entity =>
             {
@@ -645,7 +648,7 @@ modelBuilder.Entity<Partner>()
 
             modelBuilder.Entity<TaskPM>(entity =>
             {
-                entity.HasKey(t => t.TaskTypePMId);
+                entity.HasKey(t => t.Id);
                 entity.Property(t => t.Title).IsRequired().HasMaxLength(100);
 
                 entity.HasOne(t => t.TaskTypePM)

@@ -31,11 +31,26 @@ namespace Cloud9_2.Models
         [StringLength(255, ErrorMessage = "A weboldal maximum 255 karakter hosszú lehet")]
         public string? Website { get; set; }
 
-        [StringLength(100, ErrorMessage = "A cég neve maximum 100 karakter hosszú lehet")]
+        [StringLength(450, ErrorMessage = "A cég neve maximum 450 karakter hosszú lehet")]
         public string? CompanyName { get; set; }
+
+        [StringLength(100, ErrorMessage = "A cég rövid neve maximum 100 karakter hosszú lehet")]
+        public string? ShortName { get; set; }
+
+        [StringLength(100, ErrorMessage = "A partner kód maximum 100 karakter hosszú lehet")]
+        public string? PartnerCode { get; set; }
+
+        [StringLength(100, ErrorMessage = "A saját azonosító maximum 100 karakter hosszú lehet")]
+        public string? OwnId { get; set; }
+
+        public int? GFOId { get; set; }
+        public string? GFOName { get; set; }
 
         [StringLength(50, ErrorMessage = "Az adószám maximum 50 karakter hosszú lehet")]
         public string? TaxId { get; set; }
+
+        [Display(Name = "Adóazonosító jel (Magánszemély)")]
+        public string? IndividualTaxId { get; set; }   
 
         [StringLength(50, ErrorMessage = "A nemzetközi adószám maximum 50 karakter hosszú lehet")]
         public string? IntTaxId { get; set; }
@@ -93,9 +108,17 @@ namespace Cloud9_2.Models
         [StringLength(3, MinimumLength = 3, ErrorMessage = "Az alap valuta pontosan 3 karakter hosszú kell legyen (pl. USD)")]
         public string? PreferredCurrency { get; set; }
 
+        [Display(Name = "Komment 1")]
+        public string? Comment1 { get; set; }
+
+        [Display(Name = "Komment 2")]
+        public string? Comment2 { get; set; }
+
         public bool? IsTaxExempt { get; set; }
 
         public int? PartnerGroupId { get; set; }
+
+        public int? PartnerTypeId { get; set; }
 
         public bool IsActive { get; set; } = true;
 

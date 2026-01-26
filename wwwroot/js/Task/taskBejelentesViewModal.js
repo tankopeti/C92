@@ -1,14 +1,23 @@
+// wwwroot/js/Task/taskBejelentesViewModal.js
 (function () {
   'use strict';
 
   document.addEventListener('DOMContentLoaded', function () {
+    console.log('[taskBejelentesViewModal] DOM loaded');
 
     const modalEl = document.getElementById('taskViewModal');
     const bodyEl = document.getElementById('taskModalBody');
     const titleEl = document.getElementById('taskModalTitle');
     const editBtn = document.getElementById('editTaskBtn');
 
-    if (!modalEl || !bodyEl) return;
+    // ⚠️ Ha bármelyik hiányzik, akkor nem tudunk modalt nyitni.
+    if (!modalEl || !bodyEl) {
+      console.warn('[taskBejelentesViewModal] missing modal elements', {
+        modalEl: !!modalEl,
+        bodyEl: !!bodyEl
+      });
+      return;
+    }
 
     // --------------------------------------------------------------------
     // CSRF
@@ -16,7 +25,7 @@
     const csrf =
       document.querySelector('meta[name="csrf-token"]')?.content ||
       document.querySelector('input[name="__RequestVerificationToken"]')?.value ||
-      document.cookie.match(/XSRF-TOKEN=([^;]+)/)?.[1] ||
+      (document.cookie.match(/XSRF-TOKEN=([^;]+)/)?.[1] ? decodeURIComponent(document.cookie.match(/XSRF-TOKEN=([^;]+)/)?.[1]) : '') ||
       '';
 
     // --------------------------------------------------------------------
@@ -53,10 +62,10 @@
       const docId = att.documentId ?? att.DocumentId;
       const filePath = att.filePath ?? att.FilePath;
 
-      if (filePath) return filePath;
+      if (filePath) return String(filePath);
 
       // ⬇️ ha nálad más a letöltő endpoint, CSAK EZT AZ 1 SORT írd át
-      return `/api/documents/${encodeURIComponent(docId)}/download`;
+      return `/documents/download/${encodeURIComponent(docId)}`;
     }
 
     function renderAttachments(d) {
@@ -99,10 +108,12 @@
     // --------------------------------------------------------------------
     async function fetchTask(taskId) {
       const res = await fetch(`/api/tasks/${encodeURIComponent(taskId)}`, {
+        method: 'GET',
         headers: {
           'Accept': 'application/json',
           ...(csrf ? { 'RequestVerificationToken': csrf } : {})
-        }
+        },
+        credentials: 'same-origin'
       });
 
       if (!res.ok) {
@@ -117,8 +128,6 @@
     // RENDER
     // --------------------------------------------------------------------
     async function renderTask(d) {
-      console.log('[VIEW TASK RAW]', d);
-
       const id = d.id ?? d.Id;
       const title = d.title ?? d.Title;
       const desc = d.description ?? d.Description;
@@ -127,7 +136,7 @@
       const statusName = d.taskStatusPMName ?? d.TaskStatusPMName ?? '–';
       const prioName = d.taskPriorityPMName ?? d.TaskPriorityPMName ?? '–';
 
-      const statusColor = d.colorCode ?? d.StatusColorCode;
+      const statusColor = d.colorCode ?? d.ColorCode ?? d.StatusColorCode;
       const prioColor = d.priorityColorCode ?? d.PriorityColorCode;
 
       const scheduled = d.scheduledDate ?? d.ScheduledDate;
@@ -196,10 +205,13 @@
         </div>
       `;
 
+      // ✅ Edit gomb: a te rendszered event-alapú
       if (editBtn) {
         editBtn.style.display = 'inline-block';
         editBtn.dataset.taskId = String(id);
-        editBtn.onclick = () => window.Tasks?.openEditModal?.(id);
+        editBtn.onclick = () => {
+          window.dispatchEvent(new CustomEvent('tasks:openEdit', { detail: { id: Number(id) } }));
+        };
       }
     }
 
@@ -207,19 +219,23 @@
     // OPEN
     // --------------------------------------------------------------------
     async function openTaskView(taskId) {
+      const idNum = parseInt(String(taskId || ''), 10);
+      if (!Number.isFinite(idNum) || idNum <= 0) return;
+
       bodyEl.innerHTML = `
         <div class="text-center py-5">
           <div class="spinner-border text-success"></div>
           <p class="mt-3 text-muted">Adatok betöltése...</p>
         </div>`;
 
+      // ✅ show modal
       bootstrap.Modal.getOrCreateInstance(modalEl).show();
 
       try {
-        const data = await fetchTask(taskId);
+        const data = await fetchTask(idNum);
         await renderTask(data);
       } catch (e) {
-        console.error(e);
+        console.error('[taskBejelentesViewModal] load failed', e);
         bodyEl.innerHTML = `<div class="alert alert-danger">Nem sikerült betölteni a feladatot.</div>`;
       }
     }
@@ -227,14 +243,28 @@
     // --------------------------------------------------------------------
     // EVENTS
     // --------------------------------------------------------------------
+
+    // 1) Direkt kattintás támogatás (ha valahol ezt használod)
     document.addEventListener('click', function (e) {
-      const btn = e.target.closest('.btn-view-task,[data-view-task]');
-      if (btn) {
-        const id = btn.dataset.taskId || btn.dataset.viewTask;
-        if (id) openTaskView(id);
-      }
+      const btn = e.target.closest('.btn-view-task,[data-view-task],.js-view-task-btn');
+      if (!btn) return;
+
+      const id =
+        btn.dataset.taskId ||
+        btn.dataset.viewTask ||
+        btn.getAttribute('data-task-id') ||
+        btn.getAttribute('data-view-task');
+
+      if (id) openTaskView(id);
     });
 
+    // 2) ✅ A TE LISTÁD ESEMÉNYE: loadMore fallback-ja ezt lövi
+    window.addEventListener('tasks:view', function (e) {
+      const id = e && e.detail && (e.detail.id ?? e.detail.taskId);
+      if (id) openTaskView(id);
+    });
+
+    // 3) Expose: loadMore közvetlenül ezt hívja, ha létezik
     window.Tasks = window.Tasks || {};
     window.Tasks.openViewModal = openTaskView;
 
@@ -245,6 +275,5 @@
         editBtn.onclick = null;
       }
     });
-
   });
 })();

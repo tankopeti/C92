@@ -328,7 +328,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     bootstrap.Modal.getOrCreateInstance(taskHistoryModalEl).show();
 
-    fetch(`/api/tasks/${taskId}/history`)
+    fetch(`/api/tasks/${taskId}/audit`)
       .then(response => {
         if (!response.ok) throw new Error(`HTTP hiba: ${response.status}`);
         return response.json();

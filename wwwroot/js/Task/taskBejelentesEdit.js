@@ -4,44 +4,12 @@
 
   console.log('[taskBejelentesEdit] loaded');
 
-
   document.addEventListener('DOMContentLoaded', function () {
     console.log('[taskBejelentesEdit] DOM loaded');
-    function renderAttachmentsList(attachments) {
-      var listEl = document.getElementById('editAttachedDocumentsList');
-      if (!listEl) return;
 
-      attachments = Array.isArray(attachments) ? attachments : [];
-
-      if (!attachments.length) {
-        listEl.innerHTML = '<div class="text-muted small">Még nincs csatolt dokumentum. Kattintson a fenti gombra a hozzáadáshoz.</div>';
-        return;
-      }
-
-      listEl.innerHTML = attachments.map(function (a) {
-        var linkId = pick(a, ['id', 'Id']);                 // TaskDocumentLink.Id
-        var docId = pick(a, ['documentId', 'DocumentId']); // DocumentId
-        var name = pick(a, ['fileName', 'FileName']) || ('#' + docId);
-        var path = pick(a, ['filePath', 'FilePath']) || '';
-
-        // link: ha a FilePath már egy letöltési url, akkor jó
-        var href = path ? String(path) : ('/documents/download/' + docId);
-
-        return `
-      <div class="d-flex justify-content-between align-items-center border rounded p-2 mb-2" data-doc-id="${docId}" data-link-id="${linkId}">
-        <div class="me-3">
-          <i class="bi bi-file-earmark-text me-2"></i>
-          <a href="${href}" target="_blank">${escHtml(name)}</a>
-        </div>
-        <button type="button" class="btn btn-outline-danger btn-sm js-remove-attach" data-doc-id="${docId}">
-          <i class="bi bi-trash"></i>
-        </button>
-      </div>
-    `;
-      }).join('');
-    }
-
-    // ---- Date format fallback (ha nincs global formatHuDateTime) ----
+    // ------------------------------------------------------------
+    // Helpers
+    // ------------------------------------------------------------
     function formatHuDateTime(v) {
       if (!v) return '';
       try {
@@ -51,32 +19,6 @@
       } catch (e) {
         return String(v);
       }
-    }
-
-    // ------------------------------------------------------------
-    // Helpers
-    // ------------------------------------------------------------
-    function parseIds(raw) {
-      raw = String(raw || '').trim();
-      if (!raw) return [];
-      return raw.split(',')
-        .map(function (x) { return parseInt(x.trim(), 10); })
-        .filter(function (n) { return isFinite(n) && n > 0; });
-    }
-
-    function setIds(ids) {
-      ids = (ids || [])
-        .map(function (x) { return parseInt(String(x), 10); })
-        .filter(function (n) { return isFinite(n) && n > 0; });
-
-      // uniq
-      var uniq = Array.from(new Set(ids));
-      if (attachedIdsEl) attachedIdsEl.value = uniq.join(',');
-
-      var cnt = document.getElementById('editAttachedCount');
-      if (cnt) cnt.textContent = String(uniq.length);
-
-      return uniq;
     }
 
     function getCsrfToken(formEl) {
@@ -171,7 +113,7 @@
       var v = value == null ? '' : String(value);
       if (!v) return;
 
-      for (var i = 0; i < 60; i++) { // ~3 sec
+      for (var i = 0; i < 60; i++) {
         var has = Array.from(selectEl.options || []).some(function (o) { return String(o.value) === v; });
         if (has) {
           selectEl.value = v;
@@ -181,7 +123,6 @@
         await sleep(50);
       }
 
-      // fallback
       selectEl.value = v;
       try { selectEl.dispatchEvent(new Event('change', { bubbles: true })); } catch (e) { }
     }
@@ -197,7 +138,7 @@
         var res = await fetch('/api/tasks/assignees/select', {
           method: 'GET',
           headers: { 'Accept': 'application/json' },
-          credentials: 'same-origin' // fontos cookie authnál
+          credentials: 'same-origin'
         });
 
         if (!res.ok) {
@@ -214,10 +155,8 @@
             return '<option value="' + String(x.id) + '">' + String(x.text) + '</option>';
           }).join('');
 
-        // ✅ set selected
         selectEl.value = selectedId != null ? String(selectedId) : '';
         try { selectEl.dispatchEvent(new Event('change', { bubbles: true })); } catch (e) { }
-
       } catch (err) {
         console.error('[taskBejelentesEdit] loadAssigneesSelect failed', err);
         if (!selectEl.querySelector('option')) {
@@ -253,13 +192,10 @@
             return '<option value="' + String(x.id) + '">' + String(x.text) + '</option>';
           }).join('');
 
-        // set selected
         selectEl.value = selectedId != null ? String(selectedId) : '';
         try { selectEl.dispatchEvent(new Event('change', { bubbles: true })); } catch (e) { }
-
       } catch (err) {
         console.error('[taskBejelentesEdit] loadCommMethodsSelect failed', err);
-        // fallback placeholder
         if (!selectEl.querySelector('option')) {
           selectEl.innerHTML = '<option value="">-- Válasszon --</option>';
         }
@@ -272,12 +208,6 @@
       return document.querySelector('tr[data-task-id="' + CSS.escape(String(id)) + '"]');
     }
 
-    function escHtml(s) {
-      var div = document.createElement('div');
-      div.textContent = s == null ? '' : String(s);
-      return div.innerHTML;
-    }
-
     function updateRowFromTask(t) {
       var id = pick(t, ['id', 'Id']);
       if (id == null) return;
@@ -288,35 +218,60 @@
       var tds = tr.querySelectorAll('td');
       if (!tds || tds.length < 12) return;
 
+      // Cím
       tds[4].textContent = (pick(t, ['title', 'Title']) || '');
 
-      var prioBadge = tds[5].querySelector('.clickable-priority-badge');
+      // Prioritás badge (clickable vagy sima badge fallback)
+      var prioBadge =
+        tds[5].querySelector('.clickable-priority-badge') ||
+        tds[5].querySelector('.badge');
+
       if (prioBadge) {
-        prioBadge.textContent = (pick(t, ['taskPriorityPMName', 'TaskPriorityPMName']) || '');
-        prioBadge.style.backgroundColor = (pick(t, ['priorityColorCode', 'PriorityColorCode']) || '#6c757d');
-        prioBadge.dataset.priorityId = (pick(t, ['taskPriorityPMId', 'TaskPriorityPMId']) || '');
+        prioBadge.textContent =
+          (pick(t, ['taskPriorityPMName', 'TaskPriorityPMName']) || '');
+        prioBadge.style.backgroundColor =
+          (pick(t, ['priorityColorCode', 'PriorityColorCode']) || '#6c757d');
+        prioBadge.dataset.priorityId =
+          (pick(t, ['taskPriorityPMId', 'TaskPriorityPMId']) || '');
       }
 
-      tds[6].textContent = formatHuDateTime(pick(t, ['dueDate', 'DueDate']));
+      // Határidő
+      tds[6].textContent =
+        formatHuDateTime(pick(t, ['dueDate', 'DueDate']));
 
-      var statusBadge = tds[7].querySelector('.clickable-status-badge');
+      // Státusz badge (clickable vagy sima badge fallback)
+      var statusBadge =
+        tds[7].querySelector('.clickable-status-badge') ||
+        tds[7].querySelector('.badge');
+
       if (statusBadge) {
-        statusBadge.textContent = (pick(t, ['taskStatusPMName', 'TaskStatusPMName']) || '');
-        statusBadge.style.backgroundColor = (pick(t, ['colorCode', 'ColorCode']) || '#6c757d');
-        statusBadge.dataset.statusId = (pick(t, ['taskStatusPMId', 'TaskStatusPMId']) || '');
+        statusBadge.textContent =
+          (pick(t, ['taskStatusPMName', 'TaskStatusPMName']) || '');
+        statusBadge.style.backgroundColor =
+          (pick(t, ['colorCode', 'ColorCode']) || '#6c757d');
+        statusBadge.dataset.statusId =
+          (pick(t, ['taskStatusPMId', 'TaskStatusPMId']) || '');
       }
 
-      tds[9].textContent = formatHuDateTime(pick(t, ['updatedDate', 'UpdatedDate']));
+      // Módosítva dátum
+      tds[9].textContent =
+        formatHuDateTime(pick(t, ['updatedDate', 'UpdatedDate']));
 
-      var assignedEmail = pick(t, ['assignedToEmail', 'AssignedToEmail']) || '';
-      var assignedName = pick(t, ['assignedToName', 'AssignedToName']) || '';
+      // Felelős
+      var assignedEmail =
+        pick(t, ['assignedToEmail', 'AssignedToEmail']) || '';
+      var assignedName =
+        pick(t, ['assignedToName', 'AssignedToName']) || '';
+
       if (assignedEmail) {
         tds[10].innerHTML =
-          '<a class="js-assigned-mail" href="mailto:' + escHtml(assignedEmail) + '">' + escHtml(assignedName) + '</a>';
+          '<a class="js-assigned-mail" href="mailto:' +
+          assignedEmail + '">' + assignedName + '</a>';
       } else {
         tds[10].textContent = assignedName;
       }
     }
+
 
     // ------------------------------------------------------------
     // Elements
@@ -340,227 +295,25 @@
     var titleEl = formEl.querySelector('[name="Title"]');
     var descEl = formEl.querySelector('[name="Description"]');
 
-    // ✅ Telephely: TOMSELECT marad
     var siteEl = formEl.querySelector('#EditSiteId, select[name="SiteId"]');
-
-    // TaskType async opciók
     var taskTypeEl = formEl.querySelector('#EditTaskTypePMId, select[name="TaskTypePMId"]');
 
     var statusEl = formEl.querySelector('[name="TaskStatusPMId"]');
     var priorityEl = formEl.querySelector('[name="TaskPriorityPMId"]');
     var assignedEl = formEl.querySelector('[name="AssignedToId"]');
 
-    // ✅ Kommunikáció: sima select + input
     var commMethodEl = formEl.querySelector('#EditTaskPMcomMethodID, select[name="TaskPMcomMethodID"]');
     var commDescEl = formEl.querySelector('[name="CommunicationDescription"]');
 
     var scheduledDateEl = formEl.querySelector('[name="ScheduledDate"]');
-
     var partnerHiddenEl = formEl.querySelector('#editAutoPartnerId, input[name="PartnerId"]');
-
-    // ✅ EDIT: csatolmány ID-k (hidden input)
-    var attachedIdsEl = formEl.querySelector('#editAttachedDocumentIdsInput, [name="AttachedDocumentIds"]');
-
-    // ✅ EDIT: csatolmány UI (ha van a modal HTML-ben)
-    // Ha nincs ilyen ID-d, simán marad null és nem fog futni a UI rész.
-    var attachedListEl = document.getElementById('editAttachedDocumentsList');
-    var attachedCountEl = document.getElementById('editAttachedCount');
 
     var isSubmitting = false;
     var currentId = null;
-    var isPickerSwitch = false;
-
-    var attachBtn = document.getElementById('editAttachDocumentsBtn');
-    // ⚠️ NE deklaráld újra attachedListEl-t itt, ha már fentebb egyszer megvan
-    // var attachedListEl = document.getElementById('editAttachedDocumentsList');
-
-    window.Tasks = window.Tasks || {};
-
-    // ✅ Ezt fogja hívni a dokumentum picker, amikor kiválasztottál valamit
-    window.Tasks.onEditDocumentsSelected = async function (selectedDocIds) {
-      console.log('[EDIT] onEditDocumentsSelected CALLED', selectedDocIds, 'currentId=', currentId);
-
-      if (!Array.isArray(selectedDocIds)) selectedDocIds = [];
-      selectedDocIds = selectedDocIds
-        .map(function (x) { return parseInt(String(x), 10); })
-        .filter(function (n) { return isFinite(n) && n > 0; });
-
-      if (!currentId) {
-        toast('Nincs Task ID (currentId).', 'warning');
-        return;
-      }
-
-      // UI: mutassunk betöltést
-      if (attachedListEl) attachedListEl.innerHTML = '<div class="text-muted small">Dokumentumok mentése...</div>';
-
-      try {
-        var token = getCsrfToken(formEl);
-        var headers = { 'Content-Type': 'application/json' };
-        if (token) headers['RequestVerificationToken'] = token;
-
-        // ✅ 1) DB-be mentjük a linkeket
-        var res = await fetch('/api/tasks/' + encodeURIComponent(currentId) + '/documents/attach', {
-          method: 'POST',
-          headers: headers,
-          credentials: 'same-origin',
-          body: JSON.stringify({ documentIds: selectedDocIds })
-        });
-
-
-        if (!res.ok) {
-          var t = await res.text().catch(function () { return ''; });
-          console.error('[edit] attach failed', res.status, t);
-          toast('Nem sikerült csatolni a dokumentumokat (HTTP ' + res.status + ').', 'danger');
-          return;
-        }
-
-        // ✅ 2) Friss GET és render (már DB-ből jönnek az Attachments)
-        var fresh = await loadTask(currentId);
-
-        var atts = pick(fresh, ['attachments', 'Attachments']) || [];
-        if (!Array.isArray(atts)) atts = [];
-
-        renderAttachmentsList(atts);
-
-        // hidden input sync (DocumentId-k)
-        var docIds = atts
-          .map(function (a) { return pick(a, ['documentId', 'DocumentId']); })
-          .filter(function (x) { return x != null; })
-          .map(function (x) { return parseInt(String(x), 10); })
-          .filter(function (n) { return isFinite(n) && n > 0; });
-
-        setIds(docIds);
-
-        toast('Dokumentumok csatolva.', 'success');
-      } catch (e) {
-        console.error('[edit] onEditDocumentsSelected exception', e);
-        toast('Hiba a csatolás közben.', 'danger');
-      }
-    };
-
-    // ✅ A document picker így jelzi vissza a kiválasztott dokumentumokat
-    window.addEventListener('documents:selected', function (e) {
-      try {
-        var ids = (e && e.detail && e.detail.ids) || [];
-        console.log('[EDIT] documents:selected received', ids);
-
-        // picker bezárása (ha nyitva van)
-        var pickerModalEl = document.getElementById('documentPickerModal');
-        if (pickerModalEl) {
-          try { bootstrap.Modal.getOrCreateInstance(pickerModalEl).hide(); } catch (_) { }
-        }
-
-        window.Tasks.onEditDocumentsSelected(ids);
-      } catch (err) {
-        console.error('[EDIT] documents:selected handler failed', err);
-      }
-    });
-
-
-
-    if (attachBtn) {
-      attachBtn.addEventListener('click', function () {
-        console.log('[taskBejelentesEdit] attach click');
-
-        // ✅ 1) Ha van openPicker, azt használjuk!
-        if (window.Documents && typeof window.Documents.openPicker === 'function') {
-          isPickerSwitch = true;
-          bootstrap.Modal.getOrCreateInstance(modalEl).hide();
-
-          window.Documents.openPicker({
-            onSelected: function (ids) {
-              window.Tasks.onEditDocumentsSelected(ids);
-
-              setTimeout(function () {
-                isPickerSwitch = false;
-                bootstrap.Modal.getOrCreateInstance(modalEl).show();
-              }, 50);
-            },
-            onCancel: function () {
-              setTimeout(function () {
-                isPickerSwitch = false;
-                bootstrap.Modal.getOrCreateInstance(modalEl).show();
-              }, 50);
-            }
-          });
-
-          return;
-        }
-
-        // ✅ 2) Fallback: ha nincs openPicker, csak akkor nyissuk a modalt
-        var pickerModalEl = document.getElementById('documentPickerModal');
-        if (!pickerModalEl) {
-          toast('Dokumentum választó nincs bekötve (nem találom a pickert).', 'warning');
-          return;
-        }
-
-        isPickerSwitch = true;
-        bootstrap.Modal.getOrCreateInstance(modalEl).hide();
-
-        var pickerModal = bootstrap.Modal.getOrCreateInstance(pickerModalEl, {
-          backdrop: 'static',
-          keyboard: true,
-          focus: true
-        });
-        pickerModal.show();
-
-        pickerModalEl.addEventListener('hidden.bs.modal', function onPickerHidden() {
-          pickerModalEl.removeEventListener('hidden.bs.modal', onPickerHidden);
-          setTimeout(function () {
-            isPickerSwitch = false;
-            bootstrap.Modal.getOrCreateInstance(modalEl).show();
-          }, 50);
-        });
-      });
-    }
-
-
-
-
+    var isPickerSwitch = false; // megmaradhat, ha a modal resetet a pickerhez kötötted
 
     // ------------------------------------------------------------
-    // Modal show/hide hooks
-    // ------------------------------------------------------------
-    modalEl.addEventListener('hidden.bs.modal', function () {
-
-      // ✅ HA PICKER MIATT REJTETTÜK EL, NE RESETELJ!
-      if (isPickerSwitch) return;
-
-      isSubmitting = false;
-      setSubmitting(submitBtn, false);
-      currentId = null;
-
-      try { formEl.reset(); } catch (e) { }
-      formEl.classList.remove('was-validated');
-
-      // UI reset (csatolmányok)
-      if (attachedListEl) attachedListEl.innerHTML = '';
-      if (attachedCountEl) attachedCountEl.textContent = '0';
-      if (attachedIdsEl) attachedIdsEl.value = '';
-    });
-
-
-    modalEl.addEventListener('shown.bs.modal', async function () {
-      // ha még nincs feltöltve, töltjük
-      if (assignedEl && (!assignedEl.options || assignedEl.options.length <= 1)) {
-        await loadAssigneesSelect(assignedEl, assignedEl.value || '');
-      }
-    });
-
-    async function refreshRow(id) {
-      try {
-        var fresh = await loadTask(id);
-        updateRowFromTask(fresh);
-      } catch (e) {
-        console.warn('[taskBejelentesEdit] refreshRow failed -> fallback reload', e);
-        // ✅ helyes: a tasks táblát kérjük újratölteni
-        window.dispatchEvent(new CustomEvent('tasks:reload', { detail: { updatedId: id } }));
-      }
-    }
-
-
-    // ------------------------------------------------------------
-    // Open modal from event: tasks:openEdit { id }
+    // API
     // ------------------------------------------------------------
     async function loadTask(id) {
       var res = await fetch('/api/tasks/' + encodeURIComponent(id), {
@@ -568,7 +321,6 @@
         headers: { 'Accept': 'application/json' },
         credentials: 'same-origin'
       });
-
 
       if (!res.ok) {
         var txt = await res.text().catch(function () { return ''; });
@@ -578,81 +330,39 @@
       return await res.json();
     }
 
-    function renderEditAttachments(task) {
-      // GET-ben nálad: attachments: [{ documentId, fileName, filePath, ... }]
-      var atts = pick(task, ['attachments', 'Attachments']) || [];
-      if (!Array.isArray(atts)) atts = [];
-
-      // hidden inputba DocumentId-k
-      if (attachedIdsEl) {
-        var docIds = atts
-          .map(function (a) { return pick(a, ['documentId', 'DocumentId']); })
-          .filter(function (x) { return x != null; })
-          .map(function (x) { return parseInt(String(x), 10); })
-          .filter(function (n) { return isFinite(n) && n > 0; });
-
-        attachedIdsEl.value = docIds.join(',');
+    async function refreshRow(id) {
+      try {
+        var fresh = await loadTask(id);
+        updateRowFromTask(fresh);
+      } catch (e) {
+        console.warn('[taskBejelentesEdit] refreshRow failed', e);
       }
-
-      // UI lista (ha van)
-      if (!attachedListEl || !attachedCountEl) return;
-
-      attachedListEl.innerHTML = '';
-      if (!atts.length) {
-        attachedListEl.innerHTML = '<div class="text-muted small">Nincs csatolt dokumentum.</div>';
-        attachedCountEl.textContent = '0';
-        return;
-      }
-
-      attachedCountEl.textContent = String(atts.length);
-
-      atts.forEach(function (a) {
-        var docId = pick(a, ['documentId', 'DocumentId']);
-        var fileName = pick(a, ['fileName', 'FileName']) || ('#' + docId);
-        var filePath = pick(a, ['filePath', 'FilePath']) || '';
-
-        // ✅ ha van letöltő endpointod, ide írd be. ha nincs, marad filePath
-        var href = filePath || ('/documents/' + docId);
-
-        var row = document.createElement('div');
-        row.className = 'd-flex justify-content-between align-items-center p-2 mb-2 bg-white border rounded shadow-sm';
-        row.innerHTML =
-          '<div>' +
-          ' <i class="bi bi-file-earmark-text me-2 text-primary"></i>' +
-          ' <a href="' + escHtml(href) + '" target="_blank" rel="noopener">' + escHtml(fileName) + '</a>' +
-          '</div>' +
-          '<button type="button" class="btn btn-sm btn-outline-danger" data-remove-doc="' + escHtml(docId) + '">' +
-          ' <i class="bi bi-x"></i>' +
-          '</button>';
-
-        attachedListEl.appendChild(row);
-      });
     }
 
-    // ✅ törlés edit UI-ban: csak kliens oldali (mentéskor majd a hidden input megy)
-    if (attachedListEl) {
-      attachedListEl.addEventListener('click', function (e) {
-        var btn = e.target.closest('[data-remove-doc]');
-        if (!btn) return;
+    // ------------------------------------------------------------
+    // Modal show/hide hooks
+    // ------------------------------------------------------------
+    modalEl.addEventListener('hidden.bs.modal', function () {
+      // ha nálad van picker, és emiatt hide-olod a modalt, akkor itt maradhat a guard:
+      if (isPickerSwitch) return;
 
-        var docId = btn.getAttribute('data-remove-doc');
-        var item = btn.closest('div');
-        if (item) item.remove();
+      isSubmitting = false;
+      setSubmitting(submitBtn, false);
+      currentId = null;
 
-        // újragyűjtés
-        var ids = Array.from(attachedListEl.querySelectorAll('[data-remove-doc]'))
-          .map(function (b) { return parseInt(b.getAttribute('data-remove-doc'), 10); })
-          .filter(function (n) { return isFinite(n) && n > 0; });
+      try { formEl.reset(); } catch (e) { }
+      formEl.classList.remove('was-validated');
+    });
 
-        if (attachedIdsEl) attachedIdsEl.value = ids.join(',');
-        if (attachedCountEl) attachedCountEl.textContent = String(ids.length);
+    modalEl.addEventListener('shown.bs.modal', async function () {
+      if (assignedEl && (!assignedEl.options || assignedEl.options.length <= 1)) {
+        await loadAssigneesSelect(assignedEl, assignedEl.value || '');
+      }
+    });
 
-        if (ids.length === 0) {
-          attachedListEl.innerHTML = '<div class="text-muted small">Nincs csatolt dokumentum.</div>';
-        }
-      });
-    }
-
+    // ------------------------------------------------------------
+    // Open modal from event: tasks:openEdit { id }
+    // ------------------------------------------------------------
     async function openEditModal(id) {
       currentId = id;
       formEl.classList.remove('was-validated');
@@ -675,7 +385,6 @@
         if (statusEl && statusIdVal != null) statusEl.value = String(statusIdVal);
         if (priorityEl && priorityIdVal != null) priorityEl.value = String(priorityIdVal);
 
-        // ✅ Felelős lista betöltés + kiválasztás
         await loadAssigneesSelect(assignedEl, assignedToIdVal);
 
         var scheduledVal = pick(task, ['scheduledDate', 'ScheduledDate']);
@@ -687,30 +396,20 @@
 
         var taskTypeIdVal = pick(task, ['taskTypePMId', 'TaskTypePMId']);
 
-        // ✅ kommunikáció a GET-ből
         var commMethodIdVal = pick(task, ['taskPMcomMethodID', 'TaskPMcomMethodID']);
         var commDescVal = pick(task, ['communicationDescription', 'CommunicationDescription']) || '';
 
-        // Id
         if (idEl) idEl.value = String(taskIdVal);
-
-        // alap mezők
         if (titleEl) titleEl.value = titleVal;
         if (descEl) descEl.value = descVal;
 
-        // scheduledDate (input type="date")
         if (scheduledDateEl) scheduledDateEl.value = fmtForInputDate(scheduledVal);
 
-        // Partner hidden
         if (partnerHiddenEl) partnerHiddenEl.value = partnerIdVal != null ? String(partnerIdVal) : '';
 
-        // ✅ Kommunikációs mód: SIMA SELECT-ből töltjük endpointtal, majd set value
         await loadCommMethodsSelect(commMethodEl, commMethodIdVal);
-
-        // Kommunikáció leírás
         if (commDescEl) commDescEl.value = String(commDescVal || '');
 
-        // ✅ SITE TOMSELECT: megvárjuk, és programozottan felvesszük + setValue
         if (siteEl && siteIdVal != null) {
           var siteIdStr = String(siteIdVal);
           var ts = await waitForTomSelect(siteEl, 2500);
@@ -724,23 +423,17 @@
               partnerDetails: partnerNameVal || ''
             });
 
-            // partner hidden sync
             if (partnerHiddenEl && partnerIdVal != null) partnerHiddenEl.value = String(partnerIdVal);
 
             ts.setValue(siteIdStr, true);
             ts.refreshOptions(false);
           } else {
-            // fallback: sima select value
             siteEl.value = siteIdStr;
             try { siteEl.dispatchEvent(new Event('change', { bubbles: true })); } catch (e) { }
           }
         }
 
-        // ✅ TaskType: async opciók megvárása + beállítás
         await waitAndSetSelectValue(taskTypeEl, taskTypeIdVal);
-
-        // ✅ Attachments (TaskDocumentLinks)
-        renderEditAttachments(task);
 
       } catch (err) {
         console.error('[taskBejelentesEdit] open failed', err);
@@ -778,17 +471,18 @@
         return;
       }
 
-      // Site / Partner / TaskType biztos érték (FormData + fallback)
       var partnerId = toInt(fd.get('PartnerId'));
       if (!partnerId && partnerHiddenEl) partnerId = toInt(partnerHiddenEl.value);
-
-      var taskTypeId = toInt(fd.get('TaskTypePMId'));
-      if (!taskTypeId && taskTypeEl) taskTypeId = toInt(taskTypeEl.value);
 
       var siteId = toInt(fd.get('SiteId'));
       if (!siteId && siteEl && siteEl.tomselect) siteId = toInt(siteEl.tomselect.getValue());
 
-      // ScheduledDate: date -> datetime midnight
+      var taskTypeId = toInt(fd.get('TaskTypePMId'));
+      if (!taskTypeId && taskTypeEl && taskTypeEl.tomselect) {
+        taskTypeId = toInt(taskTypeEl.tomselect.getValue());
+      }
+
+
       var sd = fd.get('ScheduledDate') ? String(fd.get('ScheduledDate')) : null;
       if (sd) sd = sd + 'T00:00:00';
 
@@ -801,36 +495,24 @@
         PartnerId: partnerId,
         SiteId: siteId,
 
-        // ha nálad TaskType edit nem engedélyezett, maradhat kommentben
-        // TaskTypePMId: taskTypeId,
+        TaskTypePMId: taskTypeId,
 
         TaskPriorityPMId: toInt(fd.get('TaskPriorityPMId')),
         TaskStatusPMId: toInt(fd.get('TaskStatusPMId')),
         AssignedToId: (fd.get('AssignedToId') || '').toString().trim() || null,
 
-        // ✅ kommunikáció a DTO szerint
         TaskPMcomMethodID: toInt(fd.get('TaskPMcomMethodID')),
         CommunicationDescription: (fd.get('CommunicationDescription') || '').toString().trim() || null,
 
-        ScheduledDate: sd,
-
-        // ✅ hidden inputból
-        AttachedDocumentIds: (function () {
-          var raw = '';
-          if (attachedIdsEl) raw = String(attachedIdsEl.value || '').trim();
-          if (!raw) return [];
-          return raw.split(',')
-            .map(function (x) { return parseInt(x.trim(), 10); })
-            .filter(function (n) { return isFinite(n); });
-        })()
+        ScheduledDate: sd
       };
 
       console.log('[taskBejelentesEdit] PUT url=', '/api/tasks/' + encodeURIComponent(id));
       console.log('[taskBejelentesEdit] PUT payload=', payload);
 
-      // Guardok
       if (!payload.Title) { toast('A tárgy (cím) megadása kötelező!', 'danger'); return; }
       if (!payload.SiteId) { toast('A telephely kiválasztása kötelező!', 'danger'); return; }
+      if (!payload.TaskTypePMId) { toast('A feladat típusa kötelező!', 'danger'); return; }
       if (!payload.PartnerId) { toast('Telephely kiválasztásakor Partner kötelező (Site választásból jön).', 'danger'); return; }
 
       isSubmitting = true;
@@ -841,8 +523,6 @@
         var headers = { 'Content-Type': 'application/json' };
         if (token) headers['RequestVerificationToken'] = token;
 
-        // ⚠️ FIGYELEM: ez a SQL endpoint csak a felelőst frissíti.
-        // Ha a dokumentumokat is menteni akarod, kell egy külön endpoint /documents/sync.
         var res = await fetch('/api/tasks/' + encodeURIComponent(id), {
           method: 'PUT',
           headers: headers,
@@ -861,13 +541,8 @@
         toast('Bejelentés frissítve!', 'success');
         bootstrap.Modal.getOrCreateInstance(modalEl).hide();
 
-        // ✅ biztos sorfrissítés (nincs oldal reload)
         if (updated && (updated.id || updated.Id)) {
-          try {
-            updateRowFromTask(updated);
-          } catch (e) {
-            await refreshRow(id);
-          }
+          try { updateRowFromTask(updated); } catch (_) { await refreshRow(id); }
         } else {
           await refreshRow(id);
         }

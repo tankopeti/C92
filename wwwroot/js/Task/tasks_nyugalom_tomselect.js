@@ -69,7 +69,7 @@ document.addEventListener('DOMContentLoaded', () => {
       maxOptions: 300,
       valueField: 'id',
       labelField: 'text',
-      searchField: ['text', 'partnerName', 'partnerDetails'],
+      searchField: ['text', 'partnerName', 'partnerDetails', 'phone'],
       placeholder: 'Keresés telephely névre, városra vagy partnerre...',
       load: function (query, callback) {
         if (!query || query.length < 2) return callback();
@@ -79,26 +79,44 @@ document.addEventListener('DOMContentLoaded', () => {
           .catch(() => callback());
       },
       render: {
-        option: function (item, escape) {
-          return `
-            <div class="py-2 px-3">
-              <div class="font-medium text-gray-900">${escape(item.text)}</div>
-              <div class="text-sm text-gray-600 mt-1">
-                Partner: <strong>${escape(item.partnerDetails || '–')}</strong>
-              </div>
-            </div>
-          `;
-        },
-        item: function (item, escape) {
-          return `
-            <div class="inline-flex items-center">
-              <span class="font-medium">${escape(item.text)}</span>
-              <span class="ml-2 text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded">
-                ${escape(item.partnerName || 'nincs partner')}
-              </span>
-            </div>
-          `;
-        },
+option: function (item, escape) {
+  return `
+    <div class="py-2 px-3">
+      <div class="font-medium text-gray-900">
+        ${escape(item.text)}
+      </div>
+
+      <div class="text-sm text-gray-600 mt-1">
+        Partner: <strong>${escape(item.partnerDetails || '–')}</strong>
+      </div>
+
+      ${item.phone ? `
+        <div class="text-sm text-gray-500 mt-1">
+          📞 ${escape(item.phone)}
+        </div>
+      ` : ''}
+    </div>
+  `;
+}
+,
+item: function (item, escape) {
+  return `
+    <div class="inline-flex items-center gap-2">
+      <span class="font-medium">${escape(item.text)}</span>
+
+      ${item.phone ? `
+        <span class="text-xs text-gray-500">
+          📞 ${escape(item.phone)}
+        </span>
+      ` : ''}
+
+      <span class="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded">
+        ${escape(item.partnerName || 'nincs partner')}
+      </span>
+    </div>
+  `;
+}
+,
         no_results: function () {
           return '<div class="py-2 px-3 text-center text-gray-500">Nincs találat</div>';
         }
@@ -208,7 +226,7 @@ document.addEventListener('DOMContentLoaded', () => {
           maxOptions: 300,
           valueField: 'id',
           labelField: 'text',
-          searchField: ['text', 'partnerName', 'partnerDetails'],
+          searchField: ['text', 'partnerName', 'partnerDetails', 'phone'],
           placeholder: 'Keresés telephely névre, városra vagy partnerre...',
           load: function (query, callback) {
             if (!query || query.length < 2) return callback();
@@ -218,26 +236,44 @@ document.addEventListener('DOMContentLoaded', () => {
               .catch(() => callback());
           },
           render: {
-            option: function (item, escape) {
-              return `
-                <div class="py-2 px-3">
-                  <div class="font-medium text-gray-900">${escape(item.text)}</div>
-                  <div class="text-sm text-gray-600 mt-1">
-                    Partner: <strong>${escape(item.partnerDetails || '–')}</strong>
-                  </div>
-                </div>
-              `;
-            },
-            item: function (item, escape) {
-              return `
-                <div class="inline-flex items-center">
-                  <span class="font-medium">${escape(item.text)}</span>
-                  <span class="ml-2 text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded">
-                    ${escape(item.partnerName || 'nincs partner')}
-                  </span>
-                </div>
-              `;
-            },
+option: function (item, escape) {
+  return `
+    <div class="py-2 px-3">
+      <div class="font-medium text-gray-900">
+        ${escape(item.text)}
+      </div>
+
+      <div class="text-sm text-gray-600 mt-1">
+        Partner: <strong>${escape(item.partnerDetails || '–')}</strong>
+      </div>
+
+      ${item.phone ? `
+        <div class="text-sm text-gray-500 mt-1">
+          📞 ${escape(item.phone)}
+        </div>
+      ` : ''}
+    </div>
+  `;
+}
+,
+item: function (item, escape) {
+  return `
+    <div class="inline-flex items-center gap-2">
+      <span class="font-medium">${escape(item.text)}</span>
+
+      ${item.phone ? `
+        <span class="text-xs text-gray-500">
+          📞 ${escape(item.phone)}
+        </span>
+      ` : ''}
+
+      <span class="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded">
+        ${escape(item.partnerName || 'nincs partner')}
+      </span>
+    </div>
+  `;
+}
+,
             no_results: function () {
               return '<div class="py-2 px-3 text-center text-gray-500">Nincs találat</div>';
             }

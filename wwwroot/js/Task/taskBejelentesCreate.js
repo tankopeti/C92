@@ -1,3 +1,4 @@
+// wwwroot/js/Task/taskBejelentesCreate.js
 (function () {
   'use strict';
 
@@ -7,10 +8,27 @@
     console.log('[taskBejelentesCreate] DOM loaded');
 
     // ------------------------------------------------------------
+    // Elements
+    // ------------------------------------------------------------
+    var modalEl = document.getElementById('newTaskModal');
+    if (!modalEl) return;
+
+    var formEl = modalEl.querySelector('form');
+    if (!formEl) return;
+
+    var submitBtn = formEl.querySelector('button[type="submit"]');
+    var assignedEl = formEl.querySelector('#AssignedToId, [name="AssignedToId"]');
+    var commMethodEl = formEl.querySelector('#TaskPMcomMethodID, [name="TaskPMcomMethodID"]');
+
+
+    var isSubmitting = false;
+
+    // ------------------------------------------------------------
     // Helpers
     // ------------------------------------------------------------
     function getCsrfToken(formEl) {
-      return formEl.querySelector('input[name="__RequestVerificationToken"]')?.value || '';
+      var tokenInput = formEl.querySelector('input[name="__RequestVerificationToken"]');
+      return tokenInput && tokenInput.value ? tokenInput.value : '';
     }
 
     function toast(message, type) {
@@ -33,26 +51,61 @@
         '</div>';
 
       container.appendChild(t);
-      new bootstrap.Toast(t, { delay: 4000 }).show();
+      new bootstrap.Toast(t, { delay: 3500 }).show();
     }
 
     function toInt(v) {
-      var n = parseInt(String(v ?? ''), 10);
-      return Number.isFinite(n) ? n : null;
+      var n = parseInt(String(v == null ? '' : v), 10);
+      return isFinite(n) ? n : null;
     }
 
-    function setSubmitting(btn, isSubmitting) {
+    function setSubmitting(btn, submitting) {
       if (!btn) return;
-      btn.disabled = !!isSubmitting;
+      btn.disabled = !!submitting;
       btn.dataset._origText = btn.dataset._origText || btn.innerHTML;
-      btn.innerHTML = isSubmitting
+      btn.innerHTML = submitting
         ? '<span class="spinner-border spinner-border-sm me-2"></span>Mentés...'
         : btn.dataset._origText;
     }
 
-        // ------------------------------------------------------------
-    // Assignees select loader
-    // ------------------------------------------------------------
+    async function loadCommMethodsSelect(selectEl, selectedId) {
+      if (!selectEl) return;
+
+      selectEl.disabled = true;
+      selectEl.innerHTML = '<option value="">Betöltés...</option>';
+
+      try {
+        var res = await fetch('/api/tasks/taskpm-communication-methods/select', {
+          method: 'GET',
+          headers: { 'Accept': 'application/json' },
+          credentials: 'same-origin'
+        });
+
+        if (!res.ok) {
+          var txt = await res.text().catch(function () { return ''; });
+          throw new Error('HTTP ' + res.status + ' :: ' + txt);
+        }
+
+        var items = await res.json();
+        if (!Array.isArray(items)) items = [];
+
+        selectEl.innerHTML =
+          '<option value="">-- Válasszon --</option>' +
+          items.map(function (x) {
+            return '<option value="' + String(x.id) + '">' + String(x.text) + '</option>';
+          }).join('');
+
+        selectEl.value = selectedId != null ? String(selectedId) : '';
+        try { selectEl.dispatchEvent(new Event('change', { bubbles: true })); } catch (e) { }
+      } catch (e) {
+        console.error('[create] comm methods load failed', e);
+        selectEl.innerHTML = '<option value="">-- Nem sikerült betölteni --</option>';
+      } finally {
+        selectEl.disabled = false;
+      }
+    }
+
+
     async function loadAssigneesSelect(selectEl, selectedId) {
       if (!selectEl) return;
 
@@ -60,22 +113,23 @@
       selectEl.innerHTML = '<option value="">Betöltés...</option>';
 
       try {
-        const res = await fetch('/api/tasks/assignees/select', {
+        var res = await fetch('/api/tasks/assignees/select', {
           headers: { 'Accept': 'application/json' },
-          credentials: 'same-origin' // fontos, ha cookie auth van
+          credentials: 'same-origin'
         });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        if (!res.ok) throw new Error('HTTP ' + res.status);
 
-        const items = await res.json();
+        var items = await res.json();
+        if (!Array.isArray(items)) items = [];
+
         selectEl.innerHTML =
           '<option value="">-- Válasszon --</option>' +
-          (items || []).map(x => `<option value="${x.id}">${x.text}</option>`).join('');
+          items.map(function (x) {
+            return '<option value="' + String(x.id) + '">' + String(x.text) + '</option>';
+          }).join('');
 
-        // create-nél nem muszáj, de nem árt
-        // ✅ set selected (ha van)
-selectEl.value = selectedId != null ? String(selectedId) : '';
-try { selectEl.dispatchEvent(new Event('change', { bubbles: true })); } catch (e) { }
-
+        selectEl.value = selectedId != null ? String(selectedId) : '';
+        try { selectEl.dispatchEvent(new Event('change', { bubbles: true })); } catch (e) { }
       } catch (e) {
         console.error('[create] assignees load failed', e);
         selectEl.innerHTML = '<option value="">-- Nem sikerült betölteni --</option>';
@@ -84,40 +138,30 @@ try { selectEl.dispatchEvent(new Event('change', { bubbles: true })); } catch (e
       }
     }
 
-
     // ------------------------------------------------------------
-    // Elements
+    // Create modal lifecycle
     // ------------------------------------------------------------
-    const modalEl = document.getElementById('newTaskModal');
-    if (!modalEl) return;
-
-    const formEl = modalEl.querySelector('form');
-    if (!formEl) return;
-
-    const submitBtn = formEl.querySelector('button[type="submit"]');
-        const assignedEl = formEl.querySelector('#AssignedToId, [name="AssignedToId"]');
-    let isSubmitting = false;
-
-    // ------------------------------------------------------------
-    // Modal lifecycle
-    // ------------------------------------------------------------
-    modalEl.addEventListener('hidden.bs.modal', () => {
+    modalEl.addEventListener('hidden.bs.modal', function () {
       isSubmitting = false;
       setSubmitting(submitBtn, false);
-      formEl.reset();
+
+      try { formEl.reset(); } catch (e) { }
       formEl.classList.remove('was-validated');
     });
 
-modalEl.addEventListener('shown.bs.modal', async () => {
-  if (assignedEl && (!assignedEl.options || assignedEl.options.length <= 1)) {
-    await loadAssigneesSelect(assignedEl, assignedEl.value || '');
-  }
-});
+    modalEl.addEventListener('shown.bs.modal', async function () {
+      if (assignedEl && (!assignedEl.options || assignedEl.options.length <= 1)) {
+        await loadAssigneesSelect(assignedEl, assignedEl.value || '');
+      }
 
+      if (commMethodEl && (!commMethodEl.options || commMethodEl.options.length <= 1)) {
+        await loadCommMethodsSelect(commMethodEl, commMethodEl.value || '');
+      }
+    });
 
 
     // ------------------------------------------------------------
-    // CREATE SUBMIT
+    // CREATE submit
     // ------------------------------------------------------------
     formEl.addEventListener('submit', async function (e) {
       e.preventDefault();
@@ -129,55 +173,33 @@ modalEl.addEventListener('shown.bs.modal', async () => {
         return;
       }
 
-      const fd = new FormData(formEl);
+      var fd = new FormData(formEl);
 
-      const payload = {
-        Title: (fd.get('Title') || '').toString().trim(),
-        Description: (fd.get('Description') || '').toString().trim() || null,
+      var payload = {
+        Title: String(fd.get('Title') || '').trim(),
+        Description: String(fd.get('Description') || '').trim() || null,
 
-        // ✅ ÚJ – kommunikáció
         TaskPMcomMethodID: toInt(fd.get('TaskPMcomMethodID')),
-        CommunicationDescription: (fd.get('CommunicationDescription') || '').toString().trim() || null,
+        CommunicationDescription: String(fd.get('CommunicationDescription') || '').trim() || null,
 
-        // kötelező kapcsolatok
         PartnerId: toInt(fd.get('PartnerId')),
         SiteId: toInt(fd.get('SiteId')),
         TaskTypePMId: toInt(fd.get('TaskTypePMId')),
 
-        // egyéb mezők
         TaskPriorityPMId: toInt(fd.get('TaskPriorityPMId')),
         TaskStatusPMId: toInt(fd.get('TaskStatusPMId')),
-        AssignedToId: (fd.get('AssignedToId') || '').toString().trim() || null,
-        ScheduledDate: fd.get('ScheduledDate') || null,
+        AssignedToId: String(fd.get('AssignedToId') || '').trim() || null,
+        ScheduledDate: fd.get('ScheduledDate') || null
 
-        AttachedDocumentIds: (() => {
-          const raw = (fd.get('AttachedDocumentIds') || '').toString().trim();
-          if (!raw) return [];
-          return raw.split(',')
-            .map(x => parseInt(x.trim(), 10))
-            .filter(n => Number.isFinite(n));
-        })()
+        // ✅ file csatolás kivéve
+        // AttachedDocumentIds: []
       };
 
-      // ------------------------------------------------------------
       // Guards
-      // ------------------------------------------------------------
-      if (!payload.Title) {
-        toast('A tárgy megadása kötelező!', 'danger');
-        return;
-      }
-      if (!payload.SiteId) {
-        toast('A telephely kiválasztása kötelező!', 'danger');
-        return;
-      }
-      if (!payload.PartnerId) {
-        toast('A partner kiválasztása kötelező!', 'danger');
-        return;
-      }
-      if (!payload.TaskTypePMId) {
-        toast('A feladat típusa kötelező!', 'danger');
-        return;
-      }
+      if (!payload.Title) { toast('A tárgy megadása kötelező!', 'danger'); return; }
+      if (!payload.SiteId) { toast('A telephely kiválasztása kötelező!', 'danger'); return; }
+      if (!payload.PartnerId) { toast('A partner kiválasztása kötelező!', 'danger'); return; }
+      if (!payload.TaskTypePMId) { toast('A feladat típusa kötelező!', 'danger'); return; }
 
       console.log('[CREATE payload]', payload);
 
@@ -185,28 +207,32 @@ modalEl.addEventListener('shown.bs.modal', async () => {
       setSubmitting(submitBtn, true);
 
       try {
-        const res = await fetch('/api/tasks', {
+        var token = getCsrfToken(formEl);
+
+        // Create task
+        var res = await fetch('/api/tasks', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'RequestVerificationToken': getCsrfToken(formEl)
+            'RequestVerificationToken': token
           },
+          credentials: 'same-origin',
           body: JSON.stringify(payload)
         });
 
         if (!res.ok) {
-          const err = await res.text();
+          var err = await res.text().catch(function () { return ''; });
           console.error('[CREATE ERROR]', err);
           toast('Hiba a mentés során.', 'danger');
           return;
         }
 
-        const created = await res.json();
+        var created = await res.json();
+
         toast('Bejelentés létrehozva!', 'success');
+        bootstrap.Modal.getInstance(modalEl) && bootstrap.Modal.getInstance(modalEl).hide();
 
-        bootstrap.Modal.getInstance(modalEl)?.hide();
-        window.dispatchEvent(new CustomEvent('tasks:reload', { detail: { created } }));
-
+        window.dispatchEvent(new CustomEvent('tasks:reload', { detail: { created: created } }));
       } catch (err) {
         console.error('[CREATE EXCEPTION]', err);
         toast('Nem sikerült a mentés.', 'danger');

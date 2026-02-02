@@ -27,9 +27,9 @@
 <!-- 1. CREATE SITE MODAL (Razor POST marad) -->
 <!-- ============================================================= -->
 <div class="modal fade" id="createSiteModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
         <div class="modal-content shadow-lg border-0">
-            <form method="post" asp-page-handler="CreateSite" class="needs-validation" novalidate>
+            <form id="createSiteForm" class="needs-validation" novalidate>
                 @Html.AntiForgeryToken()
 
                 <div class="modal-header py-2 bg-primary text-white">
@@ -39,7 +39,8 @@
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Bezárás"></button>
                 </div>
 
-                <div class="modal-body py-4">
+                <!-- ✅ Scroll biztos: inline max-height + overflow -->
+                <div class="modal-body px-4 py-3" style="max-height: calc(100vh - 210px); overflow-y: auto;">
                     <div class="row g-3">
                         <div class="col-md-6">
                             <label class="form-label fw-medium">Telephely neve <span class="text-danger">*</span></label>
@@ -51,16 +52,17 @@
                             <label class="form-label fw-medium">Partner <span class="text-danger">*</span></label>
                             <!-- TomSelect csak modálban -->
                             <select id="createPartnerId" name="partnerId" class="form-select" required>
-                            <option value="">-- Válassz partnert --</option>
+                                <option value="">-- Válassz partnert --</option>
                             </select>
-
                             <div class="invalid-feedback">Partner megadása kötelező.</div>
                         </div>
                     </div>
 
                     <hr class="my-5">
 
-                    <h6 class="mb-3 text-primary fw-semibold"><i class="bi bi-house-door me-2"></i> Cím adatok</h6>
+                    <h6 class="mb-3 text-primary fw-semibold">
+                        <i class="bi bi-house-door me-2"></i> Cím adatok
+                    </h6>
 
                     <div class="row g-3">
                         <div class="col-md-6">
@@ -91,7 +93,9 @@
 
                     <hr class="my-5">
 
-                    <h6 class="mb-3 text-primary fw-semibold"><i class="bi bi-person-lines-fill me-2"></i> Kapcsolattartók</h6>
+                    <h6 class="mb-3 text-primary fw-semibold">
+                        <i class="bi bi-person-lines-fill me-2"></i> Kapcsolattartók
+                    </h6>
 
                     <div class="row g-3">
                         <div class="col-md-4">
@@ -110,7 +114,75 @@
 
                     <hr class="my-5">
 
-                    <h6 class="mb-3 text-primary fw-semibold"><i class="bi bi-chat-square-text me-2"></i> Megjegyzések</h6>
+                    <h6 class="mb-3 text-primary fw-semibold">
+                        <i class="bi bi-telephone me-2"></i> Elérhetőségek
+                    </h6>
+
+                    <!-- Vezetékes -->
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label class="form-label fw-medium">Vezetékes telefonszám (1)</label>
+                            <input type="text" class="form-control" name="phone1" />
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-medium">Vezetékes telefonszám (2)</label>
+                            <input type="text" class="form-control" name="phone2" />
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-medium">Vezetékes telefonszám (3)</label>
+                            <input type="text" class="form-control" name="phone3" />
+                        </div>
+                    </div>
+
+                    <!-- Mobil -->
+                    <div class="row g-3 mt-1">
+                        <div class="col-md-4">
+                            <label class="form-label fw-medium">Mobil (1)</label>
+                            <input type="text" class="form-control" name="mobilePhone1" />
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-medium">Mobil (2)</label>
+                            <input type="text" class="form-control" name="mobilePhone2" />
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-medium">Mobil (3)</label>
+                            <input type="text" class="form-control" name="mobilePhone3" />
+                        </div>
+                    </div>
+
+                    <!-- Üzenető alkalmazások -->
+                    <div class="row g-3 mt-1">
+                        <div class="col-md-4">
+                            <label class="form-label fw-medium">Üzenető alkalmazás 1</label>
+                            <input type="text" class="form-control" name="messagingApp1" placeholder="Pl. WhatsApp / Viber / Teams" />
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-medium">Üzenető alkalmazás 2</label>
+                            <input type="text" class="form-control" name="messagingApp2" />
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-medium">Üzenető alkalmazás 3</label>
+                            <input type="text" class="form-control" name="messagingApp3" />
+                        </div>
+                    </div>
+
+                    <!-- Email -->
+                    <div class="row g-3 mt-1">
+                        <div class="col-md-6">
+                            <label class="form-label fw-medium">e-Mail (1)</label>
+                            <input type="email" class="form-control" name="eMail1" placeholder="pl. iroda@ceg.hu" />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-medium">e-Mail (2)</label>
+                            <input type="email" class="form-control" name="eMail2" />
+                        </div>
+                    </div>
+
+                    <hr class="my-5">
+
+                    <h6 class="mb-3 text-primary fw-semibold">
+                        <i class="bi bi-chat-square-text me-2"></i> Megjegyzések
+                    </h6>
 
                     <div class="row g-3">
                         <div class="col-12">
@@ -134,13 +206,20 @@
                                 }
                             </select>
                         </div>
+
                         <div class="col-md-6">
                             <div class="form-check mt-4">
                                 <input type="checkbox" class="form-check-input" name="isPrimary" value="true" id="createSiteIsPrimary">
                                 <label class="form-check-label fw-medium" for="createSiteIsPrimary">Elsődleges telephely</label>
                             </div>
+
+                            <div class="form-check mt-2">
+                                <input type="checkbox" class="form-check-input" name="isActive" value="true" id="createSiteIsActive" checked>
+                                <label class="form-check-label fw-medium" for="createSiteIsActive">Aktív</label>
+                            </div>
                         </div>
                     </div>
+
                 </div>
 
                 <div class="modal-footer py-2">
@@ -156,11 +235,13 @@
     </div>
 </div>
 
+
 <!-- ============================================================= -->
 <!-- 2. VIEW SITE MODAL (AJAX) -->
 <!-- ============================================================= -->
 <div class="modal fade" id="viewSiteModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+    <!-- ✅ centered kivéve (nagy tartalomnál stabilabb), scrollable marad -->
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
         <div class="modal-content shadow-lg border-0">
             <div class="modal-header py-2 bg-info text-white">
                 <h5 class="modal-title fs-5 fw-semibold">
@@ -169,7 +250,8 @@
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Bezárás"></button>
             </div>
 
-            <div class="modal-body py-4" id="viewSiteContent">
+            <!-- ✅ inline max-height + overflow => biztos scroll -->
+            <div class="modal-body px-4 py-3" id="viewSiteContent" style="max-height: calc(100vh - 210px); overflow-y: auto;">
                 <!-- JS tölti -->
             </div>
 
@@ -182,11 +264,13 @@
     </div>
 </div>
 
+
 <!-- ============================================================= -->
-<!-- 3. EDIT SITE MODAL (AJAX PUT) -->
+<!-- 3. EDIT SITE MODAL (AJAX PUT) - bővített mezők + biztos scroll -->
 <!-- ============================================================= -->
 <div class="modal fade" id="editSiteModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+    <!-- ✅ centered kivéve (gyakran megöli a scrollt nagy formnál) -->
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
         <div class="modal-content shadow-lg border-0">
             <form id="editSiteForm" class="needs-validation" novalidate>
                 <div class="modal-header py-2 bg-warning text-dark">
@@ -196,22 +280,22 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Bezárás"></button>
                 </div>
 
-                <div class="modal-body py-4">
-                    <input type="hidden" id="editSiteId" />
+                <!-- ✅ Scroll biztos: inline max-height + overflow -->
+                <div class="modal-body px-4 py-3" style="max-height: calc(100vh - 210px); overflow-y: auto;">
+                    <input type="hidden" id="editSiteId" name="siteId" />
 
                     <div class="row g-3">
                         <div class="col-md-6">
                             <label class="form-label fw-medium">Telephely neve <span class="text-danger">*</span></label>
-                            <input type="text" class="form-control" id="editSiteName" required maxlength="255" />
+                            <input type="text" class="form-control" id="editSiteName" name="siteName" required maxlength="255" />
                             <div class="invalid-feedback">A telephely neve kötelező.</div>
                         </div>
 
                         <div class="col-md-6">
                             <label class="form-label fw-medium">Partner <span class="text-danger">*</span></label>
                             <select id="editPartnerId" name="partnerId" class="form-select" required>
-                            <option value="">-- Válassz partnert --</option>
+                                <option value="">-- Válassz partnert --</option>
                             </select>
-
                             <div class="invalid-feedback">Partner megadása kötelező.</div>
                         </div>
                     </div>
@@ -222,27 +306,27 @@
                     <div class="row g-3">
                         <div class="col-md-6">
                             <label class="form-label fw-medium">Cím 1</label>
-                            <input type="text" class="form-control" id="editAddressLine1" />
+                            <input type="text" class="form-control" id="editAddressLine1" name="addressLine1" />
                         </div>
                         <div class="col-md-6">
                             <label class="form-label fw-medium">Cím 2</label>
-                            <input type="text" class="form-control" id="editAddressLine2" />
+                            <input type="text" class="form-control" id="editAddressLine2" name="addressLine2" />
                         </div>
                         <div class="col-md-6">
                             <label class="form-label fw-medium">Város</label>
-                            <input type="text" class="form-control" id="editCity" />
+                            <input type="text" class="form-control" id="editCity" name="city" />
                         </div>
                         <div class="col-md-6">
                             <label class="form-label fw-medium">Állam/Megye</label>
-                            <input type="text" class="form-control" id="editState" />
+                            <input type="text" class="form-control" id="editState" name="state" />
                         </div>
                         <div class="col-md-6">
                             <label class="form-label fw-medium">Irányítószám</label>
-                            <input type="text" class="form-control" id="editPostalCode" />
+                            <input type="text" class="form-control" id="editPostalCode" name="postalCode" />
                         </div>
                         <div class="col-md-6">
                             <label class="form-label fw-medium">Ország</label>
-                            <input type="text" class="form-control" id="editCountry" />
+                            <input type="text" class="form-control" id="editCountry" name="country" />
                         </div>
                     </div>
 
@@ -252,15 +336,78 @@
                     <div class="row g-3">
                         <div class="col-md-4">
                             <label class="form-label fw-medium">Kapcsolattartó 1</label>
-                            <input type="text" class="form-control" id="editContactPerson1" />
+                            <input type="text" class="form-control" id="editContactPerson1" name="contactPerson1" />
                         </div>
                         <div class="col-md-4">
                             <label class="form-label fw-medium">Kapcsolattartó 2</label>
-                            <input type="text" class="form-control" id="editContactPerson2" />
+                            <input type="text" class="form-control" id="editContactPerson2" name="contactPerson2" />
                         </div>
                         <div class="col-md-4">
                             <label class="form-label fw-medium">Kapcsolattartó 3</label>
-                            <input type="text" class="form-control" id="editContactPerson3" />
+                            <input type="text" class="form-control" id="editContactPerson3" name="contactPerson3" />
+                        </div>
+                    </div>
+
+                    <hr class="my-5">
+                    <h6 class="mb-3 text-primary fw-semibold"><i class="bi bi-telephone me-2"></i> Elérhetőségek</h6>
+
+                    <!-- Vezetékes -->
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label class="form-label fw-medium">Vezetékes telefonszám (1)</label>
+                            <input type="text" class="form-control" id="editPhone1" name="phone1" />
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-medium">Vezetékes telefonszám (2)</label>
+                            <input type="text" class="form-control" id="editPhone2" name="phone2" />
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-medium">Vezetékes telefonszám (3)</label>
+                            <input type="text" class="form-control" id="editPhone3" name="phone3" />
+                        </div>
+                    </div>
+
+                    <!-- Mobil -->
+                    <div class="row g-3 mt-1">
+                        <div class="col-md-4">
+                            <label class="form-label fw-medium">Mobil (1)</label>
+                            <input type="text" class="form-control" id="editMobilePhone1" name="mobilePhone1" />
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-medium">Mobil (2)</label>
+                            <input type="text" class="form-control" id="editMobilePhone2" name="mobilePhone2" />
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-medium">Mobil (3)</label>
+                            <input type="text" class="form-control" id="editMobilePhone3" name="mobilePhone3" />
+                        </div>
+                    </div>
+
+                    <!-- Üzenető alkalmazások -->
+                    <div class="row g-3 mt-1">
+                        <div class="col-md-4">
+                            <label class="form-label fw-medium">Üzenető alkalmazás 1</label>
+                            <input type="text" class="form-control" id="editMessagingApp1" name="messagingApp1" placeholder="Pl. WhatsApp / Viber / Teams" />
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-medium">Üzenető alkalmazás 2</label>
+                            <input type="text" class="form-control" id="editMessagingApp2" name="messagingApp2" />
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-medium">Üzenető alkalmazás 3</label>
+                            <input type="text" class="form-control" id="editMessagingApp3" name="messagingApp3" />
+                        </div>
+                    </div>
+
+                    <!-- Email -->
+                    <div class="row g-3 mt-1">
+                        <div class="col-md-6">
+                            <label class="form-label fw-medium">e-Mail (1)</label>
+                            <input type="email" class="form-control" id="editeMail1" name="eMail1" placeholder="pl. iroda@ceg.hu" />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-medium">e-Mail (2)</label>
+                            <input type="email" class="form-control" id="editeMail2" name="eMail2" />
                         </div>
                     </div>
 
@@ -270,18 +417,18 @@
                     <div class="row g-3">
                         <div class="col-12">
                             <label class="form-label fw-medium">Megjegyzés 1</label>
-                            <textarea class="form-control" id="editComment1" rows="3"></textarea>
+                            <textarea class="form-control" id="editComment1" name="comment1" rows="3"></textarea>
                         </div>
                         <div class="col-12">
                             <label class="form-label fw-medium">Megjegyzés 2</label>
-                            <textarea class="form-control" id="editComment2" rows="3"></textarea>
+                            <textarea class="form-control" id="editComment2" name="comment2" rows="3"></textarea>
                         </div>
                     </div>
 
                     <div class="row g-3 mt-4">
                         <div class="col-md-6">
                             <label class="form-label fw-medium">Státusz</label>
-                            <select id="editStatusId" class="form-select">
+                            <select id="editStatusId" name="statusId" class="form-select">
                                 <option value="">-- Válasszon státuszt --</option>
                                 @foreach (var status in Model.Statuses)
                                 {
@@ -289,10 +436,17 @@
                                 }
                             </select>
                         </div>
+
                         <div class="col-md-6">
                             <div class="form-check mt-4">
-                                <input type="checkbox" class="form-check-input" id="editIsPrimary">
+                                <input type="checkbox" class="form-check-input" id="editIsPrimary" name="isPrimary">
                                 <label class="form-check-label fw-medium" for="editIsPrimary">Elsődleges telephely</label>
+                            </div>
+
+                            <!-- ✅ ÚJ: Aktív/inaktív -->
+                            <div class="form-check mt-2">
+                                <input type="checkbox" class="form-check-input" id="editIsActive" name="isActive" checked>
+                                <label class="form-check-label fw-medium" for="editIsActive">Aktív</label>
                             </div>
                         </div>
                     </div>

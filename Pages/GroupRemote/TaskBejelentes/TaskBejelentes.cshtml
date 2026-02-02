@@ -5,8 +5,8 @@
 
 @{
     var filteredTasks = Model.TaskBejelentes.Items
-        .Where(t => t.TaskStatusPMId > 1000)
-        .ToList();
+    .Where(t => t.TaskStatusPMId > 1000)
+    .ToList();
 }
 
 @{
@@ -29,22 +29,29 @@
         </div>
 
         <div class="d-flex justify-content-between align-items-center mb-3">
-        <div class="d-flex gap-2">
+            <div class="d-flex gap-2">
                 <!-- Új bejelentés gomb -->
                 <button class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#newTaskModal">
                     + Új bejelentés
                 </button>
 
-                <!-- ÖSSZETETT SZŰRŐ GOMB – ÚJ -->
+                <!-- Összetett szűrő -->
                 <button class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#advancedFilterModal">
                     <i class="bi bi-funnel me-1"></i> Összetett szűrő
                 </button>
+
+                <!-- Naptár gomb -->
+                <button class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#calendarModal">
+                    <i class="bi bi-calendar3 me-1"></i> Naptár
+                </button>
             </div>
-            
+
+
 
             <div class="d-flex gap-2">
                 <form method="get" asp-page="./Index" class="input-group input-group-sm" style="width: 250px;">
-                    <input type="text" class="form-control" placeholder="Keresés..." name="SearchTerm" value="@Model.SearchTerm">
+                    <input type="text" class="form-control" placeholder="Keresés..." name="SearchTerm"
+                        value="@Model.SearchTerm">
                     <input type="hidden" name="pageSize" value="@Model.PageSize" />
                     <button class="btn btn-outline-secondary" type="submit"><i class="bi bi-search"></i></button>
                     @if (!string.IsNullOrEmpty(Model.SearchTerm))
@@ -53,26 +60,28 @@
                     }
                 </form>
                 <div class="dropdown">
-                    <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                    <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button"
+                        data-bs-toggle="dropdown">
                         <i class="bi bi-funnel"></i> Rendezés
                     </button>
                     <ul class="dropdown-menu dropdown-menu-end">
-                        <li><a class="dropdown-item" asp-page="./Index" asp-route-sort="CreatedDate" asp-route-order="desc">Legújabb</a></li>
-                        <li><a class="dropdown-item" asp-page="./Index" asp-route-sort="Title" asp-route-order="asc">Cím A-Z</a></li>
-                        <li><a class="dropdown-item" asp-page="./Index" asp-route-sort="DueDate" asp-route-order="asc">Határidő</a></li>
-                        <li><a class="dropdown-item" asp-page="./Index" asp-route-sort="TaskStatusPMName" asp-route-order="asc">Státusz</a></li>
-                        <li><a class="dropdown-item" asp-page="./Index" asp-route-sort="TaskPriorityPMName" asp-route-order="asc">Prioritás</a></li>
+                        <li><a class="dropdown-item" asp-page="./Index" asp-route-sort="CreatedDate"
+                                asp-route-order="desc">Legújabb</a></li>
+                        <li><a class="dropdown-item" asp-page="./Index" asp-route-sort="Title" asp-route-order="asc">Cím
+                                A-Z</a></li>
+                        <li><a class="dropdown-item" asp-page="./Index" asp-route-sort="DueDate"
+                                asp-route-order="asc">Határidő</a></li>
+                        <li><a class="dropdown-item" asp-page="./Index" asp-route-sort="TaskStatusPMName"
+                                asp-route-order="asc">Státusz</a></li>
+                        <li><a class="dropdown-item" asp-page="./Index" asp-route-sort="TaskPriorityPMName"
+                                asp-route-order="asc">Prioritás</a></li>
                     </ul>
                 </div>
             </div>
         </div>
 
-        <div class="table-responsive table-dynamic-height"
-     id="tasksTableWrap"
-     data-page-size="20"
-     data-sort="@Request.Query["sort"]"
-     data-order="@Request.Query["order"]"
-     data-search="@Model.SearchTerm">
+        <div class="table-responsive table-dynamic-height" id="tasksTableWrap" data-page-size="20"
+            data-sort="@Request.Query["sort"]" data-order="@Request.Query["order"]" data-search="@Model.SearchTerm">
 
             <table class="table table-striped table-hover">
                 <thead class="sticky-top custom-thead table-blur">
@@ -92,89 +101,102 @@
                     </tr>
                 </thead>
 
-<tbody id="tasksTbody">
-    <!-- Load-more JS tölti -->
-</tbody>
+                <tbody id="tasksTbody">
+                    <!-- Load-more JS tölti -->
+                </tbody>
 
             </table>
             <form id="__af" method="post" style="display:none">
-  @Html.AntiForgeryToken()
-</form>
+                @Html.AntiForgeryToken()
+            </form>
 
         </div>
 
         <!-- Pagination -->
-<div class="d-flex justify-content-center my-3">
-    <button id="btnLoadMoreTasks" class="btn btn-outline-primary">
-        Több betöltése
-    </button>
-</div>
+        <div class="d-flex justify-content-center my-3">
+            <button id="btnLoadMoreTasks" class="btn btn-outline-primary">
+                Több betöltése
+            </button>
+        </div>
 
-<div id="tasksLoadInfo" class="text-center text-muted small mb-3"></div>
+        <div id="tasksLoadInfo" class="text-center text-muted small mb-3"></div>
 
 
-    <div id="toastContainer" class="position-fixed bottom-0 end-0 p-3" style="z-index: 1100;"></div>
-</div>
+        <div id="toastContainer" class="position-fixed bottom-0 end-0 p-3" style="z-index: 1100;"></div>
+    </div>
 
-<!-- SMS MODAL -->
-<div class="modal fade" id="sendSmsModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header bg-success text-white">
-                <h5 class="modal-title"><i class="bi bi-chat-dots me-2"></i>SMS küldése a járőrnek</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+    <!-- SMS MODAL -->
+    <div class="modal fade" id="sendSmsModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-success text-white">
+                    <h5 class="modal-title"><i class="bi bi-chat-dots me-2"></i>SMS küldése a járőrnek</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <form method="post" asp-page-handler="SendSms" id="smsForm">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="TaskId" id="smsTaskId" />
+
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Járőr</label>
+                            <div class="form-control-plaintext" id="smsRecipient">-</div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Telefonszám</label>
+                            <div class="form-control-plaintext text-success fw-bold" id="smsPhoneNumber">-</div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Telephely</label>
+                            <div class="form-control-plaintext" id="smsSite">-</div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="smsMessage" class="form-label">Üzenet <small class="text-muted">(max 160
+                                    karakter)</small></label>
+                            <textarea class="form-control" name="Message" id="smsMessage" rows="5" maxlength="160"
+                                required></textarea>
+                            <div class="text-end text-muted small mt-1"><span id="smsCharCount">0</span>/160</div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Mégse</button>
+                        <button type="submit" class="btn btn-success"><i class="bi bi-send"></i> Küldés</button>
+                    </div>
+                </form>
             </div>
-            <form method="post" asp-page-handler="SendSms" id="smsForm">
-                @Html.AntiForgeryToken()
-                <input type="hidden" name="TaskId" id="smsTaskId" />
-
-                <div class="modal-body">
-                    <div class="mb-3">
-                        <label class="form-label fw-bold">Járőr</label>
-                        <div class="form-control-plaintext" id="smsRecipient">-</div>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label fw-bold">Telefonszám</label>
-                        <div class="form-control-plaintext text-success fw-bold" id="smsPhoneNumber">-</div>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label fw-bold">Telephely</label>
-                        <div class="form-control-plaintext" id="smsSite">-</div>
-                    </div>
-                    <div class="mb-3">
-                        <label for="smsMessage" class="form-label">Üzenet <small class="text-muted">(max 160 karakter)</small></label>
-                        <textarea class="form-control" name="Message" id="smsMessage" rows="5" maxlength="160" required></textarea>
-                        <div class="text-end text-muted small mt-1"><span id="smsCharCount">0</span>/160</div>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Mégse</button>
-                    <button type="submit" class="btn btn-success"><i class="bi bi-send"></i> Küldés</button>
-                </div>
-            </form>
         </div>
     </div>
-</div>
 
 @await Html.PartialAsync("_TaskModals")
 
 @section Scripts {
-    
-    <!-- TomSelect + create modal site kereső + task type fill + filter site tomselect -->
-    <script src="~/js/Task/tasks_nyugalom_tomselect.js"></script>
 
-    <!-- status / priority quick change + history (TomSelect nélkül) -->
+        <!-- TomSelect + create modal site kereső + task type fill + filter site tomselect -->
+        <script src="~/js/Task/tasks_nyugalom_tomselect.js"></script>
+
+        <!-- status / priority quick change + history (TomSelect nélkül) -->
     @* <script src="~/js/Task/tasks_nyugalom.js"></script> *@
 
-    <!-- list -->
-    <script src="~/js/Task/taskBejelentesLoadMore.js"></script>
+        <!-- list -->
+        <script src="~/js/Task/taskBejelentesLoadMore.js"></script>
 
-    <!-- create / view / delete -->
-    <script src="~/js/Task/taskBejelentesCreate.js"></script>
-    <script src="/js/Task/taskBejelentesEdit.js"></script>
-    <script src="~/js/Task/taskBejelentesViewModal.js"></script>
-    <script src="/js/Task/taskDelete.js"></script>
-    <script src="~/js/Task/taskDocumentsModal.js"></script>
-    <script src="~/js/Task/taskbejelenteshistory.js" asp-append-version="true"></script>
+        <!-- create / view / delete -->
+        <script src="~/js/Task/taskBejelentesCreate.js"></script>
+        <script src="/js/Task/taskBejelentesEdit.js"></script>
+        <script src="~/js/Task/taskBejelentesViewModal.js"></script>
+        <script src="/js/Task/taskDelete.js"></script>
+        <script src="~/js/Task/taskDocumentsModal.js"></script>
+        <script src="~/js/Task/taskbejelenteshistory.js" asp-append-version="true"></script>
+    <!-- FullCalendar CSS -->
+    <link rel="stylesheet"
+          href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.css">
+
+    <!-- FullCalendar GLOBAL JS -->
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js"></script>
+
+    <!-- a te modalos naptárad -->
+    <script src="~/js/Task/calendar.js" asp-append-version="true"></script>
+      });
+  </script>
 
 }

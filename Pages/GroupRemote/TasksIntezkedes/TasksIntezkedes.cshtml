@@ -1,13 +1,12 @@
-@page
-@model Cloud9_2.Pages.GroupRemote.TasksIntezkedes.TasksIntezkedesModel
+@page "/GroupRemote/TaskIntezkedes"
+@model Cloud9_2.Pages.GroupRemote.TaskIntezkedes.TaskIntezkedesModel
 @using Cloud9_2.Models
 @using System.Globalization
-@using System.Web
 
 @{
-    var filteredTasks = Model.TasksIntezkedes.Items
-        .Where(t => t.TaskStatusPMId > 1000)
-        .ToList();
+    var filteredTasks = Model.TaskIntezkedes.Items
+    .Where(t => t.TaskStatusPMId > 1000)
+    .ToList();
 }
 
 @{
@@ -19,211 +18,197 @@
 
 <div class="right-content">
     <div class="page-header-fixed-top">
+
         <div class="d-flex justify-content-between align-items-center mb-2">
             <nav aria-label="breadcrumb">
                 <ol class="breadcrumb bg-body-tertiary rounded-3 p-2 mb-0">
                     <li class="breadcrumb-item"><a href="../../">Főoldal</a></li>
-                    <li class="breadcrumb-item"><a href="/GroupRemote/Dashboard">Group Remote</a></li>
+                    <li class="breadcrumb-item"><a href="/GroupRemote/Dashboard">Táv és csoportmunka</a></li>
                     <li class="breadcrumb-item active">Intézkedések</li>
                 </ol>
             </nav>
         </div>
 
         <div class="d-flex justify-content-between align-items-center mb-3">
-            <button class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#newTaskModal"
-                    style="background-color: #A52A2A; color: white; border-color: #A52A2A;">
-                + Új Intézkedés
-            </button>
+            <div class="d-flex gap-2">
+                <button class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#newTaskModal">
+                    + Új intézkedés
+                </button>
+
+                <button class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#advancedFilterModal">
+                    <i class="bi bi-funnel me-1"></i> Összetett szűrő
+                </button>
+
+                <button class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#calendarModal">
+                    <i class="bi bi-calendar3 me-1"></i> Naptár
+                </button>
+            </div>
 
             <div class="d-flex gap-2">
                 <form method="get" asp-page="./Index" class="input-group input-group-sm" style="width: 250px;">
-                    <input type="text" class="form-control" placeholder="Keresés..." name="SearchTerm" value="@Model.SearchTerm">
+                    <input type="text" class="form-control" placeholder="Keresés..." name="SearchTerm"
+                        value="@Model.SearchTerm" />
                     <input type="hidden" name="pageSize" value="@Model.PageSize" />
-                    <button class="btn btn-outline-secondary" type="submit"><i class="bi bi-search"></i></button>
+                    <button class="btn btn-outline-secondary" type="submit">
+                        <i class="bi bi-search"></i>
+                    </button>
+
                     @if (!string.IsNullOrEmpty(Model.SearchTerm))
                     {
-                        <a href="@Url.Page("./Index")" class="btn btn-outline-danger btn-sm"><i class="bi bi-x"></i></a>
+                        <a href="@Url.Page("./Index")" class="btn btn-outline-danger btn-sm">
+                            <i class="bi bi-x"></i>
+                        </a>
                     }
                 </form>
+
                 <div class="dropdown">
-                    <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                    <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button"
+                        data-bs-toggle="dropdown">
                         <i class="bi bi-funnel"></i> Rendezés
                     </button>
                     <ul class="dropdown-menu dropdown-menu-end">
-                        <li><a class="dropdown-item" asp-page="./Index" asp-route-sort="CreatedDate" asp-route-order="desc">Legújabb</a></li>
-                        <li><a class="dropdown-item" asp-page="./Index" asp-route-sort="Title" asp-route-order="asc">Cím A-Z</a></li>
-                        <li><a class="dropdown-item" asp-page="./Index" asp-route-sort="DueDate" asp-route-order="asc">Határidő</a></li>
-                        <li><a class="dropdown-item" asp-page="./Index" asp-route-sort="TaskStatusPMName" asp-route-order="asc">Státusz</a></li>
-                        <li><a class="dropdown-item" asp-page="./Index" asp-route-sort="TaskPriorityPMName" asp-route-order="asc">Prioritás</a></li>
+                        <li>
+                            <a class="dropdown-item" asp-page="./Index" asp-route-sort="CreatedDate"
+                                asp-route-order="desc">
+                                Legújabb
+                            </a>
+                        </li>
+                        <li>
+                            <a class="dropdown-item" asp-page="./Index" asp-route-sort="Title" asp-route-order="asc">
+                                Cím A-Z
+                            </a>
+                        </li>
+                        <li>
+                            <a class="dropdown-item" asp-page="./Index" asp-route-sort="DueDate" asp-route-order="asc">
+                                Határidő
+                            </a>
+                        </li>
+                        <li>
+                            <a class="dropdown-item" asp-page="./Index" asp-route-sort="TaskStatusPMName"
+                                asp-route-order="asc">
+                                Státusz
+                            </a>
+                        </li>
+                        <li>
+                            <a class="dropdown-item" asp-page="./Index" asp-route-sort="TaskPriorityPMName"
+                                asp-route-order="asc">
+                                Prioritás
+                            </a>
+                        </li>
                     </ul>
                 </div>
             </div>
         </div>
 
-<div class="table-responsive table-dynamic-height" data-page-size="@Model.PageSize">
-    <table class="table table-striped table-hover">
+        <div class="table-responsive table-dynamic-height" id="tasksTableWrap" data-page-size="20"
+            data-sort="@Request.Query["sort"]" data-order="@Request.Query["order"]" data-search="@Model.SearchTerm">
+
+            <table class="table table-striped table-hover">
                 <thead class="sticky-top custom-thead table-blur">
                     <tr>
+                        <th>Th. Azon.</th>
                         <th>Telephely</th>
-                        <th>Időpont</th>
-                        <th>Jelzés típusa</th>
-                        <th>Létrehozta</th>
-                        <th>Intézkedés</th>
-                        <th>Járőr</th>
-                        <th>Eredmény</th>
-                        <th>Zárás időpontja</th>
-                        <th>Műveletek</th>
+                        <th>Cím</th>
+                        <th>Partner</th>
+                        <th>Tárgy</th>
+                        <th>Prioritás</th>
+                        <th>Esedékesség</th>
+                        <th>Státusz</th>
+                        <th>Bejelentés dátuma</th>
+                        <th>Utolsó módosítás</th>
+                        <th>Ügyintéző</th>
+                        <th></th>
                     </tr>
                 </thead>
-                <tbody>
-                    @if (filteredTasks.Any())
-                    {
-                        @foreach (var t in filteredTasks)
-                        {
-                            var shortDesc = string.IsNullOrWhiteSpace(t.Description)
-                                ? "n/a"
-                                : (t.Description.Length > 20 ? t.Description.Substring(0, 20) + "..." : t.Description);
-
-                            <tr data-task-id="@t.Id">
-                                <td class="text-nowrap" style="cursor:pointer;" onclick="Tasks.openViewModal(@t.Id)">@t.SiteName</td>
-                                <td class="text-nowrap" style="cursor:pointer;" onclick="Tasks.openViewModal(@t.Id)">@t.CreatedDate</td>
-                                <td class="text-nowrap" style="cursor:pointer;" onclick="Tasks.openViewModal(@t.Id)">@t.TaskTypePMName</td>
-                                <td class="text-nowrap" style="cursor:pointer;" onclick="Tasks.openViewModal(@t.Id)">@t.CreatedByName</td>
-
-                                <td class="text-nowrap" style="cursor:pointer;" onclick="Tasks.openViewModal(@t.Id)">
-                                    <span class="badge text-white" style="background-color:@(string.IsNullOrWhiteSpace(t.ColorCode) ? "#6c757d" : t.ColorCode.Trim())">
-                                        @t.TaskStatusPMName
-                                    </span>
-                                </td>
-
-                                <td class="text-nowrap" style="cursor:pointer;" onclick="Tasks.openViewModal(@t.Id)">@t.AssignedToName</td>
-
-                                <td class="text-nowrap">
-                                    <button type="button" class="btn btn-danger btn-sm" data-bs-toggle="modal" data-bs-target="#sendSmsModal">
-                                        SMS Teszt
-                                    </button>
-
-                                    <span style="cursor:pointer; text-decoration:underline; color:#0d6efd; display:inline-block;"
-                                          data-bs-toggle="popover"
-                                          data-bs-trigger="hover focus"
-                                          data-bs-placement="right"
-                                          data-bs-content="@Html.Raw(System.Web.HttpUtility.JavaScriptStringEncode(string.IsNullOrWhiteSpace(t.Description) ? " " : t.Description))"
-                                          data-bs-html="true"
-                                          title="@t.Title"
-                                          onclick="Tasks.openViewModal(@t.Id); return false;">
-                                        @shortDesc
-                                    </span>
-                                </td>
-
-                                <td class="text-nowrap" style="cursor:pointer;" onclick="Tasks.openViewModal(@t.Id)">@t.CompletedDate</td>
-
-                                <td>
-                                    <div class="btn-group btn-group-sm" role="group">
-                                        <button type="button" class="btn btn-outline-info" onclick="Tasks.openViewModal(@t.Id)" title="Megtekintés">
-                                            <i class="bi bi-eye"></i>
-                                        </button>
-
-                                        <button type="button"
-                                                class="btn btn-outline-success btn-sm"
-                                                data-bs-toggle="modal"
-                                                data-bs-target="#sendSmsModal"
-                                                onclick="Sms.prepare(@t.Id, '@(t.AssignedToPhone?.Replace("'", "\\'") ?? "")', '@(t.AssignedToName?.Replace("'", "\\'") ?? "")', '@(t.SiteName?.Replace("'", "\\'") ?? "")')"
-                                                title="@(string.IsNullOrWhiteSpace(t.AssignedToPhone) ? "Nincs telefonszám" : "SMS küldése")"
-                                                @(string.IsNullOrWhiteSpace(t.AssignedToPhone) ? "disabled" : "")>
-                                            <i class="bi bi-chat-dots"></i>
-                                        </button>
-
-                                        <div class="dropdown">
-                                            <button class="btn btn-outline-secondary dropdown-toggle btn-sm" type="button" data-bs-toggle="dropdown">
-                                                <i class="bi bi-three-dots-vertical"></i>
-                                            </button>
-                                            <ul class="dropdown-menu dropdown-menu-end">
-                                                <li><a class="dropdown-item" onclick="Tasks.openEditModal(@t.Id)"><i class="bi bi-pencil-square me-2"></i>Szerkesztés</a></li>
-                                                <li><a class="dropdown-item btn-show-history" data-task-id="@t.Id"><i class="bi bi-clock-history me-2"></i>Előzmények</a></li>
-                                                <li><hr class="dropdown-divider"></li>
-                                                <li><a class="dropdown-item text-danger" onclick="Tasks.openDeleteModal(@t.Id)"><i class="bi bi-trash me-2"></i>Törlés</a></li>
-                                            </ul>
-                                        </div>
-                                    </div>
-                                </td>
-                            </tr>
-                        }
-                    }
-                    else
-                    {
-                        <tr>
-                            <td colspan="9" class="text-center py-5">
-                                <div class="alert alert-info">
-                                    <i class="bi bi-info-circle me-2"></i>
-                                    Nincs megjeleníthető intézkedés.
-                                    <small class="d-block text-muted mt-2">
-                                        (Csak a státusz ID > 1000 feladat jelenik meg)
-                                    </small>
-                                </div>
-                            </td>
-                        </tr>
-                    }
+                <tbody id="tasksTbody">
+                    <!-- Load-more JS tölti -->
                 </tbody>
             </table>
-        </div>
 
-        @await Html.PartialAsync("~/Pages/Shared/_PaginationFooter.cshtml", new PaginationViewModel
-        {
-            CurrentPage = Model.CurrentPage,
-            TotalPages = Model.TotalPages,
-            PageSize = Model.PageSize,
-            SearchTerm = Model.SearchTerm,
-            PageRoute = "./Index",
-            EntityName = "Intézkedések"
-        })
-    </div>
-
-    <div id="toastContainer" class="position-fixed bottom-0 end-0 p-3" style="z-index: 1100;"></div>
-</div>
-
-<!-- SMS MODAL -->
-<div class="modal fade" id="sendSmsModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header bg-success text-white">
-                <h5 class="modal-title"><i class="bi bi-chat-dots me-2"></i>SMS küldése a járőrnek</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-            </div>
-            <form method="post" asp-page-handler="SendSms" id="smsForm">
+            <form id="__af" method="post" style="display:none">
                 @Html.AntiForgeryToken()
-                <input type="hidden" name="TaskId" id="smsTaskId" />
-
-                <div class="modal-body">
-                    <div class="mb-3">
-                        <label class="form-label fw-bold">Járőr</label>
-                        <div class="form-control-plaintext" id="smsRecipient">-</div>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label fw-bold">Telefonszám</label>
-                        <div class="form-control-plaintext text-success fw-bold" id="smsPhoneNumber">-</div>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label fw-bold">Telephely</label>
-                        <div class="form-control-plaintext" id="smsSite">-</div>
-                    </div>
-                    <div class="mb-3">
-                        <label for="smsMessage" class="form-label">Üzenet <small class="text-muted">(max 160 karakter)</small></label>
-                        <textarea class="form-control" name="Message" id="smsMessage" rows="5" maxlength="160" required></textarea>
-                        <div class="text-end text-muted small mt-1"><span id="smsCharCount">0</span>/160</div>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Mégse</button>
-                    <button type="submit" class="btn btn-success"><i class="bi bi-send"></i> Küldés</button>
-                </div>
             </form>
         </div>
+
+        <div class="d-flex justify-content-center my-3">
+            <button id="btnLoadMoreTasks" class="btn btn-outline-primary">
+                Több betöltése
+            </button>
+        </div>
+
+        <div id="tasksLoadInfo" class="text-center text-muted small mb-3"></div>
+        <div id="toastContainer" class="position-fixed bottom-0 end-0 p-3" style="z-index:1100;"></div>
     </div>
+
+    <!-- SMS MODAL -->
+    <div class="modal fade" id="sendSmsModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-success text-white">
+                    <h5 class="modal-title">
+                        <i class="bi bi-chat-dots me-2"></i> SMS küldése
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+
+                <form method="post" asp-page-handler="SendSms" id="smsForm">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="TaskId" id="smsTaskId" />
+
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Címzett</label>
+                            <div class="form-control-plaintext" id="smsRecipient">-</div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Telefonszám</label>
+                            <div class="form-control-plaintext text-success fw-bold" id="smsPhoneNumber">-</div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="smsMessage" class="form-label">
+                                Üzenet <small class="text-muted">(max 160 karakter)</small>
+                            </label>
+                            <textarea class="form-control" name="Message" id="smsMessage" rows="5" maxlength="160"
+                                required></textarea>
+                            <div class="text-end text-muted small mt-1">
+                                <span id="smsCharCount">0</span>/160
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                            Mégse
+                        </button>
+                        <button type="submit" class="btn btn-success">
+                            <i class="bi bi-send"></i> Küldés
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    @await Html.PartialAsync("_TaskModals")
 </div>
 
-@await Html.PartialAsync("_TaskModals")
-
 @section Scripts {
-    <script src="~/js/Task/tasks.js"></script>
-    <script src="~/js/Task/fileattach.js"></script>
+
+    <script src="~/js/Task/tasks_nyugalom_tomselect.js"></script>
+
+    <script src="~/js/Task/taskIntezkedesLoadMore.js"></script>
+    <script src="~/js/Task/taskIntezkedesCreate.js"></script>
+    <script src="~/js/Task/taskIntezkedesEdit.js"></script>
+    <script src="~/js/Task/taskIntezkedesViewModal.js"></script>
+    <script src="~/js/Task/taskDelete.js"></script>
+    <script src="~/js/Task/taskDocumentsModal.js"></script>
+    <script src="~/js/Task/taskIntezkedesHistory.js" asp-append-version="true"></script>
+    <script src="~/js/Task/taskIntezkedesAdvancedFilter.js"></script>
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.css" />
+
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js"></script>
+    <script src="~/js/Task/calendar.js" asp-append-version="true"></script>
 }

@@ -31,6 +31,12 @@
                 <button class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#advancedFilterModal">
                     <i class="bi bi-funnel me-1"></i> Összetett szűrés
                 </button>
+                <button id="exportExcelBtn"
+                        class="btn btn-outline-success">
+                    <i class="bi bi-file-earmark-excel me-1"></i>
+                    Export Excel
+                </button>
+
             </div>
             <div class="d-flex align-items-center gap-2">
                 <form method="get" asp-page="./Index" class="input-group input-group-sm" style="width: 250px;">
@@ -103,6 +109,7 @@
         <script src="/js/tomSelectUtils.js"></script>
         <script src="/js/Partner/loadStatuses.js" onerror="alert('Nem sikerült betölteni a loadStatuses.js fájlt.')"></script>
         <script src="/js/Partner/advancedFilterTomSelect.js"></script>
+        <script src="/js/Partner/advancedFilter.js"></script>
         <script src="/js/Partner/createPartner.js" onerror="alert('Nem sikerült betölteni a createPartner.js fájlt.')"></script>
         <script src="/js/Partner/viewPartner.js" onerror="alert('Nem sikerült betölteni a viewPartner.js fájlt.')"></script>
         <script src="/js/Partner/editPartner.js" onerror="alert('Nem sikerült betölteni a editPartner.js fájlt.')"></script>

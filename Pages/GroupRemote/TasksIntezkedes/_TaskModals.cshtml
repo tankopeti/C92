@@ -2,250 +2,630 @@
 @inject IHttpClientFactory HttpClientFactory
 
 @{
-    var priorities = ViewData["Priorities"] as List<TaskPriorityPM> ?? new();
-    var statuses = ViewData["Statuses"] as List<TaskStatusPM> ?? new();
-    var types = ViewData["Types"] as List<TaskTypePM> ?? new();
-    var partners = ViewData["Partners"] as List<Partner> ?? new();
-    var sites = ViewData["Sites"] as List<Site> ?? new();
-    var contacts = ViewData["Contacts"] as List<Contact> ?? new();
-    var quotes = ViewData["Quotes"] as List<Quote> ?? new();
-    var orders = ViewData["Orders"] as List<Order> ?? new();
-    var communications = ViewData["Communications"] as List<CustomerCommunication> ?? new();
-    var users = ViewData["Users"] as List<ApplicationUser> ?? new();
+  var priorities = ViewData["Priorities"] as List<TaskPriorityPM> ?? new();
+  var statuses = ViewData["Statuses"] as List<TaskStatusPM> ?? new();
+  var types = ViewData["Types"] as List<TaskTypePM> ?? new();
+  var partners = ViewData["Partners"] as List<Partner> ?? new();
+  var sites = ViewData["Sites"] as List<Site> ?? new();
+  var contacts = ViewData["Contacts"] as List<Contact> ?? new();
+  var quotes = ViewData["Quotes"] as List<Quote> ?? new();
+  var orders = ViewData["Orders"] as List<Order> ?? new();
+  var communications = ViewData["Communications"] as List<CustomerCommunication> ?? new();
+  var users = ViewData["Users"] as List<ApplicationUser> ?? new();
 }
 
-<!-- ============================================================= -->
-<!-- 1. ÚJ INTÉZKEDÉS LÉTREHOZÁSA MODAL -->
-<!-- ============================================================= -->
-<div class="modal fade" id="newTaskModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-xl modal-dialog-centered">
-        <div class="modal-content shadow-lg border-0 overflow-hidden">
-            <form asp-page-handler="Create" method="post">
-                @Html.AntiForgeryToken()
+<!-- ====================== 1. ÚJ INTÉZKEDÉS MODAL ====================== -->
+<div class="modal fade" id="newTaskModal" data-display-type="2" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-xl">
+    <div class="modal-content shadow-lg border-0 overflow-hidden">
+      <form id="createTaskForm" asp-page-handler="Create" method="post">
+        @Html.AntiForgeryToken()
 
-                <div class="modal-header py-2 bg-primary text-white">
-                    <h5 class="modal-title fs-5 fw-semibold">
-                        <i class="bi bi-plus-circle me-2"></i> Új intézkedés
-                    </h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Bezárás"></button>
-                </div>
-
-                <div class="modal-body py-4">
-                    <!-- Cím -->
-                    <div class="mb-4">
-                        <label class="form-label fw-medium">Cím <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control" name="Title" required maxlength="100" placeholder="Rövid, egyértelmű cím..." />
-                    </div>
-
-                    <!-- Leírás -->
-                    <div class="mb-4">
-                        <label class="form-label fw-medium">Leírás</label>
-                        <textarea class="form-control" name="Description" rows="3" placeholder="Részletes leírás (opcionális)"></textarea>
-                    </div>
-
-                    <!-- Alapadatok -->
-                    <div class="row g-3 mb-4">
-                        <div class="col-md-6">
-                            <label class="form-label fw-medium">Típus</label>
-                            <select class="form-select" name="TaskTypePMId">
-                                <option value="">-- Válasszon --</option>
-                                @foreach (var t in types)
-                                {
-                                    <option value="@t.TaskTypePMId">@t.TaskTypePMName</option>
-                                }
-                            </select>
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label fw-medium">Státusz</label>
-                            <select class="form-select" name="TaskStatusPMId">
-                                @foreach (var s in statuses)
-                                {
-                                    <option value="@s.TaskStatusPMId" selected="@(s.TaskStatusPMId == 1)">@s.Name</option>
-                                }
-                            </select>
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label fw-medium">Prioritás</label>
-                            <select class="form-select" name="TaskPriorityPMId">
-                                @foreach (var p in priorities)
-                                {
-                                    <option value="@p.TaskPriorityPMId" selected="@(p.TaskPriorityPMId == 2)">@p.Name</option>
-                                }
-                            </select>
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label fw-medium">Határidő</label>
-                            <input type="date" class="form-control" name="DueDate" />
-                        </div>
-                    </div>
-
-                    <div class="row g-3 mb-4">
-                        <div class="col-md-6">
-                            <label class="form-label fw-medium">Becsült órák</label>
-                            <input type="number" step="0.01" min="0" max="999.99" class="form-control" name="EstimatedHours" placeholder="pl. 4.5" />
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label fw-medium">Tényleges órák</label>
-                            <input type="number" step="0.01" min="0" max="999.99" class="form-control" name="ActualHours" placeholder="Kitöltés később" />
-                        </div>
-                    </div>
-
-                    <div class="mb-4">
-                        <label class="form-label fw-medium">Felelős</label>
-                        <select class="form-select" name="AssignedToId">
-                            <option value="">-- Válasszon --</option>
-                            @foreach (var u in users)
-                            {
-                                <option value="@u.Id">@u.UserName (@u.NormalizedEmail)</option>
-                            }
-                        </select>
-                    </div>
-
-                    <hr class="my-5">
-
-                    <h6 class="mb-3 text-primary fw-semibold">
-                        <i class="bi bi-link-45deg me-2"></i> Kapcsolódó entitások
-                    </h6>
-
-                    <div class="row g-3 mb-4">
-                        <div class="col-md-6">
-                            <label class="form-label fw-medium">Partner</label>
-                            <select class="form-select" name="PartnerId">
-                                <option value="">-- Válasszon --</option>
-                                @foreach (var p in partners)
-                                {
-                                    <option value="@p.TaxId">@p.Name</option>
-                                }
-                            </select>
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label fw-medium">Helyszín</label>
-                            <select name="SiteId" id="SiteId" class="form-select">
-                                <option value="">-- Előbb válasszon partnert --</option>
-                            </select>
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label fw-medium">Kapcsolattartó</label>
-                            <select name="ContactId" id="ContactId" class="form-select">
-                                <option value="">-- Előbb válasszon partnert --</option>
-                            </select>
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label fw-medium">Árajánlat</label>
-                            <select class="form-select" name="QuoteId">
-                                <option value="">-- Válasszon --</option>
-                                @foreach (var q in quotes)
-                                {
-                                    <option value="@q.QuoteId">@q.QuoteNumber</option>
-                                }
-                            </select>
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label fw-medium">Megrendelés</label>
-                            <select class="form-select" name="OrderId">
-                                <option value="">-- Válasszon --</option>
-                                @foreach (var o in orders)
-                                {
-                                    <option value="@o.OrderId">@o.OrderNumber</option>
-                                }
-                            </select>
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label fw-medium">Ügyfélkommunikáció</label>
-                            <select class="form-select" name="CustomerCommunicationId">
-                                <option value="">-- Válasszon --</option>
-                                @foreach (var cc in communications)
-                                {
-                                    <option value="@cc.CustomerCommunicationId">@cc.Subject</option>
-                                }
-                            </select>
-                        </div>
-                    </div>
-
-                    <div class="row g-3 mb-4">
-                        <div class="col-md-6">
-                            <label class="form-label fw-medium">Erőforrások</label>
-                            <select class="form-select" name="ResourceIds" multiple size="5">
-                                <!-- JS vagy szerver tölt be opciókat -->
-                            </select>
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label fw-medium">Alkalmazottak</label>
-                            <select class="form-select" name="EmployeeIds" multiple size="5">
-                                <!-- JS vagy szerver tölt be opciókat -->
-                            </select>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="modal-footer py-2">
-                    <button type="button" class="btn btn-secondary px-4" data-bs-dismiss="modal">
-                        <i class="bi bi-x-circle me-1"></i> Mégse
-                    </button>
-                    <button type="submit" class="btn btn-primary px-4">
-                        <i class="bi bi-check2-circle me-1"></i> Létrehozás
-                    </button>
-                </div>
-            </form>
+        <div class="modal-header py-2 bg-success text-white">
+          <h5 class="modal-title fs-5 fw-semibold">
+            <i class="bi bi-plus-circle me-2"></i> Új intézkedés
+          </h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Bezárás"></button>
         </div>
+
+        <div class="modal-body py-4">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label">Telephely <span class="text-danger">*</span></label>
+              <select name="SiteId" id="SiteId" class="form-select" required></select>
+            </div>
+
+            <!-- ✅ ÚJ: Kapcsolt partner (szállító/közvetítő) -->
+            <div class="col-md-6">
+              <label class="form-label">
+                Kapcsolt partner <span class="text-muted">(szállító / közvetítő)</span>
+              </label>
+              <select class="form-select" name="RelatedPartnerId" id="RelatedPartnerId">
+                <option value="">-- Nincs --</option>
+                @foreach (var p in partners)
+                {
+                  <option value="@p.PartnerId">@p.Name</option>
+                }
+              </select>
+              <div class="form-text">
+                Opcionális: válaszd ki, ha a feladathoz külsős szállítót/közvetítőt veszel igénybe.
+              </div>
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label">Feladat típusa <span class="text-danger">*</span></label>
+              <select class="form-select" name="TaskTypePMId" id="TaskTypePMId" required>
+                <option value="">-- Válasszon --</option>
+              </select>
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label">Prioritás</label>
+              <select class="form-select" name="TaskPriorityPMId">
+                @foreach (var p in priorities)
+                {
+                  <option value="@p.TaskPriorityPMId" selected="@(p.TaskPriorityPMId == 2)">@p.Name</option>
+                }
+              </select>
+            </div>
+          </div>
+
+          <div class="mt-3">
+            <label class="form-label">Tárgy <span class="text-danger">*</span></label>
+            <input type="text" class="form-control" name="Title" required maxlength="100" />
+          </div>
+
+          <div class="mt-3">
+            <label class="form-label">Bővebb leírás</label>
+            <textarea class="form-control" name="Description" rows="3"></textarea>
+          </div>
+
+          <div class="row g-3 mt-3">
+            <div class="col-md-6">
+              <label class="form-label">Felelős</label>
+              <select name="AssignedToId" id="AssignedToId" class="form-select">
+                <option value="">-- Válasszon --</option>
+              </select>
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label">Státusz</label>
+              <select class="form-select" name="TaskStatusPMId" id="TaskStatusPMId">
+                <option value="">-- Válasszon --</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="row g-3 mt-3">
+            <div class="col-md-6">
+              <label class="form-label">Kommunikáció mód</label>
+              <select class="form-select" name="TaskPMcomMethodID" id="TaskPMcomMethodID">
+                <option value="">-- Válasszon --</option>
+              </select>
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label">Név/elérhetőség/részletek</label>
+              <!-- FONTOS: name="CommunicationDescription" (DTO mező!) -->
+              <input type="text" class="form-control" name="CommunicationDescription" />
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label">Beütemezve (dátum)</label>
+              <input type="date" class="form-control" name="ScheduledDate" />
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label">Beütemezve (idő)</label>
+              <input type="time" class="form-control" name="ScheduledTime" step="60" />
+            </div>
+          </div>
+
+          <!-- ✅ Csatolt dokumentumok BLOKK KIVÉVE innen -->
+        </div>
+
+        <div class="modal-footer py-3">
+          <button type="button" class="btn btn-secondary px-4" data-bs-dismiss="modal">Mégse</button>
+          <button type="submit" class="btn btn-primary px-4">
+            <i class="bi bi-check2 me-1"></i> Létrehozás
+          </button>
+        </div>
+      </form>
     </div>
+  </div>
 </div>
 
-<!-- ============================================================= -->
-<!-- 2. INTÉZKEDÉS RÉSZLETEK / SZERKESZTÉS MODAL (AJAX) -->
-<!-- ============================================================= -->
+
+
+<!-- TASK DOCUMENTS MODAL (UPLOAD TO /Users/tp/Projects/fileok) -->
+<div class="modal fade" id="taskDocumentsModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content shadow-lg border-0 overflow-hidden">
+
+      <div class="modal-header py-2 bg-primary text-white">
+        <h5 class="modal-title fs-5 fw-semibold">
+          <i class="bi bi-paperclip me-2"></i> Feladat fájlok
+          <span class="badge bg-light text-primary ms-2" id="taskDocsCount">0</span>
+        </h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Bezárás"></button>
+      </div>
+
+      <div class="modal-body py-3">
+        <input type="hidden" id="taskDocsTaskId" value="" />
+
+        <div class="d-flex gap-2 align-items-center mb-3">
+          <button type="button" id="taskDocsAddBtn" class="btn btn-outline-primary">
+            <i class="bi bi-upload me-1"></i> Fájl hozzáadása
+          </button>
+          <input type="file" id="taskDocsFileInput" class="d-none" />
+
+          <input type="text" id="taskDocsNote" class="form-control" placeholder="Megjegyzés (opcionális)" />
+        </div>
+
+        <div id="taskDocsList" class="border rounded p-3 bg-white" style="min-height:120px;">
+          <div class="text-muted small">Még nincs csatolt fájl a feladathoz.</div>
+        </div>
+      </div>
+
+      <div class="modal-footer py-2">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Bezárás</button>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ====================== 3. FELADAT RÉSZLETEK MODAL ====================== -->
 <div class="modal fade" id="taskViewModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-xl modal-dialog-centered">
-        <div class="modal-content shadow-lg border-0">
-            <div class="modal-header py-2 bg-info text-white">
-                <h5 class="modal-title fs-5 fw-semibold" id="taskModalTitle">
-                    <i class="bi bi-eye me-2"></i> Intézkedés részletei
-                </h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Bezárás"></button>
-            </div>
+  <div class="modal-dialog modal-xl ">
+    <div class="modal-content shadow-lg border-0">
+      <div class="modal-header py-2 bg-success text-white">
+        <h5 class="modal-title fs-5 fw-semibold" id="taskModalTitle">
+          <i class="bi bi-eye me-2"></i> Intézkedés részletei
+        </h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
 
-            <div class="modal-body py-4" id="taskModalBody">
-                <!-- Tartalom AJAX-ból töltődik -->
-            </div>
+      <div class="modal-body py-4" id="taskModalBody">
+        <!-- Tartalom JS-ből töltődik -->
+      </div>
 
-            <div class="modal-footer py-2">
-                <button type="button" class="btn btn-secondary px-4" data-bs-dismiss="modal">
-                    <i class="bi bi-x-circle me-1"></i> Bezárás
-                </button>
-                <button type="button" class="btn btn-primary px-4" id="editTaskBtn" style="display:none;">
-                    <i class="bi bi-pencil-square me-1"></i> Szerkesztés
-                </button>
-            </div>
-        </div>
+      <div class="modal-footer py-3">
+        <button type="button" class="btn btn-secondary px-4" data-bs-dismiss="modal">Bezárás</button>
+        <button type="button" class="btn btn-primary px-4" id="editTaskBtn" style="display:none;">
+          <i class="bi bi-pencil me-1"></i> Szerkesztés
+        </button>
+      </div>
     </div>
+  </div>
 </div>
 
-<!-- ============================================================= -->
-<!-- 3. TÖRLÉS MEGERŐSÍTÉS MODAL -->
-<!-- ============================================================= -->
-<div class="modal fade" id="deleteTaskModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content shadow-lg border-0">
-            <div class="modal-header py-2 bg-danger text-white">
-                <h5 class="modal-title fs-5 fw-semibold">
-                    <i class="bi bi-trash me-2"></i> Törlés megerősítése
-                </h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Bezárás"></button>
-            </div>
+<!-- ====================== 4. TÖRLÉS MEGERŐSÍTÉS MODAL ====================== -->
+<div class="modal fade" id="deleteTaskModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content shadow-lg border-0">
+      <div class="modal-header py-2 bg-danger text-white">
+        <h5 class="modal-title fs-5 fw-semibold">
+          <i class="bi bi-trash me-2"></i> Törlés megerősítése
+        </h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
 
-            <div class="modal-body py-4">
-                <p class="mb-2">Biztosan törli ezt az intézkedést?</p>
-                <p class="text-muted small">Ez a művelet <strong>végleges</strong> és nem vonható vissza.</p>
-            </div>
+      <div class="modal-body py-4">
+        <p class="mb-2">Biztosan törli ezt az intézkedést?</p>
+        <p class="text-muted small">Ez a művelet <strong>végleges</strong> és nem vonható vissza.</p>
+      </div>
 
-            <div class="modal-footer py-2">
-                <button type="button" class="btn btn-secondary px-4" data-bs-dismiss="modal">
-                    <i class="bi bi-x-circle me-1"></i> Mégse
-                </button>
-                <button type="button" class="btn btn-danger px-4" id="confirmDeleteBtn">
-                    <i class="bi bi-trash me-1"></i> Törlés
-                </button>
-            </div>
-        </div>
+      <div class="modal-footer py-3">
+        <button type="button" class="btn btn-secondary px-4" data-bs-dismiss="modal">Mégse</button>
+        <button type="button" class="btn btn-danger px-4" id="confirmDeleteBtn">
+          <i class="bi bi-trash me-1"></i> Törlés
+        </button>
+      </div>
     </div>
+  </div>
+</div>
+
+<!-- ====================== 5. STÁTUSZ MÓDOSÍTÁS MODAL ====================== -->
+<div class="modal fade" id="changeStatusModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog  modal-sm">
+    <div class="modal-content shadow-lg border-0">
+      <div class="modal-header py-2 bg-success text-white">
+        <h6 class="modal-title fs-5 fw-semibold">
+          <i class="bi bi-arrow-left-right me-2"></i> Státusz módosítása
+        </h6>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+
+      <div class="modal-body py-4">
+        <div class="text-center mb-4">
+          <span class="badge fs-5 px-4 py-2" id="currentStatusBadge" style="min-width: 150px;">Kattints ide</span>
+        </div>
+        <div>
+          <label for="newStatusSelect" class="form-label small fw-medium text-muted">Új státusz</label>
+          <select class="form-select" id="newStatusSelect">
+            @foreach (var status in Model.Statuses)
+            {
+              <option value="@status.TaskStatusPMId" data-color="@(status.ColorCode ?? "#6c757d")">@status.Name</option>
+            }
+          </select>
+        </div>
+      </div>
+
+      <div class="modal-footer py-3">
+        <button type="button" class="btn btn-secondary px-4" data-bs-dismiss="modal">Mégse</button>
+        <button type="button" class="btn btn-primary px-4" id="saveStatusBtn">
+          <i class="bi bi-check2 me-1"></i> Mentés
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ====================== 6. PRIORITÁS MÓDOSÍTÁS MODAL ====================== -->
+<div class="modal fade" id="changePriorityModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog  modal-sm">
+    <div class="modal-content shadow-lg border-0">
+      <div class="modal-header py-2 bg-success text-dark">
+        <h6 class="modal-title fs-5 fw-semibold">
+          <i class="bi bi-exclamation-triangle me-2"></i> Prioritás módosítása
+        </h6>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+
+      <div class="modal-body py-4">
+        <div class="text-center mb-4">
+          <div class="small text-muted mb-2">Jelenlegi prioritás</div>
+          <span class="badge fs-5 px-4 py-2" id="currentPriorityBadge" style="min-width: 150px;">Kattints ide</span>
+        </div>
+        <div>
+          <label for="newPrioritySelect" class="form-label small fw-medium text-muted">Új prioritás</label>
+          <select class="form-select" id="newPrioritySelect">
+            @foreach (var priority in Model.Priorities)
+            {
+              <option value="@priority.TaskPriorityPMId" data-color="@(priority.PriorityColorCode ?? "#ffc107")">
+                @priority.Name</option>
+            }
+          </select>
+        </div>
+      </div>
+
+      <div class="modal-footer py-3">
+        <button type="button" class="btn btn-secondary px-4" data-bs-dismiss="modal">Mégse</button>
+        <button type="button" class="btn btn-primary px-4" id="savePriorityBtn">
+          <i class="bi bi-check2 me-1"></i> Mentés
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ====================== 7. ÖSSZETETT SZŰRŐ MODAL ====================== -->
+<div class="modal fade" id="advancedFilterModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-xl">
+    <div class="modal-content shadow-lg border-0">
+      <div class="modal-header py-2 bg-success text-white">
+        <h5 class="modal-title fs-5 fw-semibold">
+          <i class="bi bi-funnel-fill me-2"></i> Összetett szűrő
+        </h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+
+      <div class="modal-body py-4">
+        <form id="advancedFilterForm" method="get" asp-page="./Index">
+          <input type="hidden" name="page" value="1" />
+          <input type="hidden" name="pageSize" value="@Model.PageSize" />
+
+          <div class="row g-3">
+            <!-- Státusz -->
+            <div class="col-md-6">
+              <label class="form-label small fw-medium text-muted">Státusz</label>
+              <select class="form-select" name="statusId">
+                <option value="">-- Minden --</option>
+                @foreach (var s in ViewData["Statuses"] as List<TaskStatusPM> ?? new())
+                {
+                  <option value="@s.TaskStatusPMId" selected="@(Model.StatusId == s.TaskStatusPMId)">@s.Name</option>
+                }
+              </select>
+            </div>
+
+            <!-- Prioritás -->
+            <div class="col-md-6">
+              <label class="form-label small fw-medium text-muted">Prioritás</label>
+              <select class="form-select" name="priorityId">
+                <option value="">-- Minden --</option>
+                @foreach (var p in ViewData["Priorities"] as List<TaskPriorityPM> ?? new())
+                {
+                  <option value="@p.TaskPriorityPMId" selected="@(Model.PriorityId == p.TaskPriorityPMId)">@p.Name
+                  </option>
+                }
+              </select>
+            </div>
+
+            <!-- Feladat típusa -->
+            <div class="col-md-6">
+              <label class="form-label small fw-medium text-muted">Feladat típusa</label>
+              <select class="form-select" name="taskTypeId">
+                <option value="">-- Minden --</option>
+                @foreach (var t in ViewData["Types"] as List<TaskTypePM> ?? new())
+                {
+                  <option value="@t.TaskTypePMId" selected="@(Model.TaskTypeId == t.TaskTypePMId)">@t.TaskTypePMName
+                  </option>
+                }
+              </select>
+            </div>
+
+            <!-- Partner -->
+            <div class="col-md-6">
+              <label class="form-label small fw-medium text-muted">Partner</label>
+              <select class="form-select" name="partnerId" id="partnerFilterSelect">
+                <option value="">-- Minden --</option>
+                @foreach (var partner in ViewData["Partners"] as List<Partner> ?? new())
+                {
+                  <option value="@partner.PartnerId" selected="@(Model.PartnerId == partner.PartnerId)">@partner.Name
+                  </option>
+                }
+              </select>
+            </div>
+
+            <!-- Kapcsolt partner -->
+            <div class="col-md-6">
+              <label class="form-label small fw-medium text-muted">Kapcsolt partner</label>
+              <select class="form-select" name="relatedPartnerId" id="relatedPartnerFilterSelect">
+                <option value="">-- Minden --</option>
+                @foreach (var partner in ViewData["Partners"] as List<Partner> ?? new())
+                {
+                  <option value="@partner.PartnerId" selected="@(Model.RelatedPartnerId == partner.PartnerId)">
+                    @partner.Name
+                  </option>
+                }
+              </select>
+            </div>
+
+
+            <!-- Telephely -->
+            <div class="col-md-6">
+              <label class="form-label small fw-medium text-muted">Telephely</label>
+              <select class="form-select" name="siteId" id="siteFilterSelect">
+                <option value="">-- Minden --</option>
+                @foreach (var site in ViewData["Sites"] as List<Site> ?? new())
+                {
+                  <option value="@site.SiteId" selected="@(Model.SiteId == site.SiteId)"
+                    data-partner-id="@site.PartnerId">
+                    @site.SiteName (@site.City)
+                  </option>
+                }
+              </select>
+            </div>
+
+            <!-- Felelős -->
+            <div class="col-md-6">
+              <label class="form-label small fw-medium text-muted">Felelős</label>
+              <select class="form-select" name="assignedToId" id="assignedToFilterSelect">
+                <option value="">-- Minden --</option>
+                @foreach (var u in ViewData["Users"] as List<ApplicationUser> ?? new())
+                {
+                  <option value="@u.Id" selected="@(Model.AssignedToId == u.Id)">
+                    @u.UserName
+                  </option>
+                }
+              </select>
+            </div>
+
+            <!-- Dátumok -->
+            <div class="col-md-6">
+              <label class="form-label small fw-medium text-muted">Esedékesség tól</label>
+              <input type="date" class="form-control" name="dueDateFrom"
+                value="@(Model.DueDateFrom?.ToString("yyyy-MM-dd"))" />
+            </div>
+            <div class="col-md-6">
+              <label class="form-label small fw-medium text-muted">Esedékesség ig</label>
+              <input type="date" class="form-control" name="dueDateTo"
+                value="@(Model.DueDateTo?.ToString("yyyy-MM-dd"))" />
+            </div>
+            <div class="col-md-6">
+              <label class="form-label small fw-medium text-muted">Létrehozás tól</label>
+              <input type="date" class="form-control" name="createdDateFrom"
+                value="@(Model.CreatedDateFrom?.ToString("yyyy-MM-dd"))" />
+            </div>
+            <div class="col-md-6">
+              <label class="form-label small fw-medium text-muted">Létrehozás ig</label>
+              <input type="date" class="form-control" name="createdDateTo"
+                value="@(Model.CreatedDateTo?.ToString("yyyy-MM-dd"))" />
+            </div>
+          </div>
+
+          <div class="modal-footer py-3">
+            <button type="button" class="btn btn-outline-danger px-4" id="clearFiltersBtn">
+              Szűrők törlése
+            </button>
+            <button type="button" class="btn btn-secondary px-4" data-bs-dismiss="modal">Mégse</button>
+            <button type="submit" class="btn btn-primary px-4">
+              <i class="bi bi-funnel me-1"></i> Szűrés
+            </button>
+          </div>
+        </form>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ====================== 8. ELŐZMÉNYEK MODAL ====================== -->
+<div class="modal fade" id="taskHistoryModal" tabindex="-1" aria-labelledby="taskHistoryModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-xl ">
+    <div class="modal-content shadow-lg border-0">
+      <div class="modal-header py-2 bg-success text-white">
+        <h5 class="modal-title fs-5 fw-semibold" id="taskHistoryModalLabel">
+          <i class="bi bi-clock-history me-2"></i> Feladat előzmények
+        </h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Bezárás"></button>
+      </div>
+
+      <div class="modal-body py-4">
+        <div class="text-center py-5" id="historyLoading">
+          <div class="spinner-border text-info" role="status">
+            <span class="visually-hidden">Betöltés...</span>
+          </div>
+          <p class="mt-3 text-muted">Előzmények betöltése...</p>
+        </div>
+
+        <div id="historyContent" class="d-none">
+          <h6 class="text-muted mb-3" id="historyTaskTitle"></h6>
+
+          <div id="historyEmpty" class="text-center py-5 d-none">
+            <i class="bi bi-inbox fs-1 text-muted"></i>
+            <p class="mt-3 text-muted">Nincs rögzített előzmény ehhez a feladathoz.</p>
+          </div>
+
+          <div id="historyList" class="timeline"></div>
+        </div>
+      </div>
+
+      <div class="modal-footer py-3">
+        <button type="button" class="btn btn-secondary px-4" data-bs-dismiss="modal">Bezárás</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- EDIT MODAL (ugyanaz a kinézet, mint a create) -->
+<div class="modal fade" id="editTaskModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-xl">
+    <div class="modal-content shadow-lg border-0 overflow-hidden">
+      <form id="editTaskForm" asp-page-handler="Edit" method="post">
+        @Html.AntiForgeryToken()
+
+        <div class="modal-header py-2 bg-success text-white">
+          <h5 class="modal-title fs-5 fw-semibold">
+            <i class="bi bi-pencil-square me-2"></i> Intézkedés szerkesztése
+          </h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Bezárás"></button>
+        </div>
+
+        <div class="modal-body py-4">
+          <input type="hidden" name="Id" id="EditId" value="" />
+
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label">Telephely <span class="text-danger">*</span></label>
+              <select name="SiteId" id="EditSiteId" class="form-select" required></select>
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label">Kapcsolt partner</label>
+              <select class="form-select" name="RelatedPartnerId" id="EditRelatedPartnerId">
+                <option value="">-- Nincs --</option>
+                @foreach (var p in partners)
+                {
+                  <option value="@p.PartnerId">@p.Name</option>
+                }
+              </select>
+            </div>
+
+
+            <div class="col-md-6">
+              <label class="form-label">Feladat típusa <span class="text-danger">*</span></label>
+              <select class="form-select" name="TaskTypePMId" id="EditTaskTypePMId" required>
+                <option value="">-- Válasszon --</option>
+              </select>
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label">Prioritás</label>
+              <select class="form-select" name="TaskPriorityPMId">
+                @foreach (var p in priorities)
+                {
+                  <option value="@p.TaskPriorityPMId" selected="@(p.TaskPriorityPMId == 2)">@p.Name</option>
+                }
+              </select>
+            </div>
+          </div>
+
+          <div class="mt-3">
+            <label class="form-label">Tárgy <span class="text-danger">*</span></label>
+            <input type="text" class="form-control" name="Title" required maxlength="100" />
+          </div>
+
+          <div class="mt-3">
+            <label class="form-label">Bővebb leírás</label>
+            <textarea class="form-control" name="Description" rows="3"></textarea>
+          </div>
+
+          <div class="row g-3 mt-3">
+            <div class="col-md-6">
+              <label class="form-label">Felelős</label>
+              <select name="AssignedToId" id="EditAssignedToId" class="form-select">
+                <option value="">-- Válasszon --</option>
+              </select>
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label">Státusz</label>
+              <select class="form-select" name="TaskStatusPMId">
+                @foreach (var s in statuses)
+                {
+                  <option value="@s.TaskStatusPMId" selected="@(s.TaskStatusPMId == 1)">@s.Name</option>
+                }
+              </select>
+            </div>
+          </div>
+
+          <div class="row g-3 mt-3">
+            <div class="col-md-6">
+              <label class="form-label">Kommunikáció mód</label>
+              <select class="form-select" name="TaskPMcomMethodID" id="EditTaskPMcomMethodID">
+                <option value="">-- Válasszon --</option>
+              </select>
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label">Név/elérhetőség/részletek</label>
+              <input type="text" class="form-control" name="CommunicationDescription" />
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label">Beütemezve</label>
+              <input type="date" class="form-control" name="ScheduledDate" />
+            </div>
+          </div>
+
+          <!-- ✅ Dokumentum csatolás blokk KIVÉVE innen -->
+          <input type="hidden" name="PartnerId" id="editAutoPartnerId" value="" />
+        </div>
+
+        <div class="modal-footer py-3">
+          <button type="button" class="btn btn-secondary px-4" data-bs-dismiss="modal">Mégse</button>
+          <button type="submit" class="btn btn-primary px-4">
+            <i class="bi bi-check2 me-1"></i> Mentés
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="calendarModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content">
+
+      <div class="modal-header">
+        <h5 class="modal-title">
+          <i class="bi bi-calendar3 me-1"></i> Naptár
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+
+      <div class="modal-body">
+        <div id="fullCalendar"></div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-bs-dismiss="modal">
+          Bezárás
+        </button>
+      </div>
+
+    </div>
+  </div>
 </div>

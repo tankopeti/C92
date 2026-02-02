@@ -2,16 +2,16 @@
 @inject IHttpClientFactory HttpClientFactory
 
 @{
-    var priorities = ViewData["Priorities"] as List<TaskPriorityPM> ?? new();
-    var statuses = ViewData["Statuses"] as List<TaskStatusPM> ?? new();
-    var types = ViewData["Types"] as List<TaskTypePM> ?? new();
-    var partners = ViewData["Partners"] as List<Partner> ?? new();
-    var sites = ViewData["Sites"] as List<Site> ?? new();
-    var contacts = ViewData["Contacts"] as List<Contact> ?? new();
-    var quotes = ViewData["Quotes"] as List<Quote> ?? new();
-    var orders = ViewData["Orders"] as List<Order> ?? new();
-    var communications = ViewData["Communications"] as List<CustomerCommunication> ?? new();
-    var users = ViewData["Users"] as List<ApplicationUser> ?? new();
+  var priorities = ViewData["Priorities"] as List<TaskPriorityPM> ?? new();
+  var statuses = ViewData["Statuses"] as List<TaskStatusPM> ?? new();
+  var types = ViewData["Types"] as List<TaskTypePM> ?? new();
+  var partners = ViewData["Partners"] as List<Partner> ?? new();
+  var sites = ViewData["Sites"] as List<Site> ?? new();
+  var contacts = ViewData["Contacts"] as List<Contact> ?? new();
+  var quotes = ViewData["Quotes"] as List<Quote> ?? new();
+  var orders = ViewData["Orders"] as List<Order> ?? new();
+  var communications = ViewData["Communications"] as List<CustomerCommunication> ?? new();
+  var users = ViewData["Users"] as List<ApplicationUser> ?? new();
 }
 
 <!-- ============================================================= -->
@@ -27,21 +27,24 @@
         <div class="modal-header bg-success text-white">
           <h5 class="modal-title" id="newTaskModalLabel">
             <i class="bi bi-plus-circle me-2"></i> Új feladat létrehozása
-          </h1>
-          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Bezárás"></button>
+            </h1>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
+              aria-label="Bezárás"></button>
         </div>
 
         <div class="modal-body">
           <!-- Cím -->
           <div class="mb-3">
             <label class="form-label fw-medium">Cím <span class="text-danger">*</span></label>
-            <input type="text" class="form-control" name="Title" required maxlength="100" placeholder="Rövid, egyértelmű cím..." />
+            <input type="text" class="form-control" name="Title" required maxlength="100"
+              placeholder="Rövid, egyértelmű cím..." />
           </div>
 
           <!-- Leírás -->
           <div class="mb-4">
             <label class="form-label fw-medium">Leírás</label>
-            <textarea class="form-control" name="Description" rows="4" placeholder="Részletes leírás (opcionális)"></textarea>
+            <textarea class="form-control" name="Description" rows="4"
+              placeholder="Részletes leírás (opcionális)"></textarea>
           </div>
 
           <div class="row g-3 mb-4">
@@ -88,12 +91,14 @@
 
             <div class="col-md-6">
               <label class="form-label fw-medium">Becsült órák</label>
-              <input type="number" step="0.25" min="0" class="form-control" name="EstimatedHours" placeholder="pl. 4.5" />
+              <input type="number" step="0.25" min="0" class="form-control" name="EstimatedHours"
+                placeholder="pl. 4.5" />
             </div>
 
             <div class="col-md-6">
               <label class="form-label fw-medium">Tényleges órák</label>
-              <input type="number" step="0.25" min="0" class="form-control" name="ActualHours" placeholder="Kitöltés később" />
+              <input type="number" step="0.25" min="0" class="form-control" name="ActualHours"
+                placeholder="Kitöltés később" />
             </div>
           </div>
 
@@ -125,6 +130,23 @@
                 }
               </select>
             </div>
+
+            <div class="col-md-6">
+              <label class="form-label fw-medium">
+                Kapcsolt partner <span class="text-muted">(szállító / közvetítő)</span>
+              </label>
+              <select class="form-select" name="RelatedPartnerId">
+                <option value="">-- Nincs --</option>
+                @foreach (var p in partners)
+                {
+                  <option value="@p.PartnerId">@p.Name</option>
+                }
+              </select>
+              <div class="form-text">
+                Akkor válaszd, ha a feladathoz külsős szállítót/közvetítőt veszel igénybe.
+              </div>
+            </div>
+
 
             <div class="col-md-6">
               <label class="form-label fw-medium">Helyszín</label>
@@ -187,7 +209,8 @@
             </div>
 
             <div id="attachedDocumentsList" class="border rounded p-3 bg-white" style="min-height: 100px;">
-              <div class="text-muted small">Még nincs csatolt dokumentum. Kattintson a fenti gombra a hozzáadáshoz.</div>
+              <div class="text-muted small">Még nincs csatolt dokumentum. Kattintson a fenti gombra a hozzáadáshoz.
+              </div>
             </div>
 
             <input type="hidden" name="AttachedDocumentIds" id="attachedDocumentIdsInput" value="" />
@@ -210,20 +233,22 @@
 <!-- ============================================================= -->
 <!-- 2. DOKUMENTUM KIVÁLASZTÓ MODAL -->
 <!-- ============================================================= -->
-<div class="modal fade" id="documentPickerModal" tabindex="-1" aria-labelledby="documentPickerModalLabel" aria-hidden="true">
+<div class="modal fade" id="documentPickerModal" tabindex="-1" aria-labelledby="documentPickerModalLabel"
+  aria-hidden="true">
   <div class="modal-dialog modal-lg modal-dialog-centered">
     <div class="modal-content">
 
       <div class="modal-header py-2 bg-success text-white">
         <h5 class="modal-title" id="documentPickerModalLabel">
           <i class="bi bi-folder2-open me-2"></i> Dokumentumok kiválasztása
-        </h1>
-        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Bezárás"></button>
+          </h1>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Bezárás"></button>
       </div>
 
       <div class="modal-body">
         <div class="mb-3">
-          <input type="text" class="form-control" placeholder="Keresés fájlnév, típus vagy feltöltő alapján..." id="documentSearch" />
+          <input type="text" class="form-control" placeholder="Keresés fájlnév, típus vagy feltöltő alapján..."
+            id="documentSearch" />
         </div>
 
         <div class="table-responsive" style="max-height: 450px;">
@@ -271,8 +296,8 @@
       <div class="modal-header bg-success text-white">
         <h5 class="modal-title" id="taskViewModalLabel">
           <i class="bi bi-eye me-2"></i> <span id="taskModalTitle">Feladat részletei</span>
-        </h1>
-        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Bezárás"></button>
+          </h1>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Bezárás"></button>
       </div>
 
       <div class="modal-body" id="taskModalBody">
@@ -301,8 +326,8 @@
       <div class="modal-header py-2 bg-danger text-white">
         <h5 class="modal-title" id="deleteTaskModalLabel">
           <i class="bi bi-trash me-2"></i> Törlés megerősítése
-        </h1>
-        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Bezárás"></button>
+          </h1>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Bezárás"></button>
       </div>
 
       <div class="modal-body">

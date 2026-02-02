@@ -151,7 +151,8 @@
             <!-- + hozzáadva -->
             <div class="col-md-6">
               <label class="form-label">Pénznem</label>
-              <input type="text" class="form-control" name="PreferredCurrency" minlength="3" maxlength="3" placeholder="HUF">
+              <input type="text" class="form-control" name="PreferredCurrency" minlength="3" maxlength="3"
+                placeholder="HUF">
             </div>
             <div class="col-md-6">
               <label class="form-label">Fizetési feltételek</label>
@@ -284,12 +285,12 @@
               <label class="form-label">Partner csoport</label>
               <input type="number" class="form-control" id="editPartnerGroupId" name="PartnerGroupId" min="0" step="1">
             </div>
-<div class="col-md-4">
-  <label class="form-label">Partner típus</label>
-  <select class="form-select" id="editPartnerTypeId" name="PartnerTypeId">
-    <option value="">Válasszon...</option>
-  </select>
-</div>
+            <div class="col-md-4">
+              <label class="form-label">Partner típus</label>
+              <select class="form-select" id="editPartnerTypeId" name="PartnerTypeId">
+                <option value="">Válasszon...</option>
+              </select>
+            </div>
 
           </div>
 
@@ -307,7 +308,8 @@
             </div>
             <div class="col-md-6">
               <label class="form-label">Másodlagos telefonszám</label>
-              <input type="text" class="form-control" id="editPartnerAlternatePhone" name="AlternatePhone" maxlength="20">
+              <input type="text" class="form-control" id="editPartnerAlternatePhone" name="AlternatePhone"
+                maxlength="20">
             </div>
             <div class="col-md-6">
               <label class="form-label">Weboldal</label>
@@ -385,7 +387,8 @@
 
             <div class="col-md-6">
               <label class="form-label">Pénznem</label>
-              <input type="text" class="form-control" id="editPreferredCurrency" name="PreferredCurrency" minlength="3" maxlength="3" placeholder="HUF">
+              <input type="text" class="form-control" id="editPreferredCurrency" name="PreferredCurrency" minlength="3"
+                maxlength="3" placeholder="HUF">
             </div>
             <div class="col-md-6">
               <label class="form-label">Fizetési feltételek</label>
@@ -398,7 +401,8 @@
 
             <div class="col-md-6">
               <label class="form-label">Számlázási kapcsolattartó</label>
-              <input type="text" class="form-control" id="editBillingContactName" name="BillingContactName" maxlength="100">
+              <input type="text" class="form-control" id="editBillingContactName" name="BillingContactName"
+                maxlength="100">
             </div>
             <div class="col-md-6">
               <label class="form-label">Számlázási email</label>
@@ -460,7 +464,8 @@
 </div>
 
 <!-- Delete Confirmation Modal -->
-<div class="modal fade" id="deletePartnerModal" tabindex="-1" aria-labelledby="deletePartnerModalLabel" aria-hidden="true">
+<div class="modal fade" id="deletePartnerModal" tabindex="-1" aria-labelledby="deletePartnerModalLabel"
+  aria-hidden="true">
   <div class="modal-dialog">
     <div class="modal-content">
 
@@ -487,7 +492,8 @@
 </div>
 
 <!-- Partner History Modal -->
-<div class="modal fade" id="partnerHistoryModal" tabindex="-1" aria-labelledby="partnerHistoryModalLabel" aria-hidden="true">
+<div class="modal fade" id="partnerHistoryModal" tabindex="-1" aria-labelledby="partnerHistoryModalLabel"
+  aria-hidden="true">
   <div class="modal-dialog modal-lg modal-dialog-scrollable">
     <div class="modal-content">
 
@@ -524,86 +530,111 @@
 </div>
 
 <!-- Advanced Filter Modal -->
-<div class="modal fade" id="advancedFilterModal" tabindex="-1" aria-labelledby="advancedFilterModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header bg-success text-white">
-                <h5 class="modal-title" id="advancedFilterModalLabel">
-                    <i class="bi bi-funnel-fill me-2"></i> Összetett szűrés
-                </h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Bezárás"></button>
+<div class="modal fade" id="advancedFilterModal" tabindex="-1" aria-labelledby="advancedFilterModalLabel"
+  aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header bg-success text-white">
+        <h5 class="modal-title" id="advancedFilterModalLabel">
+          <i class="bi bi-funnel-fill me-2"></i> Összetett szűrés
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Bezárás"></button>
+      </div>
+
+      <div class="modal-body">
+        <form id="advancedFilterForm">
+          <div class="row g-3">
+            <!-- Név vagy cégnév tartalmazza -->
+            <div class="col-md-6">
+              <label for="filterName" class="form-label">Név / Cégnév tartalmazza</label>
+              <input type="text" class="form-control" id="filterName" placeholder="pl. Kft">
             </div>
-            <div class="modal-body">
-                <form id="advancedFilterForm">
-                    <div class="row g-3">
-                        <!-- Név vagy cégnév tartalmazza -->
-                        <div class="col-md-6">
-                            <label for="filterName" class="form-label">Név / Cégnév tartalmazza</label>
-                            <input type="text" class="form-control" id="filterName" placeholder="pl. Kft">
-                        </div>
 
-                        <!-- Adószám tartalmazza -->
-                        <div class="col-md-6">
-                            <label for="filterTaxId" class="form-label">Adószám tartalmazza</label>
-                            <input type="text" class="form-control" id="filterTaxId" placeholder="pl. 12345678">
-                        </div>
-
-                        <!-- Státusz -->
-                        <div class="col-md-6">
-                            <label for="filterStatus" class="form-label">Státusz</label>
-                            <select class="form-select" id="filterStatus">
-                                <option value="">-- Mindegy --</option>
-                                <!-- Majd JS tölti fel a loadStatuses.js-ből vagy külön endpointból -->
-                            </select>
-                        </div>
-
-                        <!-- Partner típus (ha van ilyen meződ) -->
-                        <div class="col-md-6">
-                            <label for="filterType" class="form-label">Partner típus</label>
-                            <select class="form-select" id="filterType">
-                                <option value="">-- Mindegy --</option>
-                                <!-- Ha van PartnerType tábla, ide jönnek az opciók -->
-                            </select>
-                        </div>
-
-                        <!-- Város -->
-                        <div class="col-md-6">
-                            <label for="filterCity" class="form-label">Város</label>
-                            <input type="text" class="form-control" id="filterCity" placeholder="pl. Budapest">
-                        </div>
-
-                        <!-- Irányítószám -->
-                        <div class="col-md-6">
-                            <label for="filterPostalCode" class="form-label">Irányítószám</label>
-                            <input type="text" class="form-control" id="filterPostalCode" placeholder="pl. 1000">
-                        </div>
-
-                        <!-- E-mail domain (haladó) -->
-                        <div class="col-md-6">
-                            <label for="filterEmailDomain" class="form-label">E-mail domain</label>
-                            <input type="text" class="form-control" id="filterEmailDomain" placeholder="pl. gmail.com">
-                        </div>
-
-                        <!-- Csak aktív partnerek (soft delete szűrő) -->
-                        <div class="col-md-6">
-                            <div class="form-check mt-4">
-                                <input class="form-check-input" type="checkbox" id="filterActiveOnly" checked>
-                                <label class="form-check-label" for="filterActiveOnly">
-                                    Csak aktív partnerek
-                                </label>
-                            </div>
-                        </div>
-                    </div>
-                </form>
+            <!-- Adószám tartalmazza -->
+            <div class="col-md-6">
+              <label for="filterTaxId" class="form-label">Adószám tartalmazza</label>
+              <input type="text" class="form-control" id="filterTaxId" placeholder="pl. 12345678">
             </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-outline-secondary" id="clearFilterBtn">
-                    <i class="bi bi-eraser"></i> Szűrők törlése
-                </button>
-                <button type="button" class="btn btn-primary" id="applyFilterBtn">
-                    <i class="bi bi-check-lg"></i> Szűrés alkalmazása
-                </button>
+
+            <!-- Partner kód -->
+            <div class="col-md-6">
+              <label for="filterPartnerCode" class="form-label">Partner kód tartalmazza</label>
+              <input type="text" class="form-control" id="filterPartnerCode" placeholder="pl. P-2026-001">
             </div>
-        </div>
+
+            <!-- Saját azonosító -->
+            <div class="col-md-6">
+              <label for="filterOwnId" class="form-label">Saját azonosító tartalmazza</label>
+              <input type="text" class="form-control" id="filterOwnId" placeholder="pl. ABC-123">
+            </div>
+
+            <!-- Státusz -->
+            <div class="col-md-6">
+              <label for="filterStatus" class="form-label">Státusz</label>
+              <select class="form-select" id="filterStatus">
+                <option value="">-- Mindegy --</option>
+                <!-- Majd JS tölti fel -->
+              </select>
+            </div>
+
+            <!-- GFO -->
+            <div class="col-md-6">
+              <label for="filterGfoId" class="form-label">GFO</label>
+              <select class="form-select" id="filterGfoId">
+                <option value="">-- Mindegy --</option>
+                <!-- JS tölti fel: /api/Partners/gfos -->
+              </select>
+            </div>
+
+            <!-- Partner típus -->
+            <div class="col-md-6">
+              <label for="filterPartnerTypeId" class="form-label">Partner típus</label>
+              <select class="form-select" id="filterPartnerTypeId">
+                <option value="">-- Mindegy --</option>
+                <!-- JS tölti fel: /api/Partners/partnerTypes -->
+              </select>
+            </div>
+
+            <!-- Város -->
+            <div class="col-md-6">
+              <label for="filterCity" class="form-label">Város</label>
+              <input type="text" class="form-control" id="filterCity" placeholder="pl. Budapest">
+            </div>
+
+            <!-- Irányítószám -->
+            <div class="col-md-6">
+              <label for="filterPostalCode" class="form-label">Irányítószám</label>
+              <input type="text" class="form-control" id="filterPostalCode" placeholder="pl. 1000">
+            </div>
+
+            <!-- E-mail domain (haladó) -->
+            <div class="col-md-6">
+              <label for="filterEmailDomain" class="form-label">E-mail domain</label>
+              <input type="text" class="form-control" id="filterEmailDomain" placeholder="pl. gmail.com">
+            </div>
+
+            <!-- Csak aktív partnerek -->
+            <div class="col-md-6">
+              <div class="form-check mt-4">
+                <input class="form-check-input" type="checkbox" id="filterActiveOnly" checked>
+                <label class="form-check-label" for="filterActiveOnly">
+                  Csak aktív partnerek
+                </label>
+              </div>
+            </div>
+
+          </div>
+        </form>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" id="clearFilterBtn">
+          <i class="bi bi-eraser"></i> Szűrők törlése
+        </button>
+        <button type="button" class="btn btn-primary" id="applyFilterBtn">
+          <i class="bi bi-check-lg"></i> Szűrés alkalmazása
+        </button>
+      </div>
     </div>
+  </div>
 </div>

@@ -12,9 +12,20 @@ document.addEventListener('DOMContentLoaded', () => {
   const filterName = document.getElementById('filterName');
   const filterTaxId = document.getElementById('filterTaxId');
   const filterStatus = document.getElementById('filterStatus');
+
+  // ÚJ advanced mezők
+  const filterGfoId = document.getElementById('filterGfoId');
+  const filterPartnerTypeId = document.getElementById('filterPartnerTypeId');
+  const filterPartnerCode = document.getElementById('filterPartnerCode');
+  const filterOwnId = document.getElementById('filterOwnId');
+
   const filterCity = document.getElementById('filterCity');
   const filterPostalCode = document.getElementById('filterPostalCode');
+  const filterEmailDomain = document.getElementById('filterEmailDomain');
   const filterActiveOnly = document.getElementById('filterActiveOnly');
+
+  const exportExcelBtn = document.getElementById('exportExcelBtn');
+
 
   let currentPage = 1;
   const pageSize = 20;
@@ -27,9 +38,24 @@ document.addEventListener('DOMContentLoaded', () => {
     name: '',
     taxId: '',
     statusId: '',
+
+    // ÚJ
+    gfoId: null,
+    partnerTypeId: null,
+    partnerCode: '',
+    ownId: '',
+    emailDomain: '',
+
     city: '',
     postalCode: '',
     activeOnly: true
+  };
+
+  const toNumOrNull = (v) => {
+    const s = (v ?? '').toString().trim();
+    if (!s) return null;
+    const n = Number(s);
+    return Number.isFinite(n) ? n : null;
   };
 
   function debounce(fn, delay) {
@@ -50,11 +76,44 @@ document.addEventListener('DOMContentLoaded', () => {
     if (filters.name) p.set('name', filters.name);
     if (filters.taxId) p.set('taxId', filters.taxId);
     if (filters.statusId) p.set('statusId', filters.statusId);
+
+    // ÚJ: advanced
+    if (filters.partnerCode) p.set('partnerCode', filters.partnerCode);
+    if (filters.ownId) p.set('ownId', filters.ownId);
+    if (filters.emailDomain) p.set('emailDomain', filters.emailDomain);
+
+    if (filters.gfoId != null) p.set('gfoId', String(filters.gfoId));
+    if (filters.partnerTypeId != null) p.set('partnerTypeId', String(filters.partnerTypeId));
+
     if (filters.city) p.set('city', filters.city);
     if (filters.postalCode) p.set('postalCode', filters.postalCode);
 
     return `/api/Partners?${p.toString()}`;
   }
+
+  function buildExportUrl() {
+    const p = new URLSearchParams();
+    p.set('activeOnly', filters.activeOnly ? 'true' : 'false');
+
+    if (filters.search) p.set('search', filters.search);
+    if (filters.name) p.set('name', filters.name);
+    if (filters.taxId) p.set('taxId', filters.taxId);
+    if (filters.statusId) p.set('statusId', filters.statusId);
+
+    // advanced
+    if (filters.partnerCode) p.set('partnerCode', filters.partnerCode);
+    if (filters.ownId) p.set('ownId', filters.ownId);
+    if (filters.emailDomain) p.set('emailDomain', filters.emailDomain);
+
+    if (filters.gfoId != null) p.set('gfoId', String(filters.gfoId));
+    if (filters.partnerTypeId != null) p.set('partnerTypeId', String(filters.partnerTypeId));
+
+    if (filters.city) p.set('city', filters.city);
+    if (filters.postalCode) p.set('postalCode', filters.postalCode);
+
+    return `/api/Partners/export?${p.toString()}`;
+  }
+
 
   function setLoadingRow() {
     tbody.innerHTML = `
@@ -185,7 +244,6 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function appendRow(p) {
-    // ha üres/placeholder sor van, töröljük
     if (tbody.querySelector('tr td[colspan="13"]')) tbody.innerHTML = '';
     tbody.insertAdjacentHTML('beforeend', rowHtml(p));
   }
@@ -199,7 +257,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function patchRow(p) {
     const tr = tbody.querySelector(`tr[data-partner-id="${p.partnerId}"]`);
-    if (!tr) return; // lehet más oldalon van -> inkább reload
+    if (!tr) return;
     tr.outerHTML = rowHtml(p);
   }
 
@@ -227,6 +285,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     try {
       const url = buildUrl(currentPage);
+      console.log('[partnersIndex] load:', url);
+
       const res = await fetch(url, {
         credentials: 'same-origin',
         headers: { 'Accept': 'application/json' }
@@ -266,52 +326,46 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   // --- listen for changes from create/edit/delete scripts ---
-document.addEventListener('partners:changed', (ev) => {
-  const d = ev.detail || {};
-  const action = d.action;
-  const p = d.partner;
+  document.addEventListener('partners:changed', (ev) => {
+    const d = ev.detail || {};
+    const action = d.action;
+    const p = d.partner;
 
-  // created
-  if (action === 'created') {
-    // ha nincs partner objektum, inkább reload
-    if (!p || !p.partnerId) {
-      window.c92?.partners?.reload?.();
+    if (action === 'created') {
+      if (!p || !p.partnerId) {
+        window.c92?.partners?.reload?.();
+        return;
+      }
+
+      const hasFiltering =
+        !!filters.search || !!filters.name || !!filters.taxId || !!filters.statusId ||
+        !!filters.city || !!filters.postalCode || !!filters.partnerCode || !!filters.ownId ||
+        (filters.gfoId != null) || (filters.partnerTypeId != null) ||
+        !!filters.emailDomain || (filters.activeOnly === false);
+
+      if (hasFiltering) {
+        window.c92.partners.reload();
+        return;
+      }
+
+      window.c92.partners.prependRow(p);
       return;
     }
 
-    // ha van bármilyen aktív filter/keresés, biztonságosabb a reload
-    const hasFiltering =
-      !!filters.search || !!filters.name || !!filters.taxId || !!filters.statusId ||
-      !!filters.city || !!filters.postalCode || (filters.activeOnly === false);
-
-    if (hasFiltering) {
-      window.c92.partners.reload();
+    if (action === 'updated') {
+      if (!p || !p.partnerId) return;
+      const tr = tbody.querySelector(`tr[data-partner-id="${p.partnerId}"]`);
+      if (!tr) window.c92.partners.reload();
+      else window.c92.partners.patchRow(p);
       return;
     }
 
-    // nincs filter -> simán beszúrjuk felülre
-    window.c92.partners.prependRow(p);
-    return;
-  }
-
-  // updated
-  if (action === 'updated') {
-    if (!p || !p.partnerId) return;
-    // ha nincs a táblában (másik oldalon van), akkor reload
-    const tr = tbody.querySelector(`tr[data-partner-id="${p.partnerId}"]`);
-    if (!tr) window.c92.partners.reload();
-    else window.c92.partners.patchRow(p);
-    return;
-  }
-
-  // deleted
-  if (action === 'deleted') {
-    const id = d.partnerId || p?.partnerId;
-    if (!id) return;
-    window.c92.partners.removeRow(id);
-  }
-});
-
+    if (action === 'deleted') {
+      const id = d.partnerId || p?.partnerId;
+      if (!id) return;
+      window.c92.partners.removeRow(id);
+    }
+  });
 
   // --- events ---
   searchInput?.addEventListener('input', debounce((e) => {
@@ -323,6 +377,14 @@ document.addEventListener('partners:changed', (ev) => {
     filters.name = (filterName?.value || '').trim();
     filters.taxId = (filterTaxId?.value || '').trim();
     filters.statusId = filterStatus?.value || '';
+
+    // ÚJ advanced
+    filters.partnerCode = (filterPartnerCode?.value || '').trim();
+    filters.ownId = (filterOwnId?.value || '').trim();
+    filters.gfoId = toNumOrNull(filterGfoId?.value);
+    filters.partnerTypeId = toNumOrNull(filterPartnerTypeId?.value);
+    filters.emailDomain = (filterEmailDomain?.value || '').trim();
+
     filters.city = (filterCity?.value || '').trim();
     filters.postalCode = (filterPostalCode?.value || '').trim();
     filters.activeOnly = filterActiveOnly?.checked ?? true;
@@ -330,6 +392,13 @@ document.addEventListener('partners:changed', (ev) => {
     loadPartners({ reset: true });
     if (modalEl) bootstrap.Modal.getInstance(modalEl)?.hide();
   });
+
+  exportExcelBtn?.addEventListener('click', () => {
+    const url = buildExportUrl();
+    console.log('[partnersIndex] export:', url);
+    window.location.href = url; // file letöltés
+  });
+
 
   loadMoreBtn?.addEventListener('click', () => {
     const rendered = tbody.querySelectorAll('tr[data-partner-id]').length;

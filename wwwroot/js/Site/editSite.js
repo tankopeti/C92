@@ -25,21 +25,15 @@ document.addEventListener("DOMContentLoaded", () => {
       allowEmptyOption: true,
       closeAfterSelect: true,
       dropdownParent: "body",
-
-      // ✅ ne kelljen gépelni
       preload: true,
       shouldLoad: () => true,
 
       load: async (query, callback) => {
         try {
           const url = `/api/partners/select?search=${encodeURIComponent(query || "")}`;
-          const res = await fetch(url, {
-            credentials: "same-origin",
-            headers: { Accept: "application/json" }
-          });
+          const res = await fetch(url, { credentials: "same-origin" });
           if (!res.ok) throw new Error(`HTTP ${res.status}`);
-          const data = await res.json();
-          callback(Array.isArray(data) ? data : []);
+          callback(await res.json());
         } catch (e) {
           console.error("Partner TomSelect load error:", e);
           callback([]);
@@ -69,16 +63,13 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const id = String(partnerId);
     const text = partnerName || `Partner ${id}`;
-
     ts.addOption({ id, text });
     ts.setValue(id, true);
   }
 
-  modalEl.addEventListener("shown.bs.modal", () => {
-    ensurePartnerTomSelect();
-  });
+  modalEl.addEventListener("shown.bs.modal", ensurePartnerTomSelect);
 
-  /* ---------------- OPEN + LOAD DATA ---------------- */
+  /* ---------------- OPEN + LOAD ---------------- */
 
   document.addEventListener("click", async (e) => {
     const btn = e.target.closest(".edit-site-btn");
@@ -92,146 +83,123 @@ document.addEventListener("DOMContentLoaded", () => {
     resetForm();
 
     try {
-      const res = await fetch(`/api/SitesIndex/${encodeURIComponent(siteId)}`, {
-        credentials: "same-origin",
-        headers: { Accept: "application/json" }
-      });
-
-      if (!res.ok) {
-        throw new Error(res.status === 404 ? "Telephely nem található" : `HTTP ${res.status}`);
-      }
-
+      const res = await fetch(`/api/SitesIndex/${siteId}`);
+      if (!res.ok) throw new Error("Telephely nem található");
       const d = await res.json();
 
-      set("editSiteId", d.siteId ?? d.SiteId ?? siteId);
-      set("editSiteName", d.siteName ?? d.SiteName ?? "");
+      set("editSiteId", d.siteId);
+      set("editSiteName", d.siteName);
+      setPartnerValue(d.partnerId, d.partnerName);
 
-      const pid = d.partnerId ?? d.PartnerId ?? "";
-      const pname = d.partnerName ?? d.PartnerName ?? "";
-      setPartnerValue(pid, pname);
+      set("editAddressLine1", d.addressLine1);
+      set("editAddressLine2", d.addressLine2);
+      set("editCity", d.city);
+      set("editState", d.state);
+      set("editPostalCode", d.postalCode);
+      set("editCountry", d.country);
 
-      set("editAddressLine1", d.addressLine1 ?? d.AddressLine1 ?? "");
-      set("editAddressLine2", d.addressLine2 ?? d.AddressLine2 ?? "");
-      set("editCity", d.city ?? d.City ?? "");
-      set("editState", d.state ?? d.State ?? "");
-      set("editPostalCode", d.postalCode ?? d.PostalCode ?? "");
-      set("editCountry", d.country ?? d.Country ?? "");
-      set("editContactPerson1", d.contactPerson1 ?? d.ContactPerson1 ?? "");
-      set("editContactPerson2", d.contactPerson2 ?? d.ContactPerson2 ?? "");
-      set("editContactPerson3", d.contactPerson3 ?? d.ContactPerson3 ?? "");
-      set("editComment1", d.comment1 ?? d.Comment1 ?? "");
-      set("editComment2", d.comment2 ?? d.Comment2 ?? "");
-      set("editStatusId", d.statusId ?? d.StatusId ?? "");
-      setChecked("editIsPrimary", (d.isPrimary ?? d.IsPrimary) === true);
+      set("editContactPerson1", d.contactPerson1);
+      set("editContactPerson2", d.contactPerson2);
+      set("editContactPerson3", d.contactPerson3);
+
+      set("editPhone1", d.phone1);
+      set("editPhone2", d.phone2);
+      set("editPhone3", d.phone3);
+
+      set("editMobilePhone1", d.mobilePhone1);
+      set("editMobilePhone2", d.mobilePhone2);
+      set("editMobilePhone3", d.mobilePhone3);
+
+      set("editMessagingApp1", d.messagingApp1);
+      set("editMessagingApp2", d.messagingApp2);
+      set("editMessagingApp3", d.messagingApp3);
+
+      set("editeMail1", d.eMail1);
+      set("editeMail2", d.eMail2);
+
+      set("editComment1", d.comment1);
+      set("editComment2", d.comment2);
+
+      set("editStatusId", d.statusId);
+      setChecked("editIsPrimary", d.isPrimary === true);
+      setChecked("editIsActive", d.isActive !== false);
     } catch (err) {
       console.error(err);
-      window.c92?.showToast?.("error", err.message || "Nem sikerült betölteni szerkesztéshez");
+      window.c92?.showToast?.("error", err.message);
     }
   });
 
-  /* ---------------- SAVE (AJAX PUT) ---------------- */
-  // ✅ Csak EZ az egy submit handler legyen. (capture=true)
+  /* ---------------- SAVE (PUT) ---------------- */
+
   document.addEventListener(
     "submit",
     async (e) => {
       const form = e.target;
-      if (!(form instanceof HTMLFormElement)) return;
       if (form.id !== "editSiteForm") return;
-
       e.preventDefault();
-      console.log("✅ editSiteForm submit elkapva");
 
-      // bootstrap validation
       if (!form.checkValidity()) {
         form.classList.add("was-validated");
         return;
       }
 
-      const saveBtn = form.querySelector('button[type="submit"]');
-      if (saveBtn) saveBtn.disabled = true;
+      const siteId = Number(get("editSiteId"));
+      const partnerId = Number(partnerSelectEl?.tomselect?.getValue() || 0);
+      if (!siteId || !partnerId) return;
 
-      try {
-        const siteId = Number(get("editSiteId"));
-        if (!siteId) {
-          window.c92?.showToast?.("error", "Hiányzó SiteId");
-          return;
-        }
-
-        const ts = partnerSelectEl?.tomselect;
-        const partnerId = Number(ts ? ts.getValue() : (partnerSelectEl?.value || 0));
-
-        if (!partnerId) {
-          window.c92?.showToast?.("error", "Partner megadása kötelező");
-          form.classList.add("was-validated");
-          return;
-        }
-
-        const dto = {
+      const dto = {
         SiteId: siteId,
         PartnerId: partnerId,
-        SiteName: get("editSiteName")?.trim() || null,
-        AddressLine1: get("editAddressLine1")?.trim() || null,
-        AddressLine2: get("editAddressLine2")?.trim() || null,
-        City: get("editCity")?.trim() || null,
-        State: get("editState")?.trim() || null,
-        PostalCode: get("editPostalCode")?.trim() || null,
-        Country: get("editCountry")?.trim() || null,
-        ContactPerson1: get("editContactPerson1")?.trim() || null,
-        ContactPerson2: get("editContactPerson2")?.trim() || null,
-        ContactPerson3: get("editContactPerson3")?.trim() || null,
-        Comment1: get("editComment1")?.trim() || null,
-        Comment2: get("editComment2")?.trim() || null,
+        SiteName: get("editSiteName") || null,
+        AddressLine1: get("editAddressLine1") || null,
+        AddressLine2: get("editAddressLine2") || null,
+        City: get("editCity") || null,
+        State: get("editState") || null,
+        PostalCode: get("editPostalCode") || null,
+        Country: get("editCountry") || null,
+
+        ContactPerson1: get("editContactPerson1") || null,
+        ContactPerson2: get("editContactPerson2") || null,
+        ContactPerson3: get("editContactPerson3") || null,
+
+        Phone1: get("editPhone1") || null,
+        Phone2: get("editPhone2") || null,
+        Phone3: get("editPhone3") || null,
+
+        MobilePhone1: get("editMobilePhone1") || null,
+        MobilePhone2: get("editMobilePhone2") || null,
+        MobilePhone3: get("editMobilePhone3") || null,
+
+        messagingApp1: get("editMessagingApp1") || null,
+        messagingApp2: get("editMessagingApp2") || null,
+        messagingApp3: get("editMessagingApp3") || null,
+
+        eMail1: get("editeMail1") || null,
+        eMail2: get("editeMail2") || null,
+
+        Comment1: get("editComment1") || null,
+        Comment2: get("editComment2") || null,
+
         StatusId: get("editStatusId") ? Number(get("editStatusId")) : null,
-        IsPrimary: isChecked("editIsPrimary")
-        };
+        IsPrimary: isChecked("editIsPrimary"),
+        IsActive: isChecked("editIsActive")
+      };
 
+      const res = await fetch(`/api/SitesIndex/${siteId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(dto)
+      });
 
-        console.log("DTO:", dto);
-        console.log("PUT:", `/api/SitesIndex/${siteId}`);
-
-        const res = await fetch(`/api/SitesIndex/${encodeURIComponent(siteId)}`, {
-          method: "PUT",
-          credentials: "same-origin",
-          headers: { "Content-Type": "application/json", Accept: "application/json" },
-          body: JSON.stringify(dto)
-        });
-
-        console.log("PUT response:", res.status);
-
-        if (!res.ok) {
-        const raw = await res.text();
-        console.error("PUT error raw:", raw);
-
-        let err = {};
-        try { err = raw ? JSON.parse(raw) : {}; } catch {}
-
-        window.c92?.showToast?.(
-            "error",
-            err?.errors?.Id?.[0] ||
-            err?.errors?.SiteId?.[0] ||
-            err?.errors?.PartnerId?.[0] ||
-            err?.title ||
-            err?.message ||
-            raw ||
-            `HTTP ${res.status}`
-        );
+      if (!res.ok) {
+        window.c92?.showToast?.("error", "Mentés sikertelen");
         return;
-        }
-
-
-        const updatedRow = await res.json().catch(() => null);
-        console.log("PUT payload:", updatedRow);
-
-        if (updatedRow) patchRow(updatedRow);
-
-        window.c92?.showToast?.("success", "Telephely frissítve!");
-        bootstrap.Modal.getInstance(modalEl)?.hide();
-      } catch (err) {
-        console.error(err);
-        window.c92?.showToast?.("error", "Hálózati hiba");
-      } finally {
-        if (saveBtn) saveBtn.disabled = false;
       }
+
+      const updated = await res.json();
+      patchRow(updated);
+      window.c92?.showToast?.("success", "Telephely frissítve");
+      bootstrap.Modal.getInstance(modalEl)?.hide();
     },
     true
   );
@@ -245,7 +213,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const tds = tr.querySelectorAll("td");
     if (tds.length < 11) return;
 
-    tds[0].innerHTML = `<i class="bi bi-building me-1"></i>${escapeHtml(s.siteName || "—")}`;
+    tds[0].textContent = s.siteName || "—";
     tds[1].textContent = s.partnerName || "—";
     tds[2].textContent = s.addressLine1 || "—";
     tds[3].textContent = s.addressLine2 || "—";
@@ -255,43 +223,28 @@ document.addEventListener("DOMContentLoaded", () => {
     tds[7].textContent = s.contactPerson2 || "—";
     tds[8].textContent = s.contactPerson3 || "—";
 
-    const statusColor = s.status?.color || "#6c757d";
-    const statusName = s.status?.name || "—";
-    tds[9].innerHTML = `<span class="badge" style="background:${escapeAttr(statusColor)};color:white">${escapeHtml(
-      statusName
-    )}</span>`;
-
-    tds[10].innerHTML = s.isPrimary ? `<span class="badge bg-primary">Elsődleges</span>` : `<span>-</span>`;
+    const status = s.status?.name || "—";
+    tds[9].innerHTML = `<span class="badge">${status}</span>`;
+    tds[10].innerHTML = s.isPrimary ? `<span class="badge bg-primary">Elsődleges</span>` : "-";
   }
 
   /* ---------------- UTILS ---------------- */
 
   function resetForm() {
-    const formEl = document.getElementById("editSiteForm");
-    if (formEl) formEl.classList.remove("was-validated");
-
     [
-      "editSiteId",
-      "editSiteName",
-      "editAddressLine1",
-      "editAddressLine2",
-      "editCity",
-      "editState",
-      "editPostalCode",
-      "editCountry",
-      "editContactPerson1",
-      "editContactPerson2",
-      "editContactPerson3",
-      "editComment1",
-      "editComment2",
-      "editStatusId"
-    ].forEach((id) => set(id, ""));
+      "editSiteId","editSiteName","editAddressLine1","editAddressLine2",
+      "editCity","editState","editPostalCode","editCountry",
+      "editContactPerson1","editContactPerson2","editContactPerson3",
+      "editPhone1","editPhone2","editPhone3",
+      "editMobilePhone1","editMobilePhone2","editMobilePhone3",
+      "editMessagingApp1","editMessagingApp2","editMessagingApp3",
+      "editeMail1","editeMail2",
+      "editComment1","editComment2","editStatusId"
+    ].forEach(id => set(id, ""));
 
     setChecked("editIsPrimary", false);
-
-    const ts = partnerSelectEl?.tomselect;
-    if (ts) ts.clear(true);
-    if (partnerSelectEl && !ts) partnerSelectEl.value = "";
+    setChecked("editIsActive", true);
+    partnerSelectEl?.tomselect?.clear(true);
   }
 
   function set(id, val) {
@@ -299,7 +252,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (el) el.value = val ?? "";
   }
   function get(id) {
-    return document.getElementById(id)?.value ?? "";
+    return document.getElementById(id)?.value?.trim() || "";
   }
   function setChecked(id, val) {
     const el = document.getElementById(id);
@@ -307,17 +260,5 @@ document.addEventListener("DOMContentLoaded", () => {
   }
   function isChecked(id) {
     return document.getElementById(id)?.checked === true;
-  }
-
-  function escapeHtml(str) {
-    return String(str ?? "")
-      .replaceAll("&", "&amp;")
-      .replaceAll("<", "&lt;")
-      .replaceAll(">", "&gt;")
-      .replaceAll('"', "&quot;")
-      .replaceAll("'", "&#039;");
-  }
-  function escapeAttr(str) {
-    return escapeHtml(str).replaceAll("`", "&#096;");
   }
 });

@@ -1,9 +1,9 @@
-// wwwroot/js/Task/taskBejelentesLoadMore.js
+// wwwroot/js/Task/taskIntezkedesLoadMore.js
 (function () {
   'use strict';
 
   document.addEventListener('DOMContentLoaded', function () {
-    console.log('[taskBejelentesLoadMore] init');
+    console.log('[taskIntezkedesLoadMore] init');
 
     var wrap = document.getElementById('tasksTableWrap');
     var tbody = document.getElementById('tasksTbody');
@@ -11,7 +11,7 @@
     var info = document.getElementById('tasksLoadInfo');
 
     if (!wrap || !tbody || !btn) {
-      console.warn('[taskBejelentesLoadMore] missing elements');
+      console.warn('[taskIntezkedesLoadMore] missing elements');
       return;
     }
 
@@ -99,8 +99,9 @@
       return (s || '').toString().trim().toLowerCase();
     }
 
-    function isBejelentesTask(t) {
-      var wanted = 'bejelentes';
+    // (meghagytam, ha később kell kliens oldali szűréshez)
+    function isIntezkedesTask(t) {
+      var wanted = 'intezkedes';
 
       var typeDesc = pickString(t, [
         'taskTypePM.description',
@@ -179,33 +180,33 @@
                 <i class="bi bi-three-dots-vertical"></i>
               </button>
 
-<ul class="dropdown-menu dropdown-menu-end">
-  <li>
-    <a class="dropdown-item js-edit-task" href="#" data-task-id="${esc(id)}">
-      <i class="bi bi-pencil-square me-2"></i> Szerkesztés
-    </a>
-  </li>
+              <ul class="dropdown-menu dropdown-menu-end">
+                <li>
+                  <a class="dropdown-item js-edit-task" href="#" data-task-id="${esc(id)}">
+                    <i class="bi bi-pencil-square me-2"></i> Szerkesztés
+                  </a>
+                </li>
 
-  <li>
-    <a class="dropdown-item js-task-documents" href="#" data-task-id="${esc(id)}">
-      <i class="bi bi-paperclip me-2"></i> Fájlok
-    </a>
-  </li>
+                <li>
+                  <a class="dropdown-item js-task-documents" href="#" data-task-id="${esc(id)}">
+                    <i class="bi bi-paperclip me-2"></i> Fájlok
+                  </a>
+                </li>
 
-  <li>
-    <a class="dropdown-item btn-show-history" href="#" data-task-id="${esc(id)}">
-      <i class="bi bi-clock-history me-2"></i> Előzmények
-    </a>
-  </li>
+                <li>
+                  <a class="dropdown-item btn-show-history" href="#" data-task-id="${esc(id)}">
+                    <i class="bi bi-clock-history me-2"></i> Előzmények
+                  </a>
+                </li>
 
-  <li><hr class="dropdown-divider"></li>
+                <li><hr class="dropdown-divider"></li>
 
-  <li>
-    <a class="dropdown-item text-danger js-delete-task" href="#" data-task-id="${esc(id)}">
-      <i class="bi bi-trash me-2"></i> Törlés
-    </a>
-  </li>
-</ul>
+                <li>
+                  <a class="dropdown-item text-danger js-delete-task" href="#" data-task-id="${esc(id)}">
+                    <i class="bi bi-trash me-2"></i> Törlés
+                  </a>
+                </li>
+              </ul>
 
             </div>
           </div>
@@ -222,8 +223,9 @@
       qs.set('sort', sort);
       qs.set('order', order);
 
-      // ✅ CSAK BEJELENTÉSEK
-      qs.set('displayType', '1');
+      // ✅ CSAK INTÉZKEDÉSEK
+      // Ha nálatok nem 2 az intézkedés, írd át a megfelelő értékre.
+      qs.set('displayType', '2');
 
       if (search) qs.set('search', search);
 
@@ -235,7 +237,7 @@
           v = String(v).trim();
           if (!v) return;
 
-          // ⚠️ védelem: a modal ne tudja felülírni a bejelentés fix szűrést
+          // ⚠️ védelem: a modal ne tudja felülírni a displayType fix szűrést
           if (k === 'displayType') return;
 
           qs.set(k, v);
@@ -263,7 +265,6 @@
       return { items: items, totalCount: tc };
     }
 
-
     async function loadMore() {
       if (isLoading || reachedEnd) return;
 
@@ -281,12 +282,10 @@
           if (Number.isFinite(n)) totalCount = n;
         }
 
-        // Ha ezen az oldalon nincs megfelelő találat, attól még lehet későbbi oldalon.
-        // Menjünk tovább, de végtelen loop ellen tegyünk korlátot.
         if (!items.length) {
           page += 1;
 
-          // fail-safe: ne pörögjön végtelenül, ha nincs ilyen adat
+          // fail-safe
           if (page > 200) {
             setInfoLoaded();
             setNoMore();
@@ -308,10 +307,7 @@
           tbody.appendChild(renderRow(t));
         });
 
-        // itt a szűrt items hosszát látjuk, ezért a "no more" döntés nem tökéletes kliens oldali szűrésnél
-        // de a totalCount alapján (ha a backend szűrt totalCount-ot ad) ez jó lesz
         if (items.length < pageSize) {
-          // csak akkor álljunk le biztosan, ha nincs totalCount, különben lehet még találat később
           if (typeof totalCount !== 'number') setNoMore();
           else page += 1;
         } else {
@@ -325,7 +321,7 @@
         }
 
       } catch (e) {
-        console.error('[taskBejelentesLoadMore] load failed', e);
+        console.error('[taskIntezkedesLoadMore] load failed', e);
         setInfo('Hiba a betöltéskor (nézd meg a konzolt).');
       } finally {
         isLoading = false;
@@ -336,7 +332,6 @@
     // --------------------------------------------------
     // CLICK DELEGATION (BUBBLE, V2, AbortController)
     // --------------------------------------------------
-    // ha már volt korábben handler, ezt leállítjuk
     if (wrap._delegationAbortController) {
       try { wrap._delegationAbortController.abort(); } catch (e) { }
     }
@@ -344,7 +339,6 @@
     wrap._delegationAbortController = ac;
 
     wrap.addEventListener('click', function (e) {
-      // mailto menjen default
       var mail = e.target.closest('a[href^="mailto:"]');
       if (mail) return;
 
@@ -354,7 +348,7 @@
         var vid = parseInt(view.dataset.taskId, 10);
         if (!Number.isFinite(vid)) return;
 
-        console.log('[taskBejelentesLoadMore] view click', vid);
+        console.log('[taskIntezkedesLoadMore] view click', vid);
 
         if (window.Tasks && typeof window.Tasks.openViewModal === 'function') {
           window.Tasks.openViewModal(vid);
@@ -370,7 +364,7 @@
         var eid = parseInt(edit.dataset.taskId, 10);
         if (!Number.isFinite(eid)) return;
 
-        console.log('[taskBejelentesLoadMore] edit click', eid);
+        console.log('[taskIntezkedesLoadMore] edit click', eid);
 
         window.dispatchEvent(new CustomEvent('tasks:openEdit', { detail: { id: eid } }));
         return;
@@ -382,7 +376,7 @@
         var tid = parseInt(files.dataset.taskId, 10);
         if (!Number.isFinite(tid)) return;
 
-        console.log('[taskBejelentesLoadMore] files click', tid);
+        console.log('[taskIntezkedesLoadMore] files click', tid);
 
         window.dispatchEvent(new CustomEvent('tasks:openDocuments', { detail: { taskId: tid } }));
         return;
@@ -394,7 +388,7 @@
         var hid = parseInt(hist.dataset.taskId, 10);
         if (!Number.isFinite(hid)) return;
 
-        console.log('[taskBejelentesLoadMore] history click', hid);
+        console.log('[taskIntezkedesLoadMore] history click', hid);
 
         window.dispatchEvent(new CustomEvent('tasks:history', { detail: { id: hid } }));
         return;
@@ -406,7 +400,7 @@
         var did = parseInt(del.dataset.taskId, 10);
         if (!Number.isFinite(did)) return;
 
-        console.log('[taskBejelentesLoadMore] delete click', did);
+        console.log('[taskIntezkedesLoadMore] delete click', did);
 
         window.dispatchEvent(new CustomEvent('tasks:openDelete', { detail: { id: did } }));
         return;
@@ -425,7 +419,6 @@
       var modalEl = document.getElementById('advancedFilterModal');
       if (!modalEl) return;
 
-      // id-s formot keressük, de fallback: első form a modalban
       var form = document.getElementById('advancedFilterForm') || modalEl.querySelector('form');
       if (!form) return;
 
@@ -434,10 +427,9 @@
           var inst = bootstrap.Modal.getInstance(modalEl);
           if (!inst) inst = new bootstrap.Modal(modalEl);
           inst.hide();
-        } catch (e) { /* ignore */ }
+        } catch (e) { }
       }
 
-      // Partner -> Site szűrés a data-partner-id alapján
       var partnerSel = modalEl.querySelector('#partnerFilterSelect');
       var siteSel = modalEl.querySelector('#siteFilterSelect');
 
@@ -481,9 +473,8 @@
         });
       }
 
-      // A lényeg: submit elkapás
       form.addEventListener('submit', function (e) {
-        e.preventDefault(); // <<<<< ettől lesz AJAX
+        e.preventDefault();
 
         var fd = new FormData(form);
         var cleaned = {};
@@ -492,7 +483,6 @@
           var val = (v ?? "").toString().trim();
           if (!val) return;
 
-          // ne engedjük, hogy a modal felülírja a paging/sortot
           if (k === 'page' || k === 'pageSize' || k === 'sort' || k === 'order' || k === 'search')
             return;
 
@@ -501,9 +491,8 @@
 
         activeFilters = cleaned;
 
-        console.log('[taskBejelentesLoadMore] apply filters', activeFilters);
+        console.log('[taskIntezkedesLoadMore] apply filters', activeFilters);
 
-        // reset + első oldal betöltése
         page = 1;
         renderedIds.clear();
         reachedEnd = false;
@@ -517,8 +506,6 @@
         closeModal();
         loadMore();
       });
-
-      // Biztonság: ha a gomb onclick submitol, az ugyanúgy ide fut be
     })();
 
     // --------------------------------------------------
@@ -528,7 +515,6 @@
       var params = e && e.detail && (e.detail.params || e.detail);
       if (!params || typeof params !== 'object') return;
 
-      // mentsük el az aktív szűrőket (page/pageSize/sort/order/search ne innen jöjjön)
       var cleaned = {};
       Object.keys(params).forEach(function (k) {
         var v = params[k];
@@ -536,7 +522,6 @@
         v = String(v).trim();
         if (!v) return;
 
-        // ezek ne írják felül a LoadMore logikát
         if (k === 'page' || k === 'pageSize' || k === 'sort' || k === 'order' || k === 'search') return;
 
         cleaned[k] = v;
@@ -544,7 +529,6 @@
 
       activeFilters = cleaned;
 
-      // reset + első oldal betöltése
       page = 1;
       renderedIds.clear();
       reachedEnd = false;
@@ -558,7 +542,6 @@
       loadMore();
     });
 
-    // opcionális: clear event (ha a modal JS küldi)
     window.addEventListener('tasks:clearFilters', function () {
       activeFilters = {};
 

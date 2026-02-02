@@ -1,3 +1,4 @@
+// /wwwroot/js/Site/siteFilter.js
 document.addEventListener('DOMContentLoaded', () => {
   const tbody = document.getElementById('sitesTableBody');
   const loadMoreBtn = document.getElementById('loadMoreBtn');
@@ -95,7 +96,7 @@ document.addEventListener('DOMContentLoaded', () => {
       });
 
       if (reset) tbody.innerHTML = '';
-      data.forEach(addRow);
+      (data || []).forEach(addRow);
 
       // ✅ Keresésnél IS számolunk hasMore-t
       const loaded = tbody.querySelectorAll('tr[data-site-id]').length;
@@ -124,13 +125,13 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  function addRow(s) {
+  function buildRowHtml(s) {
     const statusColor = s.status?.color || '#6c757d';
     const statusText = s.status?.name || '—';
     const partnerText = s.partnerName || '—';
 
-    tbody.insertAdjacentHTML('beforeend', `
-<tr data-site-id="${s.siteId}">
+    return `
+<tr data-site-id="${escapeAttr(s.siteId)}">
   <td class="text-nowrap"><i class="bi bi-building me-1"></i>${escapeHtml(s.siteName || '—')}</td>
   <td class="text-nowrap">${escapeHtml(partnerText)}</td>
   <td class="text-nowrap">${escapeHtml(s.addressLine1 || '—')}</td>
@@ -148,7 +149,7 @@ document.addEventListener('DOMContentLoaded', () => {
   </td>
   <td class="text-center">
     <div class="btn-group btn-group-sm" role="group">
-      <button type="button" class="btn btn-outline-info view-site-btn" data-site-id="${s.siteId}">
+      <button type="button" class="btn btn-outline-info view-site-btn" data-site-id="${escapeAttr(s.siteId)}">
         <i class="bi bi-eye"></i>
       </button>
 
@@ -159,13 +160,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
         <ul class="dropdown-menu dropdown-menu-end">
           <li>
-            <a class="dropdown-item edit-site-btn" href="#" data-site-id="${s.siteId}">
+            <a class="dropdown-item edit-site-btn" href="#" data-site-id="${escapeAttr(s.siteId)}">
               <i class="bi bi-pencil-square me-2"></i>Szerkesztés
             </a>
           </li>
           <li><hr class="dropdown-divider"></li>
           <li>
-            <a class="dropdown-item text-danger delete-site-btn" href="#" data-site-id="${s.siteId}" data-site-name="${escapeAttr(s.siteName || 'Telephely')}">
+            <a class="dropdown-item text-danger delete-site-btn" href="#" data-site-id="${escapeAttr(s.siteId)}" data-site-name="${escapeAttr(s.siteName || 'Telephely')}">
               <i class="bi bi-trash me-2"></i>Törlés
             </a>
           </li>
@@ -173,8 +174,30 @@ document.addEventListener('DOMContentLoaded', () => {
       </div>
     </div>
   </td>
-</tr>`);
+</tr>`;
   }
+
+  function addRow(s) {
+    tbody.insertAdjacentHTML('beforeend', buildRowHtml(s));
+  }
+
+  // ✅ Public API: create/edit/delete után frissítés oldalújratöltés nélkül
+  window.Sites = window.Sites || {};
+  window.Sites.reload = () => loadSites(true);
+
+  // opcionális: create után azonnali beszúrás (ha akarod reload helyett)
+  window.Sites.prependRow = (row) => {
+    if (!row) return;
+
+    // ha placeholder van, töröljük
+    const first = tbody.querySelector('tr');
+    if (first && first.querySelector('td')?.textContent?.includes('Nincs találat')) {
+      tbody.innerHTML = '';
+    }
+
+    tbody.insertAdjacentHTML('afterbegin', buildRowHtml(row));
+    setLoadMoreText();
+  };
 
   // ✅ kereső (debounce)
   if (searchInput) {

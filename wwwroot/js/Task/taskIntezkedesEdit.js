@@ -1,17 +1,17 @@
-// wwwroot/js/Task/taskBejelentesEdit.js
+// wwwroot/js/Task/taskIntezkedesEdit.js
 (function () {
   'use strict';
 
-  console.log('[taskBejelentesEdit] loaded');
+  console.log('[taskIntezkedesEdit] loaded');
 
   document.addEventListener('DOMContentLoaded', function () {
-    console.log('[taskBejelentesEdit] DOM loaded');
+    console.log('[taskIntezkedesEdit] DOM loaded');
 
     // ------------------------------------------------------------
     // CONFIG
     // ------------------------------------------------------------
     // Bejelentés = 1, Intézkedés = 2
-    var DISPLAY_TYPE = 1; // <-- itt Bejelentés edit modal
+    var DISPLAY_TYPE = 2; // <-- itt Intézkedés edit modal
 
     // ------------------------------------------------------------
     // Helpers
@@ -68,7 +68,6 @@
       return isFinite(n) ? n : null;
     }
 
-    // camelCase + PascalCase kompatibilis olvasás
     function pick(obj, keys) {
       for (var i = 0; i < keys.length; i++) {
         var k = keys[i];
@@ -137,7 +136,6 @@
     // SELECT LOADERS
     // ------------------------------------------------------------
 
-    // ✅ Assignees: sima select feltöltés
     async function loadAssigneesSelect(selectEl, selectedId) {
       if (!selectEl) return;
 
@@ -168,7 +166,7 @@
         selectEl.value = selectedId != null ? String(selectedId) : '';
         try { selectEl.dispatchEvent(new Event('change', { bubbles: true })); } catch (e) { }
       } catch (err) {
-        console.error('[taskBejelentesEdit] loadAssigneesSelect failed', err);
+        console.error('[taskIntezkedesEdit] loadAssigneesSelect failed', err);
         if (!selectEl.querySelector('option')) {
           selectEl.innerHTML = '<option value="">-- Válasszon --</option>';
         }
@@ -177,7 +175,6 @@
       }
     }
 
-    // ✅ Kommunikációs mód select
     async function loadCommMethodsSelect(selectEl, selectedId) {
       if (!selectEl) return;
 
@@ -208,7 +205,7 @@
         selectEl.value = selectedId != null ? String(selectedId) : '';
         try { selectEl.dispatchEvent(new Event('change', { bubbles: true })); } catch (e) { }
       } catch (err) {
-        console.error('[taskBejelentesEdit] loadCommMethodsSelect failed', err);
+        console.error('[taskIntezkedesEdit] loadCommMethodsSelect failed', err);
         if (!selectEl.querySelector('option')) {
           selectEl.innerHTML = '<option value="">-- Válasszon --</option>';
         }
@@ -217,81 +214,76 @@
       }
     }
 
-    // ✅ TaskType select (DisplayType szűréssel)
-async function loadTaskTypesSelect(selectEl, selectedId, displayType) {
-  if (!selectEl) return;
+    // ✅ TaskType select (DisplayType szűréssel) + TomSelect kompatibilis
+    async function loadTaskTypesSelect(selectEl, selectedId, displayType) {
+      if (!selectEl) return;
 
-  var wanted = displayType == null ? '' : String(displayType);
+      var wanted = displayType == null ? '' : String(displayType);
+      var ts = selectEl.tomselect || null;
 
-  // TomSelect instance (ha van)
-  var ts = selectEl.tomselect || null;
-
-  // UI disable
-  if (!ts) {
-    selectEl.disabled = true;
-    selectEl.innerHTML = '<option value="">Betöltés...</option>';
-  } else {
-    ts.disable();
-    ts.clearOptions(); // <-- kulcs: régi "minden" opció törlése
-    ts.addOption({ id: '', text: 'Betöltés...' });
-    ts.refreshOptions(false);
-  }
-
-  try {
-    var url = '/api/tasks/tasktypes/select?displayType=' + encodeURIComponent(wanted);
-    var res = await fetch(url, {
-      headers: { 'Accept': 'application/json' },
-      credentials: 'same-origin'
-    });
-    if (!res.ok) throw new Error('HTTP ' + res.status);
-
-    var items = await res.json();
-    if (!Array.isArray(items)) items = [];
-
-    // Normalizáljuk a formátumot (id/text)
-    var opts = items.map(function (x) {
-      return { id: String(x.id), text: String(x.text) };
-    });
-
-    if (ts) {
-      ts.clearOptions();
-      ts.addOption({ id: '', text: '-- Válasszon --' });
-      ts.addOptions(opts);
-      ts.refreshOptions(false);
-
-      if (selectedId != null && String(selectedId)) {
-        ts.setValue(String(selectedId), true);
+      if (!ts) {
+        selectEl.disabled = true;
+        selectEl.innerHTML = '<option value="">Betöltés...</option>';
       } else {
-        ts.setValue('', true);
+        ts.disable();
+        ts.clearOptions();
+        ts.addOption({ id: '', text: 'Betöltés...' });
+        ts.refreshOptions(false);
       }
 
-      ts.enable();
-    } else {
-      selectEl.innerHTML =
-        '<option value="">-- Válasszon --</option>' +
-        opts.map(function (x) {
-          return '<option value="' + x.id + '">' + x.text + '</option>';
-        }).join('');
+      try {
+        var url = '/api/tasks/tasktypes/select?displayType=' + encodeURIComponent(wanted);
+        var res = await fetch(url, {
+          headers: { 'Accept': 'application/json' },
+          credentials: 'same-origin'
+        });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
 
-      await waitAndSetSelectValue(selectEl, selectedId);
-      selectEl.disabled = false;
+        var items = await res.json();
+        if (!Array.isArray(items)) items = [];
+
+        var opts = items.map(function (x) {
+          return { id: String(x.id), text: String(x.text) };
+        });
+
+        if (ts) {
+          ts.clearOptions();
+          ts.addOption({ id: '', text: '-- Válasszon --' });
+          ts.addOptions(opts);
+          ts.refreshOptions(false);
+
+          if (selectedId != null && String(selectedId)) {
+            ts.setValue(String(selectedId), true);
+          } else {
+            ts.setValue('', true);
+          }
+
+          ts.enable();
+        } else {
+          selectEl.innerHTML =
+            '<option value="">-- Válasszon --</option>' +
+            opts.map(function (x) {
+              return '<option value="' + x.id + '">' + x.text + '</option>';
+            }).join('');
+
+          await waitAndSetSelectValue(selectEl, selectedId);
+          selectEl.disabled = false;
+        }
+      } catch (e) {
+        console.error('[taskIntezkedesEdit] task types load failed', e);
+
+        if (ts) {
+          ts.clearOptions();
+          ts.addOption({ id: '', text: '-- Nem sikerült betölteni --' });
+          ts.setValue('', true);
+          ts.enable();
+        } else {
+          selectEl.innerHTML = '<option value="">-- Nem sikerült betölteni --</option>';
+          selectEl.disabled = false;
+        }
+      }
     }
-  } catch (e) {
-    console.error('[taskBejelentesEdit] task types load failed', e);
 
-    if (ts) {
-      ts.clearOptions();
-      ts.addOption({ id: '', text: '-- Nem sikerült betölteni --' });
-      ts.setValue('', true);
-      ts.enable();
-    } else {
-      selectEl.innerHTML = '<option value="">-- Nem sikerült betölteni --</option>';
-      selectEl.disabled = false;
-    }
-  }
-}
-
-    // ✅ TaskStatus select (DisplayType szűréssel)
     async function loadTaskStatusesSelect(selectEl, selectedId, displayType) {
       if (!selectEl) return;
 
@@ -316,7 +308,7 @@ async function loadTaskTypesSelect(selectEl, selectedId, displayType) {
 
         await waitAndSetSelectValue(selectEl, selectedId);
       } catch (e) {
-        console.error('[taskBejelentesEdit] task statuses load failed', e);
+        console.error('[taskIntezkedesEdit] task statuses load failed', e);
         selectEl.innerHTML = '<option value="">-- Nem sikerült betölteni --</option>';
       } finally {
         selectEl.disabled = false;
@@ -324,7 +316,7 @@ async function loadTaskTypesSelect(selectEl, selectedId, displayType) {
     }
 
     // ------------------------------------------------------------
-    // Row update helpers (table refresh)
+    // Row update helpers
     // ------------------------------------------------------------
     function rowElById(id) {
       return document.querySelector('tr[data-task-id="' + CSS.escape(String(id)) + '"]');
@@ -340,10 +332,8 @@ async function loadTaskTypesSelect(selectEl, selectedId, displayType) {
       var tds = tr.querySelectorAll('td');
       if (!tds || tds.length < 12) return;
 
-      // Cím
       tds[4].textContent = (pick(t, ['title', 'Title']) || '');
 
-      // Prioritás badge
       var prioBadge =
         tds[5].querySelector('.clickable-priority-badge') ||
         tds[5].querySelector('.badge');
@@ -354,10 +344,8 @@ async function loadTaskTypesSelect(selectEl, selectedId, displayType) {
         prioBadge.dataset.priorityId = (pick(t, ['taskPriorityPMId', 'TaskPriorityPMId']) || '');
       }
 
-      // Határidő
       tds[6].textContent = formatHuDateTime(pick(t, ['dueDate', 'DueDate']));
 
-      // Státusz badge
       var statusBadge =
         tds[7].querySelector('.clickable-status-badge') ||
         tds[7].querySelector('.badge');
@@ -368,10 +356,8 @@ async function loadTaskTypesSelect(selectEl, selectedId, displayType) {
         statusBadge.dataset.statusId = (pick(t, ['taskStatusPMId', 'TaskStatusPMId']) || '');
       }
 
-      // Módosítva dátum
       tds[9].textContent = formatHuDateTime(pick(t, ['updatedDate', 'UpdatedDate']));
 
-      // Felelős
       var assignedEmail = pick(t, ['assignedToEmail', 'AssignedToEmail']) || '';
       var assignedName = pick(t, ['assignedToName', 'AssignedToName']) || '';
 
@@ -388,26 +374,24 @@ async function loadTaskTypesSelect(selectEl, selectedId, displayType) {
     // ------------------------------------------------------------
     var modalEl = document.getElementById('editTaskModal');
     if (!modalEl) {
-      console.warn('[taskBejelentesEdit] #editTaskModal not found -> skip');
+      console.warn('[taskIntezkedesEdit] #editTaskModal not found -> skip');
       return;
     }
 
     var formEl = modalEl.querySelector('form');
     if (!formEl) {
-      console.warn('[taskBejelentesEdit] form not found in modal -> skip');
+      console.warn('[taskIntezkedesEdit] form not found in modal -> skip');
       return;
     }
 
     var submitBtn = formEl.querySelector('button[type="submit"]');
 
-    // Inputs/selects
     var idEl = formEl.querySelector('[name="Id"], #EditId, #Id');
     var titleEl = formEl.querySelector('[name="Title"]');
     var descEl = formEl.querySelector('[name="Description"]');
 
     var siteEl = formEl.querySelector('#EditSiteId, select[name="SiteId"]');
 
-    // ✅ FONTOS: TaskType / Status legyen fixen megtalálva
     var taskTypeEl = formEl.querySelector('#EditTaskTypePMId, #TaskTypePMId, select[name="TaskTypePMId"]');
     var statusEl = formEl.querySelector('#EditTaskStatusPMId, #TaskStatusPMId, select[name="TaskStatusPMId"]');
 
@@ -419,6 +403,8 @@ async function loadTaskTypesSelect(selectEl, selectedId, displayType) {
 
     var scheduledDateEl = formEl.querySelector('[name="ScheduledDate"]');
     var partnerHiddenEl = formEl.querySelector('#editAutoPartnerId, input[name="PartnerId"]');
+
+    var relatedPartnerEl = formEl.querySelector('#EditRelatedPartnerId, #RelatedPartnerId, select[name="RelatedPartnerId"]');
 
     var isSubmitting = false;
     var currentId = null;
@@ -447,7 +433,7 @@ async function loadTaskTypesSelect(selectEl, selectedId, displayType) {
         var fresh = await loadTask(id);
         updateRowFromTask(fresh);
       } catch (e) {
-        console.warn('[taskBejelentesEdit] refreshRow failed', e);
+        console.warn('[taskIntezkedesEdit] refreshRow failed', e);
       }
     }
 
@@ -466,7 +452,6 @@ async function loadTaskTypesSelect(selectEl, selectedId, displayType) {
     });
 
     modalEl.addEventListener('shown.bs.modal', async function () {
-      // itt csak biztosítjuk, hogy legyen lista (ha valamiért üresen nyílt)
       if (taskTypeEl && (!taskTypeEl.options || taskTypeEl.options.length <= 1)) {
         await loadTaskTypesSelect(taskTypeEl, taskTypeEl.value || '', DISPLAY_TYPE);
       }
@@ -509,6 +494,7 @@ async function loadTaskTypesSelect(selectEl, selectedId, displayType) {
         var scheduledVal = pick(task, ['scheduledDate', 'ScheduledDate']);
 
         var partnerIdVal = pick(task, ['partnerId', 'PartnerId']);
+        var relatedPartnerIdVal = pick(task, ['relatedPartnerId', 'RelatedPartnerId']);
         var siteIdVal = pick(task, ['siteId', 'SiteId']);
         var siteNameVal = pick(task, ['siteName', 'SiteName']);
         var partnerNameVal = pick(task, ['partnerName', 'PartnerName']);
@@ -526,22 +512,45 @@ async function loadTaskTypesSelect(selectEl, selectedId, displayType) {
 
         if (partnerHiddenEl) partnerHiddenEl.value = partnerIdVal != null ? String(partnerIdVal) : '';
 
-        // ✅ SZŰRT selectek betöltése + kiválasztás
         await loadTaskTypesSelect(taskTypeEl, taskTypeIdVal, DISPLAY_TYPE);
         await loadTaskStatusesSelect(statusEl, statusIdVal, DISPLAY_TYPE);
 
-        // Priority sima select (nem szűrjük)
         if (priorityEl && priorityIdVal != null) {
           priorityEl.value = String(priorityIdVal);
           try { priorityEl.dispatchEvent(new Event('change', { bubbles: true })); } catch (e) { }
         }
 
-        // Assignee + comm methods
         await loadAssigneesSelect(assignedEl, assignedToIdVal);
         await loadCommMethodsSelect(commMethodEl, commMethodIdVal);
         if (commDescEl) commDescEl.value = String(commDescVal || '');
 
-        // Site (TomSelect támogatással)
+        // ✅ RelatedPartner beállítása (sima select vagy TomSelect)
+        if (relatedPartnerEl) {
+          var rts = await waitForTomSelect(relatedPartnerEl, 2000);
+          var val = relatedPartnerIdVal != null ? String(relatedPartnerIdVal) : '';
+
+          if (rts) {
+            rts.setValue(val, true);
+          } else {
+            relatedPartnerEl.value = val;
+            try { relatedPartnerEl.dispatchEvent(new Event('change', { bubbles: true })); } catch (e) { }
+          }
+        }
+
+        // ✅ RelatedPartner beállítása (sima select vagy TomSelect)
+        if (relatedPartnerEl) {
+          var rts = await waitForTomSelect(relatedPartnerEl, 2000);
+          var val = relatedPartnerIdVal != null ? String(relatedPartnerIdVal) : '';
+
+          if (rts) {
+            rts.setValue(val, true);
+          } else {
+            relatedPartnerEl.value = val;
+            try { relatedPartnerEl.dispatchEvent(new Event('change', { bubbles: true })); } catch (e) { }
+          }
+        }
+
+
         if (siteEl && siteIdVal != null) {
           var siteIdStr = String(siteIdVal);
           var ts = await waitForTomSelect(siteEl, 2500);
@@ -566,7 +575,7 @@ async function loadTaskTypesSelect(selectEl, selectedId, displayType) {
         }
 
       } catch (err) {
-        console.error('[taskBejelentesEdit] open failed', err);
+        console.error('[taskIntezkedesEdit] open failed', err);
         toast('Nem sikerült betölteni a feladatot (Task ID: ' + id + ').', 'danger');
         try { bootstrap.Modal.getOrCreateInstance(modalEl).hide(); } catch (e) { }
       } finally {
@@ -612,6 +621,13 @@ async function loadTaskTypesSelect(selectEl, selectedId, displayType) {
         taskTypeId = toInt(taskTypeEl.tomselect.getValue());
       }
 
+      // ✅ RelatedPartnerId kiolvasása (sima select vagy TomSelect)
+      var relatedPartnerId = toInt(fd.get('RelatedPartnerId'));
+      if (!relatedPartnerId && relatedPartnerEl && relatedPartnerEl.tomselect) {
+        relatedPartnerId = toInt(relatedPartnerEl.tomselect.getValue());
+      }
+
+
       var sd = fd.get('ScheduledDate') ? String(fd.get('ScheduledDate')) : null;
       if (sd) sd = sd + 'T00:00:00';
 
@@ -622,6 +638,7 @@ async function loadTaskTypesSelect(selectEl, selectedId, displayType) {
         Description: String(fd.get('Description') || '').trim() || null,
 
         PartnerId: partnerId,
+        RelatedPartnerId: relatedPartnerId,
         SiteId: siteId,
 
         TaskTypePMId: taskTypeId,
@@ -636,8 +653,8 @@ async function loadTaskTypesSelect(selectEl, selectedId, displayType) {
         ScheduledDate: sd
       };
 
-      console.log('[taskBejelentesEdit] PUT url=', '/api/tasks/' + encodeURIComponent(id));
-      console.log('[taskBejelentesEdit] PUT payload=', payload);
+      console.log('[taskIntezkedesEdit] PUT url=', '/api/tasks/' + encodeURIComponent(id));
+      console.log('[taskIntezkedesEdit] PUT payload=', payload);
 
       if (!payload.Title) { toast('A tárgy (cím) megadása kötelező!', 'danger'); return; }
       if (!payload.SiteId) { toast('A telephely kiválasztása kötelező!', 'danger'); return; }
@@ -660,14 +677,14 @@ async function loadTaskTypesSelect(selectEl, selectedId, displayType) {
 
         if (!res.ok) {
           var errText = await res.text().catch(function () { return ''; });
-          console.error('[taskBejelentesEdit] update failed', res.status, errText);
+          console.error('[taskIntezkedesEdit] update failed', res.status, errText);
           toast('Hiba a mentéskor (HTTP ' + res.status + ').', 'danger');
           throw new Error('HTTP ' + res.status);
         }
 
         var updated = await res.json().catch(function () { return null; });
 
-        toast('Bejelentés frissítve!', 'success');
+        toast('Intézkedés frissítve!', 'success');
         bootstrap.Modal.getOrCreateInstance(modalEl).hide();
 
         if (updated && (updated.id || updated.Id)) {
@@ -677,7 +694,7 @@ async function loadTaskTypesSelect(selectEl, selectedId, displayType) {
         }
 
       } catch (err) {
-        console.error('[taskBejelentesEdit] update exception', err);
+        console.error('[taskIntezkedesEdit] update exception', err);
       } finally {
         isSubmitting = false;
         setSubmitting(submitBtn, false);

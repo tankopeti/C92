@@ -1,11 +1,11 @@
-// wwwroot/js/Task/taskBejelentesCreate.js
+// wwwroot/js/Task/taskIntezkedesCreate.js
 (function () {
   'use strict';
 
-  console.log('[taskBejelentesCreate] loaded');
+  console.log('[taskIntezkedesCreate] loaded');
 
   document.addEventListener('DOMContentLoaded', function () {
-    console.log('[taskBejelentesCreate] DOM loaded');
+    console.log('[taskIntezkedesCreate] DOM loaded');
 
     // ------------------------------------------------------------
     // Elements
@@ -23,7 +23,7 @@
     var taskStatusEl = formEl.querySelector('#TaskStatusPMId, [name="TaskStatusPMId"]');
 
     // Bejelentés = 1, Intézkedés = 2 (később bővíthető 3-ra is)
-    var DISPLAY_TYPE = 1;
+    var DISPLAY_TYPE = toInt(modalEl.getAttribute('data-display-type')) || 2;
 
     var isSubmitting = false;
 
@@ -126,7 +126,7 @@
         selectEl.value = selectedId != null ? String(selectedId) : '';
         try { selectEl.dispatchEvent(new Event('change', { bubbles: true })); } catch (e) { }
       } catch (e) {
-        console.error('[create] comm methods load failed', e);
+        console.error('[taskIntezkedesCreate] comm methods load failed', e);
         selectEl.innerHTML = '<option value="">-- Nem sikerült betölteni --</option>';
       } finally {
         selectEl.disabled = false;
@@ -158,7 +158,7 @@
         selectEl.value = selectedId != null ? String(selectedId) : '';
         try { selectEl.dispatchEvent(new Event('change', { bubbles: true })); } catch (e) { }
       } catch (e) {
-        console.error('[create] assignees load failed', e);
+        console.error('[taskIntezkedesCreate] assignees load failed', e);
         selectEl.innerHTML = '<option value="">-- Nem sikerült betölteni --</option>';
       } finally {
         selectEl.disabled = false;
@@ -190,7 +190,7 @@
         selectEl.value = selectedId != null ? String(selectedId) : '';
         try { selectEl.dispatchEvent(new Event('change', { bubbles: true })); } catch (e) { }
       } catch (e) {
-        console.error('[create] task types load failed', e);
+        console.error('[taskIntezkedesCreate] task types load failed', e);
         selectEl.innerHTML = '<option value="">-- Nem sikerült betölteni --</option>';
       } finally {
         selectEl.disabled = false;
@@ -222,13 +222,12 @@
         selectEl.value = selectedId != null ? String(selectedId) : '';
         try { selectEl.dispatchEvent(new Event('change', { bubbles: true })); } catch (e) { }
       } catch (e) {
-        console.error('[create] task statuses load failed', e);
+        console.error('[taskIntezkedesCreate] task statuses load failed', e);
         selectEl.innerHTML = '<option value="">-- Nem sikerült betölteni --</option>';
       } finally {
         selectEl.disabled = false;
       }
     }
-
 
     // ------------------------------------------------------------
     // Create modal lifecycle
@@ -275,30 +274,28 @@
       var fd = new FormData(formEl);
 
       // ✅ ScheduledDate + ScheduledTime összefűzése
-      // - ScheduledDate: name="ScheduledDate" (date input)
-      // - ScheduledTime: name="ScheduledTime" (time input)
       var scheduledDateStr = fd.get('ScheduledDate');
-      var scheduledTimeStr = fd.get('ScheduledTime'); // ⬅️ új mező
+      var scheduledTimeStr = fd.get('ScheduledTime');
       var scheduledIso = combineDateTime(scheduledDateStr, scheduledTimeStr);
 
-      var payload = {
-        Title: String(fd.get('Title') || '').trim(),
-        Description: String(fd.get('Description') || '').trim() || null,
+var payload = {
+  Title: String(fd.get('Title') || '').trim(),
+  Description: String(fd.get('Description') || '').trim() || null,
 
-        TaskPMcomMethodID: toInt(fd.get('TaskPMcomMethodID')),
-        CommunicationDescription: String(fd.get('CommunicationDescription') || '').trim() || null,
+  TaskPMcomMethodID: toInt(fd.get('TaskPMcomMethodID')),
+  CommunicationDescription: String(fd.get('CommunicationDescription') || '').trim() || null,
 
-        PartnerId: toInt(fd.get('PartnerId')),
-        SiteId: toInt(fd.get('SiteId')),
-        TaskTypePMId: toInt(fd.get('TaskTypePMId')),
+  PartnerId: toInt(fd.get('PartnerId')),
+  RelatedPartnerId: toInt(fd.get('RelatedPartnerId')),   // ✅ ÚJ
+  SiteId: toInt(fd.get('SiteId')),
+  TaskTypePMId: toInt(fd.get('TaskTypePMId')),
 
-        TaskPriorityPMId: toInt(fd.get('TaskPriorityPMId')),
-        TaskStatusPMId: toInt(fd.get('TaskStatusPMId')),
-        AssignedToId: String(fd.get('AssignedToId') || '').trim() || null,
+  TaskPriorityPMId: toInt(fd.get('TaskPriorityPMId')),
+  TaskStatusPMId: toInt(fd.get('TaskStatusPMId')),
+  AssignedToId: String(fd.get('AssignedToId') || '').trim() || null,
 
-        // ✅ itt már ISO datetime megy (óra/perc)
-        ScheduledDate: scheduledIso
-      };
+  ScheduledDate: scheduledIso
+};
 
       // Guards
       if (!payload.Title) { toast('A tárgy megadása kötelező!', 'danger'); return; }
@@ -306,7 +303,7 @@
       if (!payload.PartnerId) { toast('A partner kiválasztása kötelező!', 'danger'); return; }
       if (!payload.TaskTypePMId) { toast('A feladat típusa kötelező!', 'danger'); return; }
 
-      console.log('[CREATE payload]', payload);
+      console.log('[taskIntezkedesCreate] payload', payload);
 
       isSubmitting = true;
       setSubmitting(submitBtn, true);
@@ -327,20 +324,20 @@
 
         if (!res.ok) {
           var err = await res.text().catch(function () { return ''; });
-          console.error('[CREATE ERROR]', err);
+          console.error('[taskIntezkedesCreate] CREATE ERROR', err);
           toast('Hiba a mentés során.', 'danger');
           return;
         }
 
         var created = await res.json();
 
-        toast('Bejelentés létrehozva!', 'success');
+        toast('Intézkedés létrehozva!', 'success');
         var inst = bootstrap.Modal.getInstance(modalEl);
         if (inst) inst.hide();
 
         window.dispatchEvent(new CustomEvent('tasks:reload', { detail: { created: created } }));
       } catch (err) {
-        console.error('[CREATE EXCEPTION]', err);
+        console.error('[taskIntezkedesCreate] CREATE EXCEPTION', err);
         toast('Nem sikerült a mentés.', 'danger');
       } finally {
         isSubmitting = false;

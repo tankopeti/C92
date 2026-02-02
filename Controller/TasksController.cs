@@ -64,6 +64,84 @@ namespace Cloud9_2.Controllers
             }
         }
 
+
+        // -----------------------------------------------------------------
+        // GET: api/tasks/calendar/scheduled
+        // FullCalendar automatikusan küld: ?start=...&end=...
+        // -----------------------------------------------------------------
+        [HttpGet("calendar/scheduled")]
+        public async Task<IActionResult> GetScheduledCalendarEvents(
+            [FromQuery] DateTime? start = null,
+            [FromQuery] DateTime? end = null)
+        {
+            try
+            {
+                var from = start ?? DateTime.UtcNow.AddMonths(-1);
+                var to = end ?? DateTime.UtcNow.AddMonths(2);
+
+                var items = await _context.TaskPMs
+                    .AsNoTracking()
+                    .Where(t => t.IsActive)
+                    .Where(t => t.ScheduledDate != null)
+                    .Where(t => t.ScheduledDate >= from && t.ScheduledDate < to)
+                    .OrderBy(t => t.ScheduledDate)
+                    .Select(t => new CalendarEventDto
+                    {
+                        id = t.Id.ToString(),
+                        title = t.Title,
+
+                        start = t.ScheduledDate!.Value.ToString("yyyy-MM-ddTHH:mm:ss"),
+                        end = t.ScheduledDate!.Value.AddMinutes(30).ToString("yyyy-MM-ddTHH:mm:ss"), // ✅ legyen “fogható” blokk
+
+                        allDay = false, // ✅ EZ A LÉNYEG
+
+                        url = null,
+                        color = null
+                    })
+                    .ToListAsync();
+
+                return Ok(items);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error fetching scheduled calendar events");
+                return StatusCode(500, new { error = "An error occurred while retrieving calendar events." });
+            }
+        }
+
+
+        public class ScheduledDateUpdateDto
+        {
+            public DateTime ScheduledDate { get; set; }
+        }
+
+        [HttpPut("{id:int}/scheduled-date")]
+        public async Task<IActionResult> UpdateScheduledDate(
+            int id,
+            [FromBody] ScheduledDateUpdateDto dto)
+        {
+            if (dto == null)
+                return BadRequest("Missing body.");
+
+            var affected = await _context.Database.ExecuteSqlInterpolatedAsync($@"
+UPDATE dbo.TaskPM
+SET
+    ScheduledDate = {dto.ScheduledDate},
+    UpdatedDate = {DateTime.UtcNow}
+WHERE
+    Id = {id}
+    AND IsActive = 1;
+");
+
+            if (affected == 0)
+                return NotFound($"Task {id} not found or already deleted.");
+
+            return NoContent();
+        }
+
+
+
+
         // -----------------------------------------------------------------
         // GET: api/tasks/{id}
         // -----------------------------------------------------------------
@@ -239,23 +317,30 @@ namespace Cloud9_2.Controllers
         // -----------------------------------------------------------------
         // GET: api/tasks/paged
         // -----------------------------------------------------------------
+        // -----------------------------------------------------------------
+        // GET: api/tasks/paged
+        // -----------------------------------------------------------------
         [HttpGet("paged")]
         public async Task<ActionResult<PagedResult<TaskPMDto>>> GetPagedTasks(
             [FromQuery] int page = 1,
             [FromQuery] int pageSize = 10,
             [FromQuery] string? search = null,
             [FromQuery] string? sort = null,
-            [FromQuery] string? order = "desc",           // figyeld: desc az alap!
+            [FromQuery] string? order = "desc",
             [FromQuery] int? statusId = null,
             [FromQuery] int? priorityId = null,
-            [FromQuery] int? taskTypeId = null,           // ÚJ
-            [FromQuery] int? partnerId = null,            // ÚJ
-            [FromQuery] int? siteId = null,               // ÚJ
-            [FromQuery] string? assignedToId = null,      // marad string
-            [FromQuery] DateTime? dueDateFrom = null,     // ÚJ
-            [FromQuery] DateTime? dueDateTo = null,       // ÚJ
-            [FromQuery] DateTime? createdDateFrom = null, // ÚJ
-            [FromQuery] DateTime? createdDateTo = null)   // ÚJ
+            [FromQuery] int? taskTypeId = null,
+            [FromQuery] int? partnerId = null,
+            [FromQuery] int? siteId = null,
+            [FromQuery] string? assignedToId = null,
+            [FromQuery] DateTime? dueDateFrom = null,
+            [FromQuery] DateTime? dueDateTo = null,
+            [FromQuery] DateTime? createdDateFrom = null,
+            [FromQuery] DateTime? createdDateTo = null,
+
+            // ✅ ÚJ: enum alapú szűrés (1=Bejelentes, 2=Intezkedes)
+            [FromQuery] TaskDisplayType? displayType = null
+        )
         {
             try
             {
@@ -274,7 +359,10 @@ namespace Cloud9_2.Controllers
                     dueDateFrom: dueDateFrom,
                     dueDateTo: dueDateTo,
                     createdDateFrom: createdDateFrom,
-                    createdDateTo: createdDateTo
+                    createdDateTo: createdDateTo,
+
+                    // ✅ új param átadása service felé
+                    displayType: displayType
                 );
 
                 return Ok(result);
@@ -311,28 +399,6 @@ namespace Cloud9_2.Controllers
         }
 
 
-        // === ÚJ SELECT VÉGPONTOK ===
-
-        [HttpGet("tasktypes/select")]
-        public async Task<IActionResult> GetTaskTypes()
-        {
-            try
-            {
-                var taskTypes = await _context.TaskTypePMs
-                    .Where(t => t.IsActive != false) // optional: only active
-                    .Select(t => new { id = t.TaskTypePMId, text = t.TaskTypePMName })
-                    .OrderBy(t => t.text)
-                    .ToListAsync();
-
-                return Ok(taskTypes);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error fetching task types for select");
-                return StatusCode(500, "An error occurred while retrieving task types.");
-            }
-        }
-
         // === KOMMUNIKÁCIÓS MÓD SELECT VÉGPONT ===
         [HttpGet("taskpm-communication-methods/select")]
         public async Task<IActionResult> GetTaskPmCommunicationMethods()
@@ -362,44 +428,20 @@ namespace Cloud9_2.Controllers
         }
 
 
-
-        // -----------------------------------------------------------------
-        // GET: api/tasks/taskstatuses/select
-        // -----------------------------------------------------------------
-        [HttpGet("taskstatuses/select")]
-        public async Task<IActionResult> GetTaskStatuses()
-        {
-            try
-            {
-                var statuses = await _context.TaskStatusesPM
-                        .Select(s => new { id = s.TaskStatusPMId, text = s.Name })
-                        .OrderBy(s => s.text)
-                        .ToListAsync();
-
-                return Ok(statuses);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error fetching task statuses for select");
-                return StatusCode(500, "An error occurred while retrieving task statuses.");
-            }
-        }
-
-
         [HttpPut("{id:int}/assignee/sql")]
         public async Task<IActionResult> UpdateAssigneeSql(int id, [FromBody] TaskAssigneeUpdateDto dto)
         {
             try
             {
                 var affected = await _context.Database.ExecuteSqlInterpolatedAsync($@"
-UPDATE dbo.TaskPM
-SET
-    AssignedTo = {dto.AssignedToId},
-    UpdatedDate = {DateTime.UtcNow}
-WHERE
-    Id = {id}
-    AND IsActive = 1;
-");
+                UPDATE dbo.TaskPM
+                SET
+                    AssignedTo = {dto.AssignedToId},
+                    UpdatedDate = {DateTime.UtcNow}
+                WHERE
+                    Id = {id}
+                    AND IsActive = 1;
+                ");
 
                 if (affected == 0)
                     return NotFound($"Task {id} not found or already deleted.");
@@ -697,6 +739,64 @@ WHERE
                 .ToListAsync();
 
             return Ok(items);
+        }
+
+
+        // GET: api/tasks/tasktypes/select?displayType=1
+        [HttpGet("tasktypes/select")]
+        public async Task<IActionResult> GetTaskTypesForSelect([FromQuery] int? displayType = null)
+        {
+            try
+            {
+                var q = _context.TaskTypePMs
+                    .AsNoTracking()
+                    .Where(t => t.IsActive == true);
+
+                // opcionális szűrés
+                if (displayType.HasValue)
+                    q = q.Where(t => t.DisplayType == displayType.Value);
+
+                var items = await q
+                    .OrderBy(t => t.TaskTypePMName)
+                    .Select(t => new { id = t.TaskTypePMId, text = t.TaskTypePMName })
+                    .ToListAsync();
+
+                return Ok(items);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error fetching task types for select");
+                return StatusCode(500, "An error occurred while retrieving task types.");
+            }
+        }
+
+        // GET: api/tasks/taskstatuses/select?displayType=1
+        [HttpGet("taskstatuses/select")]
+        public async Task<IActionResult> GetTaskStatusesForSelect([FromQuery] int? displayType = null)
+        {
+            try
+            {
+                var q = _context.TaskStatusesPM
+                    .AsNoTracking()
+                    .Where(s => s.IsActive == true);
+
+                // opcionális szűrés
+                if (displayType.HasValue)
+                    q = q.Where(s => s.DisplayType == displayType.Value);
+
+                var items = await q
+                    .OrderBy(s => s.DisplayOrder ?? 0)
+                    .ThenBy(s => s.Name)
+                    .Select(s => new { id = s.TaskStatusPMId, text = s.Name })
+                    .ToListAsync();
+
+                return Ok(items);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error fetching task statuses for select");
+                return StatusCode(500, "An error occurred while retrieving task statuses.");
+            }
         }
 
     }

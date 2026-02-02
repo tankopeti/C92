@@ -37,16 +37,20 @@ namespace Cloud9_2.Services
         // LISTA: api/Partners?page=..&pageSize=..&filters...
         // --------------------------------------------------------------------
         public async Task<(List<PartnerDto> Items, int TotalCount)> GetPartnersAsync(
-            string? search = null,
-            string? name = null,
-            string? taxId = null,
-            int? statusId = null,
-            string? city = null,
-            string? postalCode = null,
-            string? emailDomain = null,
-            bool activeOnly = true,
-            int page = 1,
-            int pageSize = 50)
+    string? search = null,
+    string? name = null,
+    string? taxId = null,
+    int? statusId = null,
+    int? gfoId = null,
+    int? partnerTypeId = null,
+    string? partnerCode = null,
+    string? ownId = null,
+    string? city = null,
+    string? postalCode = null,
+    string? emailDomain = null,
+    bool activeOnly = true,
+    int page = 1,
+    int pageSize = 50)
         {
             // Validálás
             if (page < 1) page = 1;
@@ -58,8 +62,11 @@ namespace Cloud9_2.Services
                 var query = _context.Partners
                     .AsNoTracking()
                     .Include(p => p.Status)
+                    .Include(p => p.GFO)              // kell a listában a GFOName-hez
+                                                      // .Include(p => p.PartnerType)   // csak akkor, ha van nav propod; nálad most nincs a PartnerType-hoz
                     .Where(p => !activeOnly || p.IsActive)
                     .AsQueryable();
+
 
                 // Quick search
                 if (!string.IsNullOrWhiteSpace(search))
@@ -84,6 +91,33 @@ namespace Cloud9_2.Services
                     );
                 }
 
+                // PartnerCode
+                if (!string.IsNullOrWhiteSpace(partnerCode))
+                {
+                    var code = partnerCode.Trim();
+                    query = query.Where(p => p.PartnerCode != null && EF.Functions.Like(p.PartnerCode, $"%{code}%"));
+                }
+
+                // OwnId
+                if (!string.IsNullOrWhiteSpace(ownId))
+                {
+                    var oid = ownId.Trim();
+                    query = query.Where(p => p.OwnId != null && EF.Functions.Like(p.OwnId, $"%{oid}%"));
+                }
+
+                // GFOId
+                if (gfoId.HasValue)
+                {
+                    query = query.Where(p => p.GFOId == gfoId.Value);
+                }
+
+                // PartnerTypeId
+                if (partnerTypeId.HasValue)
+                {
+                    query = query.Where(p => p.PartnerTypeId == partnerTypeId.Value);
+                }
+
+
                 if (!string.IsNullOrWhiteSpace(taxId))
                 {
                     var t = taxId.Trim();
@@ -103,7 +137,9 @@ namespace Cloud9_2.Services
 
                 if (!string.IsNullOrWhiteSpace(postalCode))
                 {
-                    query = query.Where(p => p.PostalCode == postalCode.Trim());
+                    var pc = postalCode.Trim();
+                    query = query.Where(p => p.PostalCode != null && EF.Functions.Like(p.PostalCode, $"%{pc}%"));
+
                 }
 
                 // Ha vissza akarod kapcsolni:

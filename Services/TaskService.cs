@@ -39,6 +39,7 @@ namespace Cloud9_2.Services
                 .Include(t => t.CreatedBy)
                 .Include(t => t.AssignedTo)
                 .Include(t => t.Partner)
+                .Include(t => t.RelatedPartner)
                 .Include(t => t.Site)
                 .Include(t => t.Contact)
                 .Include(t => t.TaskPMcomMethod)
@@ -77,6 +78,7 @@ namespace Cloud9_2.Services
                 .Include(t => t.CreatedBy)
                 .Include(t => t.AssignedTo)
                 .Include(t => t.Partner)
+                .Include(t => t.RelatedPartner)
                 .Include(t => t.Site)
                 .Include(t => t.Contact)
                 .Include(t => t.Quote)
@@ -174,6 +176,7 @@ namespace Cloud9_2.Services
                 TaskPMcomMethodID = dto.TaskPMcomMethodID,
 
                 PartnerId = dto.PartnerId == 0 ? null : dto.PartnerId,
+                RelatedPartnerId = dto.RelatedPartnerId == 0 ? null : dto.RelatedPartnerId,
                 SiteId = dto.SiteId == 0 ? null : dto.SiteId,
                 ContactId = dto.ContactId == 0 ? null : dto.ContactId,
                 QuoteId = dto.QuoteId == 0 ? null : dto.QuoteId,
@@ -181,8 +184,8 @@ namespace Cloud9_2.Services
                 CustomerCommunicationId = dto.CustomerCommunicationId == 0 ? null : dto.CustomerCommunicationId,
 
                 CreatedById = currentUserId,
-                CreatedDate = DateTime.UtcNow,
-                UpdatedDate = DateTime.UtcNow
+                CreatedDate = DateTime.Now,
+                UpdatedDate = DateTime.Now
             };
 
             using var transaction = await _context.Database.BeginTransactionAsync();
@@ -329,6 +332,7 @@ namespace Cloud9_2.Services
             task.ActualHours = dto.ActualHours;
 
             task.PartnerId = dto.PartnerId;
+            task.RelatedPartnerId = dto.RelatedPartnerId;
             task.SiteId = dto.SiteId;
             task.ContactId = dto.ContactId;
             task.QuoteId = dto.QuoteId;
@@ -499,29 +503,66 @@ namespace Cloud9_2.Services
             int? taskTypeId = null,
             int? partnerId = null,
             int? siteId = null,
+            int? relatedPartnerId = null,
             string? assignedToId = null,
             DateTime? dueDateFrom = null,
             DateTime? dueDateTo = null,
             DateTime? createdDateFrom = null,
-            DateTime? createdDateTo = null)
+            DateTime? createdDateTo = null,
+            TaskDisplayType? displayType = null
+        )
         {
             page = Math.Max(1, page);
             pageSize = Math.Max(1, Math.Min(100, pageSize));
             sort ??= "Id";
             order ??= "desc";
 
-            var query = BaseQuery(_context).Where(t => t.IsActive);
+            // Base
+            var query = BaseQuery(_context)
+                .Where(t => t.IsActive);
 
+            // -------------------------------------------------
+            // ✅ DisplayType filter (Bejelentés/Intézkedés)
+            // Mindkettő egyezzen: Status.DisplayType és Type.DisplayType
+            // -------------------------------------------------
+            if (displayType.HasValue)
+            {
+                var dt = (int)displayType.Value;
+
+                query = query.Where(t =>
+                    t.TaskStatusPM != null && t.TaskStatusPM.DisplayType == dt &&
+                    t.TaskTypePM != null && t.TaskTypePM.DisplayType == dt
+                );
+            }
+
+            // -------------------------------------------------
             // Filters
-            if (statusId.HasValue) query = query.Where(t => t.TaskStatusPMId == statusId.Value);
-            if (priorityId.HasValue) query = query.Where(t => t.TaskPriorityPMId == priorityId.Value);
-            if (taskTypeId.HasValue) query = query.Where(t => t.TaskTypePMId == taskTypeId.Value);
-            if (partnerId.HasValue) query = query.Where(t => t.PartnerId == partnerId.Value);
-            if (siteId.HasValue) query = query.Where(t => t.SiteId == siteId.Value);
+            // -------------------------------------------------
+            if (statusId.HasValue)
+                query = query.Where(t => t.TaskStatusPMId == statusId.Value);
+
+            if (priorityId.HasValue)
+                query = query.Where(t => t.TaskPriorityPMId == priorityId.Value);
+
+            if (taskTypeId.HasValue)
+                query = query.Where(t => t.TaskTypePMId == taskTypeId.Value);
+
+            if (partnerId.HasValue)
+                query = query.Where(t => t.PartnerId == partnerId.Value);
+
+            if (relatedPartnerId.HasValue)
+                query = query.Where(t => t.RelatedPartnerId == relatedPartnerId.Value);
+
+
+            if (siteId.HasValue)
+                query = query.Where(t => t.SiteId == siteId.Value);
+
             if (!string.IsNullOrWhiteSpace(assignedToId))
                 query = query.Where(t => t.AssignedToId == assignedToId);
 
+            // -------------------------------------------------
             // Date ranges
+            // -------------------------------------------------
             if (dueDateFrom.HasValue)
                 query = query.Where(t => t.DueDate >= dueDateFrom.Value.Date);
 
@@ -534,22 +575,34 @@ namespace Cloud9_2.Services
             if (createdDateTo.HasValue)
                 query = query.Where(t => t.CreatedDate <= createdDateTo.Value.Date.AddDays(1).AddSeconds(-1));
 
+            // -------------------------------------------------
             // Search
+            // (EF oldalon: ToLower().Contains -> működik, de nagy adaton drágább,
+            // később érdemes FullText/Computed column/ILIKE jellegű optimalizálás)
+            // -------------------------------------------------
             if (!string.IsNullOrWhiteSpace(searchTerm))
             {
                 var term = searchTerm.Trim().ToLower();
+
                 query = query.Where(t =>
                     t.Title.ToLower().Contains(term) ||
                     (t.Description != null && t.Description.ToLower().Contains(term)) ||
+                    (t.RelatedPartner != null && t.RelatedPartner.Name.ToLower().Contains(term)) ||
                     (t.AssignedTo != null && t.AssignedTo.UserName.ToLower().Contains(term)) ||
                     (t.CreatedBy != null && t.CreatedBy.UserName.ToLower().Contains(term)) ||
                     (t.Site != null && t.Site.SiteName.ToLower().Contains(term)) ||
-                    (t.Site != null && t.Site.City.ToLower().Contains(term)));
+                    (t.Site != null && t.Site.City.ToLower().Contains(term))
+                );
             }
 
+            // -------------------------------------------------
+            // TotalCount
+            // -------------------------------------------------
             var totalCount = await query.CountAsync();
 
+            // -------------------------------------------------
             // Sorting
+            // -------------------------------------------------
             query = sort.ToLowerInvariant() switch
             {
                 "title" => order == "desc" ? query.OrderByDescending(t => t.Title) : query.OrderBy(t => t.Title),
@@ -559,11 +612,17 @@ namespace Cloud9_2.Services
                 "assignedto" => order == "desc" ? query.OrderByDescending(t => t.AssignedTo!.UserName) : query.OrderBy(t => t.AssignedTo!.UserName),
                 "createddate" => order == "desc" ? query.OrderByDescending(t => t.CreatedDate) : query.OrderBy(t => t.CreatedDate),
                 "partner" => order == "desc" ? query.OrderByDescending(t => t.Partner!.Name) : query.OrderBy(t => t.Partner!.Name),
+                "relatedpartner" => order == "desc"
+                                                ? query.OrderByDescending(t => t.RelatedPartner!.Name)
+                                                : query.OrderBy(t => t.RelatedPartner!.Name),
                 "site" => order == "desc" ? query.OrderByDescending(t => t.Site!.SiteName) : query.OrderBy(t => t.Site!.SiteName),
                 "tasktype" => order == "desc" ? query.OrderByDescending(t => t.TaskTypePM!.TaskTypePMName) : query.OrderBy(t => t.TaskTypePM!.TaskTypePMName),
                 _ => order == "desc" ? query.OrderByDescending(t => t.Id) : query.OrderBy(t => t.Id)
             };
 
+            // -------------------------------------------------
+            // Paging + DTO
+            // -------------------------------------------------
             var items = await query
                 .Skip((page - 1) * pageSize)
                 .Take(pageSize)
@@ -629,6 +688,9 @@ namespace Cloud9_2.Services
                 PartnerId = task.PartnerId,
                 PartnerName = task.Partner?.Name,
 
+                RelatedPartnerId = task.RelatedPartnerId,
+                RelatedPartnerName = task.RelatedPartner?.Name,
+
                 SiteId = task.SiteId,
                 SiteName = task.Site?.SiteName,
                 City = task.Site?.City,
@@ -668,143 +730,143 @@ namespace Cloud9_2.Services
             };
         }
 
-// -----------------------------------------------------------------
-// Attach existing document to task (MEGMARAD – ha már van DocumentId)
-// -----------------------------------------------------------------
-public async Task AttachDocumentAsync(int taskId, int documentId, string currentUserId, string? note = null)
-{
-    if (!await _context.TaskPMs.AnyAsync(t => t.Id == taskId && t.IsActive))
-        throw new KeyNotFoundException($"Task {taskId} not found.");
-
-    if (!await _context.Documents.AnyAsync(d => d.DocumentId == documentId))
-        throw new KeyNotFoundException($"Document {documentId} not found.");
-
-    var alreadyAttached = await _context.TaskDocumentLinks
-        .AnyAsync(x => x.TaskId == taskId && x.DocumentId == documentId);
-
-    if (alreadyAttached)
-        return;
-
-    var link = new TaskDocumentLink
-    {
-        TaskId = taskId,
-        DocumentId = documentId,
-        LinkedDate = DateTime.UtcNow,
-        LinkedById = currentUserId,
-        Note = string.IsNullOrWhiteSpace(note) ? null : note.Trim()
-    };
-
-    _context.TaskDocumentLinks.Add(link);
-    await _context.SaveChangesAsync();
-}
-
-// -----------------------------------------------------------------
-// ✅ NEW: Attach LINK to task (Document rekord csak meta+FilePath, NINCS upload)
-// -----------------------------------------------------------------
-public async Task AttachLinkAsync(
-    int taskId,
-    string filePath,
-    string currentUserId,
-    string? fileName = null,
-    string? note = null)
-{
-    if (!await _context.TaskPMs.AnyAsync(t => t.Id == taskId && t.IsActive))
-        throw new KeyNotFoundException($"Task {taskId} not found.");
-
-    if (string.IsNullOrWhiteSpace(filePath))
-        throw new ValidationException("FilePath is required.");
-
-    var normalizedPath = filePath.Trim();
-
-    // FileName ha nincs megadva: próbáljuk a path végéből kinyerni
-    var name = (fileName ?? "").Trim();
-    if (string.IsNullOrWhiteSpace(name))
-    {
-        try
+        // -----------------------------------------------------------------
+        // Attach existing document to task (MEGMARAD – ha már van DocumentId)
+        // -----------------------------------------------------------------
+        public async Task AttachDocumentAsync(int taskId, int documentId, string currentUserId, string? note = null)
         {
-            name = Path.GetFileName(normalizedPath.TrimEnd('\\', '/'));
+            if (!await _context.TaskPMs.AnyAsync(t => t.Id == taskId && t.IsActive))
+                throw new KeyNotFoundException($"Task {taskId} not found.");
+
+            if (!await _context.Documents.AnyAsync(d => d.DocumentId == documentId))
+                throw new KeyNotFoundException($"Document {documentId} not found.");
+
+            var alreadyAttached = await _context.TaskDocumentLinks
+                .AnyAsync(x => x.TaskId == taskId && x.DocumentId == documentId);
+
+            if (alreadyAttached)
+                return;
+
+            var link = new TaskDocumentLink
+            {
+                TaskId = taskId,
+                DocumentId = documentId,
+                LinkedDate = DateTime.UtcNow,
+                LinkedById = currentUserId,
+                Note = string.IsNullOrWhiteSpace(note) ? null : note.Trim()
+            };
+
+            _context.TaskDocumentLinks.Add(link);
+            await _context.SaveChangesAsync();
         }
-        catch { /* ignore */ }
 
-        if (string.IsNullOrWhiteSpace(name))
-            name = "Hivatkozás";
-    }
-
-    // 🔎 opcionális: ha ugyanaz a FilePath már létezik a Documents-ben, akkor azt reuse-oljuk
-    // (ha nem akarod: töröld ezt a blokkot, és mindig új Document rekord jön létre)
-    var existingDoc = await _context.Documents
-        .FirstOrDefaultAsync(d => d.FilePath == normalizedPath && d.FileName == name);
-
-    var doc = existingDoc;
-    if (doc == null)
-    {
-        doc = new Document
+        // -----------------------------------------------------------------
+        // ✅ NEW: Attach LINK to task (Document rekord csak meta+FilePath, NINCS upload)
+        // -----------------------------------------------------------------
+        public async Task AttachLinkAsync(
+            int taskId,
+            string filePath,
+            string currentUserId,
+            string? fileName = null,
+            string? note = null)
         {
-            FileName = name,
-            FilePath = normalizedPath
-        };
+            if (!await _context.TaskPMs.AnyAsync(t => t.Id == taskId && t.IsActive))
+                throw new KeyNotFoundException($"Task {taskId} not found.");
 
-        _context.Documents.Add(doc);
-        await _context.SaveChangesAsync(); // doc.DocumentId kell
-    }
+            if (string.IsNullOrWhiteSpace(filePath))
+                throw new ValidationException("FilePath is required.");
 
-    // ne duplázzunk taskon belül
-    var alreadyAttached = await _context.TaskDocumentLinks
-        .AnyAsync(x => x.TaskId == taskId && x.DocumentId == doc.DocumentId);
+            var normalizedPath = filePath.Trim();
 
-    if (alreadyAttached)
-        return;
+            // FileName ha nincs megadva: próbáljuk a path végéből kinyerni
+            var name = (fileName ?? "").Trim();
+            if (string.IsNullOrWhiteSpace(name))
+            {
+                try
+                {
+                    name = Path.GetFileName(normalizedPath.TrimEnd('\\', '/'));
+                }
+                catch { /* ignore */ }
 
-    var link = new TaskDocumentLink
-    {
-        TaskId = taskId,
-        DocumentId = doc.DocumentId,
-        LinkedDate = DateTime.UtcNow,
-        LinkedById = currentUserId,
-        Note = string.IsNullOrWhiteSpace(note) ? null : note.Trim()
-    };
+                if (string.IsNullOrWhiteSpace(name))
+                    name = "Hivatkozás";
+            }
 
-    _context.TaskDocumentLinks.Add(link);
-    await _context.SaveChangesAsync();
-}
+            // 🔎 opcionális: ha ugyanaz a FilePath már létezik a Documents-ben, akkor azt reuse-oljuk
+            // (ha nem akarod: töröld ezt a blokkot, és mindig új Document rekord jön létre)
+            var existingDoc = await _context.Documents
+                .FirstOrDefaultAsync(d => d.FilePath == normalizedPath && d.FileName == name);
 
-// -----------------------------------------------------------------
-// Remove document link from task (MEGMARAD)
-// -----------------------------------------------------------------
-public async Task RemoveDocumentAsync(int taskId, int documentLinkId, string currentUserId)
-{
-    var link = await _context.TaskDocumentLinks
-        .FirstOrDefaultAsync(x => x.Id == documentLinkId && x.TaskId == taskId);
+            var doc = existingDoc;
+            if (doc == null)
+            {
+                doc = new Document
+                {
+                    FileName = name,
+                    FilePath = normalizedPath
+                };
 
-    if (link == null)
-        throw new KeyNotFoundException($"Attachment {documentLinkId} not found on task {taskId}");
+                _context.Documents.Add(doc);
+                await _context.SaveChangesAsync(); // doc.DocumentId kell
+            }
 
-    _context.TaskDocumentLinks.Remove(link);
-    await _context.SaveChangesAsync();
-}
+            // ne duplázzunk taskon belül
+            var alreadyAttached = await _context.TaskDocumentLinks
+                .AnyAsync(x => x.TaskId == taskId && x.DocumentId == doc.DocumentId);
 
-// -----------------------------------------------------------------
-// Optional: Attach multiple existing DocumentIds at once (MEGMARAD)
-// -----------------------------------------------------------------
-public async Task AttachDocumentsAsync(int taskId, List<int> documentIds, string currentUserId, string? note = null)
-{
-    foreach (var docId in (documentIds ?? new List<int>()).Distinct())
-    {
-        await AttachDocumentAsync(taskId, docId, currentUserId, note);
-    }
-}
+            if (alreadyAttached)
+                return;
 
-// -----------------------------------------------------------------
-// ✅ Optional: Attach multiple LINKS at once
-// -----------------------------------------------------------------
-public async Task AttachLinksAsync(int taskId, List<string> filePaths, string currentUserId, string? note = null)
-{
-    foreach (var p in (filePaths ?? new List<string>()))
-    {
-        if (string.IsNullOrWhiteSpace(p)) continue;
-        await AttachLinkAsync(taskId, p, currentUserId, fileName: null, note: note);
-    }
-}
+            var link = new TaskDocumentLink
+            {
+                TaskId = taskId,
+                DocumentId = doc.DocumentId,
+                LinkedDate = DateTime.UtcNow,
+                LinkedById = currentUserId,
+                Note = string.IsNullOrWhiteSpace(note) ? null : note.Trim()
+            };
+
+            _context.TaskDocumentLinks.Add(link);
+            await _context.SaveChangesAsync();
+        }
+
+        // -----------------------------------------------------------------
+        // Remove document link from task (MEGMARAD)
+        // -----------------------------------------------------------------
+        public async Task RemoveDocumentAsync(int taskId, int documentLinkId, string currentUserId)
+        {
+            var link = await _context.TaskDocumentLinks
+                .FirstOrDefaultAsync(x => x.Id == documentLinkId && x.TaskId == taskId);
+
+            if (link == null)
+                throw new KeyNotFoundException($"Attachment {documentLinkId} not found on task {taskId}");
+
+            _context.TaskDocumentLinks.Remove(link);
+            await _context.SaveChangesAsync();
+        }
+
+        // -----------------------------------------------------------------
+        // Optional: Attach multiple existing DocumentIds at once (MEGMARAD)
+        // -----------------------------------------------------------------
+        public async Task AttachDocumentsAsync(int taskId, List<int> documentIds, string currentUserId, string? note = null)
+        {
+            foreach (var docId in (documentIds ?? new List<int>()).Distinct())
+            {
+                await AttachDocumentAsync(taskId, docId, currentUserId, note);
+            }
+        }
+
+        // -----------------------------------------------------------------
+        // ✅ Optional: Attach multiple LINKS at once
+        // -----------------------------------------------------------------
+        public async Task AttachLinksAsync(int taskId, List<string> filePaths, string currentUserId, string? note = null)
+        {
+            foreach (var p in (filePaths ?? new List<string>()))
+            {
+                if (string.IsNullOrWhiteSpace(p)) continue;
+                await AttachLinkAsync(taskId, p, currentUserId, fileName: null, note: note);
+            }
+        }
 
     }
 

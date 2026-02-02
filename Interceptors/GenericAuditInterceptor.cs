@@ -79,30 +79,36 @@ namespace Cloud9_2.Interceptors
         private async Task<string> GetCommunicationTypeNameAsync(DbContext context, int typeId)
         {
             if (typeId <= 0) return "—";
+
             var name = await context.Set<CommunicationType>()
                 .Where(t => t.CommunicationTypeId == typeId)
                 .Select(t => t.Name)
                 .FirstOrDefaultAsync();
+
             return string.IsNullOrWhiteSpace(name) ? $"#{typeId}" : name;
         }
 
         private async Task<string> GetCommunicationStatusNameAsync(DbContext context, int statusId)
         {
             if (statusId <= 0) return "—";
+
             var name = await context.Set<CommunicationStatus>()
                 .Where(s => s.StatusId == statusId)
                 .Select(s => s.Name)
                 .FirstOrDefaultAsync();
+
             return string.IsNullOrWhiteSpace(name) ? $"#{statusId}" : name;
         }
 
         private async Task<string> GetDocumentTypeNameAsync(DbContext context, int? typeId)
         {
             if (!typeId.HasValue || typeId.Value <= 0) return "—";
+
             var name = await context.Set<DocumentType>()
                 .Where(t => t.DocumentTypeId == typeId.Value)
                 .Select(t => t.Name)
                 .FirstOrDefaultAsync();
+
             return string.IsNullOrWhiteSpace(name) ? $"#{typeId.Value}" : name;
         }
 
@@ -123,14 +129,13 @@ namespace Cloud9_2.Interceptors
         {
             if (!typeId.HasValue || typeId.Value <= 0) return "—";
 
-            var name = await context.Set<TaskTypePM>()   // <-- ha nálad más a típus neve, ezt cseréld
+            var name = await context.Set<TaskTypePM>() // <-- ha nálad más a típus neve, ezt cseréld
                 .Where(x => x.TaskTypePMId == typeId.Value)
                 .Select(x => x.TaskTypePMName)
                 .FirstOrDefaultAsync();
 
             return string.IsNullOrWhiteSpace(name) ? $"#{typeId.Value}" : name;
         }
-
 
         // ✅ TaskPM Status név
         private async Task<string> GetTaskStatusNameAsync(DbContext context, int? statusId)
@@ -145,6 +150,31 @@ namespace Cloud9_2.Interceptors
             return string.IsNullOrWhiteSpace(name) ? $"#{statusId.Value}" : name;
         }
 
+        // ✅ Helper: string ("null"/""/whitespace) -> int?
+        private static int? ToNullableInt(string? s)
+        {
+            if (string.IsNullOrWhiteSpace(s)) return null;
+
+            s = s.Trim();
+            if (string.Equals(s, "null", StringComparison.OrdinalIgnoreCase)) return null;
+
+            return int.TryParse(s, out var n) ? n : (int?)null;
+        }
+
+        // ✅ ÚJ: TaskPM kommunikációs mód név (TaskPMcomMethodID) entity nélkül (raw SQL)
+// ✅ TaskPM kommunikációs mód név (TaskPMcomMethodID) -> CommunicationTypes
+private async Task<string> GetTaskPmComMethodNameAsync(DbContext context, int? methodId)
+{
+    if (!methodId.HasValue || methodId.Value <= 0) return "—";
+
+    var name = await context.Set<CommunicationType>()
+        .Where(x => x.CommunicationTypeId == methodId.Value)
+        .Select(x => x.Name)
+        .FirstOrDefaultAsync();
+
+    return string.IsNullOrWhiteSpace(name) ? $"#{methodId.Value}" : name;
+}
+
         private async Task AuditChangesAsync(DbContext context)
         {
             var userId = GetCurrentUserId();
@@ -158,7 +188,6 @@ namespace Cloud9_2.Interceptors
                 var clrType = entry.Metadata.ClrType; // ✅ proxy-biztos
                 if (!AuditedEntities.TryGetValue(clrType, out var entityTypeName))
                     continue;
-
 
                 int entityId = GetEntityId(entry);
 
@@ -324,17 +353,20 @@ namespace Cloud9_2.Interceptors
                                     "Title" => "Cím",
                                     "Description" => "Leírás",
                                     "DueDate" => "Határidő",
+                                    "PartnerId" => "Partner",
+                                    "SiteId" => "Telephely",
                                     "AssignedToId" => "Felelős",
                                     "TaskPriorityPMId" => "Prioritás",
                                     "TaskStatusPMId" => "Státusz",
                                     "TaskTypePMId" => "Feladat típusa",
+                                    "TaskPMcomMethodID" => "Kommunikáció mód",
                                     _ => prop.Metadata.Name
                                 };
 
                                 if (prop.Metadata.Name == "TaskTypePMId")
                                 {
-                                    var oldId = int.TryParse(oldValue, out var oi) ? (int?)oi : null;
-                                    var newId = int.TryParse(newValue, out var ni) ? (int?)ni : null;
+                                    var oldId = ToNullableInt(oldValue);
+                                    var newId = ToNullableInt(newValue);
 
                                     var oldName = await GetTaskTypeNameAsync(context, oldId);
                                     var newName = await GetTaskTypeNameAsync(context, newId);
@@ -353,8 +385,8 @@ namespace Cloud9_2.Interceptors
 
                                 if (prop.Metadata.Name == "TaskPriorityPMId")
                                 {
-                                    var oldId = int.TryParse(oldValue, out var oi) ? (int?)oi : null;
-                                    var newId = int.TryParse(newValue, out var ni) ? (int?)ni : null;
+                                    var oldId = ToNullableInt(oldValue);
+                                    var newId = ToNullableInt(newValue);
 
                                     var oldName = await GetTaskPriorityNameAsync(context, oldId);
                                     var newName = await GetTaskPriorityNameAsync(context, newId);
@@ -365,11 +397,50 @@ namespace Cloud9_2.Interceptors
 
                                 if (prop.Metadata.Name == "TaskStatusPMId")
                                 {
-                                    var oldId = int.TryParse(oldValue, out var oi) ? (int?)oi : null;
-                                    var newId = int.TryParse(newValue, out var ni) ? (int?)ni : null;
+                                    var oldId = ToNullableInt(oldValue);
+                                    var newId = ToNullableInt(newValue);
 
                                     var oldName = await GetTaskStatusNameAsync(context, oldId);
                                     var newName = await GetTaskStatusNameAsync(context, newId);
+
+                                    changes.Add($"{displayName}: {oldName} → {newName}");
+                                    continue;
+                                }
+
+                                // ✅ ÚJ: PartnerId -> Partner név
+                                if (prop.Metadata.Name == "PartnerId")
+                                {
+                                    var oldId = ToNullableInt(oldValue);
+                                    var newId = ToNullableInt(newValue);
+
+                                    var oldName = await GetPartnerNameAsync(context, oldId);
+                                    var newName = await GetPartnerNameAsync(context, newId);
+
+                                    changes.Add($"{displayName}: {oldName} → {newName}");
+                                    continue;
+                                }
+
+                                // ✅ ÚJ: SiteId -> Telephely név
+                                if (prop.Metadata.Name == "SiteId")
+                                {
+                                    var oldId = ToNullableInt(oldValue);
+                                    var newId = ToNullableInt(newValue);
+
+                                    var oldName = await GetSiteNameAsync(context, oldId);
+                                    var newName = await GetSiteNameAsync(context, newId);
+
+                                    changes.Add($"{displayName}: {oldName} → {newName}");
+                                    continue;
+                                }
+
+                                // ✅ ÚJ: TaskPMcomMethodID -> kommunikáció mód név
+                                if (prop.Metadata.Name == "TaskPMcomMethodID")
+                                {
+                                    var oldId = ToNullableInt(oldValue);
+                                    var newId = ToNullableInt(newValue);
+
+                                    var oldName = await GetTaskPmComMethodNameAsync(context, oldId);
+                                    var newName = await GetTaskPmComMethodNameAsync(context, newId);
 
                                     changes.Add($"{displayName}: {oldName} → {newName}");
                                     continue;
@@ -397,40 +468,48 @@ namespace Cloud9_2.Interceptors
 
                                 if (prop.Metadata.Name == "PartnerId")
                                 {
-                                    var oldP = int.TryParse(oldValue, out var op) ? (int?)op : null;
-                                    var newP = int.TryParse(newValue, out var np) ? (int?)np : null;
+                                    var oldP = ToNullableInt(oldValue);
+                                    var newP = ToNullableInt(newValue);
+
                                     var oldName = await GetPartnerNameAsync(context, oldP);
                                     var newName = await GetPartnerNameAsync(context, newP);
+
                                     changes.Add($"{displayName}: {oldName} → {newName}");
                                     continue;
                                 }
 
                                 if (prop.Metadata.Name == "SiteId")
                                 {
-                                    var oldS = int.TryParse(oldValue, out var os) ? (int?)os : null;
-                                    var newS = int.TryParse(newValue, out var ns) ? (int?)ns : null;
+                                    var oldS = ToNullableInt(oldValue);
+                                    var newS = ToNullableInt(newValue);
+
                                     var oldName = await GetSiteNameAsync(context, oldS);
                                     var newName = await GetSiteNameAsync(context, newS);
+
                                     changes.Add($"{displayName}: {oldName} → {newName}");
                                     continue;
                                 }
 
                                 if (prop.Metadata.Name == "CommunicationTypeId")
                                 {
-                                    var oldT = int.TryParse(oldValue, out var ot) ? ot : 0;
-                                    var newT = int.TryParse(newValue, out var nt) ? nt : 0;
+                                    var oldT = ToNullableInt(oldValue) ?? 0;
+                                    var newT = ToNullableInt(newValue) ?? 0;
+
                                     var oldName = await GetCommunicationTypeNameAsync(context, oldT);
                                     var newName = await GetCommunicationTypeNameAsync(context, newT);
+
                                     changes.Add($"{displayName}: {oldName} → {newName}");
                                     continue;
                                 }
 
                                 if (prop.Metadata.Name == "StatusId")
                                 {
-                                    var oldSt = int.TryParse(oldValue, out var ost) ? ost : 0;
-                                    var newSt = int.TryParse(newValue, out var nst) ? nst : 0;
+                                    var oldSt = ToNullableInt(oldValue) ?? 0;
+                                    var newSt = ToNullableInt(newValue) ?? 0;
+
                                     var oldName = await GetCommunicationStatusNameAsync(context, oldSt);
                                     var newName = await GetCommunicationStatusNameAsync(context, newSt);
+
                                     changes.Add($"{displayName}: {oldName} → {newName}");
                                     continue;
                                 }
@@ -470,30 +549,36 @@ namespace Cloud9_2.Interceptors
 
                                 if (prop.Metadata.Name == "PartnerId")
                                 {
-                                    var oldP = int.TryParse(oldValue, out var op) ? (int?)op : null;
-                                    var newP = int.TryParse(newValue, out var np) ? (int?)np : null;
+                                    var oldP = ToNullableInt(oldValue);
+                                    var newP = ToNullableInt(newValue);
+
                                     var oldName = await GetPartnerNameAsync(context, oldP);
                                     var newName = await GetPartnerNameAsync(context, newP);
+
                                     changes.Add($"{displayName}: {oldName} → {newName}");
                                     continue;
                                 }
 
                                 if (prop.Metadata.Name == "SiteId")
                                 {
-                                    var oldS = int.TryParse(oldValue, out var os) ? (int?)os : null;
-                                    var newS = int.TryParse(newValue, out var ns) ? (int?)ns : null;
+                                    var oldS = ToNullableInt(oldValue);
+                                    var newS = ToNullableInt(newValue);
+
                                     var oldName = await GetSiteNameAsync(context, oldS);
                                     var newName = await GetSiteNameAsync(context, newS);
+
                                     changes.Add($"{displayName}: {oldName} → {newName}");
                                     continue;
                                 }
 
                                 if (prop.Metadata.Name == "DocumentTypeId")
                                 {
-                                    var oldT = int.TryParse(oldValue, out var ot) ? (int?)ot : null;
-                                    var newT = int.TryParse(newValue, out var nt) ? (int?)nt : null;
+                                    var oldT = ToNullableInt(oldValue);
+                                    var newT = ToNullableInt(newValue);
+
                                     var oldName = await GetDocumentTypeNameAsync(context, oldT);
                                     var newName = await GetDocumentTypeNameAsync(context, newT);
+
                                     changes.Add($"{displayName}: {oldName} → {newName}");
                                     continue;
                                 }

@@ -96,6 +96,16 @@ namespace Cloud9_2.Data
         {
             base.OnModelCreating(modelBuilder);
 
+            modelBuilder.Entity<Partner>().ToTable("Partners");
+
+            modelBuilder.Entity<TaskPM>()
+                .HasOne(t => t.Partner)
+                .WithMany()
+                .HasForeignKey(t => t.PartnerId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+
+
 
             // ----------------------------------------------------------------
             modelBuilder.Entity<TaskPM>()
@@ -124,23 +134,23 @@ namespace Cloud9_2.Data
 
             modelBuilder.Entity<Partner>(entity =>
             {
-            // Computed columnok – EF ne próbálja frissíteni/insertelni őket
-        entity.Property(p => p.CompanyNameTrim)
-            .HasComputedColumnSql("CASE WHEN [CompanyName] IS NULL THEN NULL ELSE CONVERT([nvarchar](450), LEFT(LTRIM(RTRIM([CompanyName])), 450)) END PERSISTED")
-            .ValueGeneratedOnAddOrUpdate();
+                // Computed columnok – EF ne próbálja frissíteni/insertelni őket
+                entity.Property(p => p.CompanyNameTrim)
+                    .HasComputedColumnSql("CASE WHEN [CompanyName] IS NULL THEN NULL ELSE CONVERT([nvarchar](450), LEFT(LTRIM(RTRIM([CompanyName])), 450)) END PERSISTED")
+                    .ValueGeneratedOnAddOrUpdate();
 
-        entity.Property(p => p.NameTrim)
-            .HasComputedColumnSql("CASE WHEN [Name] IS NULL THEN NULL ELSE CONVERT([nvarchar](450), LEFT(LTRIM(RTRIM([Name])), 450)) END PERSISTED")
-            .ValueGeneratedOnAddOrUpdate();
+                entity.Property(p => p.NameTrim)
+                    .HasComputedColumnSql("CASE WHEN [Name] IS NULL THEN NULL ELSE CONVERT([nvarchar](450), LEFT(LTRIM(RTRIM([Name])), 450)) END PERSISTED")
+                    .ValueGeneratedOnAddOrUpdate();
 
-        entity.Property(p => p.TaxIdTrim)
-            .HasComputedColumnSql("CASE WHEN [TaxId] IS NULL THEN NULL ELSE CONVERT([nvarchar](50), LEFT(LTRIM(RTRIM([TaxId])), 50)) END PERSISTED")
-            .ValueGeneratedOnAddOrUpdate();
+                entity.Property(p => p.TaxIdTrim)
+                    .HasComputedColumnSql("CASE WHEN [TaxId] IS NULL THEN NULL ELSE CONVERT([nvarchar](50), LEFT(LTRIM(RTRIM([TaxId])), 50)) END PERSISTED")
+                    .ValueGeneratedOnAddOrUpdate();
             });
 
 
             modelBuilder.Entity<ResourceHistory>().ToTable("ResourceHistory");
-            
+
             modelBuilder.Entity<TaskHistory>().ToTable("TaskHistory");
 
             modelBuilder.Entity<GFO>().ToTable("GFO");
@@ -169,7 +179,7 @@ namespace Cloud9_2.Data
             modelBuilder.Entity<TaskDocumentLink>(entity =>
     {
         entity.HasKey(e => e.Id);
-        
+
         entity.HasOne(e => e.Task)
               .WithMany(t => t.TaskDocuments)
               .HasForeignKey(e => e.TaskId)
@@ -186,41 +196,41 @@ namespace Cloud9_2.Data
               .OnDelete(DeleteBehavior.SetNull);
     });
 
-    modelBuilder.Entity<Partner>()
-    .HasMany(p => p.Sites)
-    .WithOne(s => s.Partner)
-    .HasForeignKey(s => s.PartnerId)
-    .OnDelete(DeleteBehavior.Cascade);
+            modelBuilder.Entity<Partner>()
+            .HasMany(p => p.Sites)
+            .WithOne(s => s.Partner)
+            .HasForeignKey(s => s.PartnerId)
+            .OnDelete(DeleteBehavior.Cascade);
 
-modelBuilder.Entity<Partner>()
-    .HasMany(p => p.Contacts)
-    .WithOne(c => c.Partner)
-    .HasForeignKey(c => c.PartnerId)
-    .OnDelete(DeleteBehavior.Cascade);
+            modelBuilder.Entity<Partner>()
+                .HasMany(p => p.Contacts)
+                .WithOne(c => c.Partner)
+                .HasForeignKey(c => c.PartnerId)
+                .OnDelete(DeleteBehavior.Cascade);
 
-modelBuilder.Entity<Partner>()
-    .HasMany(p => p.Documents)
-    .WithOne(d => d.Partner)
-    .HasForeignKey(d => d.PartnerId)
-    .OnDelete(DeleteBehavior.Cascade);
+            modelBuilder.Entity<Partner>()
+                .HasMany(p => p.Documents)
+                .WithOne(d => d.Partner)
+                .HasForeignKey(d => d.PartnerId)
+                .OnDelete(DeleteBehavior.Cascade);
 
-// TaskPM
-    modelBuilder.Entity<TaskPM>(entity =>
-    {
-        entity.ToTable("TaskPM");
-        entity.Property(t => t.AssignedToId).HasColumnName("AssignedTo");
-        entity.Property(t => t.CreatedById).HasColumnName("CreatedBy");
+            // TaskPM
+            modelBuilder.Entity<TaskPM>(entity =>
+            {
+                entity.ToTable("TaskPM");
+                entity.Property(t => t.AssignedToId).HasColumnName("AssignedTo");
+                entity.Property(t => t.CreatedById).HasColumnName("CreatedBy");
 
-        entity.HasOne(t => t.AssignedTo)
-              .WithMany()
-              .HasForeignKey(t => t.AssignedToId)
-              .HasPrincipalKey(u => u.Id);
+                entity.HasOne(t => t.AssignedTo)
+                      .WithMany()
+                      .HasForeignKey(t => t.AssignedToId)
+                      .HasPrincipalKey(u => u.Id);
 
-        entity.HasOne(t => t.CreatedBy)
-              .WithMany()
-              .HasForeignKey(t => t.CreatedById)
-              .HasPrincipalKey(u => u.Id);
-    });
+                entity.HasOne(t => t.CreatedBy)
+                      .WithMany()
+                      .HasForeignKey(t => t.CreatedById)
+                      .HasPrincipalKey(u => u.Id);
+            });
 
             // ProjectPM
             modelBuilder.Entity<ProjectPM>(entity =>
@@ -229,7 +239,7 @@ modelBuilder.Entity<Partner>()
                 entity.HasKey(p => p.ProjectPMId);
                 // Add other config if needed
             });
-    
+
 
 
 
@@ -263,7 +273,7 @@ modelBuilder.Entity<Partner>()
             // HR
             // Map Employee to singular table name
             modelBuilder.Entity<Employees>().ToTable("Employee");
-            
+
             modelBuilder.Entity<Employees>().HasQueryFilter(e => e.IsActive);
 
             // Map EmploymentStatus to its table
@@ -979,7 +989,7 @@ modelBuilder.Entity<Partner>()
                 .HasForeignKey(l => l.PartnerId)
                 .OnDelete(DeleteBehavior.Restrict);
 
-                modelBuilder.Entity<Lead>().HasQueryFilter(l => l.IsActive);
+            modelBuilder.Entity<Lead>().HasQueryFilter(l => l.IsActive);
 
             modelBuilder.Entity<Quote>(entity =>
             {
@@ -1042,7 +1052,7 @@ modelBuilder.Entity<Partner>()
                 .WithOne(q => q.Partner)
                 .HasForeignKey(q => q.PartnerId);
 
-                modelBuilder.Entity<Partner>().HasQueryFilter(p => p.IsActive);
+            modelBuilder.Entity<Partner>().HasQueryFilter(p => p.IsActive);
 
             modelBuilder.Entity<Product>()
             .HasOne(p => p.BaseUOM)
